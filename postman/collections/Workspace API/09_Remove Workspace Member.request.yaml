@@ -1,0 +1,17 @@
+$kind: http-request
+name: Remove Workspace Member
+url: '{{baseUrl}}/workspaces/{{workspaceId}}/members/{{workspaceMemberUserId}}'
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Member removed", function () {
+        pm.expect(pm.response.code).to.equal(204);
+      });
+order: 10000

@@ -1,0 +1,22 @@
+$kind: http-request
+name: Get Workspace By ID
+url: '{{baseUrl}}/workspaces/{{workspaceId}}'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const workspace = pm.response.json();
+      pm.test("Workspace ID matches environment", function () {
+        pm.expect(workspace._id).to.equal(pm.environment.get("workspaceId"));
+      });
+order: 6000

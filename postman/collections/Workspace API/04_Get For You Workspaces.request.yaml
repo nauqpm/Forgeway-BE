@@ -1,0 +1,34 @@
+$kind: http-request
+name: Get For You Workspaces
+url: '{{baseUrl}}/for-you'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const data = pm.response.json();
+      pm.test("For-you response shape", function () {
+        pm.expect(data).to.have.property("success", true);
+        pm.expect(data).to.have.property("workspaces").that.is.an("array");
+      });
+
+      const workspaceId = pm.environment.get("workspaceId");
+      if (workspaceId) {
+        const workspace = data.workspaces.find((item) => item.id === workspaceId);
+        pm.test("Created workspace appears on for-you", function () {
+          pm.expect(workspace, "created workspace").to.exist;
+        });
+        pm.test("For-you item contains current user relationship", function () {
+          pm.expect(workspace).to.include.keys(["role", "relationship", "ownershipLabel"]);
+        });
+      }
+order: 5000
