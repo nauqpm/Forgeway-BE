@@ -37,8 +37,32 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
     }
+    const objectUserId = new Types.ObjectId(userId);
     return this.workspaceModel
-      .find({ 'members.userId': new Types.ObjectId(userId) })
+      .find({
+        $or: [
+          { ownerId: objectUserId },
+          { 'members.userId': objectUserId },
+        ],
+      })
+      .exec();
+  }
+
+  async findActiveForUserOverview(userId: string): Promise<WorkspaceDocument[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
+    const objectUserId = new Types.ObjectId(userId);
+    return this.workspaceModel
+      .find({
+        status: 'active',
+        $or: [
+          { ownerId: objectUserId },
+          { 'members.userId': objectUserId },
+        ],
+      })
+      .select('_id name description slug key type ownerId members status createdAt updatedAt')
+      .sort({ updatedAt: -1 })
       .exec();
   }
 
