@@ -1,0 +1,32 @@
+$kind: http-request
+name: Update Workspace Member Role
+url: '{{baseUrl}}/workspaces/{{workspaceId}}/members/{{workspaceMemberUserId}}'
+method: PUT
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "role": "viewer"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Member role updated", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const workspace = pm.response.json();
+      const member = (workspace.members || []).find((item) => item.userId === pm.environment.get("workspaceMemberUserId"));
+      pm.test("Member is viewer", function () {
+        pm.expect(member).to.exist;
+        pm.expect(member.role).to.equal("viewer");
+      });
+order: 9000

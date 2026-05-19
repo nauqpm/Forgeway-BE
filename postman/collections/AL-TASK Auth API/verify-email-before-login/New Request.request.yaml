@@ -1,0 +1,14 @@
+$kind: http-request
+name: New Request
+url: http://localhost:5512/auth/register
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"email\": \"\",\r
+
+    \    \"password\"\r
+
+    }"
+order: 1779168200375

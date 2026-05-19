@@ -1,0 +1,33 @@
+$kind: http-request
+name: Update Workspace
+url: '{{baseUrl}}/workspaces/{{workspaceId}}'
+method: PUT
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "name": "{{workspaceUpdatedName}}",
+      "description": "{{workspaceUpdatedDescription}}",
+      "type": "{{workspaceType}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Workspace updated", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const workspace = pm.response.json();
+      pm.test("Updated values returned", function () {
+        pm.expect(workspace.name).to.equal(pm.environment.get("workspaceUpdatedName"));
+        pm.expect(workspace.description).to.equal(pm.environment.get("workspaceUpdatedDescription"));
+      });
+order: 11000

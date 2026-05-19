@@ -1,0 +1,21 @@
+$kind: http-request
+name: Delete Workspace
+url: '{{baseUrl}}/workspaces/{{workspaceId}}'
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Workspace deleted", function () {
+        pm.expect(pm.response.code).to.equal(204);
+      });
+
+      pm.environment.set("workspaceId", "");
+      pm.environment.set("workspaceSlug", "");
+      pm.environment.set("workspaceKey", "");
+order: 13000

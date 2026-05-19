@@ -1,0 +1,36 @@
+name: AL-TASK Workspace
+values:
+  - key: baseUrl
+    value: 'http://localhost:5512'
+  - key: userAccount
+    value: ''
+  - key: userPassword
+    value: ''
+  - key: accessToken
+    value: ''
+  - key: refreshToken
+    value: ''
+  - key: userId
+    value: ''
+  - key: workspaceId
+    value: ''
+  - key: workspaceName
+    value: Workspace API Test
+  - key: workspaceDescription
+    value: Created from Postman workspace API collection
+  - key: workspaceSlug
+    value: ''
+  - key: workspaceKey
+    value: ''
+  - key: workspaceType
+    value: kanban
+  - key: workspaceUpdatedName
+    value: Workspace API Test Updated
+  - key: workspaceUpdatedDescription
+    value: Updated from Postman workspace API collection
+  - key: workspaceMemberEmail
+    value: ''
+  - key: workspaceMemberUserId
+    value: ''
+  - key: workspaceMemberRole
+    value: member

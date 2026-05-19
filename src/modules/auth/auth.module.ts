@@ -21,7 +21,6 @@ import { Token, TokenSchema } from './schemas/token.schema';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
-import { ManagerPermissionsModule } from '../manager-permissions/manager-permissions.module';
 import { Auth, AuthSchema } from './schemas/auth.schema';
 import { SecurityEvent, SecurityEventSchema } from './schemas/security-event.schema';
 import { AuditLogService } from './services/audit-log.service';
@@ -35,8 +34,7 @@ import { PasswordService } from './services/password.service';
   imports: [
     forwardRef(() => UsersModule),
     forwardRef(() => VerifyModule),
-    forwardRef(() => PermissionsModule), // Sử dụng forwardRef để tránh circular dependency
-    forwardRef(() => ManagerPermissionsModule), // Add ManagerPermissionsModule with forwardRef
+    forwardRef(() => PermissionsModule),
     TokenModule,
     PassportModule,
     JwtModule.registerAsync({

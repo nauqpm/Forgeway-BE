@@ -1,0 +1,43 @@
+$kind: http-request
+name: Login - Save Tokens
+url: '{{baseUrl}}/auth/login'
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{userAccount}}",
+      "password": "{{userPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Login status 200", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const data = pm.response.json();
+      const setCookie = pm.response.headers.get("Set-Cookie") || "";
+      const readCookie = (name) => {
+        const match = setCookie.match(new RegExp(`${name}=([^;]+)`));
+        return match ? decodeURIComponent(match[1]) : "";
+      };
+
+      const accessToken = data.accessToken || data.tokens?.accessToken || readCookie("access_token");
+      const refreshToken = data.refreshToken || data.tokens?.refreshToken || readCookie("refresh_token");
+
+      pm.test("Access token captured", function () {
+        pm.expect(accessToken, "access token").to.be.a("string").and.not.empty;
+      });
+
+      pm.environment.set("accessToken", accessToken);
+      if (refreshToken) {
+        pm.environment.set("refreshToken", refreshToken);
+      }
+      if (data.user?.id) {
+        pm.environment.set("userId", data.user.id);
+      }
+order: 1000

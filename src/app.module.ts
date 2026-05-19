@@ -11,7 +11,6 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
-import { ManagerPermissionsModule } from './modules/manager-permissions/manager-permissions.module';
 import { CommonModule } from './common/common.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
@@ -31,9 +30,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 
 // Real Estate / Blog Modules
-import { PostsModule } from './modules/posts/posts.module';
-import { PostPropertyModule } from './modules/post-property/post-property.module';
-import { CategoriesPostModule } from './modules/categories-post/categories-post.module';
 import { UtilitiesModule } from './modules/utilities/utilities.module';
 import { AddressesModule } from './modules/addresses/addresses.module';
 import { ImagesModule } from './modules/images/images.module';
@@ -81,7 +77,6 @@ import { validateEnv } from './config/env.validation';
     AuthModule,
     UsersModule,
     PermissionsModule,
-    ManagerPermissionsModule,
 
     // Jira Modules
     WorkspacesModule,
@@ -102,9 +97,6 @@ import { validateEnv } from './config/env.validation';
     DashboardModule,
 
     // Real Estate / Blog Modules
-    PostsModule,
-    PostPropertyModule,
-    CategoriesPostModule,
     UtilitiesModule,
     AddressesModule,
     ImagesModule,

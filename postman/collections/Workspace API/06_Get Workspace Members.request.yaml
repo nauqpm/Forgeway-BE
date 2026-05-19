@@ -1,0 +1,23 @@
+$kind: http-request
+name: Get Workspace Members
+url: '{{baseUrl}}/workspaces/{{workspaceId}}/members'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const members = pm.response.json();
+      pm.test("Members returned", function () {
+        pm.expect(members).to.be.an("array");
+        pm.expect(members.length).to.be.greaterThan(0);
+      });
+order: 7000

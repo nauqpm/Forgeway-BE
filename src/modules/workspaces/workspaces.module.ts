@@ -1,7 +1,9 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WorkspacesController } from './controllers/workspaces.controller';
+import { ForYouController } from './controllers/for-you.controller';
 import { WorkspacesService } from './services/workspaces.service';
+import { ForYouService } from './services/for-you.service';
 import { WorkspacesRepository } from './repositories/workspaces.repository';
 import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
@@ -17,8 +19,8 @@ import { UsersModule } from '../users/users.module';
     forwardRef(() => WorkflowsModule),
     forwardRef(() => UsersModule),
   ],
-  controllers: [WorkspacesController],
-  providers: [WorkspacesService, WorkspacesRepository],
-  exports: [WorkspacesService],
+  controllers: [WorkspacesController, ForYouController],
+  providers: [WorkspacesRepository, WorkspacesService, ForYouService],
+  exports: [WorkspacesService, ForYouService],
 })
 export class WorkspacesModule {}

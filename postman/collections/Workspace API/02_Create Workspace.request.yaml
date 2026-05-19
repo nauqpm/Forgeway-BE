@@ -1,0 +1,40 @@
+$kind: http-request
+name: Create Workspace
+url: '{{baseUrl}}/workspaces'
+method: POST
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "name": "{{workspaceName}}",
+      "description": "{{workspaceDescription}}",
+      "type": "{{workspaceType}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Workspace created", function () {
+        pm.expect(pm.response.code).to.equal(201);
+      });
+
+      const workspace = pm.response.json();
+      pm.test("Workspace has required fields", function () {
+        pm.expect(workspace).to.have.property("_id");
+        pm.expect(workspace).to.have.property("name");
+        pm.expect(workspace).to.have.property("slug");
+        pm.expect(workspace).to.have.property("key");
+        pm.expect(workspace).to.have.property("members").that.is.an("array");
+      });
+
+      pm.environment.set("workspaceId", workspace._id);
+      pm.environment.set("workspaceSlug", workspace.slug);
+      pm.environment.set("workspaceKey", workspace.key);
+order: 2000

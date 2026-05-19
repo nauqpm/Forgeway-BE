@@ -1,0 +1,40 @@
+$kind: http-request
+name: Add Workspace Member
+url: '{{baseUrl}}/workspaces/{{workspaceId}}/members'
+method: POST
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{workspaceMemberEmail}}",
+      "role": "{{workspaceMemberRole}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Member added", function () {
+        pm.expect(pm.response.code).to.equal(201);
+      });
+
+      const workspace = pm.response.json();
+      const currentUserId = pm.environment.get("userId");
+      const addedMember = (workspace.members || []).find((member) =>
+        member.userId !== currentUserId && member.role === pm.environment.get("workspaceMemberRole")
+      );
+
+      if (addedMember?.userId && !pm.environment.get("workspaceMemberUserId")) {
+        pm.environment.set("workspaceMemberUserId", addedMember.userId);
+      }
+
+      pm.test("Workspace still contains members", function () {
+        pm.expect(workspace.members).to.be.an("array");
+      });
+order: 8000

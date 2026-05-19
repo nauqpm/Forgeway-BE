@@ -1,0 +1,29 @@
+$kind: http-request
+name: Get My Workspaces
+url: '{{baseUrl}}/workspaces'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const workspaces = pm.response.json();
+      pm.test("Response is workspace array", function () {
+        pm.expect(workspaces).to.be.an("array");
+      });
+
+      const workspaceId = pm.environment.get("workspaceId");
+      if (workspaceId) {
+        pm.test("Created workspace appears in my workspaces", function () {
+          pm.expect(workspaces.some((item) => item._id === workspaceId)).to.equal(true);
+        });
+      }
+order: 3000
