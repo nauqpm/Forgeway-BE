@@ -1,6 +1,8 @@
 import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsMongoId } from 'class-validator';
-import { Types } from 'mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { Types } from 'mongoose';
+
+import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 // 📄 DTO cho cập nhật thông tin người dùng
 export class UpdateUsersDto {
@@ -18,9 +20,7 @@ export class UpdateUsersDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
-    message: 'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số',
-  })
+  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password?: string;
 
   @IsOptional()
@@ -76,9 +76,7 @@ export class UpdateUserProfileDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/, {
-    message: 'Máº­t kháº©u pháº£i cÃ³ Ã­t nháº¥t 8 kÃ½ tá»±, bao gá»“m chá»¯ hoa, chá»¯ thÆ°á»ng vÃ  sá»‘',
-  })
+  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password?: string;
 
   @IsOptional()

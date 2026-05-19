@@ -19,3 +19,7 @@ export class Otp {
 }
 
 export const OtpSchema = SchemaFactory.createForClass(Otp);
+
+// MongoDB removes expired OTP records automatically once expiresAt is reached.
+OtpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+OtpSchema.index({ email: 1, isUsed: 1, expiresAt: -1 });

@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -21,16 +20,17 @@ export class AuthenticationService {
     private readonly tokenService: TokenService,
   ) {}
 
-  async checkEmail(email: string): Promise<boolean> {
-    const user = await this.usersService.findByEmail(email);
-    return !user;
-  }
-
   async register(registerDto: RegisterDto) {
     try {
+      const genericResponse = {
+        success: true,
+        message: 'Nếu thông tin hợp lệ, vui lòng kiểm tra email để hoàn tất đăng ký.',
+        email: registerDto.email,
+      };
+
       const existingUser = await this.usersService.findByEmail(registerDto.email);
       if (existingUser) {
-        throw new ConflictException('Email đã được sử dụng');
+        return genericResponse;
       }
 
       await this.usersService.createUser({
@@ -40,11 +40,7 @@ export class AuthenticationService {
         status: 'active',
       });
 
-      return {
-        success: true,
-        message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
-        email: registerDto.email,
-      };
+      return genericResponse;
     } catch (error: unknown) {
       const err = error as Error;
       this.logger.error('Lỗi trong quá trình đăng ký:', err.message, err.stack);

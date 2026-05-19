@@ -1,6 +1,7 @@
 // users.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
+import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUsersDto } from '../dtos/update-users.dto';
@@ -37,7 +38,7 @@ export class UsersService {
   }
 
   // 📢 Cập nhật thông tin người dùng
-  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: { [key: string]: any } }, isPasswordHashed: boolean = false): Promise<User> {
+  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: Record<string, unknown> }, isPasswordHashed: boolean = false): Promise<User> {
     // Only hash password if updateData is UpdateUsersDto and has password field
     if ('password' in updateData && !isPasswordHashed) {
       const salt = await bcrypt.genSalt();
@@ -54,6 +55,30 @@ export class UsersService {
   // 📢 Lấy danh sách tất cả người dùng
   async getAllUsers(): Promise<User[]> {
     return await this.usersRepository.findAll();
+  }
+
+  async getUsersPage(page: number, limit: number): Promise<{
+    data: SanitizedUserRecord[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.floor(limit))) : 20;
+    const { users, total } = await this.usersRepository.findAllPaginated(safePage, safeLimit);
+
+    return {
+      data: users,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.ceil(total / safeLimit),
+      },
+    };
   }
 
   // 📢 Xóa người dùng bằng ID

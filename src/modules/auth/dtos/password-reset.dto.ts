@@ -5,10 +5,7 @@ import {
   IsString,
   Matches,
 } from 'class-validator';
-
-const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\W]{8,}$/;
-const strongPasswordMessage =
-  'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số';
+import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 export class RequestPasswordResetDto {
   @IsEmail({}, { message: 'Email không hợp lệ.' })
@@ -26,7 +23,7 @@ export class ResetPasswordWithTokenDto {
 
   @IsString({ message: 'Mật khẩu mới phải là chuỗi ký tự.' })
   @IsNotEmpty({ message: 'Mật khẩu mới không được để trống.' })
-  @Matches(strongPasswordPattern, { message: strongPasswordMessage })
+  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   newPassword!: string;
 }
 
@@ -41,7 +38,7 @@ export class ResetPasswordWithOtpDto {
 
   @IsString({ message: 'Mật khẩu mới phải là chuỗi ký tự.' })
   @IsNotEmpty({ message: 'Mật khẩu mới không được để trống.' })
-  @Matches(strongPasswordPattern, { message: strongPasswordMessage })
+  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   newPassword!: string;
 }
 

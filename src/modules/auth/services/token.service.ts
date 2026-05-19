@@ -16,6 +16,7 @@ import { AuditLogService } from './audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
 import { AUTH_CONSTANTS } from '../constants/auth.constants';
+import { RefreshJwtPayload } from '../types/jwt-payload.type';
 
 @Injectable()
 export class TokenService {
@@ -210,9 +211,9 @@ export class TokenService {
    */
   async refreshAccessToken(refreshToken: string): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
     try {
-      const decoded = this.jwtService.verify(refreshToken, {
+      const decoded = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
-      }) as any;
+      });
 
       if (decoded.type !== TOKEN_TYPES.REFRESH) {
         throw new UnauthorizedException('Token không phải là refresh token');
@@ -287,7 +288,7 @@ export class TokenService {
       );
       const newRefreshToken = this.createRefreshToken(user._id.toString());
 
-      const familyId = (consumed as any).familyId ?? randomBytes(16).toString('hex');
+      const familyId = consumed.familyId ?? randomBytes(16).toString('hex');
 
       const accessExpiry = new Date(Date.now() + 15 * 60 * 1000);
       const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

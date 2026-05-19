@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsService } from '../../permissions/services/permissions.service';
-import { Document } from 'mongoose';
 import { Request as ExpressRequest } from 'express';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
@@ -43,7 +42,7 @@ export class PermissionController {
         return {
           role: GLOBAL_ROLES.SUPER_ADMIN,
           permissions: allPermissions.map(p => ({
-            id: (p as any as Document).id,
+            id: String(p._id),
             resource: p.resource,
             action: p.action,
           })),

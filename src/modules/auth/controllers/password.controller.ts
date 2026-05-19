@@ -29,11 +29,9 @@ export class PasswordController {
     @Req() req: ExpressRequest,
   ) {
     const result = await this.passwordResetService.requestPasswordReset(dto);
-    this.auditLogService.log({
+    this.auditLogService.logRequest(req, {
       type: 'PASSWORD_RESET_REQUESTED',
       severity: 'INFO',
-      ip: AuditLogService.extractIp(req),
-      userAgent: AuditLogService.extractUserAgent(req),
       // Không log email để tránh tiết lộ qua log stream
     });
     return result;
@@ -45,19 +43,15 @@ export class PasswordController {
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
     try {
       const result = await this.passwordResetService.verifyOtp(dto);
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: 'OTP_VERIFIED',
         severity: 'INFO',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
       });
       return result;
     } catch (error) {
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: 'OTP_FAILED',
         severity: 'WARN',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
       });
       throw error;
     }
@@ -72,20 +66,16 @@ export class PasswordController {
   ) {
     try {
       const result = await this.passwordResetService.resetPasswordWithToken(dto);
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: 'PASSWORD_RESET_COMPLETED',
         severity: 'INFO',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { method: 'token' },
       });
       return result;
     } catch (error) {
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: 'PASSWORD_RESET_FAILED',
         severity: 'WARN',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { method: 'token', reason: (error as Error).message },
       });
       throw error;
@@ -101,20 +91,16 @@ export class PasswordController {
   ) {
     try {
       const result = await this.passwordResetService.resetPasswordWithOtp(dto);
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: 'PASSWORD_RESET_COMPLETED',
         severity: 'INFO',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { method: 'otp' },
       });
       return result;
     } catch (error) {
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: 'OTP_FAILED',
         severity: 'WARN',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { method: 'otp-reset', reason: (error as Error).message },
       });
       throw error;

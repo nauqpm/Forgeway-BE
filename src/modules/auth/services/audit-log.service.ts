@@ -21,6 +21,8 @@ export interface AuditLogPayload {
   metadata?: Record<string, unknown>;
 }
 
+export type RequestAuditLogPayload = Omit<AuditLogPayload, 'ip' | 'userAgent'>;
+
 @Injectable()
 export class AuditLogService {
   private readonly logger = new Logger(AuditLogService.name);
@@ -61,6 +63,14 @@ export class AuditLogService {
     } else {
       this.logger.log(`[SECURITY] ${payload.type}`, JSON.stringify(structuredLog));
     }
+  }
+
+  logRequest(req: Request, payload: RequestAuditLogPayload): void {
+    this.log({
+      ...payload,
+      ip: AuditLogService.extractIp(req),
+      userAgent: AuditLogService.extractUserAgent(req),
+    });
   }
 
   /**

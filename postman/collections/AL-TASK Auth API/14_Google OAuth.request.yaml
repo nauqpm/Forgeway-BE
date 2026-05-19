@@ -2,7 +2,7 @@ $kind: http-request
 name: Google OAuth
 method: GET
 url: '{{baseUrl}}auth/google'
-order: 13000
+order: 14000
 scripts:
   - type: afterResponse
     language: text/javascript

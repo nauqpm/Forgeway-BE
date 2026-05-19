@@ -2,7 +2,7 @@ $kind: http-request
 name: Refresh Token
 method: POST
 url: '{{baseUrl}}auth/refresh'
-order: 6000
+order: 7000
 headers:
   - key: Content-Type
     value: application/json

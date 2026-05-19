@@ -69,20 +69,26 @@ describe('Auth user-management authorization (e2e)', () => {
         {
           provide: UsersService,
           useValue: {
-            getAllUsers: jest.fn().mockResolvedValue([
-              {
-                _id: { toString: () => 'user-1' },
-                email: 'user@example.com',
-                role: GLOBAL_ROLES.USER,
-                status: 'active',
-                fullName: 'Regular User',
-                avatar: 'avatar.png',
-                password: 'hashed-password',
-                googleId: 'google-id',
-                createdAt: new Date('2026-01-01T00:00:00.000Z'),
-                updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+            getUsersPage: jest.fn().mockResolvedValue({
+              data: [
+                {
+                  _id: { toString: () => 'user-1' },
+                  email: 'user@example.com',
+                  role: GLOBAL_ROLES.USER,
+                  status: 'active',
+                  fullName: 'Regular User',
+                  avatar: 'avatar.png',
+                  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+                  updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+                },
+              ],
+              pagination: {
+                page: 1,
+                limit: 20,
+                total: 1,
+                totalPages: 1,
               },
-            ]),
+            }),
             updateUser: jest.fn(),
           },
         },
@@ -129,8 +135,8 @@ describe('Auth user-management authorization (e2e)', () => {
       .set('Cookie', 'access_token=super-admin-token')
       .expect(200);
 
-    expect(response.body).toHaveLength(1);
-    expect(response.body[0]).toMatchObject({
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0]).toMatchObject({
       id: 'user-1',
       email: 'user@example.com',
       role: GLOBAL_ROLES.USER,
@@ -138,7 +144,13 @@ describe('Auth user-management authorization (e2e)', () => {
       fullName: 'Regular User',
       avatar: 'avatar.png',
     });
-    expect(response.body[0]).not.toHaveProperty('password');
-    expect(response.body[0]).not.toHaveProperty('googleId');
+    expect(response.body.pagination).toEqual({
+      page: 1,
+      limit: 20,
+      total: 1,
+      totalPages: 1,
+    });
+    expect(response.body.data[0]).not.toHaveProperty('password');
+    expect(response.body.data[0]).not.toHaveProperty('googleId');
   });
 });

@@ -67,12 +67,10 @@ export class OAuthController {
       // ✅ Set cả 2 HttpOnly cookies — token KHÔNG xuất hiện trên URL
       setAuthCookies(res, this.configService, { accessToken, refreshToken });
 
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_SUCCESS,
         severity: 'INFO',
         email: user.email,
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { role: user.role },
       });
 
@@ -83,11 +81,9 @@ export class OAuthController {
       return res.redirect(redirectUrl);
     } catch (error) {
       this.logger.error('❌ Lỗi xác thực Google:', error);
-      this.auditLogService.log({
+      this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_FAILED,
         severity: 'WARN',
-        ip: AuditLogService.extractIp(req),
-        userAgent: AuditLogService.extractUserAgent(req),
         metadata: { reason: (error as Error).message },
       });
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';

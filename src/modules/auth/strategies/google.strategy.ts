@@ -4,6 +4,23 @@ import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
+interface GoogleProfile {
+  id: string;
+  name?: {
+    givenName?: string;
+    familyName?: string;
+  };
+  emails?: Array<{ value: string }>;
+  photos?: Array<{ value: string }>;
+}
+
+interface GoogleUserProfile {
+  email: string;
+  fullName: string;
+  id: string;
+  photos: Array<{ value: string }>;
+}
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(configService: ConfigService) {
@@ -20,14 +37,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     req: Request,
     _accessToken: string,
     _refreshToken: string,
-    profile: any,
+    profile: GoogleProfile,
     done: VerifyCallback,
-  ): Promise<any> {
+  ): Promise<GoogleUserProfile | undefined> {
     try {
       const { name, emails, photos } = profile;
 
       if (!emails || emails.length === 0) {
-        return done(new Error('No email found from Google profile'), undefined);
+        done(new Error('No email found from Google profile'), undefined);
+        return undefined;
       }
 
       const user = {

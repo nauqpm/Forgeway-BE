@@ -11,6 +11,7 @@ import {
   UseGuards,
   Request,
   Logger,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
@@ -48,19 +49,25 @@ export class UserManagementController {
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Super admin only: list sanitized users' })
-  async getAllUsers() {
+  async getAllUsers(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
     try {
-      const users = await this.userService.getAllUsers();
-      return users.map((user) => ({
-        id: user._id.toString(),
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        fullName: user.fullName,
-        avatar: user.avatar,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      }));
+      const result = await this.userService.getUsersPage(Number(page), Number(limit));
+      return {
+        data: result.data.map((user) => ({
+          id: String(user._id),
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          fullName: user.fullName,
+          avatar: user.avatar,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        })),
+        pagination: result.pagination,
+      };
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi lấy danh sách người dùng: ${err.message}`, err.stack);

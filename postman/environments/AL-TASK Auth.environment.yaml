@@ -6,6 +6,10 @@ values:
     value: testuser@example.com
   - key: testPassword
     value: Test@1234
+  - key: userAccount
+    value: ''
+  - key: userPassword
+    value: ''
   - key: accessToken
     value: ''
   - key: refreshToken

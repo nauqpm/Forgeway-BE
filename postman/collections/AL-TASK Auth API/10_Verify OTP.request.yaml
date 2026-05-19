@@ -2,7 +2,7 @@ $kind: http-request
 name: Verify OTP
 method: POST
 url: '{{baseUrl}}auth/verify-otp'
-order: 9000
+order: 10000
 headers:
   - key: Content-Type
     value: application/json

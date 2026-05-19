@@ -2,7 +2,7 @@ $kind: http-request
 name: Update Profile
 method: PUT
 url: '{{baseUrl}}auth/update'
-order: 7000
+order: 8000
 auth:
   type: bearer
   credentials:

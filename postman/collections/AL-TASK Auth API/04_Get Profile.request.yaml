@@ -2,7 +2,7 @@ $kind: http-request
 name: Get Profile
 method: GET
 url: '{{baseUrl}}auth/me'
-order: 4000
+order: 5000
 auth:
   type: bearer
   credentials:

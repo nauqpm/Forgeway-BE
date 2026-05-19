@@ -1,21 +1,18 @@
 $kind: http-request
-name: Login
+name: Login - User
+url: "{{baseUrl}}auth/login"
 method: POST
-url: '{{baseUrl}}auth/login'
-order: 3000
 headers:
-  - key: Content-Type
-    value: application/json
+  Content-Type: application/json
 body:
   type: json
   content: |-
     {
-      "email": "{{testEmail}}",
-      "password": "{{testPassword}}"
+      "email": "{{userAccount}}",
+      "password": "{{userPassword}}"
     }
 scripts:
   - type: afterResponse
-    language: text/javascript
     code: |-
       pm.test("Login successful", function () {
         pm.expect(pm.response.code).to.equal(200);
@@ -36,3 +33,5 @@ scripts:
         let setCookie = pm.response.headers.get("Set-Cookie");
         pm.expect(setCookie).to.include("SameSite");
       });
+    language: text/javascript
+order: 3536

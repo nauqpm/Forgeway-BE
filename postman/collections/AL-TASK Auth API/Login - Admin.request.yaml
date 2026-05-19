@@ -1,0 +1,38 @@
+$kind: http-request
+name: Login - Admin
+method: POST
+url: "{{baseUrl}}auth/login"
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{testEmail}}",
+      "password": "{{testPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Login successful", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+      let data = pm.response.json();
+      pm.test("Tokens returned", function () {
+        pm.expect(data).to.have.property('accessToken');
+        pm.expect(data).to.have.property('refreshToken');
+        pm.environment.set("accessToken", data.accessToken);
+        pm.environment.set("refreshToken", data.refreshToken);
+      });
+      pm.test("HttpOnly Cookies set", function () {
+        let setCookie = pm.response.headers.get("Set-Cookie");
+        pm.expect(setCookie).to.include("access_token");
+        pm.expect(setCookie).to.include("HttpOnly");
+      });
+      pm.test("SameSite=Strict header", function () {
+        let setCookie = pm.response.headers.get("Set-Cookie");
+        pm.expect(setCookie).to.include("SameSite");
+      });
+    language: text/javascript

@@ -17,6 +17,7 @@ import { TokenService } from './token.service';
 import { OtpService } from './otp.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { PasswordService } from './password.service';
+import { PasswordResetJwtPayload } from '../types/jwt-payload.type';
 
 @Injectable()
 export class PasswordResetService {
@@ -77,9 +78,9 @@ export class PasswordResetService {
   /** 🔑 Đặt lại mật khẩu với token */
   async resetPasswordWithToken(dto: ResetPasswordWithTokenDto) {
     try {
-      const payload = this.jwtService.verify(dto.token, {
+      const payload = this.jwtService.verify<PasswordResetJwtPayload>(dto.token, {
         secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-      }) as any;
+      });
       if (!payload || payload.type !== TOKEN_TYPES.PASSWORD_RESET) {
         throw new BadRequestException('Token không hợp lệ');
       }
@@ -118,7 +119,7 @@ export class PasswordResetService {
     const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
     await this.usersService.updatePassword(dto.email, hashedPassword);
 
-    await this.otpService.markUsed((otpRecord as any)._id.toString());
+    await this.otpService.markUsed(String(otpRecord._id));
 
     return { success: true, message: 'Đặt lại mật khẩu thành công' };
   }

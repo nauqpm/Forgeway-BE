@@ -6,3 +6,13 @@ export interface JwtPayload {
   iat?: number;
   exp?: number;
 }
+
+export interface PasswordResetJwtPayload extends JwtPayload {
+  email: string;
+  type: 'password-reset';
+}
+
+export interface RefreshJwtPayload extends JwtPayload {
+  userId: string;
+  type: 'refresh';
+}
