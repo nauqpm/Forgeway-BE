@@ -22,7 +22,6 @@ import { BoardsModule } from './modules/boards/boards.module';
 import { SprintsModule } from './modules/sprints/sprints.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { CommentsModule } from './modules/comments/comments.module';
-import { SpacesModule } from './modules/spaces/spaces.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SearchModule } from './modules/search/search.module';
@@ -88,7 +87,6 @@ import { validateEnv } from './config/env.validation';
     AttachmentsModule,
 
     // Confluence Modules
-    SpacesModule,
     PagesModule,
 
     // System
