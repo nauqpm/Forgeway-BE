@@ -27,7 +27,7 @@ export class PagesController {
   constructor(private readonly pagesService: PagesService) {}
 
   @Post()
-  @UseGuards(ScopedRoleGuard('space', SPACE_ROLES.MEMBER))
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Create a new page' })
   async create(@Body() createPageDto: CreatePageDto, @Request() req: any) {
     return this.pagesService.create(createPageDto, req.user.userId);
@@ -67,7 +67,7 @@ export class PagesController {
   }
 
   @Delete(':id')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.SPACE_ADMIN))
+  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Delete a page' })
   async delete(@Param('id') id: string) {
     return this.pagesService.delete(id);
@@ -97,18 +97,18 @@ export class PagesController {
     return this.pagesService.unpublish(id);
   }
 
-  @Get('space/:spaceId')
-  @UseGuards(ScopedRoleGuard('space', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get all pages for a space' })
-  async findBySpace(@Param('spaceId') spaceId: string) {
-    return this.pagesService.findBySpace(spaceId);
+  @Get('workspace/:workspaceId')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get all pages for a workspace' })
+  async findByWorkspace(@Param('workspaceId') workspaceId: string) {
+    return this.pagesService.findByWorkspace(workspaceId);
   }
 
-  @Get('space/:spaceId/root')
-  @UseGuards(ScopedRoleGuard('space', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get root pages for a space' })
-  async findRootPages(@Param('spaceId') spaceId: string) {
-    return this.pagesService.findRootPages(spaceId);
+  @Get('workspace/:workspaceId/root')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get root pages for a workspace' })
+  async findRootPages(@Param('workspaceId') workspaceId: string) {
+    return this.pagesService.findRootPages(workspaceId);
   }
 
   @Get(':id/children')
