@@ -60,7 +60,7 @@ export class TasksController {
   }
 
   @Delete(':id')
-  @UseGuards(ScopedRoleGuard('task', SPACE_ROLES.SPACE_ADMIN))
+  @UseGuards(ScopedRoleGuard('task', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Delete a task' })
   async delete(@Param('id') id: string) {
     return this.tasksService.delete(id);
