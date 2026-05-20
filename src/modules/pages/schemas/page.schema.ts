@@ -5,8 +5,8 @@ export type PageDocument = Page & Document;
 
 @Schema({ timestamps: true })
 export class Page {
-  @Prop({ type: Types.ObjectId, ref: 'Space', required: true })
-  spaceId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  workspaceId!: Types.ObjectId;
 
   @Prop({ required: true })
   title!: string;
@@ -56,7 +56,7 @@ export class Page {
 }
 
 export const PageSchema = SchemaFactory.createForClass(Page);
-PageSchema.index({ spaceId: 1 });
+PageSchema.index({ workspaceId: 1 });
 PageSchema.index({ parentId: 1 });
 PageSchema.index({ authorId: 1 });
 PageSchema.index({ status: 1 });
