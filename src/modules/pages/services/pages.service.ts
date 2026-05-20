@@ -31,7 +31,7 @@ export class PagesService {
     const page = new this.pageModel({
       title: dto.title,
       content: dto.content || '',
-      spaceId: dto.spaceId ? new Types.ObjectId(dto.spaceId) : undefined,
+      workspaceId: dto.workspaceId ? new Types.ObjectId(dto.workspaceId) : undefined,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       slug,
       authorId: new Types.ObjectId(userId),
@@ -86,8 +86,8 @@ export class PagesService {
 
     const query: Record<string, any> = {};
 
-    if (filter.spaceId) {
-      query.spaceId = new Types.ObjectId(filter.spaceId);
+    if (filter.workspaceId) {
+      query.workspaceId = new Types.ObjectId(filter.workspaceId);
     }
     if (filter.parentId) {
       query.parentId = new Types.ObjectId(filter.parentId);
@@ -122,29 +122,29 @@ export class PagesService {
     };
   }
 
-  async findBySpace(spaceId: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding pages for space: ${spaceId}`);
+  async findByWorkspace(workspaceId: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding pages for workspace: ${workspaceId}`);
 
-    if (!Types.ObjectId.isValid(spaceId)) {
-      throw new NotFoundException(`Space with id ${spaceId} not found`);
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new NotFoundException(`Workspace with id ${workspaceId} not found`);
     }
 
     return this.pageModel
-      .find({ spaceId: new Types.ObjectId(spaceId) })
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
       .sort({ title: 1 })
       .exec();
   }
 
-  async findRootPages(spaceId: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding root pages for space: ${spaceId}`);
+  async findRootPages(workspaceId: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding root pages for workspace: ${workspaceId}`);
 
-    if (!Types.ObjectId.isValid(spaceId)) {
-      throw new NotFoundException(`Space with id ${spaceId} not found`);
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new NotFoundException(`Workspace with id ${workspaceId} not found`);
     }
 
     return this.pageModel
       .find({
-        spaceId: new Types.ObjectId(spaceId),
+        workspaceId: new Types.ObjectId(workspaceId),
         parentId: { $exists: false },
       })
       .sort({ title: 1 })

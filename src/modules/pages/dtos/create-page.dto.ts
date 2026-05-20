@@ -15,7 +15,7 @@ export class CreatePageDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  spaceId?: string;
+  workspaceId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -67,7 +67,7 @@ export class FilterPageDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  spaceId?: string;
+  workspaceId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

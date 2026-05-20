@@ -25,6 +25,7 @@ export class AuthenticationService {
   ) {}
 
   async register(registerDto: RegisterDto) {
+    this.logger.log(`Bắt đầu quy trình đăng ký cho email: ${registerDto.email}`);
     try {
       const genericResponse = {
         success: true,
@@ -34,33 +35,40 @@ export class AuthenticationService {
 
       const existingUser = await this.usersService.findByEmail(registerDto.email);
       if (existingUser) {
+        this.logger.warn(`Đăng ký thất bại: Email ${registerDto.email} đã tồn tại trong hệ thống.`);
         return genericResponse;
       }
 
-      await this.usersService.createUser({
+      const newUser = await this.usersService.createUser({
         email: registerDto.email,
         password: registerDto.password,
         role: GLOBAL_ROLES.USER,
         status: USER_STATUSES.PENDING_VERIFICATION,
       });
+      this.logger.log(`Tạo người dùng thành công: ${newUser.email} (ID: ${newUser._id})`);
+
       await this.verifyService.sendVerificationEmail(registerDto.email);
+      this.logger.log(`Đã gửi email xác thực đến: ${registerDto.email}`);
 
       return genericResponse;
     } catch (error: unknown) {
       const err = error as Error;
-      this.logger.error('Lỗi trong quá trình đăng ký:', err.message, err.stack);
+      this.logger.error(`Lỗi nghiêm trọng trong quá trình đăng ký (${registerDto.email}): ${err.message}`, err.stack);
       throw error;
     }
   }
 
   async login(loginDto: LoginDto) {
+    this.logger.log(`Yêu cầu đăng nhập từ email: ${loginDto.email}`);
     try {
       const user = await this.usersService.findByEmail(loginDto.email);
       if (!user) {
+        this.logger.warn(`Đăng nhập thất bại: Không tìm thấy email ${loginDto.email}`);
         throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
       }
 
       if (!user.password) {
+        this.logger.warn(`Đăng nhập thất bại: Tài khoản ${loginDto.email} sử dụng Google OAuth`);
         throw new UnauthorizedException(
           'Tài khoản này được đăng ký qua Google. Vui lòng đăng nhập bằng Google.',
         );
@@ -71,10 +79,12 @@ export class AuthenticationService {
         user.password,
       );
       if (!isPasswordValid) {
+        this.logger.warn(`Đăng nhập thất bại: Sai mật khẩu cho email ${loginDto.email}`);
         throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
       }
 
       if (user.status !== USER_STATUSES.ACTIVE) {
+        this.logger.warn(`Đăng nhập thất bại: Tài khoản ${loginDto.email} chưa được kích hoạt (Status: ${user.status})`);
         throw new UnauthorizedException('Vui lòng xác thực email trước khi đăng nhập');
       }
 
@@ -85,6 +95,8 @@ export class AuthenticationService {
         user.fullName,
         user.avatar,
       );
+
+      this.logger.log(`Đăng nhập thành công: ${user.email} (ID: ${user._id})`);
 
       return {
         success: true,
@@ -100,21 +112,28 @@ export class AuthenticationService {
       };
     } catch (error: unknown) {
       const err = error as Error;
-      this.logger.error(`Lỗi khi đăng nhập: ${err.message}`, err.stack);
+      if (!(error instanceof UnauthorizedException)) {
+        this.logger.error(`Lỗi hệ thống khi đăng nhập (${loginDto.email}): ${err.message}`, err.stack);
+      }
       throw error;
     }
   }
 
   async verifyRegistrationEmail(email: string, code: string) {
+    this.logger.log(`Bắt đầu xác thực email đăng ký cho: ${email}`);
     await this.verifyService.verifyCode(email, code, VerifyType.VERIFICATION);
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
+      this.logger.error(`Xác thực thành công nhưng không tìm thấy User với email: ${email}`);
       throw new UnauthorizedException('Mã xác thực không hợp lệ hoặc đã hết hạn');
     }
 
     if (user.status !== USER_STATUSES.ACTIVE) {
       await this.usersService.updateUser(user._id.toString(), { status: USER_STATUSES.ACTIVE });
+      this.logger.log(`Tài khoản ${email} đã được kích hoạt thành công (Status -> ACTIVE)`);
+    } else {
+      this.logger.log(`Tài khoản ${email} đã ở trạng thái ACTIVE từ trước.`);
     }
 
     return {
