@@ -18,13 +18,10 @@ scripts:
     language: text/javascript
     code: |-
       pm.test("OTP verified", function () {
-        pm.expect(pm.response.code).to.equal(200);
+        pm.expect(pm.response.code).to.equal(201);
       });
       let data = pm.response.json();
-      pm.test("Token returned", function () {
-        pm.expect(data).to.have.property('token');
-        pm.environment.set("resetToken", data.token);
-      });
-      if (data.resetGrant) {
+      pm.test("Reset grant returned", function () {
+        pm.expect(data).to.have.property('resetGrant');
         pm.environment.set("resetGrant", data.resetGrant);
-      }
+      });

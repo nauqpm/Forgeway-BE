@@ -67,8 +67,6 @@ Headers:
 | **GET** | `/auth/check-email` | ❌ | ❌ | Kiểm tra email có tồn tại |
 | **POST** | `/auth/request-password-reset` | ❌ | 3/15min | Yêu cầu reset password |
 | **POST** | `/auth/verify-otp` | ❌ | 5/min | Xác thực OTP |
-| **POST** | `/auth/reset-password/token` | ❌ | 5/min | Reset password bằng token |
-| **POST** | `/auth/reset-password/otp` | ❌ | 5/min | Reset password bằng OTP |
 | **GET** | `/auth/google` | ❌ | ❌ | Redirect đến Google login |
 | **GET** | `/auth/google/redirect` | ❌ | ❌ | Google OAuth callback |
 | **GET** | `/auth/users` | ✅ | ❌ | List tất cả users |
@@ -724,16 +722,14 @@ Content-Type: application/json
 
 {
   "email": "{{testEmail}}",
-  "resetMethod": "link"
-}
+  }
 ```
 
 **Expected Response (200):**
 ```json
 {
   "message": "Email reset password đã được gửi",
-  "resetMethod": "link"
-}
+  }
 ```
 
 **Check points:**
@@ -759,16 +755,14 @@ Content-Type: application/json
 
 {
   "email": "{{testEmail}}",
-  "resetMethod": "otp"
-}
+  }
 ```
 
 **Expected Response (200):**
 ```json
 {
   "message": "OTP đã được gửi qua email",
-  "resetMethod": "otp"
-}
+  }
 ```
 
 **Check points:**
@@ -816,7 +810,7 @@ Request 6+: Status 429 ❌ (5/min limit)
 
 **Request:**
 ```http
-POST {{baseUrl}}/auth/reset-password/otp
+POST {{baseUrl}}/auth/reset-password
 Content-Type: application/json
 
 {
@@ -845,7 +839,7 @@ Content-Type: application/json
 
 **Request:**
 ```http
-POST {{baseUrl}}/auth/reset-password/token
+POST {{baseUrl}}/auth/reset-password
 Content-Type: application/json
 
 {
@@ -869,7 +863,7 @@ Content-Type: application/json
 
 **Test with Invalid Token:**
 ```http
-POST {{baseUrl}}/auth/reset-password/token
+POST {{baseUrl}}/auth/reset-password
 Content-Type: application/json
 
 {

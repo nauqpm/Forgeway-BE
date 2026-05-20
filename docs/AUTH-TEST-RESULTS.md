@@ -170,8 +170,6 @@ node test-auth.js
 |--------|----------|------|---------|
 | POST | /auth/request-password-reset | ❌ | Request reset |
 | POST | /auth/verify-otp | ❌ | Verify OTP |
-| POST | /auth/reset-password/token | ❌ | Reset with token |
-| POST | /auth/reset-password/otp | ❌ | Reset with OTP |
 
 ### OAuth
 | Method | Endpoint | Auth | Purpose |

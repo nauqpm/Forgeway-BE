@@ -1,0 +1,26 @@
+$kind: http-request
+name: Resend Verification Email
+url: '{{baseUrl}}/auth/resend-verification'
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{verifyEmail}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Resend verification accepted", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const data = pm.response.json();
+      pm.test("Generic resend response returned", function () {
+        pm.expect(data).to.have.property("success", true);
+        pm.expect(data).to.have.property("message");
+      });
+order: 2000
