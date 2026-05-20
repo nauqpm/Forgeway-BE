@@ -362,6 +362,50 @@ describe('Auth security flows (integration)', () => {
     expect(tokenModel.records.every((record) => record.status === false)).toBe(true);
   });
 
+  it('does not consume reset grant when new password matches current password', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const usersService = {
+      findByEmail: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        password: hashedPassword,
+      }),
+      updatePassword: jest.fn().mockResolvedValue({ success: true }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      {} as VerifyService,
+    );
+
+    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+
+    await expect(
+      passwordResetService.resetPasswordWithGrant({
+        resetGrant,
+        newPassword: 'OldPassword1!',
+      }),
+    ).rejects.toThrow();
+
+    const grantRecord = tokenModel.records.find(
+      (record) => record.token === tokenService.hashToken(resetGrant),
+    );
+    expect(grantRecord?.status).toBe(true);
+    expect(usersService.updatePassword).not.toHaveBeenCalled();
+
+    await passwordResetService.resetPasswordWithGrant({
+      resetGrant,
+      newPassword: 'NewPassword1!',
+    });
+
+    expect(grantRecord?.status).toBe(false);
+    expect(usersService.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves generic password reset responses to avoid user enumeration', async () => {
     const otpModel = new InMemoryOtpModel();
     const otpService = new OtpService(otpModel as unknown as never);

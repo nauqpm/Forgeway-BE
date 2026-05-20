@@ -214,6 +214,31 @@ export class TokenService {
     this.logger.debug(`Password reset grant consumed for userId: ${consumed.userId}`);
     return { email: consumed.email };
   }
+
+  async validateResetGrant(resetGrant: string): Promise<{ email: string }> {
+    this.logger.debug('Validating password reset grant');
+
+    if (!resetGrant?.trim()) {
+      this.logger.warn('Password reset grant validation rejected: empty grant');
+      throw new BadRequestException('Reset grant khong hop le');
+    }
+
+    const activeGrant = await this.tokenModel
+      .findOne({
+        token: this.hashToken(resetGrant),
+        status: true,
+        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
+        expiresAt: { $gt: new Date() },
+      })
+      .exec();
+
+    if (!activeGrant) {
+      this.logger.warn('Password reset grant validation rejected: invalid, expired, or reused grant');
+      throw new UnauthorizedException('Reset grant khong hop le, da het han hoac da duoc su dung');
+    }
+
+    return { email: activeGrant.email };
+  }
   /**
    * 🔄 Refresh Access Token
    * SEC-8: Atomic consume + token family theft detection

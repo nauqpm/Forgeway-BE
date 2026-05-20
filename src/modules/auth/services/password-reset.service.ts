@@ -48,7 +48,7 @@ export class PasswordResetService {
     await this.otpService.createOtp(dto.email, otp, 15 * 60 * 1000);
     this.logger.debug(`Password reset OTP stored for email: ${dto.email}`);
 
-    await this.verifyService.sendPasswordResetEmail(dto.email, otp);
+    await this.verifyService.sendPasswordResetEmail(dto.email, otp);  
     this.logger.log(`Password reset OTP email dispatched for userId: ${user._id}`);
 
     return genericResponse;
@@ -68,7 +68,7 @@ export class PasswordResetService {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
       this.logger.warn(`Password reset OTP verified but user was not found: ${dto.email}`);
-      throw new BadRequestException('Ma OTP khong hop le hoac da het han');
+      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
 
     const { resetGrant, expiresInMs } = await this.tokenService.createResetGrant(
@@ -81,20 +81,20 @@ export class PasswordResetService {
       success: true,
       resetGrant,
       expiresIn: expiresInMs,
-      message: 'Xac thuc OTP thanh cong',
+      message: 'Xác thực OTP thành công',
     };
   }
 
   async resetPasswordWithGrant(dto: ResetPasswordWithGrantDto) {
     this.logger.log('Password reset with grant requested');
 
-    const { email } = await this.tokenService.consumeResetGrant(dto.resetGrant);
-    this.logger.debug(`Password reset grant consumed for email: ${email}`);
+    const { email } = await this.tokenService.validateResetGrant(dto.resetGrant);
+    this.logger.debug(`Password reset grant validated for email: ${email}`);
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      this.logger.warn(`Password reset grant consumed but user was not found: ${email}`);
-      throw new NotFoundException('Khong tim thay nguoi dung');
+      this.logger.warn(`Password reset grant validated but user was not found: ${email}`);
+      throw new NotFoundException('Không tìm thấy người dùng');
     }
 
     const isSameAsCurrentPassword = user.password
@@ -102,8 +102,15 @@ export class PasswordResetService {
       : false;
     if (isSameAsCurrentPassword) {
       this.logger.warn(`Password reset rejected because new password matches current password for userId: ${user._id}`);
-      throw new BadRequestException('Mat khau moi phai khac mat khau hien tai');
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
     }
+
+    const consumedGrant = await this.tokenService.consumeResetGrant(dto.resetGrant);
+    if (consumedGrant.email !== email) {
+      this.logger.error(`Password reset grant email mismatch during consume for userId: ${user._id}`);
+      throw new BadRequestException('Reset grant không hợp lệ');
+    }
+    this.logger.debug(`Password reset grant consumed for email: ${email}`);
 
     const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
     await this.usersService.updatePassword(email, hashedPassword);
@@ -112,6 +119,6 @@ export class PasswordResetService {
     await this.tokenService.invalidateAllTokensForUser(user._id.toString());
     this.logger.log(`Existing sessions invalidated after password reset for userId: ${user._id}`);
 
-    return { success: true, message: 'Dat lai mat khau thanh cong' };
+    return { success: true, message: 'Đặt lại mật khẩu thành công' };
   }
 }
