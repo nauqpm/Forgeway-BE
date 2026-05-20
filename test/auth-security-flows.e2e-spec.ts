@@ -197,7 +197,6 @@ describe('Auth security flows (integration)', () => {
         JWT_SECRET: 'jwt-secret-that-is-long-enough-for-tests',
         REFRESH_TOKEN_SECRET: 'refresh-secret-that-is-long-enough',
         REFRESH_TOKEN_EXPIRES_IN: '7d',
-        PASSWORD_RESET_SECRET: 'password-reset-secret-that-is-long-enough',
         NODE_ENV: 'test',
       };
       return values[key];
@@ -253,18 +252,6 @@ describe('Auth security flows (integration)', () => {
     expect(familyRecords.every((record) => record.status === false)).toBe(true);
   });
 
-  it('consumes a password reset token exactly once', async () => {
-    const rawToken = 'reset-token';
-    await tokenService.createPasswordResetTokenRecord(userId, 'user@example.com', rawToken);
-
-    const [first, second] = await Promise.all([
-      tokenService.consumePasswordResetToken(rawToken),
-      tokenService.consumePasswordResetToken(rawToken),
-    ]);
-
-    expect([first, second].filter(Boolean)).toHaveLength(1);
-  });
-
   it('accepts only active OTPs and excludes them after consume or expiry', async () => {
     const otpModel = new InMemoryOtpModel();
     const otpService = new OtpService(otpModel as unknown as never);
@@ -295,8 +282,6 @@ describe('Auth security flows (integration)', () => {
     } as unknown as UsersService;
     const passwordResetService = new PasswordResetService(
       usersService,
-      jwtService,
-      configService as unknown as ConfigService,
       tokenService,
       otpService,
       new PasswordService(),
@@ -329,6 +314,86 @@ describe('Auth security flows (integration)', () => {
       }),
     ).rejects.toThrow();
     expect(usersService.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects invalid and expired reset grants', async () => {
+    await expect(tokenService.consumeResetGrant('invalid-grant')).rejects.toThrow();
+
+    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+    const record = tokenModel.records.find(
+      (item) => item.token === tokenService.hashToken(resetGrant),
+    );
+    if (!record) {
+      throw new Error('Expected reset grant record');
+    }
+    record.expiresAt = new Date(Date.now() - 1000);
+
+    await expect(tokenService.consumeResetGrant(resetGrant)).rejects.toThrow();
+  });
+
+  it('invalidates existing sessions after successful grant reset', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const usersService = {
+      findByEmail: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        password: hashedPassword,
+      }),
+      updatePassword: jest.fn().mockResolvedValue({ success: true }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      {} as VerifyService,
+    );
+
+    await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
+    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+
+    await passwordResetService.resetPasswordWithGrant({
+      resetGrant,
+      newPassword: 'NewPassword1!',
+    });
+
+    expect(tokenModel.records.every((record) => record.status === false)).toBe(true);
+  });
+
+  it('preserves generic password reset responses to avoid user enumeration', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const verifyService = {
+      sendPasswordResetEmail: jest.fn(),
+    } as unknown as VerifyService;
+    const usersService = {
+      findByEmail: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          _id: { toString: () => userId },
+          email: 'user@example.com',
+        }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      verifyService,
+    );
+
+    const unknown = await passwordResetService.requestPasswordReset({
+      email: 'unknown@example.com',
+    });
+    const known = await passwordResetService.requestPasswordReset({
+      email: 'user@example.com',
+    });
+
+    expect(known).toEqual(unknown);
+    expect(verifyService.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
   });
 
   it('creates registrations as pending verification and activates them after email verification', async () => {
@@ -399,7 +464,6 @@ describe('Auth logout revoke path (e2e)', () => {
                 JWT_SECRET: 'jwt-secret-that-is-long-enough-for-tests',
                 REFRESH_TOKEN_SECRET: 'refresh-secret-that-is-long-enough',
                 REFRESH_TOKEN_EXPIRES_IN: '7d',
-                PASSWORD_RESET_SECRET: 'password-reset-secret-that-is-long-enough',
                 NODE_ENV: 'test',
               };
               return values[key];

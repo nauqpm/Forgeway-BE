@@ -1,13 +1,16 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
-import { Verify, VerifyDocument } from '../schemas/verify.schema';
-import { VerifyType } from '../dtos/verify.dto';
+import { InjectModel } from '@nestjs/mongoose';
 import { randomInt } from 'crypto';
+import { Model } from 'mongoose';
+
+import { VerifyType } from '../dtos/verify.dto';
+import { Verify, VerifyDocument } from '../schemas/verify.schema';
 
 @Injectable()
 export class VerifyService {
+  private readonly logger = new Logger(VerifyService.name);
+
   constructor(
     @InjectModel(Verify.name) private verifyModel: Model<VerifyDocument>,
     private readonly mailerService: MailerService,
@@ -74,18 +77,15 @@ export class VerifyService {
 
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Xác thực email - Mã xác minh',
-      // MailerModule.template.dir already points to src/modules/verify/templates
+      subject: 'Xac thuc email - Ma xac minh',
       template: './verification',
       context: { code },
     });
   }
 
-  async sendPasswordResetEmail(
-    email: string,
-    resetToken: string,
-    otp: string,
-  ): Promise<void> {
+  async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
+    this.logger.debug(`Preparing password reset OTP email for: ${email}`);
+
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
@@ -97,15 +97,14 @@ export class VerifyService {
       expiresAt,
     });
 
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
-
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Đặt lại mật khẩu - OTP',
-      // MailerModule.template.dir already points to src/modules/verify/templates
+      subject: 'Reset Password',
       template: './password-reset',
-      context: { otp, resetLink },
+      context: { otp },
     });
+
+    this.logger.log(`Password reset OTP email sent to: ${email}`);
   }
 
   async verifyPasswordResetCode(

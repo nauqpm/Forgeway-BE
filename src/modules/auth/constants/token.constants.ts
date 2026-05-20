@@ -1,7 +1,6 @@
 export const TOKEN_TYPES = {
   ACCESS: 'access',
   REFRESH: 'refresh',
-  PASSWORD_RESET: 'password-reset',
   PASSWORD_RESET_GRANT: 'password-reset-grant',
 } as const;
 
