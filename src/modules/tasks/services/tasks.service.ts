@@ -1,8 +1,20 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, FilterQuery } from 'mongoose';
-import { Task, TaskDocument, TaskAttachment } from '../schemas/task.schema';
-import { CreateTaskDto, UpdateTaskDto, FilterTaskDto } from '../dtos/create-task.dto';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { Types } from 'mongoose';
+import {
+  CreateTaskDto,
+  FilterTaskDto,
+  UpdateTaskDto,
+} from '../dtos/requests/create-task.dto';
+import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
+import { CreateTaskData } from '../interfaces/task.interface';
+import { TaskMapper } from '../mappers/task.mapper';
+import { TasksRepository } from '../repositories/tasks.repository';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 
 @Injectable()
@@ -10,16 +22,141 @@ export class TasksService {
   private readonly logger = new Logger(TasksService.name);
 
   constructor(
-    @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
-    private workspacesService: WorkspacesService,
+    private readonly tasksRepository: TasksRepository,
+    private readonly taskMapper: TaskMapper,
+    private readonly workspacesService: WorkspacesService,
   ) {}
 
-  async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDocument> {
+  async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
+    const workspaceId = await this.resolveWorkspaceId(createTaskDto, userId);
+    const workspace = await this.workspacesService.findById(workspaceId);
+
+    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    if (!isMember) {
+      throw new ForbiddenException('You are not a member of this workspace');
+    }
+
+    const taskNumber =
+      (await this.tasksRepository.countByWorkspace(workspaceId)) + 1;
+    const key = `${workspace.key}-${taskNumber}`;
+    const taskData = this.buildCreateData(
+      createTaskDto,
+      workspaceId,
+      userId,
+      key,
+    );
+
+    const task = await this.tasksRepository.create(taskData);
+    this.logger.log(`Task created: ${key} by user ${userId}`);
+    return this.taskMapper.mapToDto(task);
+  }
+
+  async findById(id: string): Promise<TaskDto> {
+    this.validateObjectId(id, 'Task');
+
+    const task = await this.tasksRepository.findById(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    return this.taskMapper.mapToDto(task);
+  }
+
+  async findByKey(key: string): Promise<TaskDto> {
+    const task = await this.tasksRepository.findByKey(key);
+    if (!task) {
+      throw new NotFoundException(`Task with key ${key} not found`);
+    }
+
+    return this.taskMapper.mapToDto(task);
+  }
+
+  async findAll(filterDto: FilterTaskDto): Promise<TaskListDto> {
+    const result = await this.tasksRepository.findAll(filterDto);
+    return {
+      tasks: this.taskMapper.mapToDtos(result.tasks),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
+  }
+
+  async findByWorkspace(workspaceId: string): Promise<TaskDto[]> {
+    this.validateObjectId(workspaceId, 'Workspace');
+    const tasks = await this.tasksRepository.findByWorkspace(workspaceId);
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
+  async findBySprint(sprintId: string): Promise<TaskDto[]> {
+    this.validateObjectId(sprintId, 'Sprint');
+    const tasks = await this.tasksRepository.findBySprint(sprintId);
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
+  async findByBoard(boardId: string): Promise<Record<string, TaskDto[]>> {
+    this.validateObjectId(boardId, 'Board');
+    const tasks = await this.tasksRepository.findByBoard(boardId);
+    const groupedByColumn: Record<string, TaskDto[]> = {};
+
+    for (const task of tasks) {
+      const dto = this.taskMapper.mapToDto(task);
+      const columnId = dto.boardColumnId || 'none';
+      if (!groupedByColumn[columnId]) {
+        groupedByColumn[columnId] = [];
+      }
+      groupedByColumn[columnId].push(dto);
+    }
+
+    return groupedByColumn;
+  }
+
+  async findByAssignee(userId: string): Promise<TaskDto[]> {
+    this.validateObjectId(userId, 'User');
+    const tasks = await this.tasksRepository.findByAssignee(userId);
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
+  async update(id: string, updateTaskDto: UpdateTaskDto): Promise<TaskDto> {
+    this.validateObjectId(id, 'Task');
+
+    const existing = await this.tasksRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    const updateData = this.buildUpdateData(updateTaskDto);
+    const task = await this.tasksRepository.update(id, updateData);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    this.logger.log(`Task updated: ${task.key}`);
+    return this.taskMapper.mapToDto(task);
+  }
+
+  async delete(id: string): Promise<void> {
+    this.validateObjectId(id, 'Task');
+
+    const existing = await this.tasksRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    await this.tasksRepository.delete(id);
+    this.logger.log(`Task deleted: ${id}`);
+  }
+
+  private async resolveWorkspaceId(
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<string> {
     let workspaceId = createTaskDto.workspaceId;
     if (!workspaceId) {
       const workspaces = await this.workspacesService.findByUserId(userId);
       if (workspaces.length === 0) {
-        throw new NotFoundException('No workspace found. Please create a workspace first.');
+        throw new NotFoundException(
+          'No workspace found. Please create a workspace first.',
+        );
       }
       workspaceId = workspaces[0]._id.toString();
     }
@@ -27,185 +164,59 @@ export class TasksService {
       throw new NotFoundException('Workspace is required to create a task.');
     }
 
-    const key = await this.getNextKey(workspaceId);
+    this.validateObjectId(workspaceId, 'Workspace');
+    return workspaceId;
+  }
 
-    const task = new this.taskModel({
-      ...createTaskDto,
+  private buildCreateData(
+    createTaskDto: CreateTaskDto,
+    workspaceId: string,
+    userId: string,
+    key: string,
+  ): CreateTaskData {
+    const taskData: CreateTaskData = {
+      title: createTaskDto.title,
+      description: createTaskDto.description || '',
       workspaceId: new Types.ObjectId(workspaceId),
       reporterId: new Types.ObjectId(userId),
       key,
       status: createTaskDto.status || 'todo',
-      priority: createTaskDto.priority || 'medium',
-      type: createTaskDto.type || 'task',
+      priority: (createTaskDto.priority ||
+        'medium') as CreateTaskData['priority'],
+      type: (createTaskDto.type || 'task') as CreateTaskData['type'],
       labels: createTaskDto.labels || [],
       attachments: [],
-    });
+    };
 
-    const savedTask = await task.save();
-    this.logger.log(`Task created: ${key} by user ${userId}`);
-    return savedTask;
+    if (createTaskDto.sprintId) {
+      taskData.sprintId = new Types.ObjectId(createTaskDto.sprintId);
+    }
+    if (createTaskDto.boardId) {
+      taskData.boardId = new Types.ObjectId(createTaskDto.boardId);
+    }
+    if (createTaskDto.boardColumnId) {
+      taskData.boardColumnId = createTaskDto.boardColumnId;
+    }
+    if (createTaskDto.assigneeId) {
+      taskData.assigneeId = new Types.ObjectId(createTaskDto.assigneeId);
+    }
+    if (createTaskDto.storyPoints !== undefined) {
+      taskData.storyPoints = createTaskDto.storyPoints;
+    }
+    if (createTaskDto.dueDate) {
+      taskData.dueDate = new Date(createTaskDto.dueDate);
+    }
+    if (createTaskDto.parentId) {
+      taskData.parentId = new Types.ObjectId(createTaskDto.parentId);
+    }
+    if (createTaskDto.epicId) {
+      taskData.epicId = new Types.ObjectId(createTaskDto.epicId);
+    }
+
+    return taskData;
   }
 
-  async findById(id: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
-    }
-
-    const task = await this.taskModel
-      .findById(id)
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .populate('sprintId', 'name startDate endDate')
-      .populate('boardId', 'name')
-      .populate('parentId', 'key title')
-      .populate('epicId', 'key title')
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
-    }
-
-    return task;
-  }
-
-  async findByKey(key: string): Promise<TaskDocument> {
-    const task = await this.taskModel
-      .findOne({ key })
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .populate('sprintId', 'name startDate endDate')
-      .populate('boardId', 'name')
-      .populate('parentId', 'key title')
-      .populate('epicId', 'key title')
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with key ${key} not found`);
-    }
-
-    return task;
-  }
-
-  async findAll(filterDto: FilterTaskDto): Promise<{ tasks: TaskDocument[]; total: number; page: number; limit: number }> {
-    const filter: FilterQuery<TaskDocument> = {};
-
-    if (filterDto.workspaceId) {
-      filter.workspaceId = new Types.ObjectId(filterDto.workspaceId);
-    }
-    if (filterDto.sprintId) {
-      filter.sprintId = new Types.ObjectId(filterDto.sprintId);
-    }
-    if (filterDto.boardId) {
-      filter.boardId = new Types.ObjectId(filterDto.boardId);
-    }
-    if (filterDto.boardColumnId) {
-      filter.boardColumnId = filterDto.boardColumnId;
-    }
-    if (filterDto.assigneeId) {
-      filter.assigneeId = new Types.ObjectId(filterDto.assigneeId);
-    }
-    if (filterDto.reporterId) {
-      filter.reporterId = new Types.ObjectId(filterDto.reporterId);
-    }
-    if (filterDto.type) {
-      filter.type = filterDto.type;
-    }
-    if (filterDto.status) {
-      filter.status = filterDto.status;
-    }
-    if (filterDto.priority) {
-      filter.priority = filterDto.priority;
-    }
-    if (filterDto.epicId) {
-      filter.epicId = new Types.ObjectId(filterDto.epicId);
-    }
-    if (filterDto.labels && filterDto.labels.length > 0) {
-      filter.labels = { $in: filterDto.labels };
-    }
-    if (filterDto.search) {
-      filter.$text = { $search: filterDto.search };
-    }
-
-    const page = filterDto.page || 1;
-    const limit = filterDto.limit || 20;
-    const skip = (page - 1) * limit;
-
-    const [tasks, total] = await Promise.all([
-      this.taskModel
-        .find(filter)
-        .populate('workspaceId', 'key name')
-        .populate('assigneeId', 'name email avatar')
-        .populate('reporterId', 'name email avatar')
-        .populate('sprintId', 'name')
-        .populate('boardId', 'name')
-        .populate('epicId', 'key title')
-        .skip(skip)
-        .limit(limit)
-        .sort({ createdAt: -1 })
-        .exec(),
-      this.taskModel.countDocuments(filter).exec(),
-    ]);
-
-    return { tasks, total, page, limit };
-  }
-
-  async findByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
-    return this.taskModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async findBySprint(sprintId: string): Promise<TaskDocument[]> {
-    return this.taskModel
-      .find({ sprintId: new Types.ObjectId(sprintId) })
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async findByBoard(boardId: string): Promise<Record<string, TaskDocument[]>> {
-    const tasks = await this.taskModel
-      .find({ boardId: new Types.ObjectId(boardId) })
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .exec();
-
-    const groupedByColumn: Record<string, TaskDocument[]> = {};
-    for (const task of tasks) {
-      const columnId = task.boardColumnId || 'none';
-      if (!groupedByColumn[columnId]) {
-        groupedByColumn[columnId] = [];
-      }
-      groupedByColumn[columnId].push(task);
-    }
-
-    return groupedByColumn;
-  }
-
-  async findByAssignee(userId: string): Promise<TaskDocument[]> {
-    return this.taskModel
-      .find({ assigneeId: new Types.ObjectId(userId) })
-      .populate('workspaceId', 'key name')
-      .populate('sprintId', 'name')
-      .populate('boardId', 'name')
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async update(id: string, updateTaskDto: UpdateTaskDto): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
-    }
-
+  private buildUpdateData(updateTaskDto: UpdateTaskDto): Record<string, any> {
     const updateData: Record<string, any> = { ...updateTaskDto };
 
     if (updateTaskDto.assigneeId) {
@@ -223,203 +234,16 @@ export class TasksService {
     if (updateTaskDto.epicId) {
       updateData.epicId = new Types.ObjectId(updateTaskDto.epicId);
     }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(id, updateData, { new: true })
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .populate('sprintId', 'name')
-      .populate('boardId', 'name')
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+    if (updateTaskDto.dueDate) {
+      updateData.dueDate = new Date(updateTaskDto.dueDate);
     }
 
-    this.logger.log(`Task updated: ${task.key}`);
-    return task;
+    return updateData;
   }
 
-  async delete(id: string): Promise<void> {
+  private validateObjectId(id: string, resourceName: string): void {
     if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new BadRequestException(`Invalid ${resourceName} ID format`);
     }
-
-    const result = await this.taskModel.findByIdAndDelete(id).exec();
-    if (!result) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
-    }
-
-    this.logger.log(`Task deleted: ${id}`);
-  }
-
-  async moveToBoard(taskId: string, boardId: string, columnId: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(
-        taskId,
-        {
-          boardId: new Types.ObjectId(boardId),
-          boardColumnId: columnId,
-        },
-        { new: true },
-      )
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Task ${task.key} moved to board ${boardId}, column ${columnId}`);
-    return task;
-  }
-
-  async assignTo(taskId: string, userId: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(
-        taskId,
-        { assigneeId: new Types.ObjectId(userId) },
-        { new: true },
-      )
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Task ${task.key} assigned to user ${userId}`);
-    return task;
-  }
-
-  async changeStatus(taskId: string, status: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(taskId, { status }, { new: true })
-      .populate('workspaceId', 'key name')
-      .populate('assigneeId', 'name email avatar')
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Task ${task.key} status changed to ${status}`);
-    return task;
-  }
-
-  async addLabel(taskId: string, label: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(
-        taskId,
-        { $addToSet: { labels: label } },
-        { new: true },
-      )
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Label "${label}" added to task ${task.key}`);
-    return task;
-  }
-
-  async removeLabel(taskId: string, label: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(
-        taskId,
-        { $pull: { labels: label } },
-        { new: true },
-      )
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Label "${label}" removed from task ${task.key}`);
-    return task;
-  }
-
-  async addAttachment(taskId: string, attachment: Partial<TaskAttachment>): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const attachmentWithId = {
-      ...attachment,
-      id: attachment.id || new Types.ObjectId().toString(),
-      uploadedAt: new Date(),
-    };
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(
-        taskId,
-        { $push: { attachments: attachmentWithId } },
-        { new: true },
-      )
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Attachment "${attachment.name}" added to task ${task.key}`);
-    return task;
-  }
-
-  async removeAttachment(taskId: string, attachmentId: string): Promise<TaskDocument> {
-    if (!Types.ObjectId.isValid(taskId)) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    const task = await this.taskModel
-      .findByIdAndUpdate(
-        taskId,
-        { $pull: { attachments: { id: attachmentId } } },
-        { new: true },
-      )
-      .exec();
-
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
-    }
-
-    this.logger.log(`Attachment ${attachmentId} removed from task ${task.key}`);
-    return task;
-  }
-
-  async getNextKey(workspaceId: string): Promise<string> {
-    const workspace = await this.workspacesService.findById(workspaceId);
-    const workspaceKey = workspace.key;
-
-    const count = await this.taskModel.countDocuments({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
-    const nextNumber = count + 1;
-
-    return `${workspaceKey}-${nextNumber}`;
   }
 }
