@@ -46,9 +46,7 @@ describe('Auth throttling (e2e)', () => {
       resetGrant: 'reset-grant',
       expiresIn: 600_000,
     }),
-    resetPasswordWithToken: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
     resetPasswordWithGrant: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
-    resetPasswordWithOtp: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
   };
 
   beforeEach(async () => {
@@ -197,7 +195,7 @@ describe('Auth throttling (e2e)', () => {
   it('limits repeated password reset requests', async () => {
     const responses = await postUntilLimited(
       '/auth/request-password-reset',
-      { email: 'test@example.com', resetMethod: 'otp' },
+      { email: 'test@example.com' },
       4,
     );
 

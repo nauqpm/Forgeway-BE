@@ -16,11 +16,7 @@ import { UsersService } from '../../users/services/users.service';
 import { AuditLogService } from './audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
-import { AUTH_CONSTANTS } from '../constants/auth.constants';
-import {
-  PasswordResetGrantJwtPayload,
-  RefreshJwtPayload,
-} from '../types/jwt-payload.type';
+import { RefreshJwtPayload } from '../types/jwt-payload.type';
 
 @Injectable()
 export class TokenService {
@@ -168,67 +164,35 @@ export class TokenService {
     }
   }
 
-  async createPasswordResetTokenRecord(userId: string, email: string, resetToken: string): Promise<void> {
-    await this.tokenModel.create({
-      userId,
-      email,
-      token: this.hashToken(resetToken),
-      deviceInfo: 'Password Reset',
-      status: true,
-      type: TOKEN_TYPES.PASSWORD_RESET,
-      expiresAt: new Date(Date.now() + AUTH_CONSTANTS.PASSWORD_RESET_EXPIRES_MS),
-    });
-  }
-
   async createResetGrant(
     userId: string,
     email: string,
-  ): Promise<{ token: string; expiresInMs: number }> {
+  ): Promise<{ resetGrant: string; expiresInMs: number }> {
+    this.logger.debug(`Creating password reset grant for userId: ${userId}`);
+
     const expiresInMs = 10 * 60 * 1000;
-    const token = this.jwtService.sign(
-      {
-        email,
-        purpose: 'reset-password',
-        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
-      },
-      {
-        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-        expiresIn: '10m',
-      },
-    );
+    const resetGrant = randomBytes(32).toString('base64url');
 
     await this.tokenModel.create({
       userId,
       email,
-      token: this.hashToken(token),
+      token: this.hashToken(resetGrant),
       deviceInfo: 'Password Reset Grant',
       status: true,
       type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
       expiresAt: new Date(Date.now() + expiresInMs),
     });
 
-    return { token, expiresInMs };
+    this.logger.debug(`Password reset grant stored for userId: ${userId}; expiresInMs: ${expiresInMs}`);
+    return { resetGrant, expiresInMs };
   }
 
   async consumeResetGrant(resetGrant: string): Promise<{ email: string }> {
-    let payload: PasswordResetGrantJwtPayload;
-    try {
-      payload = this.jwtService.verify<PasswordResetGrantJwtPayload>(resetGrant, {
-        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-      });
-    } catch (error) {
-      const err = error as Error;
-      if (err.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Reset grant token đã hết hạn');
-      }
-      throw new UnauthorizedException('Reset grant token không hợp lệ');
-    }
+    this.logger.debug('Consuming password reset grant');
 
-    if (
-      payload.purpose !== 'reset-password' ||
-      payload.type !== TOKEN_TYPES.PASSWORD_RESET_GRANT
-    ) {
-      throw new BadRequestException('Reset grant token không hợp lệ');
+    if (!resetGrant?.trim()) {
+      this.logger.warn('Password reset grant consume rejected: empty grant');
+      throw new BadRequestException('Reset grant khong hop le');
     }
 
     const consumed = await this.tokenModel.findOneAndUpdate(
@@ -243,40 +207,13 @@ export class TokenService {
     );
 
     if (!consumed) {
-      throw new UnauthorizedException('Reset grant token không hợp lệ hoặc đã được sử dụng');
+      this.logger.warn('Password reset grant consume rejected: invalid, expired, or reused grant');
+      throw new UnauthorizedException('Reset grant khong hop le, da het han hoac da duoc su dung');
     }
 
-    return { email: payload.email };
+    this.logger.debug(`Password reset grant consumed for userId: ${consumed.userId}`);
+    return { email: consumed.email };
   }
-
-  async findActivePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {
-    return this.tokenModel.findOne({
-      token: this.hashToken(resetToken),
-      status: true,
-      type: TOKEN_TYPES.PASSWORD_RESET,
-    });
-  }
-
-  async consumePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {
-    return this.tokenModel.findOneAndUpdate(
-      {
-        token: this.hashToken(resetToken),
-        status: true,
-        type: TOKEN_TYPES.PASSWORD_RESET,
-        expiresAt: { $gt: new Date() },
-      },
-      { $set: { status: false } },
-      { new: false },
-    );
-  }
-
-  async revokePasswordResetToken(resetToken: string): Promise<void> {
-    await this.tokenModel.updateOne(
-      { token: this.hashToken(resetToken), type: TOKEN_TYPES.PASSWORD_RESET },
-      { status: false },
-    );
-  }
-
   /**
    * 🔄 Refresh Access Token
    * SEC-8: Atomic consume + token family theft detection

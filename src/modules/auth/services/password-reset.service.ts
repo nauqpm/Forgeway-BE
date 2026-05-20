@@ -1,169 +1,117 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 
 import { UsersService } from '../../users/services/users.service';
 import { VerifyService } from '../../verify/services/verify.service';
 import {
   RequestPasswordResetDto,
   ResetPasswordWithGrantDto,
-  ResetPasswordWithOtpDto,
-  ResetPasswordWithTokenDto,
   VerifyOtpDto,
 } from '../dtos/password-reset.dto';
-import { TokenService } from './token.service';
 import { OtpService } from './otp.service';
-import { TOKEN_TYPES } from '../constants/token.constants';
 import { PasswordService } from './password.service';
-import { PasswordResetJwtPayload } from '../types/jwt-payload.type';
+import { TokenService } from './token.service';
 
 @Injectable()
 export class PasswordResetService {
+  private readonly logger = new Logger(PasswordResetService.name);
+
   constructor(
     private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
     private readonly tokenService: TokenService,
     private readonly otpService: OtpService,
     private readonly passwordService: PasswordService,
     private readonly verifyService: VerifyService,
   ) {}
 
-  /** 🔄 Yêu cầu đặt lại mật khẩu (behavior preserved) */
   async requestPasswordReset(dto: RequestPasswordResetDto) {
-    // SEC-7: generic response
-    const GENERIC_RESPONSE = {
+    this.logger.log(`Password reset requested for email: ${dto.email}`);
+
+    const genericResponse = {
       success: true,
-      message: 'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
+      message:
+        'Neu email ton tai trong he thong, ban se nhan duoc huong dan dat lai mat khau.',
     };
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      return GENERIC_RESPONSE;
+      this.logger.warn(`Password reset requested for non-existent email: ${dto.email}`);
+      return genericResponse;
     }
 
-    // SEC-10: sign reset token with PASSWORD_RESET_SECRET
-    const resetToken = this.jwtService.sign(
-      { email: dto.email, type: TOKEN_TYPES.PASSWORD_RESET },
-      {
-        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-        expiresIn: '15m',
-      },
-    );
-
-    // Persist hashed token (unchanged semantics)
-    await this.tokenService.createPasswordResetTokenRecord(
-      user._id.toString(),
-      user.email,
-      resetToken,
-    );
-
-    // OTP 15m
+    this.logger.debug(`Generating password reset OTP for userId: ${user._id}`);
     const otp = this.otpService.generateOtp();
     await this.otpService.createOtp(dto.email, otp, 15 * 60 * 1000);
+    this.logger.debug(`Password reset OTP stored for email: ${dto.email}`);
 
-    await this.verifyService.sendPasswordResetEmail(dto.email, resetToken, otp);
+    await this.verifyService.sendPasswordResetEmail(dto.email, otp);
+    this.logger.log(`Password reset OTP email dispatched for userId: ${user._id}`);
 
-    return GENERIC_RESPONSE;
+    return genericResponse;
   }
 
-  /** Verify OTP, consume it immediately, then issue a one-time reset grant. */
   async verifyOtpAndIssueGrant(dto: VerifyOtpDto): Promise<{
     success: boolean;
     resetGrant: string;
     expiresIn: number;
     message: string;
   }> {
+    this.logger.log(`Password reset OTP verification requested for email: ${dto.email}`);
+
     await this.otpService.consumeVerifiedOtp(dto.email, dto.otp);
+    this.logger.debug(`Password reset OTP consumed for email: ${dto.email}`);
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+      this.logger.warn(`Password reset OTP verified but user was not found: ${dto.email}`);
+      throw new BadRequestException('Ma OTP khong hop le hoac da het han');
     }
 
-    const { token: resetGrant, expiresInMs } = await this.tokenService.createResetGrant(
+    const { resetGrant, expiresInMs } = await this.tokenService.createResetGrant(
       user._id.toString(),
       user.email,
     );
+
+    this.logger.log(`Password reset grant issued for userId: ${user._id}; expiresInMs: ${expiresInMs}`);
     return {
       success: true,
       resetGrant,
       expiresIn: expiresInMs,
-      message: 'Xác thực OTP thành công',
+      message: 'Xac thuc OTP thanh cong',
     };
   }
 
-  /** 🔑 Đặt lại mật khẩu với token */
-  async resetPasswordWithToken(dto: ResetPasswordWithTokenDto) {
-    try {
-      const payload = this.jwtService.verify<PasswordResetJwtPayload>(dto.token, {
-        secret: this.configService.get<string>('PASSWORD_RESET_SECRET'),
-      });
-      if (!payload || payload.type !== TOKEN_TYPES.PASSWORD_RESET) {
-        throw new BadRequestException('Token không hợp lệ');
-      }
-
-      const tokenRecord = await this.tokenService.consumePasswordResetToken(dto.token);
-
-      if (!tokenRecord) {
-        throw new BadRequestException('Token không hợp lệ hoặc đã được sử dụng');
-      }
-
-      const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
-      await this.usersService.updatePassword(tokenRecord.email, hashedPassword);
-
-
-      return { success: true, message: 'Đặt lại mật khẩu thành công' };
-    } catch (error) {
-      const err = error as Error;
-      if (err.name === 'JsonWebTokenError') {
-        throw new BadRequestException('Token không hợp lệ');
-      }
-      if (err.name === 'TokenExpiredError') {
-        throw new BadRequestException('Token đã hết hạn');
-      }
-      throw error;
-    }
-  }
-
-  /** 🔑 Đặt lại mật khẩu với OTP */
-  async resetPasswordWithOtp(dto: ResetPasswordWithOtpDto) {
-    const otpRecord = await this.otpService.getLatestActiveOtp(dto.email);
-    const isValid = otpRecord && (await this.passwordService.verifyPassword(dto.otp, otpRecord.code));
-    if (!isValid) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
-    }
-
-    const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
-    await this.usersService.updatePassword(dto.email, hashedPassword);
-
-    await this.otpService.markUsed(String(otpRecord._id));
-
-    return { success: true, message: 'Đặt lại mật khẩu thành công' };
-  }
-
   async resetPasswordWithGrant(dto: ResetPasswordWithGrantDto) {
+    this.logger.log('Password reset with grant requested');
+
     const { email } = await this.tokenService.consumeResetGrant(dto.resetGrant);
+    this.logger.debug(`Password reset grant consumed for email: ${email}`);
+
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      this.logger.warn(`Password reset grant consumed but user was not found: ${email}`);
+      throw new NotFoundException('Khong tim thay nguoi dung');
     }
 
     const isSameAsCurrentPassword = user.password
       ? await this.passwordService.verifyPassword(dto.newPassword, user.password)
       : false;
     if (isSameAsCurrentPassword) {
-      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+      this.logger.warn(`Password reset rejected because new password matches current password for userId: ${user._id}`);
+      throw new BadRequestException('Mat khau moi phai khac mat khau hien tai');
     }
 
     const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
     await this.usersService.updatePassword(email, hashedPassword);
-    await this.tokenService.invalidateAllTokensForUser(user._id.toString());
+    this.logger.log(`Password updated for userId: ${user._id}`);
 
-    return { success: true, message: 'Đặt lại mật khẩu thành công' };
+    await this.tokenService.invalidateAllTokensForUser(user._id.toString());
+    this.logger.log(`Existing sessions invalidated after password reset for userId: ${user._id}`);
+
+    return { success: true, message: 'Dat lai mat khau thanh cong' };
   }
 }
