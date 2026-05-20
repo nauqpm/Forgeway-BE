@@ -16,11 +16,10 @@ values:
     value: ''
   - key: userId
     value: ''
-  - key: resetToken
-    value: ''
   - key: resetGrant
     value: ''
   - key: testemailverification
     value: ''
   - key: passEmailVerification
     value: ''
+color: 60
