@@ -1,5 +1,5 @@
 // users.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
@@ -9,13 +9,16 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(private readonly usersRepository: UsersRepository) { }
 
   // 📢 Lấy thông tin người dùng theo ID
   async getUserById(id: string): Promise<User> {
-    console.log('🔍 ID được truyền vào:', id);
+    this.logger.debug(`Đang tìm người dùng với ID: ${id}`);
     const user = await this.usersRepository.findById(id);
     if (!user) {
+      this.logger.warn(`Không tìm thấy người dùng với ID: ${id}`);
       throw new NotFoundException('User not found');
     }
     return user;
@@ -28,17 +31,26 @@ export class UsersService {
 
   // 📢 Tạo người dùng mới
   async createUser(userData: CreateUsersDto): Promise<User> {
+    this.logger.log(`Đang tạo người dùng mới với email: ${userData.email}`);
     // Hash mật khẩu nếu có
     if (userData.password) {
       const salt = await bcrypt.genSalt();
       userData.password = await bcrypt.hash(userData.password, salt);
     }
 
-    return await this.usersRepository.create(userData);
+    try {
+      const user = await this.usersRepository.create(userData);
+      this.logger.log(`Đã tạo người dùng thành công: ${user.email}`);
+      return user;
+    } catch (error) {
+      this.logger.error(`Lỗi khi tạo người dùng (${userData.email}):`, error);
+      throw error;
+    }
   }
 
   // 📢 Cập nhật thông tin người dùng
   async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: Record<string, unknown> }, isPasswordHashed: boolean = false): Promise<User> {
+    this.logger.log(`Cập nhật thông tin cho User ID: ${userId}`);
     // Only hash password if updateData is UpdateUsersDto and has password field
     if ('password' in updateData && !isPasswordHashed) {
       const salt = await bcrypt.genSalt();
@@ -47,10 +59,12 @@ export class UsersService {
 
     const updatedUser = await this.usersRepository.update(userId, updateData);
     if (!updatedUser) {
+      this.logger.warn(`Cập nhật thất bại: Không tìm thấy User ID: ${userId}`);
       throw new NotFoundException('User not found');
     }
     return updatedUser;
   }
+
 
   // 📢 Lấy danh sách tất cả người dùng
   async getAllUsers(): Promise<User[]> {
