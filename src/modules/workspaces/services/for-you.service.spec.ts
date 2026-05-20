@@ -54,7 +54,7 @@ describe('ForYouService', () => {
       createWorkspaceDocument({
         _id: ownerWorkspaceId,
         ownerId: userId,
-        members: [{ userId, role: SPACE_ROLES.SPACE_ADMIN }],
+        members: [{ userId, role: SPACE_ROLES.WORKSPACE_ADMIN }],
         name: 'Owned Space',
         slug: 'owned-space',
         key: 'OWN',
@@ -75,7 +75,7 @@ describe('ForYouService', () => {
       expect.objectContaining({
         id: ownerWorkspaceId.toString(),
         name: 'Owned Space',
-        role: SPACE_ROLES.SPACE_ADMIN,
+        role: SPACE_ROLES.WORKSPACE_ADMIN,
         relationship: 'owner',
         ownershipLabel: 'Sở hữu',
       }),

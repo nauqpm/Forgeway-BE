@@ -44,12 +44,11 @@ export class ForYouService {
     return {
       id: workspace._id.toString(),
       name: workspace.name,
-      description: workspace.description,
       slug: workspace.slug,
       key: workspace.key,
       type: workspace.type,
       status: workspace.status,
-      role: isOwner ? SPACE_ROLES.SPACE_ADMIN : member?.role ?? SPACE_ROLES.VIEWER,
+      role: isOwner ? SPACE_ROLES.WORKSPACE_ADMIN : member?.role ?? SPACE_ROLES.VIEWER,
       relationship: isOwner ? 'owner' : 'member',
       ownershipLabel: isOwner ? 'Sở hữu' : 'Tham gia',
       createdAt: workspace.createdAt,

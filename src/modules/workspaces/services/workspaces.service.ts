@@ -46,7 +46,7 @@ export class WorkspacesService {
       access: dto.access || 'open',
       ownerId: new Types.ObjectId(userId),
       members: [
-        { userId: new Types.ObjectId(userId), role: SPACE_ROLES.SPACE_ADMIN },
+        { userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN },
       ],
       settings: {},
       status: 'active',
@@ -229,7 +229,7 @@ export class WorkspacesService {
     const member = workspace.members.find(
       (item) => item.userId.toString() === userId,
     );
-    return workspace.ownerId.toString() === userId || member?.role === SPACE_ROLES.SPACE_ADMIN;
+    return workspace.ownerId.toString() === userId || member?.role === SPACE_ROLES.WORKSPACE_ADMIN;
   }
 
   async isOwner(workspaceId: string, userId: string): Promise<boolean> {
