@@ -12,6 +12,7 @@ import { VerifyService } from '../../verify/services/verify.service';
 import { LoginDto, RegisterDto } from '../dtos/auth.dto';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import { InviteService } from '@/modules/workspaces/services/invite.service';
 
 @Injectable()
 export class AuthenticationService {
@@ -22,6 +23,7 @@ export class AuthenticationService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly verifyService: VerifyService,
+    private readonly inviteService: InviteService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -49,6 +51,10 @@ export class AuthenticationService {
 
       await this.verifyService.sendVerificationEmail(registerDto.email);
       this.logger.log(`Đã gửi email xác thực đến: ${registerDto.email}`);
+
+      this.inviteService
+        .processPostRegisterInvites(registerDto.email, newUser._id.toString())
+        .catch((err) => this.logger.error('processPostRegisterInvites failed', err));
 
       return genericResponse;
     } catch (error: unknown) {
