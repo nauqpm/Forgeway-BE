@@ -33,7 +33,7 @@ describe('Auth user-management authorization (e2e)', () => {
     'invalid-role-token': {
       userId: 'manager-1',
       email: 'manager@example.com',
-      role: SPACE_ROLES.SPACE_ADMIN,
+      role: SPACE_ROLES.WORKSPACE_ADMIN,
       type: 'access',
     },
   } as const;

@@ -30,6 +30,11 @@ export class CreateWorkspaceDto {
   @IsOptional()
   @IsEnum(['scrum', 'kanban'])
   type?: string;
+
+  @ApiPropertyOptional({ enum: ['private', 'public'], default: 'public' })
+  @IsOptional()
+  @IsEnum(['private', 'public'])
+  access?: string;
 }
 
 export class UpdateWorkspaceDto {
@@ -66,4 +71,9 @@ export class UpdateWorkspaceDto {
   @IsOptional()
   @IsEnum(['active', 'archived'])
   status?: string;
+
+  @ApiPropertyOptional({ enum: ['private', 'public'] })
+  @IsOptional()
+  @IsEnum(['private', 'public'])
+  access?: string;
 }

@@ -1,11 +1,10 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { randomInt } from 'crypto';
 import { Model } from 'mongoose';
-
-import { VerifyType } from '../dtos/verify.dto';
+import { MailerService } from '@nestjs-modules/mailer';
 import { Verify, VerifyDocument } from '../schemas/verify.schema';
+import { VerifyType } from '../dtos/verify.dto';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class VerifyService {
@@ -22,6 +21,7 @@ export class VerifyService {
 
   async generateVerificationCode(email: string): Promise<string> {
     const code = this.generateCode();
+    this.logger.debug(`[DEBUG] Generated Verification Code for ${email}: ${code}`);
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
@@ -47,6 +47,7 @@ export class VerifyService {
     code: string,
     type: VerifyType,
   ): Promise<{ valid: boolean; message: string }> {
+    this.logger.log(`Attempting to verify code for ${email} (Type: ${type})`);
     const verification = await this.verifyModel.findOne({
       email,
       code,
@@ -55,17 +56,20 @@ export class VerifyService {
     });
 
     if (!verification) {
+      this.logger.warn(`Verification failed for ${email}: Invalid or expired code`);
       throw new BadRequestException('Invalid or expired verification code');
     }
 
     const now = new Date();
     if (verification.expiresAt < now) {
+      this.logger.warn(`Verification failed for ${email}: Code expired at ${verification.expiresAt}`);
       throw new BadRequestException('Verification code has expired');
     }
 
     verification.isUsed = true;
     await verification.save();
 
+    this.logger.log(`Successfully verified code for ${email}`);
     return {
       valid: true,
       message: 'Verification successful',
@@ -74,18 +78,18 @@ export class VerifyService {
 
   async sendVerificationEmail(email: string): Promise<void> {
     const code = await this.generateVerificationCode(email);
+    this.logger.log(`Sending verification email to ${email}`);
 
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Xac thuc email - Ma xac minh',
+      subject: 'Xác thực email - Mã xác minh',
       template: './verification',
       context: { code },
     });
   }
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
-    this.logger.debug(`Preparing password reset OTP email for: ${email}`);
-
+    this.logger.debug(`[DEBUG] Password Reset OTP for ${email}: ${otp}`);
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
@@ -97,14 +101,14 @@ export class VerifyService {
       expiresAt,
     });
 
+    this.logger.log(`Sending password reset email to ${email}`);
+
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Reset Password',
+      subject: 'Đặt lại mật khẩu - OTP',
       template: './password-reset',
       context: { otp },
     });
-
-    this.logger.log(`Password reset OTP email sent to: ${email}`);
   }
 
   async verifyPasswordResetCode(
@@ -129,6 +133,7 @@ export class VerifyService {
     const result = await this.verifyModel.deleteMany({
       expiresAt: { $lt: new Date() },
     });
+    this.logger.log(`Cleaned up ${result.deletedCount} expired verification codes`);
     return result.deletedCount;
   }
 }

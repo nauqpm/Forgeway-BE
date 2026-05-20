@@ -25,7 +25,7 @@ export class ForYouWorkspaceDto {
   status!: string;
 
   @ApiProperty({
-    example: SPACE_ROLES.SPACE_ADMIN,
+    example: SPACE_ROLES.WORKSPACE_ADMIN,
     enum: Object.values(SPACE_ROLES),
     description: 'Current user role inside this workspace',
   })

@@ -33,6 +33,9 @@ export class Workspace {
   @Prop({ type: String, enum: ['active', 'archived'], default: 'active' })
   status!: string;
 
+  @Prop({ type: String, enum: ['private', 'public'], default: 'public' })
+  access!: string;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;

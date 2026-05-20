@@ -11,12 +11,11 @@ import { ModuleRef } from '@nestjs/core';
 import { SPACE_ROLES, SpaceRole } from '../constants/space-role.constants';
 import { GLOBAL_ROLES } from '../constants/global-role.constants';
 import { WorkspacesService } from '../../modules/workspaces/services/workspaces.service';
-import { SpacesService } from '../../modules/spaces/services/spaces.service';
 import { TasksService } from '../../modules/tasks/services/tasks.service';
 import { PagesService } from '../../modules/pages/services/pages.service';
 
 export const ScopedRoleGuard = (
-  resourceType: 'workspace' | 'space' | 'task' | 'page',
+  resourceType: 'workspace' | 'task' | 'page',
   requiredRole: SpaceRole = SPACE_ROLES.VIEWER,
 ): Type<CanActivate> => {
   @Injectable()
@@ -38,22 +37,18 @@ export const ScopedRoleGuard = (
 
       let resourceId = request.params.id || 
                        request.params.workspaceId || 
-                       request.params.spaceId ||
-                       request.body.workspaceId ||
-                       request.body.spaceId;
+                       request.body.workspaceId;
       
       if (!resourceId) {
         return true; 
       }
 
       const workspacesService = this.moduleRef.get(WorkspacesService, { strict: false });
-      const spacesService = this.moduleRef.get(SpacesService, { strict: false });
 
       let userRoleInResource: string | undefined;
       let targetWorkspaceId: string | undefined;
-      let targetSpaceId: string | undefined;
 
-      // Phân giải resourceId về Workspace hoặc Space
+      // Phân giải resourceId về Workspace
       if (resourceType === 'task') {
         const tasksService = this.moduleRef.get(TasksService, { strict: false });
         const task = await tasksService.findById(resourceId);
@@ -63,38 +58,29 @@ export const ScopedRoleGuard = (
         const pagesService = this.moduleRef.get(PagesService, { strict: false });
         const page = await pagesService.findById(resourceId);
         if (!page) throw new NotFoundException('Page not found');
-        targetSpaceId = page.spaceId.toString();
+        targetWorkspaceId = page.workspaceId.toString();
       } else if (resourceType === 'workspace') {
         targetWorkspaceId = resourceId;
-      } else if (resourceType === 'space') {
-        targetSpaceId = resourceId;
       }
 
-      // Kiểm tra quyền dựa trên Workspace hoặc Space đã phân giải
+      // Kiểm tra quyền dựa trên Workspace đã phân giải
       if (targetWorkspaceId) {
         const workspace = await workspacesService.findById(targetWorkspaceId);
         const member = workspace.members.find(
           (m) => m.userId.toString() === user.userId,
         );
         userRoleInResource = workspace.ownerId.toString() === user.userId 
-          ? SPACE_ROLES.SPACE_ADMIN 
-          : member?.role;
-      } else if (targetSpaceId) {
-        const space = await spacesService.findById(targetSpaceId);
-        const member = space.members.find(
-          (m) => m.userId.toString() === user.userId,
-        );
-        userRoleInResource = space.ownerId.toString() === user.userId 
-          ? SPACE_ROLES.SPACE_ADMIN 
+          ? SPACE_ROLES.WORKSPACE_ADMIN 
           : member?.role;
       }
+
 if (!userRoleInResource) {
   throw new ForbiddenException('Bạn không có quyền truy cập vào tài nguyên này');
 }
 
 // Kiểm tra cấp bậc quyền: Admin > Member > Viewer
 const roleWeights: Record<string, number> = {
-  [SPACE_ROLES.SPACE_ADMIN]: 3,
+  [SPACE_ROLES.WORKSPACE_ADMIN]: 3,
   [SPACE_ROLES.MEMBER]: 2,
   [SPACE_ROLES.VIEWER]: 1,
 };

@@ -52,8 +52,8 @@ export class WorkspacesController {
   }
 
   @Put(':id')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
-  @ApiOperation({ summary: 'Update workspace (owner/space admin only)' })
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @ApiOperation({ summary: 'Update workspace (owner/workspace admin only)' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateWorkspaceDto,
@@ -62,7 +62,7 @@ export class WorkspacesController {
   }
 
   @Delete(':id')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete workspace (owner only)' })
   async remove(@Param('id') id: string) {
@@ -77,9 +77,9 @@ export class WorkspacesController {
   }
 
   @Post(':id/members')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add member to workspace (owner/space admin only)' })
+  @ApiOperation({ summary: 'Add member to workspace (owner/workspace admin only)' })
   async addMember(
     @Param('id') id: string,
     @Body() body: { email: string; role: SpaceRole },
@@ -88,8 +88,8 @@ export class WorkspacesController {
   }
 
   @Put(':id/members/:userId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
-  @ApiOperation({ summary: 'Update member role (owner/space admin only)' })
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @ApiOperation({ summary: 'Update member role (owner/workspace admin only)' })
   async updateMemberRole(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -99,9 +99,9 @@ export class WorkspacesController {
   }
 
   @Delete(':id/members/:userId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.SPACE_ADMIN))
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove member from workspace (owner/space admin only)' })
+  @ApiOperation({ summary: 'Remove member from workspace (owner/workspace admin only)' })
   async removeMember(
     @Param('id') id: string,
     @Param('userId') userId: string,
