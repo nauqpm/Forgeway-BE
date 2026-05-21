@@ -11,7 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -27,14 +27,16 @@ export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all workspaces for current user' })
+  @ApiOperation({ summary: 'Lấy tất cả workspace của người dùng hiện tại' })
+  @ApiResponse({ status: 200, description: 'Danh sách workspace', schema: { example: [{ _id: '...', name: 'My Workspace', owner: '...' }] } })
   async findAll(@Request() req: any) {
     return this.workspacesService.findByUserId(req.user.userId);
   }
 
   @Get(':id')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get workspace by ID' })
+  @ApiOperation({ summary: 'Lấy workspace theo ID' })
+  @ApiResponse({ status: 200, description: 'Thông tin workspace', schema: { example: { _id: '...', name: 'My Workspace', members: [] } } })
   async findOne(@Param('id') id: string) {
     const workspace = await this.workspacesService.findById(id);
     if (!workspace) {
@@ -44,7 +46,8 @@ export class WorkspacesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new workspace' })
+  @ApiOperation({ summary: 'Tạo workspace mới' })
+  @ApiResponse({ status: 201, description: 'Tạo workspace thành công', schema: { example: { _id: '...', name: 'New Workspace' } } })
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() dto: CreateWorkspaceDto) {
     console.log('📥 Nhận yêu cầu tạo Workspace:', JSON.stringify(dto));
@@ -53,7 +56,8 @@ export class WorkspacesController {
 
   @Put(':id')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
-  @ApiOperation({ summary: 'Update workspace (owner/workspace admin only)' })
+  @ApiOperation({ summary: 'Cập nhật workspace' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateWorkspaceDto,
@@ -64,14 +68,16 @@ export class WorkspacesController {
   @Delete(':id')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete workspace (owner only)' })
+  @ApiOperation({ summary: 'Xóa workspace' })
+  @ApiResponse({ status: 204, description: 'Xóa thành công' })
   async remove(@Param('id') id: string) {
     await this.workspacesService.delete(id);
   }
 
   @Get(':id/members')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get workspace members' })
+  @ApiOperation({ summary: 'Lấy danh sách thành viên workspace' })
+  @ApiResponse({ status: 200, description: 'Danh sách thành viên', schema: { example: [{ userId: '...', email: 'user@example.com', role: 'member' }] } })
   async getMembers(@Param('id') id: string) {
     return this.workspacesService.getMembers(id);
   }
@@ -79,7 +85,8 @@ export class WorkspacesController {
   @Post(':id/members')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add member to workspace (owner/workspace admin only)' })
+  @ApiOperation({ summary: 'Thêm thành viên vào workspace' })
+  @ApiResponse({ status: 201, description: 'Thêm thành viên thành công' })
   async addMember(
     @Param('id') id: string,
     @Body() body: { email: string; role: SpaceRole },
@@ -89,7 +96,8 @@ export class WorkspacesController {
 
   @Put(':id/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
-  @ApiOperation({ summary: 'Update member role (owner/workspace admin only)' })
+  @ApiOperation({ summary: 'Cập nhật vai trò thành viên' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   async updateMemberRole(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -101,7 +109,8 @@ export class WorkspacesController {
   @Delete(':id/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove member from workspace (owner/workspace admin only)' })
+  @ApiOperation({ summary: 'Xóa thành viên khỏi workspace' })
+  @ApiResponse({ status: 204, description: 'Xóa thành công' })
   async removeMember(
     @Param('id') id: string,
     @Param('userId') userId: string,

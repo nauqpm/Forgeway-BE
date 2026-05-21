@@ -8,6 +8,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Request as ExpressRequest } from 'express';
@@ -21,6 +22,8 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
+@ApiTags('Auth - Permissions')
+@ApiBearerAuth('access-token')
 @Controller('auth')
 export class PermissionController {
   private readonly logger = new Logger(PermissionController.name);
@@ -30,6 +33,20 @@ export class PermissionController {
   ) {}
 
   // 🔒 Lấy quyền của người dùng đã đăng nhập
+  @ApiOperation({ summary: 'Lấy danh sách quyền của người dùng hiện tại' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách quyền của người dùng',
+    schema: {
+      example: {
+        role: 'user',
+        permissions: [
+          { id: '...', resource: 'tasks', action: 'read', source: 'role' },
+        ],
+        isAdmin: false,
+      },
+    },
+  })
   @Get('my-permissions')
   @UseGuards(JwtAuthGuard)
   async getMyPermissions(@Request() req: RequestWithUser) {
@@ -68,6 +85,19 @@ export class PermissionController {
     }
   }
 
+  @ApiOperation({ summary: 'Kiểm tra quyền người dùng' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách quyền hiện có',
+    schema: {
+      example: {
+        success: true,
+        permissions: [
+          { resource: 'tasks', action: 'read', source: 'role' },
+        ],
+      },
+    },
+  })
   @Get('check-permission')
   @UseGuards(JwtAuthGuard)
   async checkPermission(@Request() req) {
@@ -87,3 +117,4 @@ export class PermissionController {
     }
   }
 }
+
