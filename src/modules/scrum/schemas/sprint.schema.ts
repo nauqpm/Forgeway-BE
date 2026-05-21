@@ -8,9 +8,6 @@ export class Sprint {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId!: Types.ObjectId;
 
-  @Prop({ required: true })
-  name!: string;
-
   @Prop()
   goal?: string;
 

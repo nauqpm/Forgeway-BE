@@ -92,4 +92,9 @@ export class ScrumService {
 
     return tasks;
   }
+
+  async deleteByWorkspace(workspaceId: string): Promise<void> {
+    this.logger.log(`Deleting all sprints for Workspace: ${workspaceId}`);
+    await this.sprintModel.deleteMany({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
+  }
 }

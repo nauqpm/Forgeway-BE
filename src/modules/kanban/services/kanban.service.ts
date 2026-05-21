@@ -18,14 +18,12 @@ export class KanbanService {
     @InjectModel(Board.name) private boardModel: Model<BoardDocument>,
   ) {}
 
-  async createDefaultBoard(workspaceId: string, name: string = 'Kanban Board'): Promise<BoardDocument> {
+  async createDefaultBoard(workspaceId: string): Promise<BoardDocument> {
     this.logger.log(`Creating default Kanban board for Workspace: ${workspaceId}`);
     
     const board = new this.boardModel({
-      name,
       workspaceId: new Types.ObjectId(workspaceId),
       columns: this.defaultColumns,
-      type: 'kanban',
     });
 
     return board.save();
@@ -59,5 +57,10 @@ export class KanbanService {
     }
 
     return board;
+  }
+
+  async deleteByWorkspace(workspaceId: string): Promise<void> {
+    this.logger.log(`Deleting all boards for Workspace: ${workspaceId}`);
+    await this.boardModel.deleteMany({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 }

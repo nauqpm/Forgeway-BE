@@ -2,11 +2,6 @@ import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSprintDto {
-  @ApiProperty({ example: 'Sprint 1' })
-  @IsString()
-  @IsNotEmpty()
-  name!: string;
-
   @ApiPropertyOptional({ example: 'Complete user authentication' })
   @IsOptional()
   @IsString()
@@ -22,11 +17,6 @@ export class CreateSprintDto {
 }
 
 export class UpdateSprintDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

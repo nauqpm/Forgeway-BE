@@ -15,6 +15,7 @@ import { removeVietnameseTones } from '../../../common/utils/slug.utils';
 import { UsersService } from '../../users/services/users.service';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 
@@ -26,6 +27,7 @@ export class WorkspacesService {
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workflowsService: WorkflowsService,
     private readonly kanbanService: KanbanService,
+    private readonly scrumService: ScrumService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
   ) {}
@@ -61,7 +63,7 @@ export class WorkspacesService {
 
       // Initialize default board for Kanban/Scrum
       try {
-        await this.kanbanService.createDefaultBoard(workspace._id.toString(), `${workspace.name} Board`);
+        await this.kanbanService.createDefaultBoard(workspace._id.toString());
         this.logger.log(`Đã tạo Board mặc định cho Workspace ${workspace._id}`);
       } catch (error) {
         this.logger.error(`Lỗi khi tạo Board mặc định cho Workspace ${workspace._id}`, error);
@@ -148,6 +150,17 @@ export class WorkspacesService {
   }
 
   async delete(id: string): Promise<void> {
+    // Delete associated boards and sprints first
+    try {
+      await Promise.all([
+        this.kanbanService.deleteByWorkspace(id),
+        this.scrumService.deleteByWorkspace(id),
+      ]);
+      this.logger.log(`Đã xóa các Board và Sprint liên quan đến Workspace ID: ${id}`);
+    } catch (error) {
+      this.logger.error(`Lỗi khi dọn dẹp dữ liệu của Workspace ${id}:`, error);
+    }
+
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
       this.logger.warn(`Xóa thất bại: Không tìm thấy Workspace ID: ${id}`);
