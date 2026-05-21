@@ -109,6 +109,15 @@ export class WorkspacesService {
     return workspace;
   }
 
+  async findByKey(key: string): Promise<any> {
+    const workspace = await this.workspacesRepository.findByKey(key);
+    if (!workspace) {
+      this.logger.warn(`Không tìm thấy Workspace với Key: ${key}`);
+      throw new NotFoundException(`Workspace with key "${key}" not found`);
+    }
+    return workspace;
+  }
+
   async findByUserId(userId: string): Promise<any[]> {
     this.logger.log(`Đang tìm danh sách Workspace cho User ID: ${userId}`);
     return this.workspacesRepository.findByUserId(userId);
