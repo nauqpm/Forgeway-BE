@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { Types } from 'mongoose';
 import { SPACE_ROLES, SpaceRole } from '../constants/space-role.constants';
 import { GLOBAL_ROLES } from '../constants/global-role.constants';
 import { WorkspacesService } from '../../modules/workspaces/services/workspaces.service';
