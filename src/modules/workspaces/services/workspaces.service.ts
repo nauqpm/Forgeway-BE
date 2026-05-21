@@ -14,6 +14,7 @@ import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.con
 import { removeVietnameseTones } from '../../../common/utils/slug.utils';
 import { UsersService } from '../../users/services/users.service';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
+import { KanbanService } from '../../kanban/services/kanban.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 
@@ -24,6 +25,7 @@ export class WorkspacesService {
   constructor(
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workflowsService: WorkflowsService,
+    private readonly kanbanService: KanbanService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
   ) {}
@@ -46,7 +48,7 @@ export class WorkspacesService {
         slug,
         key,
         type: dto.type || 'kanban',
-        access: dto.access || 'open',
+        access: dto.access || 'public',
         ownerId: new Types.ObjectId(userId),
         members: [
           { userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN },
@@ -56,6 +58,14 @@ export class WorkspacesService {
       });
 
       this.logger.log(`Workspace tạo thành công: ${workspace.name} (ID: ${workspace._id}, Key: ${workspace.key})`);
+
+      // Initialize default board for Kanban/Scrum
+      try {
+        await this.kanbanService.createDefaultBoard(workspace._id.toString(), `${workspace.name} Board`);
+        this.logger.log(`Đã tạo Board mặc định cho Workspace ${workspace._id}`);
+      } catch (error) {
+        this.logger.error(`Lỗi khi tạo Board mặc định cho Workspace ${workspace._id}`, error);
+      }
 
       try {
         await this.workflowsService.createDefaultWorkflow(workspace._id.toString());
