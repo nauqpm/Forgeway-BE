@@ -27,12 +27,8 @@ export class TaskMapper {
       priority: plainTask.priority,
       assigneeId: this.toOptionalId(plainTask.assigneeId),
       reporterId: this.toId(plainTask.reporterId),
-      labels: plainTask.labels || [],
-      attachments: plainTask.attachments || [],
       storyPoints: plainTask.storyPoints,
       dueDate: plainTask.dueDate,
-      parentId: this.toOptionalId(plainTask.parentId),
-      epicId: this.toOptionalId(plainTask.epicId),
       createdAt: plainTask.createdAt,
       updatedAt: plainTask.updatedAt,
     };

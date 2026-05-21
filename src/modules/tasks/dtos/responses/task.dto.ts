@@ -1,25 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class TaskAttachmentResponseDto {
-  @ApiProperty()
-  id!: string;
-
-  @ApiProperty()
-  name!: string;
-
-  @ApiProperty()
-  url!: string;
-
-  @ApiProperty()
-  size!: number;
-
-  @ApiProperty()
-  mimeType!: string;
-
-  @ApiProperty()
-  uploadedAt!: Date;
-}
-
 export class TaskDto {
   @ApiProperty()
   id!: string;
@@ -63,23 +43,11 @@ export class TaskDto {
   @ApiProperty()
   reporterId!: string;
 
-  @ApiProperty({ type: [String] })
-  labels!: string[];
-
-  @ApiProperty({ type: [TaskAttachmentResponseDto] })
-  attachments!: TaskAttachmentResponseDto[];
-
   @ApiPropertyOptional()
   storyPoints?: number;
 
   @ApiPropertyOptional()
   dueDate?: Date;
-
-  @ApiPropertyOptional()
-  parentId?: string;
-
-  @ApiPropertyOptional()
-  epicId?: string;
 
   @ApiPropertyOptional()
   createdAt?: Date;

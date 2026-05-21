@@ -3,7 +3,6 @@ import {
   IsString,
   IsOptional,
   IsEnum,
-  IsArray,
   IsDateString,
   IsNumber,
   MaxLength,
@@ -25,6 +24,7 @@ export class CreateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   description?: string;
 
   @ApiPropertyOptional({
@@ -70,12 +70,6 @@ export class CreateTaskDto {
   @IsEnum(TASK_PRIORITIES)
   priority?: string;
 
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  labels?: string[];
-
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
@@ -87,16 +81,6 @@ export class CreateTaskDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsMongoId()
-  parentId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsMongoId()
-  epicId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

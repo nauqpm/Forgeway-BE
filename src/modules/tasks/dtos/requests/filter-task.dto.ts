@@ -3,9 +3,9 @@ import {
   IsString,
   IsOptional,
   IsEnum,
-  IsArray,
   IsNumber,
   Min,
+  Max,
   IsMongoId,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -65,17 +65,6 @@ export class FilterTaskDto {
   @IsEnum(TASK_PRIORITIES)
   priority?: string;
 
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  labels?: string[];
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsMongoId()
-  epicId?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -93,5 +82,6 @@ export class FilterTaskDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
+  @Max(100)
   limit?: number;
 }

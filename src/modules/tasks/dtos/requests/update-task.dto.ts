@@ -3,7 +3,6 @@ import {
   IsString,
   IsOptional,
   IsEnum,
-  IsArray,
   IsDateString,
   IsNumber,
   MaxLength,
@@ -26,6 +25,7 @@ export class UpdateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   description?: string;
 
   @ApiPropertyOptional({ enum: TASK_TYPES })
@@ -47,12 +47,6 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsMongoId()
   assigneeId?: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  labels?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -86,13 +80,4 @@ export class UpdateTaskDto {
   @IsString()
   columnId?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsMongoId()
-  parentId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsMongoId()
-  epicId?: string;
 }
