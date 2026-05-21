@@ -1,8 +1,8 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Board, BoardDocument, BoardColumn } from './schemas/kanban-board.schema';
-import { CreateKanbanBoardDto, KanbanBoardColumnDto } from './dtos/kanban.dto';
+import { Board, BoardDocument, BoardColumn } from '../schemas/kanban-board.schema';
+import { CreateKanbanBoardDto, KanbanBoardColumnDto } from '../dtos/kanban.dto';
 
 @Injectable()
 export class KanbanService {

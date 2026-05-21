@@ -1,9 +1,9 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Sprint, SprintDocument } from './schemas/sprint.schema';
-import { CreateSprintDto, UpdateSprintDto } from './dtos/sprint.dto';
-import { Task, TaskDocument } from '../tasks/schemas/task.schema';
+import { Sprint, SprintDocument } from '../schemas/sprint.schema';
+import { CreateSprintDto, UpdateSprintDto } from '../dtos/sprint.dto';
+import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 
 @Injectable()
 export class ScrumService {

@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task } from '../../tasks/schemas/task.schema';
 import { Workspace } from '../../workspaces/schemas/workspace.schema';
-import { Sprint } from '../../sprints/schemas/sprint.schema';
+import { Sprint } from '../../scrum/schemas/sprint.schema';
 import { Page } from '../../pages/schemas/page.schema';
 
 @Injectable()
@@ -178,7 +178,7 @@ export class DashboardService {
 
       sprintProgress = {
         sprintId: activeSprint._id.toString(),
-        sprintName: activeSprint.name,
+        sprintName: `Sprint ${activeSprint._id.toString().substring(activeSprint._id.toString().length - 4)}`,
         totalStoryPoints: totalPoints,
         completedStoryPoints: completedPoints,
         completionPercentage:
@@ -281,7 +281,7 @@ export class DashboardService {
     return {
       sprint: {
         _id: sprint._id,
-        name: sprint.name,
+        name: `Sprint ${sprint._id.toString().substring(sprint._id.toString().length - 4)}`,
         status: sprint.status,
         startDate: sprint.startDate,
         endDate: sprint.endDate,
