@@ -33,7 +33,7 @@ export class DashboardService {
     // Tasks by status
     const tasksByStatus = await this.taskModel.aggregate([
       { $match: { workspaceId: { $in: workspaceIds } } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $group: { _id: '$columnId', count: { $sum: 1 } } },
     ]);
 
     // Tasks by type
@@ -53,7 +53,7 @@ export class DashboardService {
       .find({ workspaceId: { $in: workspaceIds } })
       .sort({ createdAt: -1 })
       .limit(10)
-      .select('title key status type createdAt')
+      .select('title key columnId type createdAt')
       .exec();
 
     // My tasks (assigned to current user)
@@ -62,7 +62,7 @@ export class DashboardService {
         workspaceId: { $in: workspaceIds },
         assigneeId: new Types.ObjectId(userId),
       })
-      .select('title key status type priority workspaceId createdAt')
+      .select('title key columnId type priority workspaceId createdAt')
       .exec();
 
     // Active sprints
@@ -94,22 +94,22 @@ export class DashboardService {
 
     const completedTasks = await this.taskModel.countDocuments({
       workspaceId: workspaceObjectId,
-      status: 'done',
+      columnId: 'done',
     });
 
     const inProgressTasks = await this.taskModel.countDocuments({
       workspaceId: workspaceObjectId,
-      status: 'in_progress',
+      columnId: { $in: ['inprogress', 'in_progress'] },
     });
 
     const todoTasks = await this.taskModel.countDocuments({
       workspaceId: workspaceObjectId,
-      status: 'todo',
+      columnId: 'todo',
     });
 
     const tasksByStatus = await this.taskModel.aggregate([
       { $match: { workspaceId: workspaceObjectId } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $group: { _id: '$columnId', count: { $sum: 1 } } },
     ]);
 
     const tasksByType = await this.taskModel.aggregate([
@@ -165,7 +165,7 @@ export class DashboardService {
           workspaceId: workspaceObjectId,
           sprintId: activeSprint._id,
         })
-        .select('storyPoints status')
+        .select('storyPoints columnId')
         .exec();
 
       const totalPoints = sprintTasks.reduce(
@@ -173,7 +173,7 @@ export class DashboardService {
         0,
       );
       const completedPoints = sprintTasks
-        .filter((task) => task.status === 'done')
+        .filter((task) => task.columnId === 'done')
         .reduce((sum, task) => sum + (task.storyPoints || 0), 0);
 
       sprintProgress = {
@@ -210,7 +210,7 @@ export class DashboardService {
 
     const tasksByStatus = await this.taskModel.aggregate([
       { $match: { assigneeId: userObjectId } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $group: { _id: '$columnId', count: { $sum: 1 } } },
     ]);
 
     const tasksByPriority = await this.taskModel.aggregate([
@@ -221,7 +221,7 @@ export class DashboardService {
     const recentlyCompleted = await this.taskModel
       .find({
         assigneeId: userObjectId,
-        status: 'done',
+        columnId: 'done',
       })
       .sort({ updatedAt: -1 })
       .limit(10)
@@ -235,7 +235,7 @@ export class DashboardService {
       })
       .sort({ updatedAt: -1 })
       .limit(20)
-      .select('title key status type priority workspaceId createdAt updatedAt createdBy updatedBy')
+      .select('title key columnId type priority workspaceId createdAt updatedAt createdBy updatedBy')
       .exec();
 
     return {
@@ -259,23 +259,23 @@ export class DashboardService {
 
     const tasks = await this.taskModel
       .find({ sprintId: sprintObjectId })
-      .select('title key status type priority storyPoints assigneeId')
+      .select('title key columnId type priority storyPoints assigneeId')
       .populate('assigneeId', 'name email avatarUrl')
       .exec();
 
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => t.status === 'done').length;
+    const completedTasks = tasks.filter((t) => t.columnId === 'done').length;
     const totalStoryPoints = tasks.reduce(
       (sum, task) => sum + (task.storyPoints || 0),
       0,
     );
     const completedStoryPoints = tasks
-      .filter((task) => task.status === 'done')
+      .filter((task) => task.columnId === 'done')
       .reduce((sum, task) => sum + (task.storyPoints || 0), 0);
 
     const tasksByStatus = await this.taskModel.aggregate([
       { $match: { sprintId: sprintObjectId } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $group: { _id: '$columnId', count: { $sum: 1 } } },
     ]);
 
     return {
@@ -301,7 +301,7 @@ export class DashboardService {
         _id: task._id,
         title: task.title,
         key: task.key,
-        status: task.status,
+        status: task.columnId,
         type: task.type,
         priority: task.priority,
         storyPoints: task.storyPoints,

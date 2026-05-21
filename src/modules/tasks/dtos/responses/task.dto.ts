@@ -36,6 +36,9 @@ export class TaskDto {
   @ApiPropertyOptional()
   boardColumnId?: string;
 
+  @ApiPropertyOptional()
+  columnId?: string;
+
   @ApiProperty()
   key!: string;
 

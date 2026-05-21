@@ -8,6 +8,9 @@ import { Types } from 'mongoose';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
+import { BoardsService } from '../../boards/services/boards.service';
+import { SprintsService } from '../../sprints/services/sprints.service';
+import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { TasksService } from './tasks.service';
 
@@ -50,6 +53,24 @@ describe('TasksService', () => {
             findById: jest.fn(),
             findByUserId: jest.fn(),
             isMember: jest.fn(),
+          },
+        },
+        {
+          provide: BoardsService,
+          useValue: {
+            findById: jest.fn(),
+          },
+        },
+        {
+          provide: SprintsService,
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
+          provide: UsersService,
+          useValue: {
+            getUserById: jest.fn(),
           },
         },
       ],

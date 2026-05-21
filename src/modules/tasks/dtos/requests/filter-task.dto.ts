@@ -37,6 +37,11 @@ export class FilterTaskDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  columnId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsMongoId()
   assigneeId?: string;
 

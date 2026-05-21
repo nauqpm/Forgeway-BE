@@ -57,6 +57,11 @@ export class CreateTaskDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  columnId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsMongoId()
   assigneeId?: string;
 

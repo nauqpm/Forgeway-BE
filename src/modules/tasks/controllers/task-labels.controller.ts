@@ -48,14 +48,16 @@ export class TaskLabelsController {
       throw new NotFoundException(`Task with ID ${id} not found`);
     }
 
-    for (const label of existing.labels) {
+    const existingLabels = existing.labels || [];
+
+    for (const label of existingLabels) {
       if (!labels.includes(label)) {
         await this.tasksRepository.removeLabel(id, label);
       }
     }
 
     for (const label of labels) {
-      if (!existing.labels.includes(label)) {
+      if (!existingLabels.includes(label)) {
         await this.tasksRepository.addLabel(id, label);
       }
     }

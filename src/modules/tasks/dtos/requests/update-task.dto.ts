@@ -83,6 +83,11 @@ export class UpdateTaskDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  columnId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsMongoId()
   parentId?: string;
 

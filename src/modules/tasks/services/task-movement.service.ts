@@ -25,7 +25,7 @@ export class TaskMovementService {
 
     const updated = await this.tasksRepository.update(taskId, {
       boardId: new Types.ObjectId(boardId),
-      boardColumnId: columnId,
+      columnId,
     });
     if (!updated) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);

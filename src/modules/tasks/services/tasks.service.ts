@@ -15,6 +15,9 @@ import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { CreateTaskData } from '../interfaces/task.interface';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
+import { BoardsService } from '../../boards/services/boards.service';
+import { SprintsService } from '../../sprints/services/sprints.service';
+import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 
 @Injectable()
@@ -25,6 +28,9 @@ export class TasksService {
     private readonly tasksRepository: TasksRepository,
     private readonly taskMapper: TaskMapper,
     private readonly workspacesService: WorkspacesService,
+    private readonly boardsService: BoardsService,
+    private readonly sprintsService: SprintsService,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
@@ -39,6 +45,7 @@ export class TasksService {
     const taskNumber =
       (await this.tasksRepository.countByWorkspace(workspaceId)) + 1;
     const key = `${workspace.key}-${taskNumber}`;
+    await this.validateCreateReferences(createTaskDto, workspaceId);
     const taskData = this.buildCreateData(
       createTaskDto,
       workspaceId,
@@ -100,7 +107,7 @@ export class TasksService {
 
     for (const task of tasks) {
       const dto = this.taskMapper.mapToDto(task);
-      const columnId = dto.boardColumnId || 'none';
+      const columnId = dto.columnId || dto.boardColumnId || 'none';
       if (!groupedByColumn[columnId]) {
         groupedByColumn[columnId] = [];
       }
@@ -124,6 +131,7 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${id} not found`);
     }
 
+    await this.validateUpdateReferences(updateTaskDto);
     const updateData = this.buildUpdateData(updateTaskDto);
     const task = await this.tasksRepository.update(id, updateData);
     if (!task) {
@@ -176,16 +184,20 @@ export class TasksService {
   ): CreateTaskData {
     const taskData: CreateTaskData = {
       title: createTaskDto.title,
-      description: createTaskDto.description || '',
+      description: createTaskDto.description || undefined,
       workspaceId: new Types.ObjectId(workspaceId),
       reporterId: new Types.ObjectId(userId),
       key,
-      status: createTaskDto.status || 'todo',
       priority: (createTaskDto.priority ||
         'medium') as CreateTaskData['priority'],
       type: (createTaskDto.type || 'task') as CreateTaskData['type'],
       labels: createTaskDto.labels || [],
       attachments: [],
+      columnId:
+        createTaskDto.columnId ||
+        createTaskDto.boardColumnId ||
+        createTaskDto.status ||
+        'todo',
     };
 
     if (createTaskDto.sprintId) {
@@ -193,9 +205,6 @@ export class TasksService {
     }
     if (createTaskDto.boardId) {
       taskData.boardId = new Types.ObjectId(createTaskDto.boardId);
-    }
-    if (createTaskDto.boardColumnId) {
-      taskData.boardColumnId = createTaskDto.boardColumnId;
     }
     if (createTaskDto.assigneeId) {
       taskData.assigneeId = new Types.ObjectId(createTaskDto.assigneeId);
@@ -218,6 +227,19 @@ export class TasksService {
 
   private buildUpdateData(updateTaskDto: UpdateTaskDto): Record<string, any> {
     const updateData: Record<string, any> = { ...updateTaskDto };
+    delete updateData.boardColumnId;
+    delete updateData.status;
+
+    if (
+      updateTaskDto.columnId ||
+      updateTaskDto.boardColumnId ||
+      updateTaskDto.status
+    ) {
+      updateData.columnId =
+        updateTaskDto.columnId ||
+        updateTaskDto.boardColumnId ||
+        updateTaskDto.status;
+    }
 
     if (updateTaskDto.assigneeId) {
       updateData.assigneeId = new Types.ObjectId(updateTaskDto.assigneeId);
@@ -239,6 +261,68 @@ export class TasksService {
     }
 
     return updateData;
+  }
+
+  private async validateCreateReferences(
+    createTaskDto: CreateTaskDto,
+    workspaceId: string,
+  ): Promise<void> {
+    if (createTaskDto.boardId) {
+      const board = await this.boardsService.findById(createTaskDto.boardId);
+      if (board.workspaceId.toString() !== workspaceId) {
+        throw new BadRequestException(
+          'Board does not belong to this workspace',
+        );
+      }
+    }
+
+    if (createTaskDto.sprintId) {
+      const sprint = await this.sprintsService.findOne(createTaskDto.sprintId);
+      if (sprint.workspaceId.toString() !== workspaceId) {
+        throw new BadRequestException(
+          'Sprint does not belong to this workspace',
+        );
+      }
+    }
+
+    await this.validateSharedReferences(createTaskDto);
+  }
+
+  private async validateUpdateReferences(
+    updateTaskDto: UpdateTaskDto,
+  ): Promise<void> {
+    if (updateTaskDto.boardId) {
+      await this.boardsService.findById(updateTaskDto.boardId);
+    }
+    if (updateTaskDto.sprintId) {
+      await this.sprintsService.findOne(updateTaskDto.sprintId);
+    }
+
+    await this.validateSharedReferences(updateTaskDto);
+  }
+
+  private async validateSharedReferences(
+    dto: Pick<CreateTaskDto, 'assigneeId' | 'parentId' | 'epicId'>,
+  ): Promise<void> {
+    if (dto.assigneeId) {
+      await this.usersService.getUserById(dto.assigneeId);
+    }
+    if (dto.parentId) {
+      const parent = await this.tasksRepository.findById(dto.parentId);
+      if (!parent) {
+        throw new NotFoundException(
+          `Parent task with ID ${dto.parentId} not found`,
+        );
+      }
+    }
+    if (dto.epicId) {
+      const epic = await this.tasksRepository.findById(dto.epicId);
+      if (!epic) {
+        throw new NotFoundException(
+          `Epic task with ID ${dto.epicId} not found`,
+        );
+      }
+    }
   }
 
   private validateObjectId(id: string, resourceName: string): void {

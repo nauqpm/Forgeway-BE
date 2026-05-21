@@ -18,7 +18,9 @@ export class TaskStatusService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    const updated = await this.tasksRepository.update(taskId, { status });
+    const updated = await this.tasksRepository.update(taskId, {
+      columnId: status,
+    });
     if (!updated) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
