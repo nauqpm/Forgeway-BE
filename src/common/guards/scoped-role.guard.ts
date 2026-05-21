@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { Types } from 'mongoose';
 import { SPACE_ROLES, SpaceRole } from '../constants/space-role.constants';
 import { GLOBAL_ROLES } from '../constants/global-role.constants';
 import { WorkspacesService } from '../../modules/workspaces/services/workspaces.service';
@@ -35,9 +36,13 @@ export const ScopedRoleGuard = (
         return true;
       }
 
-      let resourceId = request.params.id || 
-                       request.params.workspaceId || 
-                       request.body.workspaceId;
+      let resourceId =
+        request.params?.id ||
+        request.params?.workspaceId ||
+        request.params?.workspaceKey ||
+        request.params?.key ||
+        request.body?.workspaceId ||
+        request.body?.workspaceKey;
       
       if (!resourceId) {
         return true; 
@@ -60,7 +65,17 @@ export const ScopedRoleGuard = (
         if (!page) throw new NotFoundException('Page not found');
         targetWorkspaceId = page.workspaceId.toString();
       } else if (resourceType === 'workspace') {
-        targetWorkspaceId = resourceId;
+        // resourceId in this case is either ID or Key. 
+        // We need to resolve it to get the real workspace object.
+        try {
+          const workspace = Types.ObjectId.isValid(resourceId) 
+            ? await workspacesService.findById(resourceId)
+            : await workspacesService.findByKey(resourceId);
+          
+          targetWorkspaceId = workspace._id.toString();
+        } catch (error) {
+          throw new NotFoundException('Workspace not found');
+        }
       }
 
       // Kiểm tra quyền dựa trên Workspace đã phân giải

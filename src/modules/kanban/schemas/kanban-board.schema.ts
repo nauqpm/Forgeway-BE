@@ -16,21 +16,18 @@ export class BoardColumn {
 
   @Prop()
   wipLimit?: number;
+
+  @Prop({ type: [String], default: [] })
+  mappedStatuses!: string[];
 }
 
 @Schema({ timestamps: true })
 export class Board {
-  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true, unique: true })
   workspaceId!: Types.ObjectId;
-
-  @Prop({ required: true })
-  name!: string;
 
   @Prop({ type: [SchemaFactory.createForClass(BoardColumn)], default: [] })
   columns!: BoardColumn[];
-
-  @Prop({ type: String, enum: ['active', 'default'], default: 'default' })
-  type!: string;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;

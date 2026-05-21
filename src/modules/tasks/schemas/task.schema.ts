@@ -1,84 +1,65 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import {
+  TASK_KEY_PATTERN,
+  TASK_PRIORITIES,
+  TASK_TYPES,
+} from '../constants/task-status.constants';
 
 export type TaskDocument = Task & Document;
 
-@Schema()
-export class TaskAttachment {
-  @Prop()
-  id!: string;
-  
-  @Prop()
-  name!: string;
-  
-  @Prop()
-  url!: string;
-  
-  @Prop()
-  size!: number;
-  
-  @Prop()
-  mimeType!: string;
-  
-  @Prop({ default: () => new Date() })
-  uploadedAt!: Date;
-}
-
 @Schema({ timestamps: true })
 export class Task {
-  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true, index: true })
   workspaceId!: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Sprint' })
+  @Prop({ type: Types.ObjectId, ref: 'Sprint', index: true })
   sprintId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Board' })
+  @Prop({ type: Types.ObjectId, ref: 'Board', index: true })
   boardId?: Types.ObjectId;
 
-  @Prop()
-  boardColumnId?: string;
+  @Prop({ type: String, trim: true, maxlength: 100, index: true })
+  columnId?: string;
 
-  @Prop({ required: true })
+  @Prop({
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true,
+    match: TASK_KEY_PATTERN,
+  })
   key!: string;
 
-  @Prop({ required: true })
+  @Prop({
+    type: String,
+    required: true,
+    trim: true,
+    minlength: 1,
+    maxlength: 255,
+  })
   title!: string;
 
-  @Prop({ type: String, default: '' })
-  description!: string;
+  @Prop({ type: String, trim: true, maxlength: 5000 })
+  description?: string;
 
-  @Prop({ type: String, enum: ['task', 'bug', 'story', 'epic'], default: 'task' })
+  @Prop({ type: String, enum: TASK_TYPES, required: true })
   type!: string;
 
-  @Prop({ default: 'todo' })
-  status!: string;
-
-  @Prop({ type: String, enum: ['lowest', 'low', 'medium', 'high', 'highest'], default: 'medium' })
+  @Prop({ type: String, enum: TASK_PRIORITIES, required: true })
   priority!: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({ type: Types.ObjectId, ref: 'User', index: true })
   assigneeId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   reporterId!: Types.ObjectId;
 
-  @Prop({ type: [String], default: [] })
-  labels!: string[];
-
-  @Prop({ type: [SchemaFactory.createForClass(TaskAttachment)], default: [] })
-  attachments!: TaskAttachment[];
-
-  @Prop()
+  @Prop({ type: Number, min: 0, max: 100 })
   storyPoints?: number;
 
-  @Prop()
+  @Prop({ type: Date })
   dueDate?: Date;
-
-  @Prop({ type: Types.ObjectId, ref: 'Task' })
-  parentId?: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Task' })
-  epicId?: Types.ObjectId;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
@@ -86,14 +67,10 @@ export class Task {
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);
-TaskSchema.index({ workspaceId: 1 });
-TaskSchema.index({ sprintId: 1 });
-TaskSchema.index({ boardId: 1, boardColumnId: 1 });
-TaskSchema.index({ assigneeId: 1 });
-TaskSchema.index({ status: 1 });
-TaskSchema.index({ type: 1 });
-TaskSchema.index({ priority: 1 });
-TaskSchema.index({ parentId: 1 });
-TaskSchema.index({ epicId: 1 });
-TaskSchema.index({ labels: 1 });
+
+TaskSchema.index({ workspaceId: 1, key: 1 }, { unique: true });
+TaskSchema.index({ workspaceId: 1, columnId: 1, updatedAt: -1 });
+TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });
+TaskSchema.index({ workspaceId: 1, assigneeId: 1, updatedAt: -1 });
+TaskSchema.index({ workspaceId: 1, type: 1, priority: 1 });
 TaskSchema.index({ title: 'text', description: 'text' });
