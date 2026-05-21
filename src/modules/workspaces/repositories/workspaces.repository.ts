@@ -25,6 +25,17 @@ export class WorkspacesRepository {
     return this.workspaceModel.findById(id).exec();
   }
 
+  async findByIdWithMembers(id: string): Promise<any | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    return this.workspaceModel
+      .findById(id)
+      .populate('members.userId', 'fullName email avatar')
+      .lean()
+      .exec();
+  }
+
   async findBySlug(slug: string): Promise<WorkspaceDocument | null> {
     return this.workspaceModel.findOne({ slug }).exec();
   }

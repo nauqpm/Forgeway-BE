@@ -299,7 +299,7 @@ export class WorkspacesService {
   }
 
   async getMembers(workspaceId: string): Promise<any[]> {
-    const workspace = await this.workspacesRepository.findById(workspaceId);
+    const workspace = await this.workspacesRepository.findByIdWithMembers(workspaceId);
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
     }

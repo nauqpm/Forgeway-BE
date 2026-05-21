@@ -36,7 +36,7 @@ export class Invite {
   })
   status!: InviteStatusValue;
 
-  @Prop({ required: false, default: null })
+  @Prop({ required: false, type: Date, default: null })
   expiresAt?: Date | null;
 }
 
