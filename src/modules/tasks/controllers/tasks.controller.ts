@@ -181,7 +181,7 @@ export class TasksController {
   }
 
   @Delete(':id')
-  @UseGuards(ScopedRoleGuard('task', SPACE_ROLES.SPACE_ADMIN))
+  @UseGuards(ScopedRoleGuard('task', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a task' })
   @ApiResponse({
