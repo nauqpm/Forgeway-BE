@@ -60,7 +60,17 @@ export const ScopedRoleGuard = (
         if (!page) throw new NotFoundException('Page not found');
         targetWorkspaceId = page.workspaceId.toString();
       } else if (resourceType === 'workspace') {
-        targetWorkspaceId = resourceId;
+        // resourceId in this case is either ID or Key. 
+        // We need to resolve it to get the real workspace object.
+        try {
+          const workspace = Types.ObjectId.isValid(resourceId) 
+            ? await workspacesService.findById(resourceId)
+            : await workspacesService.findByKey(resourceId);
+          
+          targetWorkspaceId = workspace._id.toString();
+        } catch (error) {
+          throw new NotFoundException('Workspace not found');
+        }
       }
 
       // Kiểm tra quyền dựa trên Workspace đã phân giải
