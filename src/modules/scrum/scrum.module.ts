@@ -5,6 +5,7 @@ import { ScrumController } from './controllers/scrum.controller';
 import { ScrumService } from './services/scrum.service';
 import { AuthModule } from '../auth/auth.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { Task, TaskSchema } from '../tasks/schemas/task.schema';
       { name: Task.name, schema: TaskSchema },
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => WorkspacesModule),
   ],
   controllers: [ScrumController],
   providers: [ScrumService],
