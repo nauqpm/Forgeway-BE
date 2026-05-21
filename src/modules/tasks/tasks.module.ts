@@ -1,8 +1,9 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
-import { BoardsModule } from '../boards/boards.module';
-import { SprintsModule } from '../sprints/sprints.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { ScrumModule } from '../scrum/scrum.module';
+import { KanbanModule } from '../kanban/kanban.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TaskAttachmentsController } from './controllers/task-attachments.controller';
@@ -20,8 +21,8 @@ import { TasksService } from './services/tasks.service';
   imports: [
     MongooseModule.forFeature([{ name: Task.name, schema: TaskSchema }]),
     forwardRef(() => WorkspacesModule),
-    forwardRef(() => SprintsModule),
-    forwardRef(() => BoardsModule),
+    forwardRef(() => ScrumModule),
+    forwardRef(() => KanbanModule),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
   ],

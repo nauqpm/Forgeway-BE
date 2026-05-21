@@ -8,9 +8,6 @@ export class Sprint {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId!: Types.ObjectId;
 
-  @Prop({ required: true })
-  name!: string;
-
   @Prop()
   goal?: string;
 
@@ -22,6 +19,12 @@ export class Sprint {
 
   @Prop({ type: String, enum: ['planning', 'active', 'completed'], default: 'planning' })
   status!: string;
+
+  @Prop()
+  startedAt?: Date;
+
+  @Prop()
+  completedAt?: Date;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
