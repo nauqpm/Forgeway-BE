@@ -54,7 +54,6 @@ export class InviteService {
     if (pendingInvite) throw new ConflictException('Invite already pending for this email');
 
     const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const role = dto.role ?? SPACE_ROLES.MEMBER;
 
     const invite = await this.inviteRepository.create({
@@ -64,7 +63,6 @@ export class InviteService {
       role,
       token,
       status: INVITE_STATUS.PENDING,
-      expiresAt,
     });
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
@@ -81,7 +79,6 @@ export class InviteService {
           workspaceName: workspace.name,
           role,
           acceptUrl,
-          expiresDate: expiresAt.toLocaleDateString('vi-VN'),
         },
       })
       .then(() => this.logger.log(`[sendInvite] email sent OK → ${normalizedEmail}`))
@@ -109,7 +106,7 @@ export class InviteService {
     const invite = await this.inviteRepository.findByToken(token);
     if (!invite) throw new NotFoundException('Invite not found');
 
-    if (invite.status !== INVITE_STATUS.PENDING || invite.expiresAt < new Date()) {
+    if (invite.status !== INVITE_STATUS.PENDING || (invite.expiresAt && invite.expiresAt < new Date())) {
       throw new GoneException('Invite has expired or already been used');
     }
 
@@ -135,7 +132,7 @@ export class InviteService {
     invitedBy: any;
     role: string;
     status: string;
-    expiresAt: Date;
+    expiresAt: Date | null;
   }> {
     const invite = await this.inviteRepository.findByToken(token);
     if (!invite) throw new NotFoundException('Invite not found');
@@ -150,7 +147,7 @@ export class InviteService {
       invitedBy: (invite as any).invitedBy,
       role: invite.role,
       status: invite.status,
-      expiresAt: invite.expiresAt,
+      expiresAt: invite.expiresAt ?? null,
     };
   }
 

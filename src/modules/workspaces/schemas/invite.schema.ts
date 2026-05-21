@@ -36,8 +36,8 @@ export class Invite {
   })
   status!: InviteStatusValue;
 
-  @Prop({ required: true })
-  expiresAt!: Date;
+  @Prop({ required: false, default: null })
+  expiresAt?: Date | null;
 }
 
 export const InviteSchema = SchemaFactory.createForClass(Invite);

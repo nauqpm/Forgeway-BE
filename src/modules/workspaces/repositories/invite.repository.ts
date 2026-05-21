@@ -46,7 +46,6 @@ export class InviteRepository {
       .find({
         invitedEmail: email.toLowerCase(),
         status: INVITE_STATUS.PENDING,
-        expiresAt: { $gt: new Date() },
       })
       .lean()
       .exec();
