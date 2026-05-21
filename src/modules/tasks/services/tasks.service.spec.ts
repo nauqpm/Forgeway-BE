@@ -8,10 +8,11 @@ import { Types } from 'mongoose';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
-import { BoardsService } from '../../boards/services/boards.service';
-import { SprintsService } from '../../sprints/services/sprints.service';
+import { KanbanService } from '../../kanban/services/kanban.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { TaskKeyService } from './task-key.service';
 import { TasksService } from './tasks.service';
 
 describe('TasksService', () => {
@@ -19,11 +20,13 @@ describe('TasksService', () => {
   let repository: jest.Mocked<TasksRepository>;
   let mapper: jest.Mocked<TaskMapper>;
   let workspacesService: jest.Mocked<WorkspacesService>;
+  let kanbanService: jest.Mocked<KanbanService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
+        TaskKeyService,
         {
           provide: TasksRepository,
           useValue: {
@@ -56,15 +59,17 @@ describe('TasksService', () => {
           },
         },
         {
-          provide: BoardsService,
+          provide: KanbanService,
           useValue: {
             findById: jest.fn(),
+            findByWorkspace: jest.fn(),
+            createDefaultBoard: jest.fn(),
           },
         },
         {
-          provide: SprintsService,
+          provide: ScrumService,
           useValue: {
-            findOne: jest.fn(),
+            findByWorkspace: jest.fn(),
           },
         },
         {
@@ -80,6 +85,7 @@ describe('TasksService', () => {
     repository = module.get(TasksRepository);
     mapper = module.get(TaskMapper);
     workspacesService = module.get(WorkspacesService);
+    kanbanService = module.get(KanbanService);
   });
 
   describe('create', () => {
@@ -98,14 +104,14 @@ describe('TasksService', () => {
       };
       const mockTask = {
         _id: new Types.ObjectId(),
-        key: 'TEST-1',
+        key: 'TESWS-1',
         title: 'Test Task',
         workspaceId: new Types.ObjectId(workspaceId),
         reporterId: new Types.ObjectId(userId),
       };
       const mockTaskDto = {
         id: mockTask._id.toString(),
-        key: 'TEST-1',
+        key: 'TESWS-1',
         title: 'Test Task',
       };
 
@@ -122,11 +128,84 @@ describe('TasksService', () => {
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Test Task',
-          key: 'TEST-1',
+          key: 'TESWS-1',
           description: 'Test Description',
         }),
       );
       expect(mapper.mapToDto).toHaveBeenCalledWith(mockTask);
+    });
+
+    it('should resolve board and column when creating a kanban task', async () => {
+      const userId = new Types.ObjectId().toString();
+      const workspaceId = new Types.ObjectId().toString();
+      const boardId = new Types.ObjectId().toString();
+      const createDto: CreateTaskDto = {
+        title: 'Kanban Task',
+        status: 'in-progress',
+        workspaceId,
+      };
+
+      const mockWorkspace = {
+        _id: new Types.ObjectId(workspaceId),
+        key: 'TESTKANBAN',
+        name: 'TestKanban',
+        type: 'kanban',
+      };
+      const mockTask = {
+        _id: new Types.ObjectId(),
+        key: 'TESKB-1',
+        title: 'Kanban Task',
+        workspaceId: new Types.ObjectId(workspaceId),
+        reporterId: new Types.ObjectId(userId),
+        boardId: new Types.ObjectId(boardId),
+        columnId: 'inprogress',
+      };
+      const mockTaskDto = {
+        id: mockTask._id.toString(),
+        key: 'TESKB-1',
+        title: 'Kanban Task',
+        boardId,
+        columnId: 'inprogress',
+      };
+
+      workspacesService.findById.mockResolvedValue(mockWorkspace as any);
+      workspacesService.isMember.mockResolvedValue(true);
+      kanbanService.findByWorkspace.mockResolvedValue([
+        {
+          _id: new Types.ObjectId(boardId),
+          workspaceId: new Types.ObjectId(workspaceId),
+          columns: [
+            { id: 'todo', name: 'To Do', order: 0, mappedStatuses: ['todo'] },
+            {
+              id: 'inprogress',
+              name: 'In Progress',
+              order: 1,
+              mappedStatuses: ['in-progress'],
+            },
+          ],
+        },
+      ] as any);
+      kanbanService.findById.mockResolvedValue({
+        _id: new Types.ObjectId(boardId),
+        workspaceId: new Types.ObjectId(workspaceId),
+        columns: [],
+      } as any);
+      repository.countByWorkspace.mockResolvedValue(0);
+      repository.create.mockResolvedValue(mockTask as any);
+      mapper.mapToDto.mockReturnValue(mockTaskDto as any);
+
+      const result = await service.create(createDto, userId);
+
+      expect(result).toEqual(mockTaskDto);
+      expect(kanbanService.findByWorkspace).toHaveBeenCalledWith(workspaceId);
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Kanban Task',
+          key: 'TESKB-1',
+          boardId: new Types.ObjectId(boardId),
+          columnId: 'inprogress',
+        }),
+      );
     });
 
     it('should throw NotFoundException if no workspace found', async () => {

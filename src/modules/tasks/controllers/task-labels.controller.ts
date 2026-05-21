@@ -17,6 +17,7 @@ import {
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { UpdateTaskLabelsDto } from '../dtos/requests/task-action.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
@@ -41,7 +42,7 @@ export class TaskLabelsController {
   })
   async updateLabels(
     @Param('id') id: string,
-    @Body('labels') labels: string[],
+    @Body() dto: UpdateTaskLabelsDto,
   ): Promise<TaskDto> {
     const existing = await this.tasksRepository.findById(id);
     if (!existing) {
@@ -51,12 +52,12 @@ export class TaskLabelsController {
     const existingLabels = existing.labels || [];
 
     for (const label of existingLabels) {
-      if (!labels.includes(label)) {
+      if (!dto.labels.includes(label)) {
         await this.tasksRepository.removeLabel(id, label);
       }
     }
 
-    for (const label of labels) {
+    for (const label of dto.labels) {
       if (!existingLabels.includes(label)) {
         await this.tasksRepository.addLabel(id, label);
       }

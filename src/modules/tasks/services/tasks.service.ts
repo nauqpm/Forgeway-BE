@@ -15,10 +15,11 @@ import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { CreateTaskData } from '../interfaces/task.interface';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
-import { BoardsService } from '../../boards/services/boards.service';
-import { SprintsService } from '../../sprints/services/sprints.service';
+import { KanbanService } from '../../kanban/services/kanban.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { TaskKeyService } from './task-key.service';
 
 @Injectable()
 export class TasksService {
@@ -28,9 +29,10 @@ export class TasksService {
     private readonly tasksRepository: TasksRepository,
     private readonly taskMapper: TaskMapper,
     private readonly workspacesService: WorkspacesService,
-    private readonly boardsService: BoardsService,
-    private readonly sprintsService: SprintsService,
+    private readonly kanbanService: KanbanService,
+    private readonly scrumService: ScrumService,
     private readonly usersService: UsersService,
+    private readonly taskKeyService: TaskKeyService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
@@ -42,12 +44,20 @@ export class TasksService {
       throw new ForbiddenException('You are not a member of this workspace');
     }
 
+    const normalizedDto = await this.prepareCreateDataForWorkspaceType(
+      createTaskDto,
+      workspaceId,
+      workspace.type,
+    );
     const taskNumber =
       (await this.tasksRepository.countByWorkspace(workspaceId)) + 1;
-    const key = `${workspace.key}-${taskNumber}`;
-    await this.validateCreateReferences(createTaskDto, workspaceId);
+    const key = this.taskKeyService.create(
+      workspace.name || workspace.key,
+      taskNumber,
+    );
+    await this.validateCreateReferences(normalizedDto, workspaceId);
     const taskData = this.buildCreateData(
-      createTaskDto,
+      normalizedDto,
       workspaceId,
       userId,
       key,
@@ -225,6 +235,97 @@ export class TasksService {
     return taskData;
   }
 
+  private async prepareCreateDataForWorkspaceType(
+    createTaskDto: CreateTaskDto,
+    workspaceId: string,
+    workspaceType?: string,
+  ): Promise<CreateTaskDto> {
+    if (workspaceType !== 'kanban') {
+      return createTaskDto;
+    }
+
+    if (createTaskDto.sprintId) {
+      throw new BadRequestException(
+        'Kanban workspace tasks cannot be assigned to a sprint',
+      );
+    }
+
+    const placement = await this.resolveKanbanTaskPlacement(
+      workspaceId,
+      createTaskDto.boardId,
+      createTaskDto.columnId ||
+        createTaskDto.boardColumnId ||
+        createTaskDto.status,
+    );
+
+    return {
+      ...createTaskDto,
+      boardId: placement.boardId,
+      columnId: placement.columnId,
+      boardColumnId: placement.columnId,
+      status: placement.columnId,
+      sprintId: undefined,
+    };
+  }
+
+  private async resolveKanbanTaskPlacement(
+    workspaceId: string,
+    boardId?: string,
+    requestedColumnId?: string,
+  ): Promise<{ boardId: string; columnId: string }> {
+    const board = boardId
+      ? await this.kanbanService.findById(boardId)
+      : await this.resolveDefaultKanbanBoard(workspaceId);
+
+    if (board.workspaceId.toString() !== workspaceId) {
+      throw new BadRequestException('Board does not belong to this workspace');
+    }
+
+    const columns = [...board.columns].sort(
+      (left, right) => left.order - right.order,
+    );
+    if (columns.length === 0) {
+      throw new BadRequestException('Kanban board has no columns');
+    }
+
+    const columnId = requestedColumnId
+      ? this.resolveKanbanColumnId(columns, requestedColumnId)
+      : columns[0].id;
+
+    return {
+      boardId: board._id.toString(),
+      columnId,
+    };
+  }
+
+  private async resolveDefaultKanbanBoard(workspaceId: string) {
+    const boards = await this.kanbanService.findByWorkspace(workspaceId);
+    if (boards.length > 0) {
+      return boards[0];
+    }
+
+    return this.kanbanService.createDefaultBoard(workspaceId);
+  }
+
+  private resolveKanbanColumnId(
+    columns: Array<{ id: string; mappedStatuses?: string[] }>,
+    requestedColumnId: string,
+  ): string {
+    const column = columns.find(
+      (item) =>
+        item.id === requestedColumnId ||
+        (item.mappedStatuses || []).includes(requestedColumnId),
+    );
+
+    if (!column) {
+      throw new BadRequestException(
+        `Column "${requestedColumnId}" does not exist in this board`,
+      );
+    }
+
+    return column.id;
+  }
+
   private buildUpdateData(updateTaskDto: UpdateTaskDto): Record<string, any> {
     const updateData: Record<string, any> = { ...updateTaskDto };
     delete updateData.boardColumnId;
@@ -268,7 +369,7 @@ export class TasksService {
     workspaceId: string,
   ): Promise<void> {
     if (createTaskDto.boardId) {
-      const board = await this.boardsService.findById(createTaskDto.boardId);
+      const board = await this.kanbanService.findById(createTaskDto.boardId);
       if (board.workspaceId.toString() !== workspaceId) {
         throw new BadRequestException(
           'Board does not belong to this workspace',
@@ -277,8 +378,12 @@ export class TasksService {
     }
 
     if (createTaskDto.sprintId) {
-      const sprint = await this.sprintsService.findOne(createTaskDto.sprintId);
-      if (sprint.workspaceId.toString() !== workspaceId) {
+      this.validateObjectId(createTaskDto.sprintId, 'Sprint');
+      const sprints = await this.scrumService.findByWorkspace(workspaceId);
+      const sprintBelongsToWorkspace = sprints.some(
+        (sprint) => sprint._id.toString() === createTaskDto.sprintId,
+      );
+      if (!sprintBelongsToWorkspace) {
         throw new BadRequestException(
           'Sprint does not belong to this workspace',
         );
@@ -292,10 +397,10 @@ export class TasksService {
     updateTaskDto: UpdateTaskDto,
   ): Promise<void> {
     if (updateTaskDto.boardId) {
-      await this.boardsService.findById(updateTaskDto.boardId);
+      await this.kanbanService.findById(updateTaskDto.boardId);
     }
     if (updateTaskDto.sprintId) {
-      await this.sprintsService.findOne(updateTaskDto.sprintId);
+      this.validateObjectId(updateTaskDto.sprintId, 'Sprint');
     }
 
     await this.validateSharedReferences(updateTaskDto);
