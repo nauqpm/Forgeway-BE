@@ -105,9 +105,8 @@ export class TasksRepository {
     if (filterDto.boardId) {
       filter.boardId = new Types.ObjectId(filterDto.boardId);
     }
-    if (filterDto.columnId || filterDto.boardColumnId || filterDto.status) {
-      filter.columnId =
-        filterDto.columnId || filterDto.boardColumnId || filterDto.status;
+    if (filterDto.columnId) {
+      filter.columnId = filterDto.columnId;
     }
     if (filterDto.assigneeId) {
       filter.assigneeId = new Types.ObjectId(filterDto.assigneeId);
@@ -120,6 +119,9 @@ export class TasksRepository {
     }
     if (filterDto.priority) {
       filter.priority = filterDto.priority;
+    }
+    if (filterDto.status) {
+      filter.status = filterDto.status;
     }
     if (filterDto.search) {
       filter.$text = { $search: filterDto.search };

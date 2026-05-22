@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { KanbanService } from '../../kanban/services/kanban.service';
-import { CreateTaskDto } from '../dtos/requests/create-task.dto';
+import { BoardColumn } from '../../kanban/schemas/kanban-board.schema';
+import {
+  CreateTaskDto,
+  UpdateTaskDto,
+} from '../dtos/requests/create-task.dto';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 
 @Injectable()
@@ -23,6 +27,58 @@ export class TaskNormalizerService {
     return this.normalizeScrumTask(dto, workspaceId);
   }
 
+  async normalizeUpdateForWorkspaceType(
+    dto: UpdateTaskDto,
+    existingTask: any,
+  ): Promise<UpdateTaskDto> {
+    const workspace = existingTask.workspaceId;
+    const workspaceType = workspace?.type;
+
+    if (workspaceType !== 'kanban') {
+      if (dto.boardId) {
+        throw new BadRequestException('Scrum workspace task cannot have boardId');
+      }
+      return dto;
+    }
+
+    if (dto.sprintId) {
+      throw new BadRequestException(
+        'Kanban workspace task cannot have sprintId',
+      );
+    }
+
+    if (!dto.columnId && !dto.status && !dto.boardId) {
+      return dto;
+    }
+
+    const workspaceId = this.toId(existingTask.workspaceId);
+    const boardId = dto.boardId || this.toOptionalId(existingTask.boardId);
+    if (!boardId) {
+      return dto;
+    }
+
+    const board = await this.kanbanService.findById(boardId);
+    if (board.workspaceId.toString() !== workspaceId) {
+      throw new BadRequestException('Board does not belong to this workspace');
+    }
+
+    const column =
+      this.resolveKanbanColumn(board.columns, dto.columnId, dto.status) ||
+      this.getFirstKanbanColumn(board.columns);
+
+    if (!column) {
+      throw new BadRequestException('Kanban board has no columns');
+    }
+
+    return {
+      ...dto,
+      boardId,
+      columnId: column.id,
+      status: this.resolveTaskStatus(column, dto.status),
+      sprintId: undefined,
+    };
+  }
+
   private async normalizeKanbanTask(
     dto: CreateTaskDto,
     workspaceId: string,
@@ -42,25 +98,21 @@ export class TaskNormalizerService {
       throw new BadRequestException('Board does not belong to this workspace');
     }
 
-    const requestedColumn = dto.columnId || dto.boardColumnId || dto.status;
     const column =
-      board.columns.find(
-        (item) =>
-          item.id === requestedColumn ||
-          (item.mappedStatuses || []).includes(requestedColumn || ''),
-      ) ||
-      [...board.columns].sort((left, right) => left.order - right.order)[0];
+      this.resolveKanbanColumn(board.columns, dto.columnId, dto.status) ||
+      this.getFirstKanbanColumn(board.columns);
 
     if (!column) {
       throw new BadRequestException('Kanban board has no columns');
     }
 
+    const status = this.resolveTaskStatus(column, dto.status);
+
     return {
       ...dto,
       boardId: board._id.toString(),
       columnId: column.id,
-      boardColumnId: column.id,
-      status: column.id,
+      status,
       sprintId: undefined,
     };
   }
@@ -78,8 +130,61 @@ export class TaskNormalizerService {
 
     return {
       ...dto,
-      columnId: dto.columnId || dto.boardColumnId || dto.status || 'todo',
+      status: dto.status || 'todo',
+      columnId: dto.columnId,
     };
+  }
+
+  private resolveKanbanColumn(
+    columns: BoardColumn[],
+    columnId?: string,
+    status?: string,
+  ): BoardColumn | undefined {
+    if (columnId) {
+      const column = columns.find((item) => item.id === columnId);
+      if (!column) {
+        throw new BadRequestException(
+          `Column "${columnId}" does not exist in this board`,
+        );
+      }
+      return column;
+    }
+
+    if (status) {
+      const column = columns.find(
+        (item) =>
+          item.id === status || (item.mappedStatuses || []).includes(status),
+      );
+      if (!column) {
+        throw new BadRequestException(
+          `Status "${status}" does not map to any column in this board`,
+        );
+      }
+      return column;
+    }
+
+    return undefined;
+  }
+
+  private getFirstKanbanColumn(columns: BoardColumn[]): BoardColumn | undefined {
+    return [...columns].sort((left, right) => left.order - right.order)[0];
+  }
+
+  private resolveTaskStatus(column: BoardColumn, requestedStatus?: string): string {
+    if (requestedStatus) {
+      return requestedStatus;
+    }
+
+    return (column.mappedStatuses || [])[0] || column.id;
+  }
+
+  private toId(value: any): string {
+    return value?._id?.toString?.() ?? value?.toString?.() ?? '';
+  }
+
+  private toOptionalId(value: any): string | undefined {
+    const id = this.toId(value);
+    return id || undefined;
   }
 }
 

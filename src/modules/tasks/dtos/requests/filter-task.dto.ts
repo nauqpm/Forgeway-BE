@@ -33,11 +33,6 @@ export class FilterTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  boardColumnId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   columnId?: string;
 
   @ApiPropertyOptional()

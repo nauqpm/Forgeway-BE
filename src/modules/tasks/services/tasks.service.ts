@@ -140,14 +140,19 @@ export class TasksService {
     }
 
     const workspaceId = this.toId(existing.workspaceId);
+    const normalizedUpdateDto =
+      await this.normalizerService.normalizeUpdateForWorkspaceType(
+        updateTaskDto,
+        existing,
+      );
     await this.validationService.validateUpdateRequest(
-      updateTaskDto,
+      normalizedUpdateDto,
       workspaceId,
     );
 
     const task = await this.tasksRepository.update(
       id,
-      this.transformerService.transformUpdateInput(updateTaskDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
