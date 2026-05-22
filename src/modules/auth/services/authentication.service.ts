@@ -14,6 +14,15 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { InviteService } from '@/modules/workspaces/services/invite.service';
 
+type RegisterAuditStatus = 'created' | 'duplicate_email';
+
+export type RegisterResult = {
+  success: boolean;
+  message: string;
+  email: string;
+  auditStatus: RegisterAuditStatus;
+};
+
 @Injectable()
 export class AuthenticationService {
   private readonly logger = new Logger(AuthenticationService.name);
@@ -26,19 +35,23 @@ export class AuthenticationService {
     private readonly inviteService: InviteService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto): Promise<RegisterResult> {
     this.logger.log(`Bắt đầu quy trình đăng ký cho email: ${registerDto.email}`);
     try {
       const genericResponse = {
         success: true,
         message: 'Nếu thông tin hợp lệ, vui lòng kiểm tra email để hoàn tất đăng ký.',
         email: registerDto.email,
+        auditStatus: 'created' as RegisterAuditStatus,
       };
 
       const existingUser = await this.usersService.findByEmail(registerDto.email);
       if (existingUser) {
         this.logger.warn(`Đăng ký thất bại: Email ${registerDto.email} đã tồn tại trong hệ thống.`);
-        return genericResponse;
+        return {
+          ...genericResponse,
+          auditStatus: 'duplicate_email',
+        };
       }
 
       const newUser = await this.usersService.createUser({
