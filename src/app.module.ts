@@ -18,8 +18,8 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
 // Jira + Confluence Modules
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { TasksModule } from './modules/tasks/tasks.module';
-import { BoardsModule } from './modules/boards/boards.module';
-import { SprintsModule } from './modules/sprints/sprints.module';
+import { KanbanModule } from './modules/kanban/kanban.module';
+import { ScrumModule } from './modules/scrum/scrum.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { PagesModule } from './modules/pages/pages.module';
@@ -80,8 +80,8 @@ import { validateEnv } from './config/env.validation';
     // Jira Modules
     WorkspacesModule,
     TasksModule,
-    BoardsModule,
-    SprintsModule,
+    KanbanModule,
+    ScrumModule,
     WorkflowsModule,
     CommentsModule,
     AttachmentsModule,

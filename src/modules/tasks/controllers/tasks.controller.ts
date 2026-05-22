@@ -22,7 +22,7 @@ import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(private readonly tasksService: TasksService) { }
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách task theo bộ lọc' })
@@ -106,7 +106,7 @@ export class TasksController {
   @ApiResponse({ status: 200, description: 'Cập nhật nhãn thành công' })
   async updateLabels(@Param('id') id: string, @Body('labels') labels: string[]) {
     const task = await this.tasksService.findById(id);
-    
+
     for (const label of labels) {
       if (!task.labels.includes(label)) {
         await this.tasksService.addLabel(id, label);

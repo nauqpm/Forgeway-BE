@@ -6,6 +6,7 @@ import { PasswordController } from './controllers/password.controller';
 import { PermissionController } from './controllers/permission.controller';
 import { UserManagementController } from './controllers/user-management.controller';
 import { UsersModule } from '../users/users.module';
+import { WorkspacesModule } from '@/modules/workspaces/workspaces.module';
 import { TokenService } from './services/token.service';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -35,6 +36,7 @@ import { PasswordService } from './services/password.service';
     forwardRef(() => UsersModule),
     forwardRef(() => VerifyModule),
     forwardRef(() => PermissionsModule),
+    forwardRef(() => WorkspacesModule),
     TokenModule,
     PassportModule,
     JwtModule.registerAsync({

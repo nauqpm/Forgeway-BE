@@ -56,8 +56,8 @@ export class TasksService {
       .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
-      .populate('sprintId', 'name startDate endDate')
-      .populate('boardId', 'name')
+      .populate('sprintId', 'startDate endDate')
+      .populate('boardId')
       .populate('parentId', 'key title')
       .populate('epicId', 'key title')
       .exec();
@@ -75,8 +75,8 @@ export class TasksService {
       .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
-      .populate('sprintId', 'name startDate endDate')
-      .populate('boardId', 'name')
+      .populate('sprintId', 'startDate endDate')
+      .populate('boardId')
       .populate('parentId', 'key title')
       .populate('epicId', 'key title')
       .exec();
@@ -138,8 +138,8 @@ export class TasksService {
         .populate('workspaceId', 'key name')
         .populate('assigneeId', 'name email avatar')
         .populate('reporterId', 'name email avatar')
-        .populate('sprintId', 'name')
-        .populate('boardId', 'name')
+        .populate('sprintId', 'startDate endDate')
+        .populate('boardId')
         .populate('epicId', 'key title')
         .skip(skip)
         .limit(limit)
@@ -195,8 +195,7 @@ export class TasksService {
     return this.taskModel
       .find({ assigneeId: new Types.ObjectId(userId) })
       .populate('workspaceId', 'key name')
-      .populate('sprintId', 'name')
-      .populate('boardId', 'name')
+      .populate('sprintId', 'startDate endDate').populate('boardId')
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -229,8 +228,7 @@ export class TasksService {
       .populate('workspaceId', 'key name')
       .populate('assigneeId', 'name email avatar')
       .populate('reporterId', 'name email avatar')
-      .populate('sprintId', 'name')
-      .populate('boardId', 'name')
+      .populate('sprintId', 'startDate endDate').populate('boardId')
       .exec();
 
     if (!task) {

@@ -13,6 +13,7 @@ import { GLOBAL_ROLES } from '../constants/global-role.constants';
 import { WorkspacesService } from '../../modules/workspaces/services/workspaces.service';
 import { TasksService } from '../../modules/tasks/services/tasks.service';
 import { PagesService } from '../../modules/pages/services/pages.service';
+import { Types } from 'mongoose';
 
 export const ScopedRoleGuard = (
   resourceType: 'workspace' | 'task' | 'page',
@@ -20,7 +21,7 @@ export const ScopedRoleGuard = (
 ): Type<CanActivate> => {
   @Injectable()
   class ScopedRoleGuardMixin implements CanActivate {
-    constructor(private readonly moduleRef: ModuleRef) {}
+    constructor(private readonly moduleRef: ModuleRef) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
@@ -35,12 +36,12 @@ export const ScopedRoleGuard = (
         return true;
       }
 
-      let resourceId = request.params.id || 
-                       request.params.workspaceId || 
-                       request.body.workspaceId;
-      
+      let resourceId = request.params.id ||
+        request.params.workspaceId ||
+        request.body.workspaceId;
+
       if (!resourceId) {
-        return true; 
+        return true;
       }
 
       const workspacesService = this.moduleRef.get(WorkspacesService, { strict: false });
@@ -60,7 +61,17 @@ export const ScopedRoleGuard = (
         if (!page) throw new NotFoundException('Page not found');
         targetWorkspaceId = page.workspaceId.toString();
       } else if (resourceType === 'workspace') {
-        targetWorkspaceId = resourceId;
+        // resourceId in this case is either ID or Key. 
+        // We need to resolve it to get the real workspace object.
+        try {
+          const workspace = Types.ObjectId.isValid(resourceId)
+            ? await workspacesService.findById(resourceId)
+            : await workspacesService.findByKey(resourceId);
+
+          targetWorkspaceId = workspace._id.toString();
+        } catch (error) {
+          throw new NotFoundException('Workspace not found');
+        }
       }
 
       // Kiểm tra quyền dựa trên Workspace đã phân giải
@@ -69,27 +80,27 @@ export const ScopedRoleGuard = (
         const member = workspace.members.find(
           (m) => m.userId.toString() === user.userId,
         );
-        userRoleInResource = workspace.ownerId.toString() === user.userId 
-          ? SPACE_ROLES.WORKSPACE_ADMIN 
+        userRoleInResource = workspace.ownerId.toString() === user.userId
+          ? SPACE_ROLES.WORKSPACE_ADMIN
           : member?.role;
       }
 
-if (!userRoleInResource) {
-  throw new ForbiddenException('Bạn không có quyền truy cập vào tài nguyên này');
-}
+      if (!userRoleInResource) {
+        throw new ForbiddenException('Bạn không có quyền truy cập vào tài nguyên này');
+      }
 
-// Kiểm tra cấp bậc quyền: Admin > Member > Viewer
-const roleWeights: Record<string, number> = {
-  [SPACE_ROLES.WORKSPACE_ADMIN]: 3,
-  [SPACE_ROLES.MEMBER]: 2,
-  [SPACE_ROLES.VIEWER]: 1,
-};
+      // Kiểm tra cấp bậc quyền: Admin > Member > Viewer
+      const roleWeights: Record<string, number> = {
+        [SPACE_ROLES.WORKSPACE_ADMIN]: 3,
+        [SPACE_ROLES.MEMBER]: 2,
+        [SPACE_ROLES.VIEWER]: 1,
+      };
 
-if (roleWeights[userRoleInResource] < roleWeights[requiredRole]) {
-  throw new ForbiddenException(
-    `Yêu cầu quyền: ${requiredRole}. Quyền của bạn: ${userRoleInResource}`,
-  );
-}
+      if (roleWeights[userRoleInResource] < roleWeights[requiredRole]) {
+        throw new ForbiddenException(
+          `Yêu cầu quyền: ${requiredRole}. Quyền của bạn: ${userRoleInResource}`,
+        );
+      }
 
       return true;
     }

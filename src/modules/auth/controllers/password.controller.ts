@@ -22,7 +22,7 @@ export class PasswordController {
   constructor(
     private readonly passwordResetService: PasswordResetService,
     private readonly auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   @ApiOperation({ summary: 'Yêu cầu đặt lại mật khẩu' })
   @ApiResponse({

@@ -14,6 +14,8 @@ import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.con
 import { removeVietnameseTones } from '../../../common/utils/slug.utils';
 import { UsersService } from '../../users/services/users.service';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
+import { KanbanService } from '../../kanban/services/kanban.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 
@@ -24,9 +26,11 @@ export class WorkspacesService {
   constructor(
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workflowsService: WorkflowsService,
+    private readonly kanbanService: KanbanService,
+    private readonly scrumService: ScrumService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     this.logger.log(`Bắt đầu tạo Workspace: "${dto.name}" bởi User: ${userId}`);
@@ -46,7 +50,7 @@ export class WorkspacesService {
         slug,
         key,
         type: dto.type || 'kanban',
-        access: dto.access || 'open',
+        access: dto.access || 'public',
         ownerId: new Types.ObjectId(userId),
         members: [
           { userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN },
@@ -56,6 +60,14 @@ export class WorkspacesService {
       });
 
       this.logger.log(`Workspace tạo thành công: ${workspace.name} (ID: ${workspace._id}, Key: ${workspace.key})`);
+
+      // Initialize default board for Kanban/Scrum
+      try {
+        await this.kanbanService.createDefaultBoard(workspace._id.toString());
+        this.logger.log(`Đã tạo Board mặc định cho Workspace ${workspace._id}`);
+      } catch (error) {
+        this.logger.error(`Lỗi khi tạo Board mặc định cho Workspace ${workspace._id}`, error);
+      }
 
       try {
         await this.workflowsService.createDefaultWorkflow(workspace._id.toString());
@@ -93,6 +105,15 @@ export class WorkspacesService {
     if (!workspace) {
       this.logger.warn(`Không tìm thấy Workspace với Slug: ${slug}`);
       throw new NotFoundException(`Workspace with slug "${slug}" not found`);
+    }
+    return workspace;
+  }
+
+  async findByKey(key: string): Promise<any> {
+    const workspace = await this.workspacesRepository.findByKey(key);
+    if (!workspace) {
+      this.logger.warn(`Không tìm thấy Workspace với Key: ${key}`);
+      throw new NotFoundException(`Workspace with key "${key}" not found`);
     }
     return workspace;
   }
@@ -138,6 +159,17 @@ export class WorkspacesService {
   }
 
   async delete(id: string): Promise<void> {
+    // Delete associated boards and sprints first
+    try {
+      await Promise.all([
+        this.kanbanService.deleteByWorkspace(id),
+        this.scrumService.deleteByWorkspace(id),
+      ]);
+      this.logger.log(`Đã xóa các Board và Sprint liên quan đến Workspace ID: ${id}`);
+    } catch (error) {
+      this.logger.error(`Lỗi khi dọn dẹp dữ liệu của Workspace ${id}:`, error);
+    }
+
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
       this.logger.warn(`Xóa thất bại: Không tìm thấy Workspace ID: ${id}`);
