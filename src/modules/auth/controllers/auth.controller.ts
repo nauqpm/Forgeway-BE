@@ -86,12 +86,24 @@ export class AuthController {
 
     try {
       const result = await this.authenticationService.register(registerDto);
-      this.auditLogService.logRequest(req, {
-        type: SECURITY_EVENT_TYPES.REGISTER_SUCCESS,
-        severity: 'INFO',
-        email: registerDto.email,
-      });
-      return result;
+      const { auditStatus, ...response } = result;
+
+      if (auditStatus === 'created') {
+        this.auditLogService.logRequest(req, {
+          type: SECURITY_EVENT_TYPES.REGISTER_SUCCESS,
+          severity: 'INFO',
+          email: registerDto.email,
+        });
+      } else {
+        this.auditLogService.logRequest(req, {
+          type: SECURITY_EVENT_TYPES.REGISTER_FAILED,
+          severity: 'WARN',
+          email: registerDto.email,
+          metadata: { reason: auditStatus },
+        });
+      }
+
+      return response;
     } catch (error) {
       const err = error as Error;
       this.auditLogService.logRequest(req, {
