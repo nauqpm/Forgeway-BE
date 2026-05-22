@@ -1,0 +1,38 @@
+$kind: http-request
+name: Create Kanban Workspace
+url: '{{baseUrl}}/workspaces'
+method: POST
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "name": "{{kanbanWorkspaceName}}",
+      "description": "Created from Task Kanban API collection",
+      "type": "kanban"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Kanban workspace created", function () {
+        pm.expect(pm.response.code).to.equal(201);
+      });
+
+      const workspace = pm.response.json();
+      pm.test("Workspace type is kanban", function () {
+        pm.expect(workspace).to.have.property("_id");
+        pm.expect(workspace).to.have.property("key").that.is.a("string").and.not.empty;
+        pm.expect(workspace).to.have.property("type", "kanban");
+      });
+
+      pm.environment.set("kanbanWorkspaceId", workspace._id);
+      pm.environment.set("kanbanWorkspaceKey", workspace.key);
+order: 2000
+
