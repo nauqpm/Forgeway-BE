@@ -66,6 +66,7 @@ describe('TasksService', () => {
           provide: TaskNormalizerService,
           useValue: {
             normalizeForWorkspaceType: jest.fn(),
+            normalizeUpdateForWorkspaceType: jest.fn(),
           },
         },
         {
@@ -207,11 +208,15 @@ describe('TasksService', () => {
     const workspaceId = new Types.ObjectId().toString();
     const updateDto: UpdateTaskDto = { title: 'Updated' };
     const updateData = { title: 'Updated' };
-
-    repository.findById.mockResolvedValue({
+    const existingTask = {
       _id: new Types.ObjectId(taskId),
       workspaceId: new Types.ObjectId(workspaceId),
-    } as any);
+    };
+
+    repository.findById.mockResolvedValue(existingTask as any);
+    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(
+      updateDto,
+    );
     transformerService.transformUpdateInput.mockReturnValue(updateData as any);
     repository.update.mockResolvedValue({ _id: taskId, title: 'Updated' } as any);
     mapper.mapToDto.mockReturnValue({ id: taskId, title: 'Updated' } as any);
@@ -223,6 +228,10 @@ describe('TasksService', () => {
     expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(
       updateDto,
       workspaceId,
+    );
+    expect(normalizerService.normalizeUpdateForWorkspaceType).toHaveBeenCalledWith(
+      updateDto,
+      existingTask,
     );
     expect(repository.update).toHaveBeenCalledWith(taskId, updateData);
   });

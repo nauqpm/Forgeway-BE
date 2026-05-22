@@ -14,9 +14,6 @@ export class TaskDto {
   boardId?: string;
 
   @ApiPropertyOptional()
-  boardColumnId?: string;
-
-  @ApiPropertyOptional()
   columnId?: string;
 
   @ApiProperty()

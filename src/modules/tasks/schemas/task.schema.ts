@@ -22,6 +22,9 @@ export class Task {
   @Prop({ type: String, trim: true, maxlength: 100, index: true })
   columnId?: string;
 
+  @Prop({ type: String, required: true, trim: true, maxlength: 100, index: true, default: 'todo' })
+  status!: string;
+
   @Prop({
     type: String,
     required: true,
@@ -70,6 +73,7 @@ export const TaskSchema = SchemaFactory.createForClass(Task);
 
 TaskSchema.index({ workspaceId: 1, key: 1 }, { unique: true });
 TaskSchema.index({ workspaceId: 1, columnId: 1, updatedAt: -1 });
+TaskSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });
 TaskSchema.index({ workspaceId: 1, assigneeId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, type: 1, priority: 1 });

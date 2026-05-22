@@ -23,13 +23,12 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Auth, AuthSchema } from './schemas/auth.schema';
-import { SecurityEvent, SecurityEventSchema } from './schemas/security-event.schema';
-import { AuditLogService } from './services/audit-log.service';
 import { OtpService } from './services/otp.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { OAuthService } from './services/oauth.service';
 import { AuthenticationService } from './services/authentication.service';
 import { PasswordService } from './services/password.service';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -37,6 +36,7 @@ import { PasswordService } from './services/password.service';
     forwardRef(() => VerifyModule),
     forwardRef(() => PermissionsModule),
     forwardRef(() => WorkspacesModule),
+    AuditModule,
     TokenModule,
     PassportModule,
     JwtModule.registerAsync({
@@ -54,7 +54,6 @@ import { PasswordService } from './services/password.service';
       { name: Otp.name, schema: OtpSchema },
       { name: Token.name, schema: TokenSchema },
       { name: Auth.name, schema: AuthSchema },
-      { name: SecurityEvent.name, schema: SecurityEventSchema },
     ]),
   ],
   controllers: [
@@ -75,7 +74,6 @@ import { PasswordService } from './services/password.service';
     GoogleStrategy,
     JwtAuthGuard,
     RolesGuard,
-    AuditLogService,
   ],
   exports: [
     AuthenticationService,
@@ -88,7 +86,6 @@ import { PasswordService } from './services/password.service';
     JwtModule,
     JwtAuthGuard,
     RolesGuard,
-    AuditLogService,
   ],
 })
 export class AuthModule { }

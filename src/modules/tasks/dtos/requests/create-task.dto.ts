@@ -53,11 +53,6 @@ export class CreateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  boardColumnId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   columnId?: string;
 
   @ApiPropertyOptional()

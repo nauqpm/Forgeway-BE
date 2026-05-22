@@ -1,0 +1,18 @@
+$kind: http-request
+name: Delete Scrum Task
+url: '{{baseUrl}}/workspaces/{{scrumWorkspaceKey}}/board/{{scrumTaskId}}'
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Scrum task deleted", function () {
+        pm.expect(pm.response.code).to.equal(204);
+      });
+order: 9000
+

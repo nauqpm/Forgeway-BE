@@ -73,11 +73,6 @@ export class UpdateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  boardColumnId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   columnId?: string;
 
 }

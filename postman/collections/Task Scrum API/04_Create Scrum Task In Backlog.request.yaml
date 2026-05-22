@@ -1,0 +1,38 @@
+$kind: http-request
+name: Create Scrum Task In Backlog
+url: '{{baseUrl}}/workspaces/{{scrumWorkspaceKey}}/board'
+method: POST
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "title": "Scrum backlog story",
+      "type": "story",
+      "priority": "medium",
+      "status": "todo",
+      "storyPoints": 5
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Scrum backlog task created", function () {
+        pm.expect(pm.response.code).to.equal(201);
+      });
+
+      const task = pm.response.json();
+      pm.expect(task.key).to.match(new RegExp(`^${pm.environment.get("scrumWorkspaceKey")}-\\d+$`));
+      pm.expect(task.status).to.equal("todo");
+      pm.expect(task.boardId).to.be.oneOf([undefined, null]);
+
+      pm.environment.set("scrumTaskId", task.id);
+      pm.environment.set("scrumTaskKey", task.key);
+order: 4000
+

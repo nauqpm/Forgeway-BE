@@ -1,0 +1,32 @@
+$kind: http-request
+name: Update Scrum Task Status
+url: '{{baseUrl}}/workspaces/{{scrumWorkspaceKey}}/board/{{scrumTaskId}}'
+method: PATCH
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "title": "Scrum backlog story updated",
+      "status": "inprogress",
+      "priority": "high"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Scrum task updated", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const task = pm.response.json();
+      pm.expect(task.id).to.equal(pm.environment.get("scrumTaskId"));
+      pm.expect(task.status).to.equal("inprogress");
+order: 8000
+

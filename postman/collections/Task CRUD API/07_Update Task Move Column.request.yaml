@@ -30,6 +30,7 @@ scripts:
         pm.expect(task.id).to.equal(pm.environment.get("taskId"));
         pm.expect(task.title).to.equal(pm.environment.get("taskUpdatedTitle"));
         pm.expect(task.columnId).to.equal(pm.environment.get("taskUpdatedColumnId"));
+        pm.expect(task.status).to.equal(pm.environment.get("taskUpdatedStatus"));
       });
 order: 7000
 

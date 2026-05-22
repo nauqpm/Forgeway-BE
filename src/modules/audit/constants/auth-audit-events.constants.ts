@@ -1,4 +1,4 @@
-export const SECURITY_EVENT_TYPES = {
+export const AUTH_AUDIT_EVENTS = {
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGIN_FAILED: 'LOGIN_FAILED',
   LOGOUT: 'LOGOUT',
@@ -20,12 +20,5 @@ export const SECURITY_EVENT_TYPES = {
   UNAUTHORIZED_ACCESS: 'UNAUTHORIZED_ACCESS',
 } as const;
 
-export type SecurityEventTypeLiteral = (typeof SECURITY_EVENT_TYPES)[keyof typeof SECURITY_EVENT_TYPES];
-
-export const SECURITY_EVENT_SEVERITY = {
-  INFO: 'INFO',
-  WARN: 'WARN',
-  CRITICAL: 'CRITICAL',
-} as const;
-
-export type SecurityEventSeverityLiteral = (typeof SECURITY_EVENT_SEVERITY)[keyof typeof SECURITY_EVENT_SEVERITY];
+export type AuthAuditEventLiteral =
+  (typeof AUTH_AUDIT_EVENTS)[keyof typeof AUTH_AUDIT_EVENTS];

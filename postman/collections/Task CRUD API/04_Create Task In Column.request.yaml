@@ -33,6 +33,7 @@ scripts:
         pm.expect(task).to.have.property("key").that.is.a("string").and.not.empty;
         pm.expect(task.key).to.match(new RegExp(`^${pm.environment.get("workspaceKey")}-\\d+$`));
         pm.expect(task).to.have.property("columnId", pm.environment.get("taskColumnId"));
+        pm.expect(task).to.have.property("status").that.is.a("string").and.not.empty;
       });
 
       pm.environment.set("taskId", task.id);

@@ -13,9 +13,9 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../../users/services/users.service';
-import { AuditLogService } from './audit-log.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
-import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { RefreshJwtPayload } from '../types/jwt-payload.type';
 
 @Injectable()
