@@ -1,0 +1,35 @@
+$kind: http-request
+name: Update Task Move Column
+url: '{{baseUrl}}/workspaces/{{workspaceKey}}/board/{{taskId}}'
+method: PATCH
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "title": "{{taskUpdatedTitle}}",
+      "columnId": "{{taskUpdatedColumnId}}",
+      "priority": "high"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Task updated", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const task = pm.response.json();
+      pm.test("Task moved to updated column", function () {
+        pm.expect(task.id).to.equal(pm.environment.get("taskId"));
+        pm.expect(task.title).to.equal(pm.environment.get("taskUpdatedTitle"));
+        pm.expect(task.columnId).to.equal(pm.environment.get("taskUpdatedColumnId"));
+      });
+order: 7000
+

@@ -1,0 +1,38 @@
+$kind: http-request
+name: Create Kanban Workspace
+url: '{{baseUrl}}/workspaces'
+method: POST
+headers:
+  Content-Type: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "name": "{{workspaceName}}",
+      "description": "{{workspaceDescription}}",
+      "type": "{{workspaceType}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Workspace created", function () {
+        pm.expect(pm.response.code).to.equal(201);
+      });
+
+      const workspace = pm.response.json();
+      pm.test("Workspace has key", function () {
+        pm.expect(workspace).to.have.property("_id");
+        pm.expect(workspace).to.have.property("key").that.is.a("string").and.not.empty;
+        pm.expect(workspace).to.have.property("type", "kanban");
+      });
+
+      pm.environment.set("workspaceId", workspace._id);
+      pm.environment.set("workspaceKey", workspace.key);
+order: 2000
+

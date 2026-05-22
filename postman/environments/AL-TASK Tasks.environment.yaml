@@ -1,0 +1,43 @@
+name: AL-TASK Tasks
+values:
+  - key: baseUrl
+    value: 'http://localhost:5512'
+  - key: userAccount
+    value: ''
+  - key: userPassword
+    value: ''
+  - key: accessToken
+    value: ''
+  - key: refreshToken
+    value: ''
+  - key: userId
+    value: ''
+  - key: workspaceId
+    value: ''
+  - key: workspaceKey
+    value: ''
+  - key: workspaceName
+    value: Task CRUD Kanban Test
+  - key: workspaceDescription
+    value: Created from Postman task CRUD collection
+  - key: workspaceType
+    value: kanban
+  - key: taskId
+    value: ''
+  - key: taskKey
+    value: ''
+  - key: taskTitle
+    value: Postman Task 1
+  - key: taskUpdatedTitle
+    value: Postman Task 1 Updated
+  - key: taskType
+    value: task
+  - key: taskPriority
+    value: medium
+  - key: taskColumnId
+    value: todo
+  - key: taskUpdatedColumnId
+    value: inprogress
+  - key: taskStoryPoints
+    value: '3'
+color: 300
