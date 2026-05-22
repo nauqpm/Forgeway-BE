@@ -7,7 +7,8 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { Request as ExpressRequest } from 'express';
 
-import { AuditLogService } from '../services/audit-log.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { PasswordResetService } from '../services/password-reset.service';
 import {
   RequestPasswordResetDto,
@@ -30,7 +31,7 @@ export class PasswordController {
   ) {
     const result = await this.passwordResetService.requestPasswordReset(dto);
     this.auditLogService.logRequest(req, {
-      type: 'PASSWORD_RESET_REQUESTED',
+      type: SECURITY_EVENT_TYPES.PASSWORD_RESET_REQUESTED,
       severity: 'INFO',
     });
     return result;
@@ -42,14 +43,14 @@ export class PasswordController {
     try {
       const result = await this.passwordResetService.verifyOtpAndIssueGrant(dto);
       this.auditLogService.logRequest(req, {
-        type: 'OTP_VERIFIED_GRANT_ISSUED',
+        type: SECURITY_EVENT_TYPES.OTP_VERIFIED_GRANT_ISSUED,
         severity: 'INFO',
         metadata: { expiresIn: result.expiresIn },
       });
       return result;
     } catch (error) {
       this.auditLogService.logRequest(req, {
-        type: 'OTP_VERIFY_FAILED',
+        type: SECURITY_EVENT_TYPES.OTP_VERIFY_FAILED,
         severity: 'WARN',
       });
       throw error;
@@ -65,14 +66,14 @@ export class PasswordController {
     try {
       const result = await this.passwordResetService.resetPasswordWithGrant(dto);
       this.auditLogService.logRequest(req, {
-        type: 'PASSWORD_RESET_COMPLETED',
+        type: SECURITY_EVENT_TYPES.PASSWORD_RESET_COMPLETED,
         severity: 'INFO',
         metadata: { method: 'grant' },
       });
       return result;
     } catch (error) {
       this.auditLogService.logRequest(req, {
-        type: 'PASSWORD_RESET_FAILED',
+        type: SECURITY_EVENT_TYPES.PASSWORD_RESET_FAILED,
         severity: 'WARN',
         metadata: { method: 'grant', reason: (error as Error).message },
       });

@@ -14,9 +14,9 @@ import { OAuthService } from '../services/oauth.service';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { AuditLogService } from '../services/audit-log.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { setAuthCookies } from '../utils/cookie.utils';
-import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 interface RequestWithUser extends ExpressRequest {

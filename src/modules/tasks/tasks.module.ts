@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { KanbanModule } from '../kanban/kanban.module';
 import { ScrumModule } from '../scrum/scrum.module';
@@ -23,6 +24,7 @@ import { TasksService } from './services/tasks.service';
     forwardRef(() => KanbanModule),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
+    AuditModule,
   ],
   controllers: [TasksController],
   providers: [

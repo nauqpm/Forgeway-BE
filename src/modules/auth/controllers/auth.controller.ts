@@ -30,10 +30,10 @@ import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { AuditLogService } from '../services/audit-log.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
-import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends ExpressRequest {

@@ -5,21 +5,16 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { TokenService } from './services/token.service';
-import { AuditLogService } from './services/audit-log.service';
 
 import { Token, TokenSchema } from './schemas/token.schema';
-import { SecurityEvent, SecurityEventSchema } from './schemas/security-event.schema';
 
 import { UsersModule } from '../users/users.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     // Needed for TokenService(TokenModel)
-    MongooseModule.forFeature([
-      { name: Token.name, schema: TokenSchema },
-      // Needed for AuditLogService(SecurityEventModel)
-      { name: SecurityEvent.name, schema: SecurityEventSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
 
     // Needed for TokenService(JwtService)
     JwtModule.registerAsync({
@@ -38,8 +33,11 @@ import { UsersModule } from '../users/users.module';
 
     // Needed for TokenService(UsersService)
     forwardRef(() => UsersModule),
+
+    // Needed for TokenService(AuditLogService)
+    AuditModule,
   ],
-  providers: [TokenService, AuditLogService],
+  providers: [TokenService],
   exports: [TokenService, MongooseModule],
 })
 export class TokenModule {}
