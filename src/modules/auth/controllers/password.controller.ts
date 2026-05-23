@@ -29,12 +29,23 @@ export class PasswordController {
     @Body() dto: RequestPasswordResetDto,
     @Req() req: ExpressRequest,
   ) {
-    const result = await this.passwordResetService.requestPasswordReset(dto);
-    this.auditLogService.logRequest(req, {
-      type: SECURITY_EVENT_TYPES.PASSWORD_RESET_REQUESTED,
-      severity: 'INFO',
-    });
-    return result;
+    try {
+      const result = await this.passwordResetService.requestPasswordReset(dto);
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.PASSWORD_RESET_REQUESTED,
+        severity: 'INFO',
+        email: dto.email,
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.PASSWORD_RESET_FAILED,
+        severity: 'WARN',
+        email: dto.email,
+        metadata: { stage: 'request', reason: (error as Error).message },
+      });
+      throw error;
+    }
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -45,6 +56,7 @@ export class PasswordController {
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.OTP_VERIFIED_GRANT_ISSUED,
         severity: 'INFO',
+        email: dto.email,
         metadata: { expiresIn: result.expiresIn },
       });
       return result;
@@ -52,6 +64,8 @@ export class PasswordController {
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.OTP_VERIFY_FAILED,
         severity: 'WARN',
+        email: dto.email,
+        metadata: { reason: (error as Error).message },
       });
       throw error;
     }
