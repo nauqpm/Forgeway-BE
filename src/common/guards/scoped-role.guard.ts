@@ -36,9 +36,9 @@ export const ScopedRoleGuard = (
         return true;
       }
 
-      let resourceId = request.params.id ||
-        request.params.workspaceId ||
-        request.body.workspaceId;
+      let resourceId = request.params?.id ||
+        request.params?.workspaceId ||
+        request.body?.workspaceId;
 
       if (!resourceId) {
         return true;

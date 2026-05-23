@@ -16,7 +16,7 @@ import { CreateAmenityDto, UpdateAmenityDto } from '../dtos/create-amenity.dto';
 @ApiTags('Utilities')
 @Controller('amenitiesapi')
 export class UtilitiesController {
-  constructor(private readonly utilitiesService: UtilitiesService) {}
+  constructor(private readonly utilitiesService: UtilitiesService) { }
 
   @Get()
   async findAll() {

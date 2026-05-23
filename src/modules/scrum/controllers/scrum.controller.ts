@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('scrum')
 export class ScrumController {
-  constructor(private readonly scrumService: ScrumService) {}
+  constructor(private readonly scrumService: ScrumService) { }
 
   @Post(':workspaceId/sprints')
   @ApiOperation({ summary: 'Create a new sprint' })

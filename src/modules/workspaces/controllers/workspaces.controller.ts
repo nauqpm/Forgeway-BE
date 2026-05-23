@@ -11,13 +11,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { NotFoundException } from '@nestjs/common';
 import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { CreateInviteDto } from '../dtos/create-invite.dto';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -83,6 +84,7 @@ export class WorkspacesController {
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add member to workspace (owner/workspace admin only)' })
+  @ApiBody({ type: CreateInviteDto })
   async addMember(
     @Param('key') key: string,
     @Body() body: { email: string; role: SpaceRole },

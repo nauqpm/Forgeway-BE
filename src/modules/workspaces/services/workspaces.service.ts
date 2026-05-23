@@ -32,7 +32,7 @@ export class WorkspacesService {
     private readonly usersService: UsersService,
   ) { }
 
-  async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
+  public async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     this.logger.log(`Bắt đầu tạo Workspace: "${dto.name}" bởi User: ${userId}`);
     const slug = dto.slug || (await this.generateUniqueSlug(dto.name));
     const key = await this.generateUniqueKey(dto.key || dto.name);
@@ -87,11 +87,11 @@ export class WorkspacesService {
     }
   }
 
-  async findAll(): Promise<any[]> {
+  public async findAll(): Promise<any[]> {
     return this.workspacesRepository.findAll();
   }
 
-  async findById(id: string): Promise<any> {
+  public async findById(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       this.logger.warn(`Không tìm thấy Workspace với ID: ${id}`);
@@ -100,7 +100,7 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async findBySlug(slug: string): Promise<any> {
+  public async findBySlug(slug: string): Promise<any> {
     const workspace = await this.workspacesRepository.findBySlug(slug);
     if (!workspace) {
       this.logger.warn(`Không tìm thấy Workspace với Slug: ${slug}`);
@@ -109,7 +109,7 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async findByKey(key: string): Promise<any> {
+  public async findByKey(key: string): Promise<any> {
     const workspace = await this.workspacesRepository.findByKey(key);
     if (!workspace) {
       this.logger.warn(`Không tìm thấy Workspace với Key: ${key}`);
@@ -118,12 +118,12 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async findByUserId(userId: string): Promise<any[]> {
+  public async findByUserId(userId: string): Promise<any[]> {
     this.logger.log(`Đang tìm danh sách Workspace cho User ID: ${userId}`);
     return this.workspacesRepository.findByUserId(userId);
   }
 
-  async update(id: string, dto: UpdateWorkspaceDto): Promise<any> {
+  public async update(id: string, dto: UpdateWorkspaceDto): Promise<any> {
     this.logger.log(`Đang cập nhật Workspace ID: ${id}`);
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
@@ -158,7 +158,7 @@ export class WorkspacesService {
     return updated;
   }
 
-  async delete(id: string): Promise<void> {
+  public async delete(id: string): Promise<void> {
     // Delete associated boards and sprints first
     try {
       await Promise.all([
@@ -178,7 +178,7 @@ export class WorkspacesService {
     this.logger.log(`Workspace đã bị xóa: ${id}`);
   }
 
-  async addMember(
+  public async addMember(
     workspaceId: string,
     email: string,
     role: SpaceRole,
@@ -211,7 +211,7 @@ export class WorkspacesService {
   }
 
 
-  async removeMember(workspaceId: string, userId: string): Promise<any> {
+  public async removeMember(workspaceId: string, userId: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
@@ -233,7 +233,7 @@ export class WorkspacesService {
     return updated;
   }
 
-  async updateMemberRole(
+  public async updateMemberRole(
     workspaceId: string,
     userId: string,
     role: SpaceRole,
@@ -263,7 +263,7 @@ export class WorkspacesService {
     return updated;
   }
 
-  async isMember(workspaceId: string, userId: string): Promise<boolean> {
+  private async isMember(workspaceId: string, userId: string): Promise<boolean> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       return false;
@@ -271,7 +271,7 @@ export class WorkspacesService {
     return workspace.members.some((member) => member.userId.toString() === userId);
   }
 
-  async isAdmin(workspaceId: string, userId: string): Promise<boolean> {
+  private async isAdmin(workspaceId: string, userId: string): Promise<boolean> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       return false;
@@ -282,7 +282,7 @@ export class WorkspacesService {
     return workspace.ownerId.toString() === userId || member?.role === SPACE_ROLES.WORKSPACE_ADMIN;
   }
 
-  async isOwner(workspaceId: string, userId: string): Promise<boolean> {
+  private async isOwner(workspaceId: string, userId: string): Promise<boolean> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       return false;
@@ -290,7 +290,7 @@ export class WorkspacesService {
     return workspace.ownerId.toString() === userId;
   }
 
-  async generateUniqueSlug(name: string): Promise<string> {
+  private async generateUniqueSlug(name: string): Promise<string> {
     const baseSlug = removeVietnameseTones(name).substring(0, 50);
 
     let slug = baseSlug;
@@ -304,7 +304,7 @@ export class WorkspacesService {
     return slug;
   }
 
-  async generateUniqueKey(source: string, currentWorkspaceId?: string): Promise<string> {
+  private async generateUniqueKey(source: string, currentWorkspaceId?: string): Promise<string> {
     const baseKey =
       source
         .toUpperCase()
@@ -330,7 +330,7 @@ export class WorkspacesService {
     }
   }
 
-  async getMembers(workspaceId: string): Promise<any[]> {
+  public async getMembers(workspaceId: string): Promise<any[]> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
