@@ -100,6 +100,17 @@ export class WorkspacesController {
     return this.workspacesService.updateMemberRole(workspace._id.toString(), userId, body.role);
   }
 
+  @Delete(':key/members/me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Leave workspace (any member)' })
+  async leaveWorkspace(
+    @Param('key') key: string,
+    @Request() req: any,
+  ) {
+    const workspace = await this.workspacesService.findByKey(key);
+    await this.workspacesService.removeMember(workspace._id.toString(), req.user.userId);
+  }
+
   @Delete(':key/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
