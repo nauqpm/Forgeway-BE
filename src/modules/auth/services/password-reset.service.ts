@@ -34,7 +34,7 @@ export class PasswordResetService {
     const genericResponse = {
       success: true,
       message:
-        'Neu email ton tai trong he thong, ban se nhan duoc huong dan dat lai mat khau.',
+        'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
     };
 
     const user = await this.usersService.findByEmail(dto.email);

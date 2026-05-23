@@ -86,6 +86,7 @@ import { AuditModule } from '../audit/audit.module';
     JwtModule,
     JwtAuthGuard,
     RolesGuard,
+    AuditModule,
   ],
 })
 export class AuthModule { }

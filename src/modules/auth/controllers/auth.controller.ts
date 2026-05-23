@@ -107,15 +107,47 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('verify-email')
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    return this.authenticationService.verifyRegistrationEmail(dto.email, dto.code);
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Req() req: ExpressRequest) {
+    try {
+      const result = await this.authenticationService.verifyRegistrationEmail(dto.email, dto.code);
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_SUCCESS,
+        severity: 'INFO',
+        email: dto.email,
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_FAILED,
+        severity: 'WARN',
+        email: dto.email,
+        metadata: { reason: (error as Error).message },
+      });
+      throw error;
+    }
   }
 
   @Throttle({ default: { limit: 3, ttl: 15 * 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('resend-verification')
-  async resendVerification(@Body() dto: ResendVerificationDto) {
-    return this.authenticationService.resendRegistrationVerification(dto.email);
+  async resendVerification(@Body() dto: ResendVerificationDto, @Req() req: ExpressRequest) {
+    try {
+      const result = await this.authenticationService.resendRegistrationVerification(dto.email);
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_RESENT,
+        severity: 'INFO',
+        email: dto.email,
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_RESEND_FAILED,
+        severity: 'WARN',
+        email: dto.email,
+        metadata: { reason: (error as Error).message },
+      });
+      throw error;
+    }
   }
 
   // 🔐 Đăng nhập — throttle: 5/min per IP (brute-force protection)
@@ -206,6 +238,11 @@ export class AuthController {
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH] ?? body?.refreshToken;
 
     if (!refreshToken) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.REFRESH_FAILED,
+        severity: 'WARN',
+        metadata: { reason: 'Refresh token missing' },
+      });
       throw new UnauthorizedException('Refresh token không tồn tại');
     }
 
@@ -214,9 +251,19 @@ export class AuthController {
 
       setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
 
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.REFRESH_SUCCESS,
+        severity: 'INFO',
+      });
+
       return { success: true, message: 'Làm mới token thành công' };
     } catch (error) {
       const err = error as AuthError;
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.REFRESH_FAILED,
+        severity: 'WARN',
+        metadata: { reason: err.message },
+      });
       this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
       throw error;
     }
