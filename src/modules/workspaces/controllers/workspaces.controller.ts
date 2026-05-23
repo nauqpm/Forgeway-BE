@@ -15,9 +15,11 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { NotFoundException } from '@nestjs/common';
 import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -121,5 +123,13 @@ export class WorkspacesController {
   ) {
     const workspace = await this.workspacesService.findByKey(key);
     await this.workspacesService.removeMember(workspace._id.toString(), userId);
+  }
+
+  @Post(':key/restore')
+  @UseGuards(RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Restore soft-deleted workspace (super_admin only)' })
+  async restore(@Param('key') key: string) {
+    return this.workspacesService.restore(key);
   }
 }

@@ -36,6 +36,9 @@ export class Workspace {
   @Prop({ type: String, enum: ['private', 'public'], default: 'public' })
   access!: string;
 
+  @Prop({ type: Date, default: null })
+  deletedAt!: Date | null;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -45,3 +48,4 @@ export const WorkspaceSchema = SchemaFactory.createForClass(Workspace);
 WorkspaceSchema.index({ slug: 1 }, { unique: true });
 WorkspaceSchema.index({ key: 1 }, { unique: true });
 WorkspaceSchema.index({ 'members.userId': 1 });
+WorkspaceSchema.index({ deletedAt: 1 });

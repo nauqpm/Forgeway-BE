@@ -15,7 +15,6 @@ import { removeVietnameseTones } from '../../../common/utils/slug.utils';
 import { UsersService } from '../../users/services/users.service';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
-import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 
@@ -27,7 +26,6 @@ export class WorkspacesService {
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workflowsService: WorkflowsService,
     private readonly kanbanService: KanbanService,
-    private readonly scrumService: ScrumService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
   ) {}
@@ -159,23 +157,22 @@ export class WorkspacesService {
   }
 
   async delete(id: string): Promise<void> {
-    // Delete associated boards and sprints first
-    try {
-      await Promise.all([
-        this.kanbanService.deleteByWorkspace(id),
-        this.scrumService.deleteByWorkspace(id),
-      ]);
-      this.logger.log(`Đã xóa các Board và Sprint liên quan đến Workspace ID: ${id}`);
-    } catch (error) {
-      this.logger.error(`Lỗi khi dọn dẹp dữ liệu của Workspace ${id}:`, error);
-    }
-
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
-      this.logger.warn(`Xóa thất bại: Không tìm thấy Workspace ID: ${id}`);
+      this.logger.warn(`Soft-delete thất bại: Không tìm thấy Workspace ID: ${id}`);
       throw new NotFoundException(`Workspace with ID "${id}" not found`);
     }
-    this.logger.log(`Workspace đã bị xóa: ${id}`);
+    this.logger.log(`Workspace soft-deleted: ${id}`);
+  }
+
+  async restore(key: string): Promise<any> {
+    const workspace = await this.workspacesRepository.findByKeyForRestore(key);
+    if (!workspace) {
+      throw new NotFoundException(`Deleted workspace with key "${key}" not found`);
+    }
+    const restored = await this.workspacesRepository.restore(workspace._id.toString());
+    this.logger.log(`Workspace restored: ${workspace._id}`);
+    return restored;
   }
 
   async addMember(
@@ -228,6 +225,8 @@ export class WorkspacesService {
       throw new ForbiddenException('Cannot remove workspace owner');
     }
 
+    await this.ensureNotLastAdmin(workspace, userId);
+
     const updated = await this.workspacesRepository.removeMember(workspaceId, userId);
     this.logger.log(`Member ${userId} removed from workspace ${workspaceId}`);
     return updated;
@@ -254,6 +253,10 @@ export class WorkspacesService {
       throw new ForbiddenException('Cannot change owner role');
     }
 
+    if (member.role === SPACE_ROLES.WORKSPACE_ADMIN && role !== SPACE_ROLES.WORKSPACE_ADMIN) {
+      await this.ensureNotLastAdmin(workspace, userId);
+    }
+
     const updated = await this.workspacesRepository.updateMemberRole(
       workspaceId,
       userId,
@@ -261,6 +264,18 @@ export class WorkspacesService {
     );
     this.logger.log(`Member ${userId} role updated to ${role} in workspace ${workspaceId}`);
     return updated;
+  }
+
+  private ensureNotLastAdmin(workspace: any, userId: string): void {
+    const adminCount = workspace.members.filter(
+      (m: any) => m.role === SPACE_ROLES.WORKSPACE_ADMIN,
+    ).length;
+    const isTargetAdmin = workspace.members.some(
+      (m: any) => m.userId.toString() === userId && m.role === SPACE_ROLES.WORKSPACE_ADMIN,
+    );
+    if (adminCount === 1 && isTargetAdmin) {
+      throw new BadRequestException('Cannot remove or demote the last workspace admin');
+    }
   }
 
   async isMember(workspaceId: string, userId: string): Promise<boolean> {
