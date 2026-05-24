@@ -16,19 +16,18 @@ import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 @ApiTags('Workspaces - Kanban')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('workspaces/:key/kanban')
+@Controller('workspaces/:key/board')
 export class KanbanController {
   constructor(private readonly kanbanService: KanbanService) {}
 
-  @Get('board')
+  @Get()
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get board configuration for the workspace' })
   async getBoard(@Param('key') key: string) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return boards[0];
+    return this.kanbanService.findOrCreateByWorkspaceKey(key);
   }
 
-  @Put('board/columns')
+  @Put('columns')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Replace all board columns' })
   @ApiBody({ type: [KanbanBoardColumnDto] })
@@ -37,11 +36,11 @@ export class KanbanController {
     @Param('key') key: string,
     @Body() columns: KanbanBoardColumnDto[],
   ) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return this.kanbanService.updateColumns(boards[0]._id.toString(), columns);
+    const board = await this.kanbanService.findOrCreateByWorkspaceKey(key);
+    return this.kanbanService.replaceColumns(board._id.toString(), columns);
   }
 
-  @Post('board/columns')
+  @Post('columns')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Add a new column to the board' })
   @ApiBody({ type: CreateColumnDto })
@@ -50,11 +49,11 @@ export class KanbanController {
     @Param('key') key: string,
     @Body() dto: CreateColumnDto,
   ) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return this.kanbanService.addColumn(boards[0]._id.toString(), dto);
+    const board = await this.kanbanService.findOrCreateByWorkspaceKey(key);
+    return this.kanbanService.addColumn(board._id.toString(), dto);
   }
 
-  @Patch('board/columns/:columnId')
+  @Patch('columns/:columnId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Update column name or mapped statuses' })
   @ApiParam({ name: 'columnId', description: 'Column ID' })
@@ -65,11 +64,11 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: UpdateColumnDto,
   ) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return this.kanbanService.updateColumn(boards[0]._id.toString(), columnId, dto);
+    const board = await this.kanbanService.findOrCreateByWorkspaceKey(key);
+    return this.kanbanService.updateColumn(board._id.toString(), columnId, dto);
   }
 
-  @Patch('board/columns/:columnId/wip-limit')
+  @Patch('columns/:columnId/wip-limit')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Update WIP limit for a column' })
   @ApiParam({ name: 'columnId', description: 'Column ID' })
@@ -80,11 +79,11 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: UpdateWipLimitDto,
   ) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return this.kanbanService.updateWipLimit(boards[0]._id.toString(), columnId, dto.wipLimit);
+    const board = await this.kanbanService.findOrCreateByWorkspaceKey(key);
+    return this.kanbanService.updateWipLimit(board._id.toString(), columnId, dto.wipLimit);
   }
 
-  @Patch('board/columns/:columnId/move')
+  @Patch('columns/:columnId/move')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Move column to new position (drag-and-drop)' })
   @ApiParam({ name: 'columnId', description: 'Column ID to move' })
@@ -95,11 +94,11 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: MoveColumnDto,
   ) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return this.kanbanService.moveColumn(boards[0]._id.toString(), columnId, dto);
+    const board = await this.kanbanService.findOrCreateByWorkspaceKey(key);
+    return this.kanbanService.moveColumn(board._id.toString(), columnId, dto);
   }
 
-  @Delete('board/columns/:columnId')
+  @Delete('columns/:columnId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Delete column from board (migrate tasks if needed)' })
   @ApiParam({ name: 'columnId', description: 'Column ID to delete' })
@@ -110,7 +109,7 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: DeleteColumnDto,
   ) {
-    const boards = await this.kanbanService.findByWorkspaceKey(key);
-    return this.kanbanService.deleteColumn(boards[0]._id.toString(), columnId, dto.targetColumnId);
+    const board = await this.kanbanService.findOrCreateByWorkspaceKey(key);
+    return this.kanbanService.deleteColumn(board._id.toString(), columnId, dto.targetColumnId);
   }
 }

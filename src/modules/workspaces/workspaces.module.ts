@@ -30,4 +30,4 @@ import { InviteController } from './controllers/invite.controller';
   providers: [WorkspacesRepository, WorkspacesService, ForYouService, InviteRepository, InviteService],
   exports: [WorkspacesService, ForYouService, InviteService],
 })
-export class WorkspacesModule {}
+export class WorkspacesModule { }

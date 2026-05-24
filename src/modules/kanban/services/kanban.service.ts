@@ -29,20 +29,36 @@ export class KanbanService {
   public async createDefaultBoard(workspaceId: string): Promise<BoardDocument> {
     this.logger.log(`Creating default Kanban board for Workspace: ${workspaceId}`);
 
-    const board = new this.boardModel({
-      workspaceId: new Types.ObjectId(workspaceId),
-      columns: this.defaultColumns,
-    });
+    const board = await this.boardModel.findOneAndUpdate(
+      { workspaceId: new Types.ObjectId(workspaceId) },
+      { $setOnInsert: { workspaceId: new Types.ObjectId(workspaceId), name: 'Main Board', columns: this.defaultColumns, settings: {} } },
+      { upsert: true, new: true },
+    ).exec();
 
-    return board.save();
+    return board!;
+  }
+
+  public async findOrCreateByWorkspaceKey(workspaceKey: string): Promise<BoardDocument> {
+    if (!workspaceKey) {
+      throw new BadRequestException('workspaceKey is required');
+    }
+
+    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
+    }
+
+    const board = await this.boardModel.findOne({ workspaceId: workspace._id }).exec();
+    if (board) return board;
+
+    return this.createDefaultBoard(workspace._id.toString());
   }
 
   public async findByWorkspaceKey(workspaceKey: string): Promise<BoardDocument[]> {
     if (!workspaceKey) {
-      throw new BadRequestException('Invalid Workspace ID format');
+      throw new BadRequestException('workspaceKey is required');
     }
 
-    //find workspace id by key
     const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
     if (!workspace) {
       throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
@@ -170,10 +186,11 @@ export class KanbanService {
       }
     }
 
-    // Kiểm tra task đang nằm ở column này
+    // Kiểm tra task đang nằm ở column này (dùng workspaceId thay boardId để bắt tất cả tasks)
+    const workspaceId = board.workspaceId;
     const taskCount = await this.taskModel.countDocuments({
-      boardId: new Types.ObjectId(boardId),
-      boardColumnId: columnId,
+      workspaceId,
+      columnId: columnId,
     }).exec();
 
     if (taskCount > 0 && !targetColumnId) {
@@ -190,8 +207,8 @@ export class KanbanService {
           // Migrate tasks sang target column
           if (taskCount > 0 && targetColumnId) {
             await this.taskModel.updateMany(
-              { boardId: new Types.ObjectId(boardId), boardColumnId: columnId },
-              { $set: { boardColumnId: targetColumnId } },
+              { workspaceId, columnId: columnId },
+              { $set: { columnId: targetColumnId } },
               { session },
             ).exec();
             this.logger.log(`Migrated ${taskCount} task(s) from column "${columnId}" to "${targetColumnId}"`);
@@ -213,13 +230,18 @@ export class KanbanService {
       }
     } catch (error: any) {
       // Fallback nếu MongoDB không hỗ trợ transaction (standalone mode)
-      if (error.message?.includes('transaction') || error.codeName === 'IllegalOperation') {
+      if (
+        error.message?.includes('transaction') ||
+        error.codeName === 'IllegalOperation' ||
+        error.codeName === 'CommandNotSupportedOnStandalone' ||
+        error.code === 20
+      ) {
         this.logger.warn('MongoDB transaction not supported, falling back to sequential operations');
 
         if (taskCount > 0 && targetColumnId) {
           await this.taskModel.updateMany(
-            { boardId: new Types.ObjectId(boardId), boardColumnId: columnId },
-            { $set: { boardColumnId: targetColumnId } },
+            { workspaceId, columnId: columnId },
+            { $set: { columnId: targetColumnId } },
           ).exec();
           this.logger.log(`Migrated ${taskCount} task(s) from column "${columnId}" to "${targetColumnId}"`);
         }

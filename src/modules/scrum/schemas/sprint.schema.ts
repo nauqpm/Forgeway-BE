@@ -8,6 +8,12 @@ export class Sprint {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId!: Types.ObjectId;
 
+  @Prop({ type: String, required: true, trim: true, maxlength: 100 })
+  name!: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Board', index: true })
+  boardId?: Types.ObjectId;
+
   @Prop()
   goal?: string;
 
@@ -32,5 +38,4 @@ export class Sprint {
 }
 
 export const SprintSchema = SchemaFactory.createForClass(Sprint);
-SprintSchema.index({ workspaceId: 1 });
-SprintSchema.index({ status: 1 });
+SprintSchema.index({ workspaceId: 1, status: 1 });
