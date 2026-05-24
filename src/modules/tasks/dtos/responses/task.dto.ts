@@ -46,6 +46,24 @@ export class TaskDto {
   @ApiPropertyOptional()
   dueDate?: Date;
 
+  @ApiProperty()
+  isArchived!: boolean;
+
+  @ApiPropertyOptional()
+  archivedAt?: Date;
+
+  @ApiPropertyOptional()
+  archivedBy?: string;
+
+  @ApiProperty()
+  isDeleted!: boolean;
+
+  @ApiPropertyOptional()
+  deletedAt?: Date;
+
+  @ApiPropertyOptional()
+  deletedBy?: string;
+
   @ApiPropertyOptional()
   createdAt?: Date;
 

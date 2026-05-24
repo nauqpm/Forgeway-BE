@@ -111,10 +111,35 @@ export class TasksService {
     return this.findByWorkspace(workspace._id.toString(), currentUserId);
   }
 
+  async findArchivedByWorkspaceKey(
+    workspaceKey: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
+
+    const tasks = await this.tasksRepository.findArchivedByWorkspace(workspaceId);
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
   async findById(id: string): Promise<TaskDto> {
     this.validationService.validateObjectId(id, 'Task');
 
     const task = await this.tasksRepository.findById(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    return this.taskMapper.mapToDto(task);
+  }
+
+  async findByIdForAccessCheck(id: string): Promise<TaskDto> {
+    this.validationService.validateObjectId(id, 'Task');
+
+    const task = await this.tasksRepository.findById(id, {
+      includeArchived: true,
+    });
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
     }
@@ -134,9 +159,14 @@ export class TasksService {
   async update(id: string, updateTaskDto: UpdateTaskDto): Promise<TaskDto> {
     this.validationService.validateObjectId(id, 'Task');
 
-    const existing = await this.tasksRepository.findById(id);
+    const existing = await this.tasksRepository.findById(id, {
+      includeArchived: true,
+    });
     if (!existing) {
       throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+    if (existing.isArchived) {
+      throw new BadRequestException('Archived task cannot be updated');
     }
 
     const workspaceId = this.toId(existing.workspaceId);
@@ -161,13 +191,75 @@ export class TasksService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async delete(id: string): Promise<void> {
-    this.validationService.validateObjectId(id, 'Task');
+  async archiveInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
-    const deleted = await this.tasksRepository.delete(id);
-    if (!deleted) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+    const task = await this.getTaskForWorkspace(taskId, workspaceId, {
+      includeArchived: true,
+    });
+    if (task.isArchived) {
+      return this.taskMapper.mapToDto(task);
     }
+
+    const archived = await this.tasksRepository.archive(taskId, userId);
+    if (!archived) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    return this.taskMapper.mapToDto(archived);
+  }
+
+  async restoreInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    await this.validationService.validateWorkspaceMember(workspaceId, userId);
+
+    await this.getTaskForWorkspace(taskId, workspaceId, {
+      includeArchived: true,
+    });
+
+    const restored = await this.tasksRepository.restore(taskId);
+    if (!restored) {
+      throw new NotFoundException(`Archived task with ID ${taskId} not found`);
+    }
+
+    return this.taskMapper.mapToDto(restored);
+  }
+
+  async deletePermanentlyInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+    confirmText?: string,
+  ): Promise<TaskDto> {
+    if (confirmText !== 'delete') {
+      throw new BadRequestException('Type "delete" to permanently delete this task');
+    }
+
+    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    await this.validationService.validateWorkspaceMember(workspaceId, userId);
+
+    await this.getTaskForWorkspace(taskId, workspaceId, {
+      includeArchived: true,
+    });
+
+    const deleted = await this.tasksRepository.softDelete(taskId, userId);
+    if (!deleted) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    return this.taskMapper.mapToDto(deleted);
   }
 
   private async createTaskKey(workspace: any): Promise<string> {
@@ -191,5 +283,20 @@ export class TasksService {
 
   private toId(value: any): string {
     return value?._id?.toString?.() ?? value?.toString?.() ?? '';
+  }
+
+  private async getTaskForWorkspace(
+    taskId: string,
+    workspaceId: string,
+    options: { includeArchived?: boolean } = {},
+  ): Promise<any> {
+    this.validationService.validateObjectId(taskId, 'Task');
+
+    const task = await this.tasksRepository.findById(taskId, options);
+    if (!task || this.toId(task.workspaceId) !== workspaceId) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    return task;
   }
 }

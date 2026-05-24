@@ -34,9 +34,12 @@ describe('TasksService', () => {
             findByKey: jest.fn(),
             findAll: jest.fn(),
             findByWorkspace: jest.fn(),
+            findArchivedByWorkspace: jest.fn(),
             countByWorkspace: jest.fn(),
             update: jest.fn(),
-            delete: jest.fn(),
+            archive: jest.fn(),
+            restore: jest.fn(),
+            softDelete: jest.fn(),
           },
         },
         {
@@ -236,10 +239,81 @@ describe('TasksService', () => {
     expect(repository.update).toHaveBeenCalledWith(taskId, updateData);
   });
 
-  it('deletes a task', async () => {
+  it('archives a task by workspace key', async () => {
     const taskId = new Types.ObjectId().toString();
-    repository.delete.mockResolvedValue(true);
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      isArchived: false,
+    };
+    const archivedTask = { ...task, isArchived: true };
+    const taskDto = { id: taskId, isArchived: true };
 
-    await expect(service.delete(taskId)).resolves.toBeUndefined();
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findById.mockResolvedValue(task as any);
+    repository.archive.mockResolvedValue(archivedTask as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.archiveInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(repository.archive).toHaveBeenCalledWith(taskId, userId);
+  });
+
+  it('restores an archived task by workspace key', async () => {
+    const taskId = new Types.ObjectId().toString();
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      isArchived: true,
+    };
+    const restoredTask = { ...task, isArchived: false };
+    const taskDto = { id: taskId, isArchived: false };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findById.mockResolvedValue(task as any);
+    repository.restore.mockResolvedValue(restoredTask as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.restoreInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(repository.restore).toHaveBeenCalledWith(taskId);
+  });
+
+  it('soft deletes a task permanently when confirmation is valid', async () => {
+    const taskId = new Types.ObjectId().toString();
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      isArchived: false,
+    };
+    const deletedTask = { ...task, isArchived: true, isDeleted: true };
+    const taskDto = { id: taskId, isDeleted: true };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findById.mockResolvedValue(task as any);
+    repository.softDelete.mockResolvedValue(deletedTask as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.deletePermanentlyInWorkspaceKey('TESKB', taskId, userId, 'delete'),
+    ).resolves.toEqual(taskDto);
+    expect(repository.softDelete).toHaveBeenCalledWith(taskId, userId);
+  });
+
+  it('rejects permanent delete when confirmation is invalid', async () => {
+    await expect(
+      service.deletePermanentlyInWorkspaceKey('TESKB', 'task-id', 'user-id', 'wrong'),
+    ).rejects.toThrow(BadRequestException);
   });
 });

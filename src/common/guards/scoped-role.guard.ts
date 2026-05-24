@@ -56,7 +56,7 @@ export const ScopedRoleGuard = (
       // Phân giải resourceId về Workspace
       if (resourceType === 'task') {
         const tasksService = this.moduleRef.get(TasksService, { strict: false });
-        const task = await tasksService.findById(resourceId);
+        const task = await tasksService.findByIdForAccessCheck(resourceId);
         if (!task) throw new NotFoundException('Task not found');
         targetWorkspaceId = task.workspaceId.toString();
       } else if (resourceType === 'page') {

@@ -4,6 +4,11 @@ import { FilterQuery, Model, Types } from 'mongoose';
 import { FilterTaskDto } from '../dtos/requests/create-task.dto';
 import { Task, TaskDocument } from '../schemas/task.schema';
 
+interface TaskLookupOptions {
+  includeArchived?: boolean;
+  includeDeleted?: boolean;
+}
+
 @Injectable()
 export class TasksRepository {
   constructor(
@@ -14,16 +19,32 @@ export class TasksRepository {
     return new this.taskModel(data).save();
   }
 
-  async findById(id: string): Promise<TaskDocument | null> {
+  async findById(
+    id: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
 
-    return this.withRelations(this.taskModel.findById(id)).exec();
+    return this.withRelations(
+      this.taskModel.findOne({
+        _id: new Types.ObjectId(id),
+        ...this.buildVisibilityFilter(options),
+      }),
+    ).exec();
   }
 
-  async findByKey(key: string): Promise<TaskDocument | null> {
-    return this.withRelations(this.taskModel.findOne({ key })).exec();
+  async findByKey(
+    key: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument | null> {
+    return this.withRelations(
+      this.taskModel.findOne({
+        key,
+        ...this.buildVisibilityFilter(options),
+      }),
+    ).exec();
   }
 
   async findAll(filterDto: FilterTaskDto): Promise<{
@@ -55,9 +76,28 @@ export class TasksRepository {
     }
 
     return this.withRelations(
-      this.taskModel.find({ workspaceId: new Types.ObjectId(workspaceId) }),
+      this.taskModel.find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        ...this.buildVisibilityFilter(),
+      }),
     )
       .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async findArchivedByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      return [];
+    }
+
+    return this.withRelations(
+      this.taskModel.find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        isArchived: true,
+        isDeleted: { $ne: true },
+      }),
+    )
+      .sort({ archivedAt: -1, updatedAt: -1 })
       .exec();
   }
 
@@ -77,24 +117,90 @@ export class TasksRepository {
     }
 
     return this.withRelations(
-      this.taskModel.findByIdAndUpdate(id, data, {
-        new: true,
-        runValidators: true,
-      }),
+      this.taskModel.findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          ...this.buildVisibilityFilter(),
+        },
+        data,
+        {
+          new: true,
+          runValidators: true,
+        },
+      ),
     ).exec();
   }
 
-  async delete(id: string): Promise<boolean> {
+  async archive(id: string, archivedBy: string): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
-      return false;
+      return null;
     }
 
-    const result = await this.taskModel.findByIdAndDelete(id).exec();
-    return !!result;
+    return this.withRelations(
+      this.taskModel.findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          ...this.buildVisibilityFilter({ includeArchived: true }),
+        },
+        {
+          $set: {
+            isArchived: true,
+            archivedAt: new Date(),
+            archivedBy: new Types.ObjectId(archivedBy),
+          },
+        },
+        { new: true, runValidators: true },
+      ),
+    ).exec();
+  }
+
+  async restore(id: string): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+
+    return this.withRelations(
+      this.taskModel.findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          isArchived: true,
+          isDeleted: { $ne: true },
+        },
+        {
+          $set: { isArchived: false },
+          $unset: { archivedAt: 1, archivedBy: 1 },
+        },
+        { new: true, runValidators: true },
+      ),
+    ).exec();
+  }
+
+  async softDelete(id: string, deletedBy: string): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+
+    return this.withRelations(
+      this.taskModel.findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          isDeleted: { $ne: true },
+        },
+        {
+          $set: {
+            isArchived: true,
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: new Types.ObjectId(deletedBy),
+          },
+        },
+        { new: true, runValidators: true },
+      ),
+    ).exec();
   }
 
   private buildFilter(filterDto: FilterTaskDto): FilterQuery<TaskDocument> {
-    const filter: FilterQuery<TaskDocument> = {};
+    const filter: FilterQuery<TaskDocument> = this.buildVisibilityFilter();
 
     if (filterDto.workspaceId) {
       filter.workspaceId = new Types.ObjectId(filterDto.workspaceId);
@@ -125,6 +231,21 @@ export class TasksRepository {
     }
     if (filterDto.search) {
       filter.$text = { $search: filterDto.search };
+    }
+
+    return filter;
+  }
+
+  private buildVisibilityFilter(
+    options: TaskLookupOptions = {},
+  ): FilterQuery<TaskDocument> {
+    const filter: FilterQuery<TaskDocument> = {};
+
+    if (!options.includeArchived) {
+      filter.isArchived = { $ne: true };
+    }
+    if (!options.includeDeleted) {
+      filter.isDeleted = { $ne: true };
     }
 
     return filter;

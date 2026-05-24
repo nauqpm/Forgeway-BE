@@ -28,6 +28,12 @@ export class TaskMapper {
       reporterId: this.toId(plainTask.reporterId),
       storyPoints: plainTask.storyPoints,
       dueDate: plainTask.dueDate,
+      isArchived: plainTask.isArchived || false,
+      archivedAt: plainTask.archivedAt,
+      archivedBy: this.toOptionalId(plainTask.archivedBy),
+      isDeleted: plainTask.isDeleted || false,
+      deletedAt: plainTask.deletedAt,
+      deletedBy: this.toOptionalId(plainTask.deletedBy),
       createdAt: plainTask.createdAt,
       updatedAt: plainTask.updatedAt,
     };

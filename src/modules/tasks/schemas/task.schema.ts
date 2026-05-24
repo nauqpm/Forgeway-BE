@@ -64,6 +64,24 @@ export class Task {
   @Prop({ type: Date })
   dueDate?: Date;
 
+  @Prop({ type: Boolean, default: false, index: true })
+  isArchived!: boolean;
+
+  @Prop({ type: Date })
+  archivedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  archivedBy?: Types.ObjectId;
+
+  @Prop({ type: Boolean, default: false, index: true })
+  isDeleted!: boolean;
+
+  @Prop({ type: Date })
+  deletedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  deletedBy?: Types.ObjectId;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -77,4 +95,5 @@ TaskSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });
 TaskSchema.index({ workspaceId: 1, assigneeId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, type: 1, priority: 1 });
+TaskSchema.index({ workspaceId: 1, isArchived: 1, isDeleted: 1, updatedAt: -1 });
 TaskSchema.index({ title: 'text', description: 'text' });
