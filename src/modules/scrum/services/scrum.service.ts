@@ -72,14 +72,17 @@ export class ScrumService {
       .exec();
     const doneStatuses: string[] = board
       ? board.columns
-          .filter(col => col.id === 'done' || (col.mappedStatuses || []).includes('done'))
+          .filter(col =>
+            col.id?.toLowerCase() === 'done' ||
+            (col.mappedStatuses || []).some(s => s.toLowerCase() === 'done')
+          )
           .flatMap(col => col.mappedStatuses || [])
       : ['done'];
     if (doneStatuses.length === 0) doneStatuses.push('done');
 
     await this.taskModel.updateMany(
       { sprintId: new Types.ObjectId(sprintId), status: { $nin: doneStatuses } },
-      { $set: { sprintId: null }, $unset: { columnId: '' } },
+      { $set: { sprintId: null } },
     ).exec();
 
     return savedSprint;

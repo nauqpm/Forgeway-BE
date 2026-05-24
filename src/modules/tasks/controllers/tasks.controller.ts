@@ -44,7 +44,7 @@ export class TasksController {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  @Get()
+  @Get('tasks')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'List tasks in a workspace board by workspace key' })
   @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
@@ -76,7 +76,7 @@ export class TasksController {
     }
   }
 
-  @Post()
+  @Post('tasks')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create task/card in a workspace board column' })
