@@ -20,7 +20,7 @@ import { UpdateProfileDto } from '../dtos/auth.dto';
 import { Request as ExpressRequest } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -35,6 +35,7 @@ interface AuthError extends Error {
   message: string;
 }
 
+@ApiTags('Auth - User Management')
 @Controller('auth')
 export class UserManagementController {
   private readonly logger = new Logger(UserManagementController.name);
@@ -49,6 +50,27 @@ export class UserManagementController {
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Super admin only: list sanitized users' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách người dùng (phân trang)',
+    schema: {
+      example: {
+        data: [
+          {
+            id: '...',
+            email: 'user@example.com',
+            role: 'user',
+            status: 'active',
+            fullName: 'Nguyễn Văn A',
+            avatar: 'https://...',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+          },
+        ],
+        pagination: { page: 1, limit: 20, total: 100, totalPages: 5 },
+      },
+    },
+  })
   async getAllUsers(
     @Query('page') page = '1',
     @Query('limit') limit = '20',
@@ -76,6 +98,20 @@ export class UserManagementController {
   }
 
   // ✏️ Cập nhật thông tin người dùng
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Cập nhật thông tin người dùng hiện tại' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật thông tin thành công',
+    schema: {
+      example: {
+        _id: '...',
+        email: 'user@example.com',
+        fullName: 'Nguyễn Văn A',
+        avatar: 'https://...',
+      },
+    },
+  })
   @Put('update')
   @UseGuards(JwtAuthGuard)
   async updateUser(

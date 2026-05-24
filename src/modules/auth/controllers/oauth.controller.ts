@@ -9,6 +9,7 @@ import {
   Res,
   Logger,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { OAuthService } from '../services/oauth.service';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
@@ -27,6 +28,7 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
+@ApiTags('Auth - OAuth')
 @Controller('auth')
 export class OAuthController {
   private readonly logger = new Logger(OAuthController.name);
@@ -39,6 +41,11 @@ export class OAuthController {
 
   // 👉 Chuyển hướng đến Google để xác thực
   // OAuth handoff is not credential-bearing; skip only this route explicitly.
+  @ApiOperation({ summary: 'Chuyển hướng đến Google để đăng nhập' })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect đến trang đăng nhập Google',
+  })
   @Get('google')
   @SkipThrottle()
   @UseGuards(GoogleAuthGuard)
@@ -48,6 +55,15 @@ export class OAuthController {
 
   // 🔄 Google OAuth callback — cấp access + refresh token (đồng nhất với login thường)
   // Provider callbacks can burst during retries, so this skip is explicit and local.
+  @ApiOperation({
+    summary: 'Google OAuth callback',
+    description:
+      'Callback từ Google sau khi xác thực. Token được set vào HttpOnly Cookie và redirect về frontend.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect về frontend dashboard sau khi đăng nhập thành công',
+  })
   @Get('google/redirect')
   @SkipThrottle()
   @UseGuards(GoogleAuthGuard)

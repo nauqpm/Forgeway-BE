@@ -58,4 +58,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 .claude
 .agents
+.agent
+
+.planning
 superpowers
