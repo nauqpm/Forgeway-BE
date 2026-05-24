@@ -1,0 +1,24 @@
+$kind: http-request
+name: Restore Kanban Task
+url: '{{baseUrl}}/workspaces/{{kanbanWorkspaceKey}}/board/{{kanbanTaskId}}/restore'
+method: PATCH
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Kanban task restored", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const task = pm.response.json();
+      pm.test("Archived flag is false after restore", function () {
+        pm.expect(task.id).to.equal(pm.environment.get("kanbanTaskId"));
+        pm.expect(task.isArchived).to.equal(false);
+        pm.expect(task.isDeleted).to.equal(false);
+      });
+order: 10000

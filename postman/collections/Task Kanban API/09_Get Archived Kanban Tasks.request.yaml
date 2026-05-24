@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get Archived Kanban Tasks
+url: '{{baseUrl}}/workspaces/{{kanbanWorkspaceKey}}/board/archives'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Archived Kanban tasks listed", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const tasks = pm.response.json();
+      pm.test("Archived list contains current Kanban task", function () {
+        pm.expect(tasks).to.be.an("array");
+        const archived = tasks.find((task) => task.id === pm.environment.get("kanbanTaskId"));
+        pm.expect(archived).to.exist;
+        pm.expect(archived.isArchived).to.equal(true);
+        pm.expect(archived.isDeleted).to.equal(false);
+      });
+order: 9000
