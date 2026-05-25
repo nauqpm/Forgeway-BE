@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsOptional,
@@ -7,6 +7,7 @@ import {
   Min,
   Max,
   IsMongoId,
+  IsBoolean,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -64,6 +65,18 @@ export class FilterTaskDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  backlog?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  archived?: boolean;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()

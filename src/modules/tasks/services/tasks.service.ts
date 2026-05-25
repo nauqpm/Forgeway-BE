@@ -106,9 +106,24 @@ export class TasksService {
   async findByWorkspaceKey(
     workspaceKey: string,
     currentUserId?: string,
+    filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskDto[]> {
     const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
-    return this.findByWorkspace(workspace._id.toString(), currentUserId);
+    const workspaceId = workspace._id.toString();
+
+    if (currentUserId) {
+      await this.validationService.validateWorkspaceMember(
+        workspaceId,
+        currentUserId,
+      );
+    }
+
+    const result = await this.tasksRepository.findAll({
+      ...filterDto,
+      workspaceId,
+    });
+
+    return this.taskMapper.mapToDtos(result.tasks);
   }
 
   async findArchivedByWorkspaceKey(

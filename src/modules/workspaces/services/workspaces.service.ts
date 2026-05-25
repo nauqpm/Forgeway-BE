@@ -35,7 +35,7 @@ export class WorkspacesService {
     const slug = dto.slug || (await this.generateUniqueSlug(dto.name));
     const key = await this.generateUniqueKey(dto.key || dto.name);
 
-    const existingSlug = await this.workspacesRepository.findBySlug(slug);
+    const existingSlug = await this.workspacesRepository.findAnyBySlug(slug);
     if (existingSlug) {
       this.logger.warn(`Tạo Workspace thất bại: Slug "${slug}" đã tồn tại.`);
       throw new BadRequestException(`Workspace with slug "${slug}" already exists`);
@@ -318,7 +318,7 @@ export class WorkspacesService {
     let slug = baseSlug;
     let counter = 1;
 
-    while (await this.workspacesRepository.findBySlug(slug)) {
+    while (await this.workspacesRepository.findAnyBySlug(slug)) {
       slug = `${baseSlug}-${counter}`;
       counter += 1;
     }
@@ -337,7 +337,7 @@ export class WorkspacesService {
     let counter = 1;
 
     while (true) {
-      const existing = await this.workspacesRepository.findByKey(key);
+      const existing = await this.workspacesRepository.findAnyByKey(key);
       if (!existing || existing._id.toString() === currentWorkspaceId) {
         return key;
       }

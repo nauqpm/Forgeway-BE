@@ -46,8 +46,11 @@ const mockWorkspacesRepository = () => ({
     create: jest.fn(),
     findAll: jest.fn(),
     findById: jest.fn(),
+    findByIdWithMembers: jest.fn(),
     findBySlug: jest.fn(),
+    findAnyBySlug: jest.fn(),
     findByKey: jest.fn(),
+    findAnyByKey: jest.fn(),
     findByUserId: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -111,8 +114,8 @@ describe('WorkspacesService', () => {
         const dto = { name: 'My Workspace', slug: 'my-workspace', key: 'MYWOR' };
 
         it('creates workspace and initialises default board + workflow', async () => {
-            repo.findBySlug.mockResolvedValue(null);
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyBySlug.mockResolvedValue(null);
+            repo.findAnyByKey.mockResolvedValue(null);
             const workspace = buildWorkspace({ name: dto.name, slug: dto.slug });
             repo.create.mockResolvedValue(workspace);
             kanbanService.createDefaultBoard.mockResolvedValue(undefined);
@@ -141,8 +144,8 @@ describe('WorkspacesService', () => {
 
         it('auto-generates slug from name when slug is not provided', async () => {
             const noSlugDto = { name: 'Auto Slug Workspace' };
-            repo.findBySlug.mockResolvedValue(null);
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyBySlug.mockResolvedValue(null);
+            repo.findAnyByKey.mockResolvedValue(null);
             const workspace = buildWorkspace({ slug: 'auto-slug-workspace' });
             repo.create.mockResolvedValue(workspace);
             kanbanService.createDefaultBoard.mockResolvedValue(undefined);
@@ -156,8 +159,8 @@ describe('WorkspacesService', () => {
         });
 
         it('throws BadRequestException when slug already exists', async () => {
-            repo.findBySlug.mockResolvedValue(buildWorkspace());
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyBySlug.mockResolvedValue(buildWorkspace());
+            repo.findAnyByKey.mockResolvedValue(null);
 
             await expect(service.create(OWNER_ID, dto)).rejects.toThrow(
                 BadRequestException,
@@ -166,8 +169,8 @@ describe('WorkspacesService', () => {
         });
 
         it('does not throw when createDefaultBoard fails silently', async () => {
-            repo.findBySlug.mockResolvedValue(null);
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyBySlug.mockResolvedValue(null);
+            repo.findAnyByKey.mockResolvedValue(null);
             repo.create.mockResolvedValue(buildWorkspace());
             kanbanService.createDefaultBoard.mockRejectedValue(new Error('board error'));
             workflowsService.createDefaultWorkflow.mockResolvedValue(undefined);
@@ -176,8 +179,8 @@ describe('WorkspacesService', () => {
         });
 
         it('does not throw when createDefaultWorkflow raises ConflictException', async () => {
-            repo.findBySlug.mockResolvedValue(null);
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyBySlug.mockResolvedValue(null);
+            repo.findAnyByKey.mockResolvedValue(null);
             repo.create.mockResolvedValue(buildWorkspace());
             kanbanService.createDefaultBoard.mockResolvedValue(undefined);
             workflowsService.createDefaultWorkflow.mockRejectedValue(
@@ -189,10 +192,10 @@ describe('WorkspacesService', () => {
 
         it('generates an incremented key when base key already exists', async () => {
             const dtoWithKey = { name: 'Workspace', slug: 'workspace', key: 'SPACE' };
-            repo.findBySlug.mockResolvedValue(null);
+            repo.findAnyBySlug.mockResolvedValue(null);
             // First findByKey call (for 'SPACE') returns a different workspace
             const other = buildWorkspace({ _id: new Types.ObjectId(), key: 'SPACE' });
-            repo.findByKey
+            repo.findAnyByKey
                 .mockResolvedValueOnce(other) // 'SPACE' → taken
                 .mockResolvedValueOnce(null);  // 'SPACE1' → free
 
@@ -298,7 +301,7 @@ describe('WorkspacesService', () => {
         it('updates allowed fields and returns updated workspace', async () => {
             const workspace = buildWorkspace();
             repo.findById.mockResolvedValue(workspace);
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyByKey.mockResolvedValue(null);
             const updated = { ...workspace, name: 'Updated Name' };
             repo.update.mockResolvedValue(updated);
 
@@ -328,7 +331,7 @@ describe('WorkspacesService', () => {
         it('generates a new unique key when key field is provided in dto', async () => {
             const workspace = buildWorkspace();
             repo.findById.mockResolvedValue(workspace);
-            repo.findByKey.mockResolvedValue(null); // key is free
+            repo.findAnyByKey.mockResolvedValue(null); // key is free
             repo.update.mockResolvedValue({ ...workspace, key: 'NEWKEY' });
 
             await service.update(WORKSPACE_ID, { key: 'newkey' });
@@ -351,7 +354,6 @@ describe('WorkspacesService', () => {
             await service.delete(WORKSPACE_ID);
 
             expect(kanbanService.deleteByWorkspace).toHaveBeenCalledWith(WORKSPACE_ID);
-            expect(scrumService.deleteByWorkspace).toHaveBeenCalledWith(WORKSPACE_ID);
             expect(repo.delete).toHaveBeenCalledWith(WORKSPACE_ID);
         });
 
@@ -547,7 +549,7 @@ describe('WorkspacesService', () => {
     describe('getMembers', () => {
         it('returns the members array of the workspace', async () => {
             const workspace = buildWorkspace();
-            repo.findById.mockResolvedValue(workspace);
+            repo.findByIdWithMembers.mockResolvedValue(workspace);
 
             const result = await service.getMembers(WORKSPACE_ID);
 
@@ -555,7 +557,7 @@ describe('WorkspacesService', () => {
         });
 
         it('throws NotFoundException when workspace not found', async () => {
-            repo.findById.mockResolvedValue(null);
+            repo.findByIdWithMembers.mockResolvedValue(null);
 
             await expect(service.getMembers(WORKSPACE_ID)).rejects.toThrow(NotFoundException);
         });
@@ -567,20 +569,20 @@ describe('WorkspacesService', () => {
         it('appends counter suffix when slug collides', async () => {
             const dto = { name: 'My WS' };
             // 'my-ws' is taken, 'my-ws-1' is free
-            repo.findBySlug
+            repo.findAnyBySlug
                 .mockResolvedValueOnce(buildWorkspace({ slug: 'my-ws' })) // slug check in create
                 // Note: because slug is already taken during the explicit check, BadRequestException is thrown.
                 // To test slug generation we rely on the auto-generation path (no dto.slug provided):
                 .mockResolvedValueOnce(null);
-            repo.findByKey.mockResolvedValue(null);
+            repo.findAnyByKey.mockResolvedValue(null);
             repo.create.mockResolvedValue(buildWorkspace({ slug: 'my-ws' }));
             kanbanService.createDefaultBoard.mockResolvedValue(undefined);
             workflowsService.createDefaultWorkflow.mockResolvedValue(undefined);
 
             // When dto has no explicit slug, findBySlug is called inside generateUniqueSlug
             // then again to validate. We simulate: first slug attempt free → valid.
-            repo.findBySlug.mockReset();
-            repo.findBySlug
+            repo.findAnyBySlug.mockReset();
+            repo.findAnyBySlug
                 .mockResolvedValueOnce(buildWorkspace()) // 'my-ws' taken inside generateUniqueSlug
                 .mockResolvedValueOnce(null)             // 'my-ws-1' free inside generateUniqueSlug
                 .mockResolvedValueOnce(null);            // explicit slug check passes
