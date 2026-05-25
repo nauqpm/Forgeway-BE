@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type BoardDocument = Board & Document;
 
-@Schema()
+@Schema({ _id: false })
 export class BoardColumn {
   @Prop({ required: true })
   id!: string;
@@ -25,6 +25,23 @@ export class BoardColumn {
 export class Board {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true, unique: true })
   workspaceId!: Types.ObjectId;
+
+  @Prop({ type: String, trim: true, maxlength: 100 })
+  name?: string;
+
+  @Prop({
+    type: {
+      wipEnabled: { type: Boolean, default: false },
+      swimlaneEnabled: { type: Boolean, default: false },
+      estimationEnabled: { type: Boolean, default: true },
+    },
+    default: {},
+  })
+  settings!: {
+    wipEnabled: boolean;
+    swimlaneEnabled: boolean;
+    estimationEnabled: boolean;
+  };
 
   @Prop({ type: [SchemaFactory.createForClass(BoardColumn)], default: [] })
   columns!: BoardColumn[];

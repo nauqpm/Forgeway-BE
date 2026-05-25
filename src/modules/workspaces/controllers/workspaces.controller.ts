@@ -11,37 +11,43 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { NotFoundException } from '@nestjs/common';
 import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { CreateInviteDto } from '../dtos/create-invite.dto';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces')
 export class WorkspacesController {
-  constructor(private readonly workspacesService: WorkspacesService) {}
+  constructor(private readonly workspacesService: WorkspacesService) { }
 
   @Get()
-  @ApiOperation({ summary: 'Get all workspaces for current user' })
+  @ApiOperation({ summary: 'Lấy tất cả workspace của người dùng hiện tại' })
+  @ApiResponse({ status: 200, description: 'Danh sách workspace', schema: { example: [{ _id: '...', name: 'My Workspace', owner: '...' }] } })
   async findAll(@Request() req: any) {
     return this.workspacesService.findByUserId(req.user.userId);
   }
 
   @Get(':key')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get workspace by Key' })
+  @ApiOperation({ summary: 'Lấy workspace theo ID' })
+  @ApiResponse({ status: 200, description: 'Thông tin workspace', schema: { example: { _id: '...', name: 'My Workspace', members: [] } } })
   async findOne(@Param('key') key: string) {
     const workspace = await this.workspacesService.findByKey(key);
     return workspace;
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new workspace' })
+  @ApiOperation({ summary: 'Tạo workspace mới' })
+  @ApiResponse({ status: 201, description: 'Tạo workspace thành công', schema: { example: { _id: '...', name: 'New Workspace' } } })
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() dto: CreateWorkspaceDto) {
     console.log('📥 Nhận yêu cầu tạo Workspace:', JSON.stringify(dto));
@@ -80,6 +86,7 @@ export class WorkspacesController {
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add member to workspace (owner/workspace admin only)' })
+  @ApiBody({ type: CreateInviteDto })
   async addMember(
     @Param('key') key: string,
     @Body() body: { email: string; role: SpaceRole },
@@ -121,5 +128,13 @@ export class WorkspacesController {
   ) {
     const workspace = await this.workspacesService.findByKey(key);
     await this.workspacesService.removeMember(workspace._id.toString(), userId);
+  }
+
+  @Post(':key/restore')
+  @UseGuards(RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Restore soft-deleted workspace (super_admin only)' })
+  async restore(@Param('key') key: string) {
+    return this.workspacesService.restore(key);
   }
 }

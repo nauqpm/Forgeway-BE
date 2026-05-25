@@ -16,7 +16,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateImageDto } from '../dtos/create-image.dto';
@@ -53,11 +53,32 @@ export class ImagesController {
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Upload single image' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid file or no file provided' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File ảnh cần upload (jpg, jpeg, png, gif, webp)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Upload ảnh thành công',
+    schema: {
+      example: {
+        success: true,
+        message: 'Image uploaded successfully',
+        data: { _id: '...', url: '/uploads/image-123.jpg', targetType: 'task', targetId: '...' },
+      },
+    },
+  })
   async uploadSingle(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: CreateImageDto,
@@ -81,11 +102,32 @@ export class ImagesController {
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload multiple images (max 10)' })
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Upload nhiều ảnh cùng lúc (tối đa 10)' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Images uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid files or no files provided' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Danh sách file ảnh cần upload',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Upload nhiều ảnh thành công',
+    schema: {
+      example: {
+        success: true,
+        message: '3 images uploaded successfully',
+        data: [{ _id: '...', url: '/uploads/image-123.jpg' }],
+      },
+    },
+  })
   async uploadMultiple(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() dto: CreateImageDto,
@@ -101,8 +143,18 @@ export class ImagesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all images with filters' })
-  @ApiResponse({ status: 200, description: 'List of images' })
+  @ApiOperation({ summary: 'Lấy danh sách ảnh theo bộ lọc' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách ảnh',
+    schema: {
+      example: {
+        success: true,
+        data: [{ _id: '...', url: '/uploads/image-123.jpg', targetType: 'task' }],
+        pagination: { page: 1, limit: 20, total: 50 },
+      },
+    },
+  })
   async findAll(
     @Query('targetType') targetType?: string,
     @Query('targetId') targetId?: string,
@@ -124,9 +176,17 @@ export class ImagesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get image by ID' })
-  @ApiResponse({ status: 200, description: 'Image details' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
+  @ApiOperation({ summary: 'Lấy thông tin ảnh theo ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin ảnh',
+    schema: {
+      example: {
+        success: true,
+        data: { _id: '...', url: '/uploads/image-123.jpg', targetType: 'task', downloadCount: 5 },
+      },
+    },
+  })
   async findById(@Param('id') id: string) {
     const image = await this.imagesService.findById(id);
     return {
@@ -137,10 +197,18 @@ export class ImagesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete image by ID' })
-  @ApiResponse({ status: 200, description: 'Image deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Xóa ảnh theo ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa ảnh thành công',
+    schema: {
+      example: {
+        success: true,
+        message: 'Image deleted successfully',
+      },
+    },
+  })
   async delete(@Param('id') id: string) {
     const result = await this.imagesService.delete(id);
     return {
@@ -150,9 +218,17 @@ export class ImagesController {
   }
 
   @Put(':id/view')
-  @ApiOperation({ summary: 'Increment image download/view count' })
-  @ApiResponse({ status: 200, description: 'Count incremented' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
+  @ApiOperation({ summary: 'Tăng số lượt xem/download ảnh' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã tăng số lượt xem',
+    schema: {
+      example: {
+        success: true,
+        data: { id: '...', downloadCount: 6 },
+      },
+    },
+  })
   async incrementDownloadCount(@Param('id') id: string) {
     const image = await this.imagesService.incrementDownloadCount(id);
     return {

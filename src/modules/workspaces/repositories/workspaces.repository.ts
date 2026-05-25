@@ -22,7 +22,7 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
-    return this.workspaceModel.findById(id).exec();
+    return this.workspaceModel.findOne({ _id: id, deletedAt: null }).exec();
   }
 
   async findByIdWithMembers(id: string): Promise<any | null> {
@@ -30,18 +30,22 @@ export class WorkspacesRepository {
       return null;
     }
     return this.workspaceModel
-      .findById(id)
+      .findOne({ _id: id, deletedAt: null })
       .populate('members.userId', 'fullName email avatar')
       .lean()
       .exec();
   }
 
   async findBySlug(slug: string): Promise<WorkspaceDocument | null> {
-    return this.workspaceModel.findOne({ slug }).exec();
+    return this.workspaceModel.findOne({ slug, deletedAt: null }).exec();
   }
 
   async findByKey(key: string): Promise<WorkspaceDocument | null> {
-    return this.workspaceModel.findOne({ key }).exec();
+    return this.workspaceModel.findOne({ key, deletedAt: null }).exec();
+  }
+
+  async findByKeyForRestore(key: string): Promise<WorkspaceDocument | null> {
+    return this.workspaceModel.findOne({ key, deletedAt: { $ne: null } }).exec();
   }
 
   async findByUserId(userId: string): Promise<WorkspaceDocument[]> {
@@ -51,6 +55,7 @@ export class WorkspacesRepository {
     const objectUserId = new Types.ObjectId(userId);
     return this.workspaceModel
       .find({
+        deletedAt: null,
         $or: [
           { ownerId: objectUserId },
           { 'members.userId': objectUserId },
@@ -67,6 +72,7 @@ export class WorkspacesRepository {
     return this.workspaceModel
       .find({
         status: 'active',
+        deletedAt: null,
         $or: [
           { ownerId: objectUserId },
           { 'members.userId': objectUserId },
@@ -78,7 +84,7 @@ export class WorkspacesRepository {
   }
 
   async findAll(): Promise<WorkspaceDocument[]> {
-    return this.workspaceModel.find().exec();
+    return this.workspaceModel.find({ deletedAt: null }).exec();
   }
 
   async update(
@@ -97,8 +103,19 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(id)) {
       return false;
     }
-    const result = await this.workspaceModel.findByIdAndDelete(id).exec();
+    const result = await this.workspaceModel
+      .findByIdAndUpdate(id, { deletedAt: new Date() }, { new: true })
+      .exec();
     return !!result;
+  }
+
+  async restore(id: string): Promise<WorkspaceDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    return this.workspaceModel
+      .findByIdAndUpdate(id, { deletedAt: null }, { new: true })
+      .exec();
   }
 
   async addMember(

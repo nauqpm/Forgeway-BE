@@ -9,6 +9,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { ScopedRoleGuard } from '@/common/guards/scoped-role.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
@@ -18,12 +19,17 @@ import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { InviteService } from '../services/invite.service';
 import { CreateInviteDto } from '../dtos/create-invite.dto';
 
+@ApiTags('Workspaces - Invites')
 @Controller('workspaces')
 @UseFilters(AllExceptionsFilter)
 @UseInterceptors(TransformInterceptor)
 export class InviteController {
   constructor(private readonly inviteService: InviteService) {}
 
+  @ApiOperation({ summary: 'Tạo lời mời tham gia workspace' })
+  @ApiParam({ name: 'id', description: 'ID của workspace', type: String })
+  @ApiBody({ type: CreateInviteDto })
+  @ApiBearerAuth()
   @Post(':id/invites')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   createInvite(
@@ -34,12 +40,19 @@ export class InviteController {
     return this.inviteService.createInvite(workspaceId, user.userId, dto);
   }
 
+  @ApiOperation({ summary: 'Lấy danh sách lời mời của workspace' })
+  @ApiParam({ name: 'id', description: 'ID của workspace', type: String })
+  @ApiBearerAuth()
   @Get(':id/invites')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   getInvites(@Param('id') workspaceId: string) {
     return this.inviteService.getInvites(workspaceId);
   }
 
+  @ApiOperation({ summary: 'Hủy lời mời' })
+  @ApiParam({ name: 'id', description: 'ID của workspace', type: String })
+  @ApiParam({ name: 'inviteId', description: 'ID của lời mời', type: String })
+  @ApiBearerAuth()
   @Delete(':id/invites/:inviteId')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   cancelInvite(
@@ -49,11 +62,16 @@ export class InviteController {
     return this.inviteService.cancelInvite(workspaceId, inviteId);
   }
 
+  @ApiOperation({ summary: 'Lấy thông tin lời mời bằng token' })
+  @ApiParam({ name: 'token', description: 'Token của lời mời', type: String })
   @Get('invites/:token')
   getInviteByToken(@Param('token') token: string) {
     return this.inviteService.getInviteByToken(token);
   }
 
+  @ApiOperation({ summary: 'Chấp nhận lời mời' })
+  @ApiParam({ name: 'token', description: 'Token của lời mời', type: String })
+  @ApiBearerAuth()
   @Post('invites/:token/accept')
   @UseGuards(JwtAuthGuard)
   acceptInvite(@Param('token') token: string, @CurrentUser() user: any) {

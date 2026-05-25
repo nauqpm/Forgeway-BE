@@ -14,7 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { v4 as uuidv4 } from 'uuid';
 import { AttachmentsService, CreateAttachmentDto } from '../services/attachments.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -27,7 +27,23 @@ export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List attachments for a task or page' })
+  @ApiOperation({ summary: 'Lấy danh sách file đính kèm' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách file đính kèm theo target',
+    schema: {
+      example: [
+        {
+          _id: '...',
+          originalName: 'document.pdf',
+          mimeType: 'application/pdf',
+          size: 1024000,
+          targetType: 'task',
+          targetId: '...',
+        },
+      ],
+    },
+  })
   async findByTarget(
     @Query('targetType') targetType: string,
     @Query('targetId') targetId: string,
@@ -36,14 +52,44 @@ export class AttachmentsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get attachment by ID' })
+  @ApiOperation({ summary: 'Lấy file đính kèm theo ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin file đính kèm',
+    schema: {
+      example: {
+        _id: '...',
+        originalName: 'document.pdf',
+        mimeType: 'application/pdf',
+        size: 1024000,
+        targetType: 'task',
+        targetId: '...',
+        downloadCount: 3,
+      },
+    },
+  })
   async findById(@Param('id') id: string) {
     return this.attachmentsService.findById(id);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Upload an attachment' })
+  @ApiOperation({ summary: 'Upload file đính kèm' })
   @ApiConsumes('multipart/form-data')
+  @ApiResponse({
+    status: 201,
+    description: 'Upload file thành công',
+    schema: {
+      example: {
+        _id: '...',
+        originalName: 'document.pdf',
+        mimeType: 'application/pdf',
+        size: 1024000,
+        url: '/uploads/...',
+        targetType: 'task',
+        targetId: '...',
+      },
+    },
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -108,14 +154,31 @@ export class AttachmentsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete an attachment' })
+  @ApiOperation({ summary: 'Xóa file đính kèm' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa file thành công',
+    schema: {
+      example: { message: 'Attachment deleted successfully' },
+    },
+  })
   async delete(@Param('id') id: string) {
     await this.attachmentsService.delete(id);
     return { message: 'Attachment deleted successfully' };
   }
 
   @Post(':id/download')
-  @ApiOperation({ summary: 'Increment download count for an attachment' })
+  @ApiOperation({ summary: 'Tăng số lượt download' })
+  @ApiResponse({
+    status: 201,
+    description: 'Đã tăng số lượt download',
+    schema: {
+      example: {
+        _id: '...',
+        downloadCount: 4,
+      },
+    },
+  })
   async incrementDownloadCount(@Param('id') id: string) {
     return this.attachmentsService.incrementDownloadCount(id);
   }

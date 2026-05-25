@@ -24,7 +24,7 @@ export class AuthenticationService {
     private readonly tokenService: TokenService,
     private readonly verifyService: VerifyService,
     private readonly inviteService: InviteService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     this.logger.log(`Bắt đầu quy trình đăng ký cho email: ${registerDto.email}`);

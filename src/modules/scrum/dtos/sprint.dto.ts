@@ -1,7 +1,25 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments, Validate } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+@ValidatorConstraint({ name: 'EndDateAfterStartDate', async: false })
+class EndDateAfterStartDateConstraint implements ValidatorConstraintInterface {
+  validate(endDate: string, args: ValidationArguments): boolean {
+    const obj = args.object as CreateSprintDto;
+    if (!obj.startDate || !endDate) return true;
+    return new Date(endDate) > new Date(obj.startDate as unknown as string);
+  }
+
+  defaultMessage(): string {
+    return 'endDate must be after startDate';
+  }
+}
+
 export class CreateSprintDto {
+  @ApiProperty({ example: 'Sprint 1' })
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
   @ApiPropertyOptional({ example: 'Complete user authentication' })
   @IsOptional()
   @IsString()
@@ -13,10 +31,17 @@ export class CreateSprintDto {
 
   @ApiProperty({ example: '2026-06-04T00:00:00.000Z' })
   @IsDateString()
+  @Validate(EndDateAfterStartDateConstraint)
   endDate!: Date;
 }
 
 export class UpdateSprintDto {
+  @ApiPropertyOptional({ example: 'Sprint 2' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -31,9 +56,4 @@ export class UpdateSprintDto {
   @IsOptional()
   @IsDateString()
   endDate?: Date;
-
-  @ApiPropertyOptional({ enum: ['planning', 'active', 'completed'] })
-  @IsOptional()
-  @IsString()
-  status?: string;
 }

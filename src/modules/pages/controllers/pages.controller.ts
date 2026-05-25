@@ -24,7 +24,7 @@ import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 @UseGuards(JwtAuthGuard)
 @Controller('pages')
 export class PagesController {
-  constructor(private readonly pagesService: PagesService) {}
+  constructor(private readonly pagesService: PagesService) { }
 
   @Post()
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
@@ -123,7 +123,7 @@ export class PagesController {
   @ApiOperation({ summary: 'Update page labels' })
   async updateLabels(@Param('id') id: string, @Body('labels') labels: string[]) {
     const page = await this.pagesService.findById(id);
-    
+
     for (const label of labels) {
       if (!page.labels.includes(label)) {
         await this.pagesService.addLabel(id, label);
