@@ -127,9 +127,9 @@ export class TasksController {
     }
   }
 
-  @Get('key/:taskKey')
+  @Get('tasks/:taskKey')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get task by generated task key' })
+  @ApiOperation({ summary: 'Get task by generated task key in a workspace' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
@@ -141,7 +141,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.findByKeyInWorkspaceKey(
+      const task = await this.tasksService.findByKeyInWorkspace(
         key,
         taskKey,
         user.userId,
@@ -199,48 +199,24 @@ export class TasksController {
     }
   }
 
-  @Get(':id')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get task by ID' })
+  @Get('key/:taskKey')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Legacy alias: get task by generated task key' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
-  @ApiBadRequestResponse({ description: 'Invalid task ID' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  @ApiForbiddenResponse({ description: 'Task access denied' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Task not found' })
-  async findById(
+  async findByLegacyTaskKey(
     @Param('key') key: string,
-    @Param('id') id: string,
+    @Param('taskKey') taskKey: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
-    try {
-      const task = await this.tasksService.findByIdInWorkspaceKey(
-        key,
-        id,
-        user.userId,
-      );
-      this.auditLogService.logRequest(req, {
-        type: SECURITY_EVENT_TYPES.TASK_VIEWED,
-        severity: 'INFO',
-        userId: user.userId,
-        metadata: {
-          workspaceKey: key,
-          taskId: task.id,
-          taskKey: task.key,
-        },
-      });
-      return task;
-    } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
-        workspaceKey: key,
-        taskId: id,
-      });
-      throw error;
-    }
+    return this.findByTaskKey(key, taskKey, user, req);
   }
 
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @Patch('tasks/:taskKey')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Update task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiBadRequestResponse({ description: 'Invalid task update payload' })
@@ -249,7 +225,7 @@ export class TasksController {
   @ApiNotFoundResponse({ description: 'Task not found' })
   async update(
     @Param('key') key: string,
-    @Param('id') id: string,
+    @Param('taskKey') taskKey: string,
     @Body() updateTaskDto: UpdateTaskDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
@@ -257,7 +233,7 @@ export class TasksController {
     try {
       const task = await this.tasksService.updateInWorkspaceKey(
         key,
-        id,
+        taskKey,
         updateTaskDto,
         user.userId,
       );
@@ -278,15 +254,15 @@ export class TasksController {
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED, error, {
         workspaceKey: key,
-        taskId: id,
+        taskKey,
         changedFields: Object.keys(updateTaskDto),
       });
       throw error;
     }
   }
 
-  @Patch(':id/archive')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @Patch('tasks/:taskKey/archive')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Archive task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -294,12 +270,16 @@ export class TasksController {
   @ApiNotFoundResponse({ description: 'Task not found' })
   async archive(
     @Param('key') key: string,
-    @Param('id') id: string,
+    @Param('taskKey') taskKey: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.archiveInWorkspaceKey(key, id, user.userId);
+      const task = await this.tasksService.archiveTaskKeyInWorkspace(
+        key,
+        taskKey,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_ARCHIVE_SUCCESS,
         severity: 'WARN',
@@ -314,14 +294,14 @@ export class TasksController {
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED, error, {
         workspaceKey: key,
-        taskId: id,
+        taskKey,
       });
       throw error;
     }
   }
 
-  @Patch(':id/restore')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @Patch('tasks/:taskKey/restore')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Restore archived task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -329,12 +309,16 @@ export class TasksController {
   @ApiNotFoundResponse({ description: 'Archived task not found' })
   async restore(
     @Param('key') key: string,
-    @Param('id') id: string,
+    @Param('taskKey') taskKey: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.restoreInWorkspaceKey(key, id, user.userId);
+      const task = await this.tasksService.restoreTaskKeyInWorkspace(
+        key,
+        taskKey,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_RESTORE_SUCCESS,
         severity: 'INFO',
@@ -349,14 +333,14 @@ export class TasksController {
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED, error, {
         workspaceKey: key,
-        taskId: id,
+        taskKey,
       });
       throw error;
     }
   }
 
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.WORKSPACE_ADMIN))
+  @Delete('tasks/:taskKey')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete task/card' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
@@ -366,15 +350,15 @@ export class TasksController {
   @ApiNotFoundResponse({ description: 'Task not found' })
   async delete(
     @Param('key') key: string,
-    @Param('id') id: string,
+    @Param('taskKey') taskKey: string,
     @Body() deleteTaskDto: DeleteTaskDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
   ): Promise<void> {
     try {
-      const task = await this.tasksService.deletePermanentlyInWorkspaceKey(
+      const task = await this.tasksService.deleteTaskKeyPermanentlyInWorkspace(
         key,
-        id,
+        taskKey,
         user.userId,
         deleteTaskDto.confirmText,
       );
@@ -384,14 +368,14 @@ export class TasksController {
         userId: user.userId,
         metadata: {
           workspaceKey: key,
-          taskId: id,
+          taskId: task.id,
           taskKey: task.key,
         },
       });
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED, error, {
         workspaceKey: key,
-        taskId: id,
+        taskKey,
       });
       throw error;
     }

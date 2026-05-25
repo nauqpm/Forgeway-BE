@@ -167,13 +167,21 @@ export class TasksService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async findByKeyInWorkspaceKey(
+  async findByKeyInWorkspace(
     workspaceKey: string,
     taskKey: string,
-    userId: string,
+    currentUserId?: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
-    const task = await this.tasksRepository.findByKeyInWorkspace(taskKey, workspaceId);
+    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    if (currentUserId) {
+      await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
+    }
+
+    const task = await this.tasksRepository.findByWorkspaceAndKey(
+      workspaceId,
+      taskKey,
+    );
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -218,39 +226,40 @@ export class TasksService {
 
   async updateInWorkspaceKey(
     workspaceKey: string,
-    taskId: string,
+    taskKey: string,
     updateTaskDto: UpdateTaskDto,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
-    const existing = await this.getTaskForWorkspace(taskId, workspaceId, {
-      includeArchived: true,
-    });
-
-    if (existing.isArchived) {
+    const { workspaceId, task } = await this.getTaskByKeyForWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+      { includeArchived: true },
+    );
+    if (task.isArchived) {
       throw new BadRequestException('Archived task cannot be updated');
     }
 
     const normalizedUpdateDto =
       await this.normalizerService.normalizeUpdateForWorkspaceType(
         updateTaskDto,
-        existing,
+        task,
       );
     await this.validationService.validateUpdateRequest(
       normalizedUpdateDto,
       workspaceId,
     );
 
-    const task = await this.tasksRepository.updateInWorkspace(
-      taskId,
+    const updated = await this.tasksRepository.updateInWorkspace(
+      this.toId(task._id),
       workspaceId,
       this.transformerService.transformUpdateInput(normalizedUpdateDto),
     );
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    if (!updated) {
+      throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
-    return this.taskMapper.mapToDto(task);
+    return this.taskMapper.mapToDto(updated);
   }
 
   async archiveInWorkspaceKey(
@@ -279,6 +288,33 @@ export class TasksService {
     return this.taskMapper.mapToDto(archived);
   }
 
+  async archiveTaskKeyInWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    const { workspaceId, task } = await this.getTaskByKeyForWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+      { includeArchived: true },
+    );
+    if (task.isArchived) {
+      return this.taskMapper.mapToDto(task);
+    }
+
+    const archived = await this.tasksRepository.archiveInWorkspace(
+      this.toId(task._id),
+      workspaceId,
+      userId,
+    );
+    if (!archived) {
+      throw new NotFoundException(`Task with key ${taskKey} not found`);
+    }
+
+    return this.taskMapper.mapToDto(archived);
+  }
+
   async restoreInWorkspaceKey(
     workspaceKey: string,
     taskId: string,
@@ -290,9 +326,35 @@ export class TasksService {
       includeArchived: true,
     });
 
-    const restored = await this.tasksRepository.restoreInWorkspace(taskId, workspaceId);
+    const restored = await this.tasksRepository.restoreInWorkspace(
+      taskId,
+      workspaceId,
+    );
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
+    }
+
+    return this.taskMapper.mapToDto(restored);
+  }
+
+  async restoreTaskKeyInWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    const { workspaceId, task } = await this.getTaskByKeyForWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+      { includeArchived: true },
+    );
+
+    const restored = await this.tasksRepository.restoreInWorkspace(
+      this.toId(task._id),
+      workspaceId,
+    );
+    if (!restored) {
+      throw new NotFoundException(`Archived task with key ${taskKey} not found`);
     }
 
     return this.taskMapper.mapToDto(restored);
@@ -321,6 +383,35 @@ export class TasksService {
     );
     if (!deleted) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    return this.taskMapper.mapToDto(deleted);
+  }
+
+  async deleteTaskKeyPermanentlyInWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+    confirmText?: string,
+  ): Promise<TaskDto> {
+    if (confirmText !== 'delete') {
+      throw new BadRequestException('Type "delete" to permanently delete this task');
+    }
+
+    const { workspaceId, task } = await this.getTaskByKeyForWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+      { includeArchived: true },
+    );
+
+    const deleted = await this.tasksRepository.softDeleteInWorkspace(
+      this.toId(task._id),
+      workspaceId,
+      userId,
+    );
+    if (!deleted) {
+      throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
     return this.taskMapper.mapToDto(deleted);
@@ -377,5 +468,27 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  private async getTaskByKeyForWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+    options: { includeArchived?: boolean } = {},
+  ): Promise<{ workspaceId: string; task: any }> {
+    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    await this.validationService.validateWorkspaceMember(workspaceId, userId);
+
+    const task = await this.tasksRepository.findByWorkspaceAndKey(
+      workspaceId,
+      taskKey,
+      options,
+    );
+    if (!task) {
+      throw new NotFoundException(`Task with key ${taskKey} not found`);
+    }
+
+    return { workspaceId, task };
   }
 }

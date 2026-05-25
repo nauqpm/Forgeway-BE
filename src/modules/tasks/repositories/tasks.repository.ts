@@ -83,6 +83,14 @@ export class TasksRepository {
     ).exec();
   }
 
+  async findByWorkspaceAndKey(
+    workspaceId: string,
+    key: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument | null> {
+    return this.findByKeyInWorkspace(key, workspaceId, options);
+  }
+
   async findAll(filterDto: FilterTaskDto): Promise<{
     tasks: TaskDocument[];
     total: number;

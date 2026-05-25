@@ -27,12 +27,17 @@ export class CreateSprintDto {
 
   @ApiProperty({ example: '2026-05-21T00:00:00.000Z' })
   @IsDateString()
-  startDate!: Date;
+  startDate!: string;
 
   @ApiProperty({ example: '2026-06-04T00:00:00.000Z' })
   @IsDateString()
   @Validate(EndDateAfterStartDateConstraint)
-  endDate!: Date;
+  endDate!: string;
+
+  @ApiPropertyOptional({ example: '2 weeks' })
+  @IsOptional()
+  @IsString()
+  duration?: string;
 }
 
 export class UpdateSprintDto {
@@ -50,10 +55,15 @@ export class UpdateSprintDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
-  startDate?: Date;
+  startDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
-  endDate?: Date;
+  endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  duration?: string;
 }

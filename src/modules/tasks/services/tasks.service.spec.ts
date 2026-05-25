@@ -34,6 +34,7 @@ describe('TasksService', () => {
             findByKey: jest.fn(),
             findByIdInWorkspace: jest.fn(),
             findByKeyInWorkspace: jest.fn(),
+            findByWorkspaceAndKey: jest.fn(),
             findAll: jest.fn(),
             findByWorkspace: jest.fn(),
             findArchivedByWorkspace: jest.fn(),
@@ -205,6 +206,34 @@ describe('TasksService', () => {
     );
   });
 
+  it('finds a task key only inside the resolved workspace', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(),
+      workspaceId: new Types.ObjectId(workspaceId),
+      key: 'TESKB-1',
+    };
+    const taskDto = { id: task._id.toString(), workspaceId, key: 'TESKB-1' };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.findByKeyInWorkspace('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
+      workspaceId,
+      'TESKB-1',
+    );
+  });
+
   it('throws when task is not found', async () => {
     const taskId = new Types.ObjectId().toString();
     repository.findById.mockResolvedValue(null);
@@ -295,6 +324,7 @@ describe('TasksService', () => {
 
   it('updates a task scoped to workspace key', async () => {
     const taskId = new Types.ObjectId().toString();
+    const taskKey = 'TESKB-1';
     const workspaceId = new Types.ObjectId().toString();
     const userId = new Types.ObjectId().toString();
     const updateDto: UpdateTaskDto = { title: 'Updated' };
@@ -303,13 +333,14 @@ describe('TasksService', () => {
     const existingTask = {
       _id: new Types.ObjectId(taskId),
       workspaceId: new Types.ObjectId(workspaceId),
+      key: taskKey,
       isArchived: false,
     };
     const updatedTask = { ...existingTask, title: 'Updated' };
-    const taskDto = { id: taskId, title: 'Updated' };
+    const taskDto = { id: taskId, key: taskKey, title: 'Updated' };
 
     validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
+    repository.findByWorkspaceAndKey.mockResolvedValue(existingTask as any);
     normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(
       updateDto,
     );
@@ -318,8 +349,13 @@ describe('TasksService', () => {
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
     await expect(
-      service.updateInWorkspaceKey('TESKB', taskId, updateDto, userId),
+      service.updateInWorkspaceKey('TESKB', taskKey, updateDto, userId),
     ).resolves.toEqual(taskDto);
+    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
+      workspaceId,
+      taskKey,
+      { includeArchived: true },
+    );
     expect(repository.updateInWorkspace).toHaveBeenCalledWith(
       taskId,
       workspaceId,
@@ -355,6 +391,35 @@ describe('TasksService', () => {
     );
   });
 
+  it('archives a task key only inside the resolved workspace', async () => {
+    const taskId = new Types.ObjectId().toString();
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      key: 'TESKB-1',
+      isArchived: false,
+    };
+    const archivedTask = { ...task, isArchived: true };
+    const taskDto = { id: taskId, key: 'TESKB-1', isArchived: true };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
+    repository.archiveInWorkspace.mockResolvedValue(archivedTask as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.archiveTaskKeyInWorkspace('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(repository.archiveInWorkspace).toHaveBeenCalledWith(
+      taskId,
+      workspaceId,
+      userId,
+    );
+  });
+
   it('restores an archived task by workspace key', async () => {
     const taskId = new Types.ObjectId().toString();
     const workspaceId = new Types.ObjectId().toString();
@@ -376,7 +441,38 @@ describe('TasksService', () => {
     await expect(
       service.restoreInWorkspaceKey('TESKB', taskId, userId),
     ).resolves.toEqual(taskDto);
-    expect(repository.restoreInWorkspace).toHaveBeenCalledWith(taskId, workspaceId);
+    expect(repository.restoreInWorkspace).toHaveBeenCalledWith(
+      taskId,
+      workspaceId,
+    );
+  });
+
+  it('restores a task key only inside the resolved workspace', async () => {
+    const taskId = new Types.ObjectId().toString();
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      key: 'TESKB-1',
+      isArchived: true,
+    };
+    const restoredTask = { ...task, isArchived: false };
+    const taskDto = { id: taskId, key: 'TESKB-1', isArchived: false };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
+    repository.restoreInWorkspace.mockResolvedValue(restoredTask as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.restoreTaskKeyInWorkspace('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(repository.restoreInWorkspace).toHaveBeenCalledWith(
+      taskId,
+      workspaceId,
+    );
   });
 
   it('soft deletes a task permanently when confirmation is valid', async () => {
@@ -399,6 +495,35 @@ describe('TasksService', () => {
 
     await expect(
       service.deletePermanentlyInWorkspaceKey('TESKB', taskId, userId, 'delete'),
+    ).resolves.toEqual(taskDto);
+    expect(repository.softDeleteInWorkspace).toHaveBeenCalledWith(
+      taskId,
+      workspaceId,
+      userId,
+    );
+  });
+
+  it('soft deletes a task key only inside the resolved workspace', async () => {
+    const taskId = new Types.ObjectId().toString();
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      key: 'TESKB-1',
+      isArchived: false,
+    };
+    const deletedTask = { ...task, isArchived: true, isDeleted: true };
+    const taskDto = { id: taskId, key: 'TESKB-1', isDeleted: true };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
+    repository.softDeleteInWorkspace.mockResolvedValue(deletedTask as any);
+    mapper.mapToDto.mockReturnValue(taskDto as any);
+
+    await expect(
+      service.deleteTaskKeyPermanentlyInWorkspace('TESKB', 'TESKB-1', userId, 'delete'),
     ).resolves.toEqual(taskDto);
     expect(repository.softDeleteInWorkspace).toHaveBeenCalledWith(
       taskId,

@@ -106,20 +106,68 @@ export class ScrumService {
   }
 
   async updateSprint(workspaceId: string, sprintId: string, dto: UpdateSprintDto): Promise<SprintDocument> {
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
-    if (sprint.status !== 'planning') {
-      throw new BadRequestException('Only planning sprints can be edited');
+    const timestamp = new Date().toISOString();
+    
+    try {
+      const sprint = await this.sprintModel
+        .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
+        .exec();
+        
+      if (!sprint) {
+        this.logger.error(`[AUDIT LOG] [${timestamp}] Sprint Update FAILED | Sprint ID: ${sprintId} | Error: Sprint not found`);
+        throw new NotFoundException('Sprint not found');
+      }
+
+      if (sprint.status !== 'planning' && (dto.startDate !== undefined || dto.endDate !== undefined)) {
+        throw new BadRequestException('Cannot change sprint dates while sprint is active or completed');
+      }
+
+      const oldValues = {
+        name: sprint.name,
+        goal: sprint.goal,
+        startDate: sprint.startDate,
+        endDate: sprint.endDate,
+        duration: sprint.duration,
+      };
+
+      if (dto.name !== undefined) sprint.name = dto.name;
+      if (dto.goal !== undefined) sprint.goal = dto.goal;
+      if (dto.duration !== undefined) sprint.duration = dto.duration;
+      
+      if (sprint.status === 'planning') {
+        if (dto.startDate !== undefined) sprint.startDate = new Date(dto.startDate);
+        if (dto.endDate !== undefined) sprint.endDate = new Date(dto.endDate);
+      }
+
+      const updatedSprint = await sprint.save();
+
+      const newValues = {
+        name: updatedSprint.name,
+        goal: updatedSprint.goal,
+        startDate: updatedSprint.startDate,
+        endDate: updatedSprint.endDate,
+        duration: updatedSprint.duration,
+      };
+
+      this.logger.log(
+        `\n================= AUDIT LOG =================\n` +
+        `Action: Sprint Update\n` +
+        `Status: SUCCESS\n` +
+        `Timestamp: ${timestamp}\n` +
+        `Sprint ID: ${sprintId}\n` +
+        `Workspace ID: ${workspaceId}\n` +
+        `Old Values: ${JSON.stringify(oldValues, null, 2)}\n` +
+        `Updated Values: ${JSON.stringify(newValues, null, 2)}\n` +
+        `=============================================\n`
+      );
+
+      return updatedSprint;
+    } catch (error) {
+      if (!(error instanceof NotFoundException) && !(error instanceof BadRequestException)) {
+        this.logger.error(`[AUDIT LOG] [${timestamp}] Sprint Update FAILED | Sprint ID: ${sprintId} | Error: ${error.message}`);
+      }
+      throw error;
     }
-
-    if (dto.name !== undefined) sprint.name = dto.name;
-    if (dto.goal !== undefined) sprint.goal = dto.goal;
-    if (dto.startDate !== undefined) sprint.startDate = dto.startDate;
-    if (dto.endDate !== undefined) sprint.endDate = dto.endDate;
-
-    return sprint.save();
   }
 
   async deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
