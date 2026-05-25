@@ -5,6 +5,7 @@ import { Page, PageDocument } from '../schemas/page.schema';
 import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
 import { FilterPageDto } from '../dtos/filter-page.dto';
+import { Workspace, WorkspaceDocument } from '@/modules/workspaces/schemas/workspace.schema';
 
 function normalizeForSearch(text: string): string {
   return text
@@ -21,17 +22,20 @@ export class PagesService {
 
   constructor(
     @InjectModel(Page.name) private readonly pageModel: Model<PageDocument>,
-  ) {}
+    @InjectModel(Workspace.name) private readonly workspaceModel: Model<WorkspaceDocument>,
+  ) { }
 
   async create(dto: CreatePageDto, userId: string): Promise<PageDocument> {
-    this.logger.log(`Creating page "${dto.title}" by user ${userId}`);
+    this.logger.debug(`Creating page "${dto.title}" by user ${userId}`);
 
     const slug = dto.slug || (await this.generateUniqueSlug(dto.title));
 
     const page = new this.pageModel({
       title: dto.title,
       content: dto.content || '',
-      workspaceId: dto.workspaceId ? new Types.ObjectId(dto.workspaceId) : undefined,
+      workspaceId: dto.workspaceId
+        ? new Types.ObjectId(dto.workspaceId)
+        : undefined,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       slug,
       authorId: new Types.ObjectId(userId),
@@ -43,7 +47,7 @@ export class PagesService {
     });
 
     const savedPage = await page.save();
-    this.logger.log(`Page created with id: ${savedPage._id}`);
+    this.logger.debug(`Page created with id: ${savedPage._id}`);
     return savedPage;
   }
 
@@ -109,7 +113,12 @@ export class PagesService {
     }
 
     const [data, total] = await Promise.all([
-      this.pageModel.find(query).skip(skip).limit(limit).sort({ updatedAt: -1 }).exec(),
+      this.pageModel
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .sort({ updatedAt: -1 })
+        .exec(),
       this.pageModel.countDocuments(query).exec(),
     ]);
 
@@ -122,29 +131,31 @@ export class PagesService {
     };
   }
 
-  async findByWorkspace(workspaceId: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding pages for workspace: ${workspaceId}`);
+  async findByWorkspace(workspaceKey: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding pages for workspace: ${workspaceKey}`);
 
-    if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new NotFoundException(`Workspace with id ${workspaceId} not found`);
+    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
     }
 
     return this.pageModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .find({ workspaceId: new Types.ObjectId(workspace._id) })
       .sort({ title: 1 })
       .exec();
   }
 
-  async findRootPages(workspaceId: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding root pages for workspace: ${workspaceId}`);
+  async findRootPages(workspaceKey: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding root pages for workspace: ${workspaceKey}`);
 
-    if (!Types.ObjectId.isValid(workspaceId)) {
-      throw new NotFoundException(`Workspace with id ${workspaceId} not found`);
+    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
     }
 
     return this.pageModel
       .find({
-        workspaceId: new Types.ObjectId(workspaceId),
+        workspaceId: new Types.ObjectId(workspace._id),
         parentId: { $exists: false },
       })
       .sort({ title: 1 })
@@ -182,7 +193,7 @@ export class PagesService {
     dto: UpdatePageDto,
     userId: string,
   ): Promise<PageDocument> {
-    this.logger.log(`Updating page ${id} by user ${userId}`);
+    this.logger.debug(`Updating page ${id} by user ${userId}`);
 
     const page = await this.findById(id);
 
@@ -204,35 +215,57 @@ export class PagesService {
   }
 
   async delete(id: string): Promise<void> {
-    this.logger.log(`Deleting page ${id} and its children`);
-
     const page = await this.findById(id);
 
     await this.deleteChildrenRecursively(id);
 
     await this.pageModel.deleteOne({ _id: id }).exec();
-    this.logger.log(`Page ${id} deleted`);
+    this.logger.debug(`Page ${id} deleted`);
   }
 
   private async deleteChildrenRecursively(parentId: string): Promise<void> {
-    const children = await this.pageModel
-      .find({ parentId: new Types.ObjectId(parentId) })
-      .exec();
+    // pipeline: find parent node => get all children
+    const result = await this.pageModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(parentId),
+        },
+      },
+      {
+        $graphLookup: {
+          from: 'pages',
+          startWith: '$_id',
+          connectFromField: '_id',
+          connectToField: 'parentId',
+          as: 'descendants',
+        },
+      },
+    ]);
 
-    for (const child of children) {
-      await this.deleteChildrenRecursively(child._id.toString());
-      await this.pageModel.deleteOne({ _id: child._id }).exec();
+    const descendants = result[0]?.descendants ?? [];
+
+    const idsToDelete = descendants.map((x) => x._id);
+
+    if (idsToDelete.length > 0) {
+      await this.pageModel.deleteMany({
+        _id: { $in: idsToDelete },
+      });
     }
   }
 
-  async moveToParent(pageId: string, newParentId: string | null): Promise<PageDocument> {
-    this.logger.log(`Moving page ${pageId} to parent ${newParentId}`);
+  async moveToParent(
+    pageId: string,
+    newParentId: string | null,
+  ): Promise<PageDocument> {
+    this.logger.debug(`Moving page ${pageId} to parent ${newParentId}`);
 
     const page = await this.findById(pageId);
 
     if (newParentId) {
       if (!Types.ObjectId.isValid(newParentId)) {
-        throw new NotFoundException(`Parent page with id ${newParentId} not found`);
+        throw new NotFoundException(
+          `Parent page with id ${newParentId} not found`,
+        );
       }
 
       if (newParentId === pageId) {
@@ -249,7 +282,7 @@ export class PagesService {
   }
 
   async publish(pageId: string): Promise<PageDocument> {
-    this.logger.log(`Publishing page ${pageId}`);
+    this.logger.debug(`Publishing page ${pageId}`);
 
     const page = await this.findById(pageId);
     page.status = 'published';
@@ -257,7 +290,7 @@ export class PagesService {
   }
 
   async unpublish(pageId: string): Promise<PageDocument> {
-    this.logger.log(`Unpublishing page ${pageId}`);
+    this.logger.debug(`Unpublishing page ${pageId}`);
 
     const page = await this.findById(pageId);
     page.status = 'draft';
@@ -279,7 +312,7 @@ export class PagesService {
   }
 
   async addLabel(pageId: string, label: string): Promise<PageDocument> {
-    this.logger.log(`Adding label "${label}" to page ${pageId}`);
+    this.logger.debug(`Adding label "${label}" to page ${pageId}`);
 
     const page = await this.findById(pageId);
 
@@ -291,7 +324,7 @@ export class PagesService {
   }
 
   async removeLabel(pageId: string, label: string): Promise<PageDocument> {
-    this.logger.log(`Removing label "${label}" from page ${pageId}`);
+    this.logger.debug(`Removing label "${label}" from page ${pageId}`);
 
     const page = await this.findById(pageId);
     page.labels = page.labels.filter((l) => l !== label);

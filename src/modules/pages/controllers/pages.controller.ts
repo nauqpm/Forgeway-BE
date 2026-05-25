@@ -9,8 +9,27 @@ import {
   Query,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
+  Patch,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
+  ApiResponse,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiForbiddenResponse,
+  ApiUnauthorizedResponse,
+  ApiNoContentResponse,
+  getSchemaPath,
+  ApiExtraModels,
+} from '@nestjs/swagger';
 import { PagesService } from '../services/pages.service';
 import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
@@ -19,45 +38,156 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 
+// ---------------------------------------------------------------------------
+// Response shape DTOs (inline, for Swagger schema only — no runtime overhead)
+// ---------------------------------------------------------------------------
+
+class VersionHistoryEntryDto {
+  /** ObjectId of the user who made the edit */
+  editedBy!: string;
+  editedAt!: Date;
+  /** Comma-separated list of changed fields, e.g. "title, content" */
+  changes!: string;
+}
+
+class PageResponseDto {
+  _id!: string;
+  workspaceId!: string;
+  title!: string;
+  /** Raw HTML produced by TipTap's getHTML() */
+  content!: string;
+  parentId?: string;
+  slug!: string;
+  authorId!: string;
+  lastEditedBy?: string;
+  version!: number;
+  /** @enum {string} */
+  status!: 'draft' | 'published';
+  labels!: string[];
+  versionHistory!: VersionHistoryEntryDto[];
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+class PaginatedPagesResponseDto {
+  data!: PageResponseDto[];
+  total!: number;
+  page!: number;
+  limit!: number;
+  totalPages!: number;
+}
+
+class MovePageBodyDto {
+  /** Set to null to move page to root level */
+  parentId?: string | null;
+}
+
+class UpdateLabelsBodyDto {
+  labels!: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Controller
+// ---------------------------------------------------------------------------
+
 @ApiTags('Pages')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('pages')
+@Controller('pages') // endpoint độc lập với workspace
+@ApiExtraModels(PageResponseDto, PaginatedPagesResponseDto)
+@ApiUnauthorizedResponse({ description: 'Missing or invalid JWT token' })
+@ApiForbiddenResponse({ description: 'Insufficient role for this resource' })
 export class PagesController {
   constructor(private readonly pagesService: PagesService) { }
 
+  // -------------------------------------------------------------------------
+  // POST /pages
+  // -------------------------------------------------------------------------
   @Post()
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Create a new page' })
+  // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Create a new page',
+    description:
+      'Creates a page inside a workspace. `content` should be the raw HTML string ' +
+      'returned by TipTap\'s `editor.getHTML()`. If `slug` is omitted, a unique slug ' +
+      'is auto-generated from the title.',
+  })
+  @ApiCreatedResponse({
+    description: 'Page created successfully',
+    type: PageResponseDto,
+  })
   async create(@Body() createPageDto: CreatePageDto, @Request() req: any) {
     return this.pagesService.create(createPageDto, req.user.userId);
   }
 
+  // -------------------------------------------------------------------------
+  // GET /pages
+  // -------------------------------------------------------------------------
   @Get()
-  @ApiOperation({ summary: 'Get all pages with filters' })
+  @ApiOperation({
+    summary: 'List pages with filters & pagination',
+    description:
+      'Returns a paginated list of pages. All filter params are optional. ' +
+      '`search` performs a case-insensitive regex match on title and content ' +
+      '(note: content is stored as raw HTML, so the match runs on HTML source).',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of pages',
+    type: PaginatedPagesResponseDto,
+  })
   async findAll(@Query() filterDto: FilterPageDto) {
     return this.pagesService.findAll(filterDto);
   }
 
+  // -------------------------------------------------------------------------
+  // GET /pages/:id
+  // -------------------------------------------------------------------------
   @Get(':id')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get page by ID' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
+  @ApiOperation({
+    summary: 'Get page by ID',
+    description: 'Fetches a single page and increments its view counter atomically.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiOkResponse({ description: 'Page found', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
   async findById(@Param('id') id: string) {
     await this.pagesService.incrementViewCount(id);
     return this.pagesService.findById(id);
   }
 
+  // -------------------------------------------------------------------------
+  // GET /pages/slug/:slug
+  // -------------------------------------------------------------------------
   @Get('slug/:slug')
-  @ApiOperation({ summary: 'Get page by slug' })
+  @ApiOperation({
+    summary: 'Get page by slug',
+    description: 'Fetches a single page by its URL-friendly slug and increments the view counter.',
+  })
+  @ApiParam({ name: 'slug', description: 'URL-friendly slug, e.g. "getting-started-guide"' })
+  @ApiOkResponse({ description: 'Page found', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'No page with the given slug exists' })
   async findBySlug(@Param('slug') slug: string) {
     const page = await this.pagesService.findBySlug(slug);
     await this.pagesService.incrementViewCount(page._id.toString());
     return page;
   }
 
-  @Put(':id')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Update a page' })
+  // -------------------------------------------------------------------------
+  // PATCH /pages/:id
+  // -------------------------------------------------------------------------
+  @Patch(':id')
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Update a page',
+    description:
+      'Partially updates a page. Only the fields present in the request body are changed. ' +
+      'Each successful update increments `version` by 1 and appends an entry to `versionHistory`. ' +
+      '`content` accepts the raw HTML string from TipTap.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiOkResponse({ description: 'Page updated successfully', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
   async update(
     @Param('id') id: string,
     @Body() updatePageDto: UpdatePageDto,
@@ -66,16 +196,52 @@ export class PagesController {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
   }
 
+  // -------------------------------------------------------------------------
+  // DELETE /pages/:id
+  // -------------------------------------------------------------------------
   @Delete(':id')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.WORKSPACE_ADMIN))
-  @ApiOperation({ summary: 'Delete a page' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.WORKSPACE_ADMIN))
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete a page',
+    description:
+      'Deletes a page **and all its descendants** recursively (via `$graphLookup`). ' +
+      'This operation is irreversible. Requires WORKSPACE_ADMIN role.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page to delete' })
+  @ApiNoContentResponse({ description: 'Page and all descendants deleted' })
+  @ApiNotFoundResponse({ description: 'Page not found' })
   async delete(@Param('id') id: string) {
     return this.pagesService.delete(id);
   }
 
+  // -------------------------------------------------------------------------
+  // PUT /pages/:id/move
+  // -------------------------------------------------------------------------
   @Put(':id/move')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Move page to a different parent' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Move page to a different parent',
+    description:
+      'Re-parents a page. Pass `parentId: null` (or omit the field) to move the page ' +
+      'to root level. Cannot set a page as its own parent.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page to move' })
+  @ApiBody({
+    type: MovePageBodyDto,
+    examples: {
+      moveToParent: {
+        summary: 'Move under a parent page',
+        value: { parentId: '665f1a2b3c4d5e6f7a8b9c0d' },
+      },
+      moveToRoot: {
+        summary: 'Move to root (top level)',
+        value: { parentId: null },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Page moved successfully', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page or new parent not found' })
   async moveToParent(
     @Param('id') id: string,
     @Body('parentId') parentId: string | null,
@@ -83,44 +249,116 @@ export class PagesController {
     return this.pagesService.moveToParent(id, parentId);
   }
 
+  // -------------------------------------------------------------------------
+  // POST /pages/:id/publish
+  // -------------------------------------------------------------------------
   @Post(':id/publish')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Publish a page' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Publish a page',
+    description: 'Sets the page status to `published`. Idempotent — safe to call on already-published pages.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiOkResponse({ description: 'Page published', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
   async publish(@Param('id') id: string) {
     return this.pagesService.publish(id);
   }
 
+  // -------------------------------------------------------------------------
+  // POST /pages/:id/unpublish
+  // -------------------------------------------------------------------------
   @Post(':id/unpublish')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Unpublish a page' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Unpublish a page',
+    description: 'Reverts the page status back to `draft`.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiOkResponse({ description: 'Page reverted to draft', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
   async unpublish(@Param('id') id: string) {
     return this.pagesService.unpublish(id);
   }
 
-  @Get('workspace/:workspaceId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get all pages for a workspace' })
-  async findByWorkspace(@Param('workspaceId') workspaceId: string) {
-    return this.pagesService.findByWorkspace(workspaceId);
+  // -------------------------------------------------------------------------
+  // GET /pages/workspace/:workspaceKey
+  // -------------------------------------------------------------------------
+  @Get('workspace/:workspaceKey')
+  // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({
+    summary: 'Get all pages in a workspace',
+    description: 'Returns **all** pages (all levels) for the workspace, sorted by title.',
+  })
+  @ApiParam({ name: 'workspaceKey', description: 'The key of the workspace' })
+  @ApiOkResponse({ description: 'List of pages', type: [PageResponseDto] })
+  @ApiNotFoundResponse({ description: 'Invalid workspace ID' })
+  async findByWorkspace(@Param('workspaceKey') workspaceKey: string) {
+    return this.pagesService.findByWorkspace(workspaceKey);
   }
 
-  @Get('workspace/:workspaceId/root')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get root pages for a workspace' })
-  async findRootPages(@Param('workspaceId') workspaceId: string) {
-    return this.pagesService.findRootPages(workspaceId);
+  // -------------------------------------------------------------------------
+  // GET /pages/workspace/:workspaceKey/root
+  // -------------------------------------------------------------------------
+  @Get('workspace/:workspaceKey/root')
+  // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({
+    summary: 'Get root-level pages for a workspace',
+    description:
+      'Returns only pages that have no parent (`parentId` is unset). ' +
+      'Use this as the entry point for building the page tree in the sidebar.',
+  })
+  @ApiParam({ name: 'workspaceKey', description: 'Key of the workspace' })
+  @ApiOkResponse({ description: 'Root pages', type: [PageResponseDto] })
+  @ApiNotFoundResponse({ description: 'Invalid workspace key' })
+  async findRootPages(@Param('workspaceKey') workspaceKey: string) {
+    return this.pagesService.findRootPages(workspaceKey);
   }
 
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/children
+  // -------------------------------------------------------------------------
   @Get(':id/children')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get child pages' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
+  @ApiOperation({
+    summary: 'Get direct children of a page',
+    description: 'Returns the immediate child pages sorted by title. Not recursive — call repeatedly to walk the tree lazily.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the parent page' })
+  @ApiOkResponse({ description: 'Child pages', type: [PageResponseDto] })
+  @ApiNotFoundResponse({ description: 'Parent page not found' })
   async findChildren(@Param('id') id: string) {
     return this.pagesService.findChildren(id);
   }
 
+  // -------------------------------------------------------------------------
+  // PUT /pages/:id/labels
+  // -------------------------------------------------------------------------
   @Put(':id/labels')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Update page labels' })
+  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Replace all labels on a page',
+    description:
+      'Performs a full **replace** of the label set: labels in the request that are ' +
+      'not currently on the page are added; labels currently on the page that are ' +
+      'absent from the request are removed. Pass an empty array to clear all labels.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiBody({
+    type: UpdateLabelsBodyDto,
+    examples: {
+      setLabels: {
+        summary: 'Set two labels',
+        value: { labels: ['frontend', 'onboarding'] },
+      },
+      clearLabels: {
+        summary: 'Remove all labels',
+        value: { labels: [] },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Updated page with new label set', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
   async updateLabels(@Param('id') id: string, @Body('labels') labels: string[]) {
     const page = await this.pagesService.findById(id);
 

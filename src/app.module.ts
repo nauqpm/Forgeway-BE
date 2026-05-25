@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -34,6 +34,9 @@ import { AddressesModule } from './modules/addresses/addresses.module';
 import { ImagesModule } from './modules/images/images.module';
 import { VerifyModule } from './modules/verify/verify.module';
 import { validateEnv } from './config/env.validation';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 
 @Module({
   imports: [
@@ -63,8 +66,12 @@ import { validateEnv } from './config/env.validation';
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(
+            null,
+            `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
+          );
         },
       }),
     }),
@@ -131,6 +138,12 @@ import { validateEnv } from './config/env.validation';
   providers: [
     // Throttler guard applied globally — individual routes override via @Throttle/@SkipThrottle
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    AppService,
   ],
+  controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}
