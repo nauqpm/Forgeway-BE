@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get Archived Scrum Tasks
+url: '{{baseUrl}}/workspaces/{{scrumWorkspaceKey}}/board/archives'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Archived Scrum tasks listed", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const tasks = pm.response.json();
+      pm.test("Archived list contains current Scrum task", function () {
+        pm.expect(tasks).to.be.an("array");
+        const archived = tasks.find((task) => task.id === pm.environment.get("scrumTaskId"));
+        pm.expect(archived).to.exist;
+        pm.expect(archived.isArchived).to.equal(true);
+        pm.expect(archived.isDeleted).to.equal(false);
+      });
+order: 10000

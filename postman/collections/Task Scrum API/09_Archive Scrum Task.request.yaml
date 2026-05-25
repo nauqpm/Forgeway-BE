@@ -1,0 +1,24 @@
+$kind: http-request
+name: Archive Scrum Task
+url: '{{baseUrl}}/workspaces/{{scrumWorkspaceKey}}/board/{{scrumTaskId}}/archive'
+method: PATCH
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Scrum task archived", function () {
+        pm.expect(pm.response.code).to.equal(200);
+      });
+
+      const task = pm.response.json();
+      pm.test("Archived flag is true", function () {
+        pm.expect(task.id).to.equal(pm.environment.get("scrumTaskId"));
+        pm.expect(task.isArchived).to.equal(true);
+        pm.expect(task.isDeleted).to.equal(false);
+      });
+order: 9000
