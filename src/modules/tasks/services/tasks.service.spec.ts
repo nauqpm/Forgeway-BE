@@ -193,6 +193,41 @@ describe('TasksService', () => {
     });
   });
 
+  it('finds workspace tasks by key with board filters', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
+    const tasks = [{ key: 'TESKB-1', status: 'todo' }];
+    const filters = {
+      status: 'todo',
+      columnId: 'todo',
+      search: 'login',
+      backlog: false,
+      workspaceId: new Types.ObjectId().toString(),
+    };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findAll.mockResolvedValue({
+      tasks: tasks as any,
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+    mapper.mapToDtos.mockReturnValue([{ key: 'TESKB-1', status: 'todo' }] as any);
+
+    const result = await service.findByWorkspaceKey('TESKB', userId, filters as any);
+
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(repository.findAll).toHaveBeenCalledWith({
+      ...filters,
+      workspaceId,
+    });
+    expect(result).toEqual([{ key: 'TESKB-1', status: 'todo' }]);
+  });
+
   it('finds task by id', async () => {
     const taskId = new Types.ObjectId().toString();
     repository.findById.mockResolvedValue({ _id: taskId } as any);

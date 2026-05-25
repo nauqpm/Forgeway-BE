@@ -351,12 +351,20 @@ export class TasksRepository {
   }
 
   private buildFilter(filterDto: FilterTaskDto): FilterQuery<TaskDocument> {
-    const filter: FilterQuery<TaskDocument> = this.buildVisibilityFilter();
+    const filter: FilterQuery<TaskDocument> = filterDto.archived
+      ? { isArchived: true, isDeleted: { $ne: true } }
+      : this.buildVisibilityFilter();
 
     if (filterDto.workspaceId) {
       filter.workspaceId = new Types.ObjectId(filterDto.workspaceId);
     }
-    if (filterDto.sprintId) {
+
+    if (filterDto.backlog) {
+      filter.$or = [
+        { sprintId: null },
+        { sprintId: { $exists: false } },
+      ];
+    } else if (filterDto.sprintId) {
       filter.sprintId = new Types.ObjectId(filterDto.sprintId);
     }
     if (filterDto.boardId) {

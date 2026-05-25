@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +31,7 @@ import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { CreateTaskDto } from '../dtos/requests/create-task.dto';
 import { DeleteTaskDto } from '../dtos/requests/delete-task.dto';
+import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { UpdateTaskDto } from '../dtos/requests/update-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TasksService } from '../services/tasks.service';
@@ -54,11 +56,16 @@ export class TasksController {
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   async findByWorkspaceKey(
     @Param('key') key: string,
+    @Query() filterDto: FilterTaskDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findByWorkspaceKey(key, user.userId);
+      const tasks = await this.tasksService.findByWorkspaceKey(
+        key,
+        user.userId,
+        filterDto,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
@@ -66,6 +73,7 @@ export class TasksController {
         metadata: {
           workspaceKey: key,
           count: tasks.length,
+          filters: this.getAuditSafeTaskFilters(filterDto),
         },
       });
       return tasks;
@@ -414,5 +422,37 @@ export class TasksController {
         reason,
       },
     });
+  }
+
+  private getAuditSafeTaskFilters(filterDto: FilterTaskDto): Record<string, unknown> {
+    const {
+      workspaceId,
+      sprintId,
+      boardId,
+      columnId,
+      assigneeId,
+      reporterId,
+      type,
+      status,
+      priority,
+      search,
+      backlog,
+      archived,
+    } = filterDto;
+
+    return {
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(sprintId ? { sprintId } : {}),
+      ...(boardId ? { boardId } : {}),
+      ...(columnId ? { columnId } : {}),
+      ...(assigneeId ? { assigneeId } : {}),
+      ...(reporterId ? { reporterId } : {}),
+      ...(type ? { type } : {}),
+      ...(status ? { status } : {}),
+      ...(priority ? { priority } : {}),
+      ...(search ? { hasSearch: true } : {}),
+      ...(backlog !== undefined ? { backlog } : {}),
+      ...(archived !== undefined ? { archived } : {}),
+    };
   }
 }
