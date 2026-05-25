@@ -1,7 +1,0 @@
-$kind: collection
-name: AL-TASK Auth API
-auth:
-  type: bearer
-  credentials:
-    - key: token
-      value: '{{accessToken}}'

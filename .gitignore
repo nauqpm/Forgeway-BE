@@ -4,6 +4,11 @@
 /build
 /uploads
 
+# Local API testing artifacts
+/postman/
+*.yaml
+*.yml
+
 # Logs
 logs
 *.log
