@@ -438,7 +438,7 @@ export class TasksController {
       ...(assigneeId ? { assigneeId } : {}),
       ...(reporterId ? { reporterId } : {}),
       ...(type ? { type } : {}),
-      ...(status ? { status } : {}),
+      ...(status?.length ? { status } : {}),
       ...(priority ? { priority } : {}),
       ...(search ? { hasSearch: true } : {}),
       ...(backlog !== undefined ? { backlog } : {}),
@@ -452,12 +452,20 @@ export class TasksController {
   ): Record<string, unknown> & { filterCount: number } {
     const filters = this.getAuditSafeTaskFilters(filterDto);
     const appliedFilters = Object.keys(filters);
+    const statusFilter = filterDto.status?.length
+      ? {
+          values: filterDto.status,
+          count: filterDto.status.length,
+          multiSelect: filterDto.status.length > 1,
+        }
+      : undefined;
 
     return {
       ...(resultCount !== undefined ? { resultCount } : {}),
       filterCount: appliedFilters.length,
       appliedFilters,
       filters,
+      ...(statusFilter ? { statusFilter } : {}),
     };
   }
 }

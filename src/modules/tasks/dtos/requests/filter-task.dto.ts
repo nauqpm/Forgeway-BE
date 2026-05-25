@@ -15,6 +15,16 @@ import {
   TASK_TYPES,
 } from '../../constants/task-status.constants';
 
+const normalizeStatusFilter = (value: unknown): string[] | undefined => {
+  const values = Array.isArray(value) ? value : [value];
+  const statuses = values
+    .flatMap((item) => String(item ?? '').split(','))
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return statuses.length > 0 ? statuses : undefined;
+};
+
 export class FilterTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -51,10 +61,17 @@ export class FilterTaskDto {
   @IsEnum(TASK_TYPES)
   type?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Single status or multi-select statuses. Supports status=todo,inprogress or repeated status query params.',
+    oneOf: [
+      { type: 'string', example: 'todo' },
+      { type: 'array', items: { type: 'string' }, example: ['todo', 'inprogress', 'testing'] },
+    ],
+  })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @Transform(({ value }) => normalizeStatusFilter(value))
+  @IsString({ each: true })
+  status?: string[];
 
   @ApiPropertyOptional({ enum: TASK_PRIORITIES })
   @IsOptional()

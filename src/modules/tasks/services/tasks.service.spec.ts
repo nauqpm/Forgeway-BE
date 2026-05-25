@@ -200,7 +200,7 @@ describe('TasksService', () => {
     const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
     const tasks = [{ key: 'TESKB-1', status: 'todo' }];
     const filters = {
-      status: 'todo',
+      status: ['todo', 'inprogress', 'testing'],
       columnId: 'todo',
       search: 'login',
       backlog: false,
