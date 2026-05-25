@@ -385,8 +385,8 @@ export class TasksRepository {
     if (filterDto.priority) {
       filter.priority = filterDto.priority;
     }
-    if (filterDto.status) {
-      filter.status = filterDto.status;
+    if (filterDto.status?.length) {
+      filter.status = { $in: filterDto.status };
     }
     if (filterDto.search) {
       filter.$text = { $search: filterDto.search };
