@@ -66,20 +66,26 @@ export class TasksController {
         user.userId,
         filterDto,
       );
+      const filterMetadata = this.getTaskFilterAuditMetadata(filterDto, tasks.length);
       this.auditLogService.logRequest(req, {
-        type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        type: filterMetadata.filterCount > 0
+          ? SECURITY_EVENT_TYPES.TASK_FILTER_APPLIED
+          : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
         userId: user.userId,
         metadata: {
           workspaceKey: key,
-          count: tasks.length,
-          filters: this.getAuditSafeTaskFilters(filterDto),
+          ...filterMetadata,
         },
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+      const filterMetadata = this.getTaskFilterAuditMetadata(filterDto);
+      this.auditTaskFailure(req, user.userId, filterMetadata.filterCount > 0
+        ? SECURITY_EVENT_TYPES.TASK_FILTER_FAILED
+        : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
         workspaceKey: key,
+        ...filterMetadata,
       });
       throw error;
     }
@@ -453,6 +459,21 @@ export class TasksController {
       ...(search ? { hasSearch: true } : {}),
       ...(backlog !== undefined ? { backlog } : {}),
       ...(archived !== undefined ? { archived } : {}),
+    };
+  }
+
+  private getTaskFilterAuditMetadata(
+    filterDto: FilterTaskDto,
+    resultCount?: number,
+  ): Record<string, unknown> & { filterCount: number } {
+    const filters = this.getAuditSafeTaskFilters(filterDto);
+    const appliedFilters = Object.keys(filters);
+
+    return {
+      ...(resultCount !== undefined ? { resultCount } : {}),
+      filterCount: appliedFilters.length,
+      appliedFilters,
+      filters,
     };
   }
 }
