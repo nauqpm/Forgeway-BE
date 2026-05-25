@@ -141,7 +141,11 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.findByKey(taskKey);
+      const task = await this.tasksService.findByKeyInWorkspaceKey(
+        key,
+        taskKey,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_VIEWED,
         severity: 'INFO',
@@ -210,7 +214,11 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.findById(id);
+      const task = await this.tasksService.findByIdInWorkspaceKey(
+        key,
+        id,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_VIEWED,
         severity: 'INFO',
@@ -247,7 +255,12 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.update(id, updateTaskDto);
+      const task = await this.tasksService.updateInWorkspaceKey(
+        key,
+        id,
+        updateTaskDto,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_UPDATE_SUCCESS,
         severity: 'INFO',
