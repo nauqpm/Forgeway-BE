@@ -282,25 +282,25 @@ export class PagesController {
   }
 
   // -------------------------------------------------------------------------
-  // GET /pages/workspace/:workspaceKey
+  // GET /pages/workspace/:workspaceId
   // -------------------------------------------------------------------------
-  @Get('workspace/:workspaceKey')
+  @Get('workspace/:workspaceId')
   // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({
     summary: 'Get all pages in a workspace',
     description: 'Returns **all** pages (all levels) for the workspace, sorted by title.',
   })
-  @ApiParam({ name: 'workspaceKey', description: 'The key of the workspace' })
+  @ApiParam({ name: 'workspaceId', description: 'The ID of the workspace' })
   @ApiOkResponse({ description: 'List of pages', type: [PageResponseDto] })
   @ApiNotFoundResponse({ description: 'Invalid workspace ID' })
-  async findByWorkspace(@Param('workspaceKey') workspaceKey: string) {
-    return this.pagesService.findByWorkspace(workspaceKey);
+  async findByWorkspace(@Param('workspaceId') workspaceId: string) {
+    return this.pagesService.findByWorkspaceId(workspaceId);
   }
 
   // -------------------------------------------------------------------------
-  // GET /pages/workspace/:workspaceKey/root
+  // GET /pages/workspace/:workspaceId/root
   // -------------------------------------------------------------------------
-  @Get('workspace/:workspaceKey/root')
+  @Get('workspace/:workspaceId/root')
   // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({
     summary: 'Get root-level pages for a workspace',
@@ -308,11 +308,11 @@ export class PagesController {
       'Returns only pages that have no parent (`parentId` is unset). ' +
       'Use this as the entry point for building the page tree in the sidebar.',
   })
-  @ApiParam({ name: 'workspaceKey', description: 'Key of the workspace' })
+  @ApiParam({ name: 'workspaceId', description: 'ID of the workspace' })
   @ApiOkResponse({ description: 'Root pages', type: [PageResponseDto] })
-  @ApiNotFoundResponse({ description: 'Invalid workspace key' })
-  async findRootPages(@Param('workspaceKey') workspaceKey: string) {
-    return this.pagesService.findRootPages(workspaceKey);
+  @ApiNotFoundResponse({ description: 'Invalid workspace ID' })
+  async findRootPages(@Param('workspaceId') workspaceId: string) {
+    return this.pagesService.findRootPages(workspaceId);
   }
 
   // -------------------------------------------------------------------------

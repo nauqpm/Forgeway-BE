@@ -131,7 +131,11 @@ export class PagesService {
     };
   }
 
-  async findByWorkspace(workspaceKey: string): Promise<PageDocument[]> {
+  /**
+   * @deprecated
+   * use findByWorkspaceId instead
+   */
+  async findByWorkspaceKey(workspaceKey: string): Promise<PageDocument[]> {
     this.logger.debug(`Finding pages for workspace: ${workspaceKey}`);
 
     const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
@@ -145,17 +149,21 @@ export class PagesService {
       .exec();
   }
 
-  async findRootPages(workspaceKey: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding root pages for workspace: ${workspaceKey}`);
+  async findByWorkspaceId(workspaceId: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding pages for workspace: ${workspaceId}`);
 
-    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
-    if (!workspace) {
-      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
-    }
+    return this.pageModel
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .sort({ title: 1 })
+      .exec();
+  }
+
+  async findRootPages(workspaceId: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding root pages for workspace: ${workspaceId}`);
 
     return this.pageModel
       .find({
-        workspaceId: new Types.ObjectId(workspace._id),
+        workspaceId: new Types.ObjectId(workspaceId),
         parentId: { $exists: false },
       })
       .sort({ title: 1 })
