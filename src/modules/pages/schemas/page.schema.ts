@@ -35,8 +35,8 @@ export class Page {
   @Prop({ type: [String], default: [] })
   labels!: string[];
 
-  @Prop({ type: Number, default: 0 })
-  viewCount!: number;
+  // @Prop({ type: Number, default: 0 })
+  // viewCount!: number;
 
   @Prop({
     type: [
@@ -48,7 +48,11 @@ export class Page {
     ],
     default: [],
   })
-  versionHistory!: { editedBy: Types.ObjectId; editedAt: Date; changes: string }[];
+  versionHistory!: {
+    editedBy: Types.ObjectId;
+    editedAt: Date;
+    changes: string;
+  }[];
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;

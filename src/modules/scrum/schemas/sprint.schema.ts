@@ -23,6 +23,9 @@ export class Sprint {
   @Prop({ required: true })
   endDate!: Date;
 
+  @Prop()
+  duration?: string;
+
   @Prop({ type: String, enum: ['planning', 'active', 'completed'], default: 'planning' })
   status!: string;
 
