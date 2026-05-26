@@ -83,6 +83,7 @@ async function bootstrap() {
 
     const PORT = process.env.PORT || 5512;
 
+    // await app.listen(PORT, '0.0.0.0'); // for LAN network deploy
     await app.listen(PORT);
 
     console.log(`🚀 Backend đang chạy tại: http://localhost:${PORT}`);
