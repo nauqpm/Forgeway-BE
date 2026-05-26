@@ -18,6 +18,9 @@ import { FilterPageDto } from '../dtos/filter-page.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 
 @ApiTags('Pages')
 @ApiBearerAuth()
@@ -27,7 +30,8 @@ export class PagesController {
   constructor(private readonly pagesService: PagesService) { }
 
   @Post()
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_CREATE)
   @ApiOperation({ summary: 'Create a new page' })
   async create(@Body() createPageDto: CreatePageDto, @Request() req: any) {
     return this.pagesService.create(createPageDto, req.user.userId);
@@ -56,7 +60,8 @@ export class PagesController {
   }
 
   @Put(':id')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({ summary: 'Update a page' })
   async update(
     @Param('id') id: string,
@@ -67,14 +72,16 @@ export class PagesController {
   }
 
   @Delete(':id')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_DELETE)
   @ApiOperation({ summary: 'Delete a page' })
   async delete(@Param('id') id: string) {
     return this.pagesService.delete(id);
   }
 
   @Put(':id/move')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({ summary: 'Move page to a different parent' })
   async moveToParent(
     @Param('id') id: string,
@@ -84,14 +91,16 @@ export class PagesController {
   }
 
   @Post(':id/publish')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({ summary: 'Publish a page' })
   async publish(@Param('id') id: string) {
     return this.pagesService.publish(id);
   }
 
   @Post(':id/unpublish')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({ summary: 'Unpublish a page' })
   async unpublish(@Param('id') id: string) {
     return this.pagesService.unpublish(id);
@@ -119,7 +128,8 @@ export class PagesController {
   }
 
   @Put(':id/labels')
-  @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({ summary: 'Update page labels' })
   async updateLabels(@Param('id') id: string, @Body('labels') labels: string[]) {
     const page = await this.pagesService.findById(id);

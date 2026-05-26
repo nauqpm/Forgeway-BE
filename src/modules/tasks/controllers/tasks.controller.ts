@@ -23,8 +23,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
@@ -92,7 +95,8 @@ export class TasksController {
   }
 
   @Post('tasks')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_CREATE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create task/card in a workspace board column' })
   @ApiResponse({ status: HttpStatus.CREATED, type: TaskDto })
@@ -230,7 +234,11 @@ export class TasksController {
   }
 
   @Patch('tasks/:taskKey')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(
+    WORKSPACE_PERMISSIONS.TASK_EDIT,
+    WORKSPACE_PERMISSIONS.TASK_MOVE,
+  )
   @ApiOperation({ summary: 'Update task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiBadRequestResponse({ description: 'Invalid task update payload' })
@@ -276,7 +284,8 @@ export class TasksController {
   }
 
   @Patch('tasks/:taskKey/archive')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @ApiOperation({ summary: 'Archive task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -315,7 +324,8 @@ export class TasksController {
   }
 
   @Patch('tasks/:taskKey/restore')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @ApiOperation({ summary: 'Restore archived task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -354,7 +364,8 @@ export class TasksController {
   }
 
   @Delete('tasks/:taskKey')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete task/card' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })

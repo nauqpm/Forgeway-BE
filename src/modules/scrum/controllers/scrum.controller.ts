@@ -7,6 +7,9 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { WorkspaceTypeGuard } from '../../../common/guards/workspace-type.guard';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 
 @ApiTags('Workspaces - Scrum')
 @ApiBearerAuth()
@@ -19,7 +22,8 @@ export class ScrumController {
   ) {}
 
   @Post('sprints')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @ApiOperation({ summary: 'Create a new sprint' })
   async createSprint(
     @Param('key') key: string,
@@ -38,7 +42,8 @@ export class ScrumController {
   }
 
   @Patch('sprints/:sprintId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @ApiOperation({ summary: 'Update sprint name/goal/dates (planning status only)' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async updateSprint(
@@ -51,7 +56,8 @@ export class ScrumController {
   }
 
   @Delete('sprints/:sprintId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a sprint (planning status only)' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
@@ -64,7 +70,8 @@ export class ScrumController {
   }
 
   @Post('sprints/:sprintId/start')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Start a sprint' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
@@ -77,7 +84,8 @@ export class ScrumController {
   }
 
   @Post('sprints/:sprintId/complete')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete a sprint' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })

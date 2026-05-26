@@ -386,6 +386,14 @@ describe('TasksService', () => {
     await expect(
       service.updateInWorkspaceKey('TESKB', taskKey, updateDto, userId),
     ).resolves.toEqual(taskDto);
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(
+      updateDto,
+      workspaceId,
+    );
     expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
       workspaceId,
       taskKey,

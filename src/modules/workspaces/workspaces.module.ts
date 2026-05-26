@@ -14,6 +14,7 @@ import { Invite, InviteSchema } from './schemas/invite.schema';
 import { InviteRepository } from './repositories/invite.repository';
 import { InviteService } from './services/invite.service';
 import { InviteController } from './controllers/invite.controller';
+import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 
 @Module({
   imports: [
@@ -27,7 +28,14 @@ import { InviteController } from './controllers/invite.controller';
     forwardRef(() => KanbanModule),
   ],
   controllers: [WorkspacesController, ForYouController, InviteController],
-  providers: [WorkspacesRepository, WorkspacesService, ForYouService, InviteRepository, InviteService],
+  providers: [
+    WorkspacesRepository,
+    WorkspacesService,
+    ForYouService,
+    InviteRepository,
+    InviteService,
+    WorkspaceRoleGuard,
+  ],
   exports: [WorkspacesService, ForYouService, InviteService],
 })
 export class WorkspacesModule { }

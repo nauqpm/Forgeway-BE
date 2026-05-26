@@ -5,6 +5,7 @@ import { PagesController } from './controllers/pages.controller';
 import { PagesService } from './services/pages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { AuthModule } from '../auth/auth.module';
     forwardRef(() => AuthModule),
   ],
   controllers: [PagesController],
-  providers: [PagesService, JwtAuthGuard],
+  providers: [PagesService, JwtAuthGuard, WorkspaceRoleGuard],
   exports: [PagesService, JwtAuthGuard],
 })
 export class PagesModule {}

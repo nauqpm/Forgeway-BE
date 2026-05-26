@@ -12,6 +12,9 @@ import {
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 
 @ApiTags('Workspaces - Kanban')
 @ApiBearerAuth()
@@ -28,7 +31,8 @@ export class KanbanController {
   }
 
   @Put('columns')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Replace all board columns' })
   @ApiBody({ type: [KanbanBoardColumnDto] })
   @ApiResponse({ status: 200, description: 'Board after column replacement' })
@@ -41,7 +45,8 @@ export class KanbanController {
   }
 
   @Post('columns')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Add a new column to the board' })
   @ApiBody({ type: CreateColumnDto })
   @ApiResponse({ status: 201, description: 'Board with the new column' })
@@ -54,7 +59,8 @@ export class KanbanController {
   }
 
   @Patch('columns/:columnId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Update column name or mapped statuses' })
   @ApiParam({ name: 'columnId', description: 'Column ID' })
   @ApiBody({ type: UpdateColumnDto })
@@ -69,7 +75,8 @@ export class KanbanController {
   }
 
   @Patch('columns/:columnId/wip-limit')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Update WIP limit for a column' })
   @ApiParam({ name: 'columnId', description: 'Column ID' })
   @ApiBody({ type: UpdateWipLimitDto })
@@ -84,7 +91,8 @@ export class KanbanController {
   }
 
   @Patch('columns/:columnId/move')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Move column to new position (drag-and-drop)' })
   @ApiParam({ name: 'columnId', description: 'Column ID to move' })
   @ApiBody({ type: MoveColumnDto })
@@ -99,7 +107,8 @@ export class KanbanController {
   }
 
   @Delete('columns/:columnId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Delete column from board (migrate tasks if needed)' })
   @ApiParam({ name: 'columnId', description: 'Column ID to delete' })
   @ApiBody({ type: DeleteColumnDto, required: false })
