@@ -15,7 +15,7 @@ export const TASK_STATUSES = {
 
 export const TASK_STATUS_VALUES = Object.values(TASK_STATUSES);
 
-export const TASK_KEY_PATTERN = /^[A-Z0-9]+-\d+$/;
+export const TASK_KEY_PATTERN = /^[A-Z][A-Z0-9]*-\d+$/;
 export const TASK_LABEL_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9-_ ]{0,49}$/;
 
 export type TaskType = (typeof TASK_TYPES)[number];

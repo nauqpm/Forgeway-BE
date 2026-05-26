@@ -8,12 +8,15 @@ import {
   Max,
   IsMongoId,
   IsBoolean,
+  Matches,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  TASK_KEY_PATTERN,
   TASK_PRIORITIES,
   TASK_TYPES,
 } from '../../constants/task-status.constants';
+import { normalizeTaskKey } from '../../utils/task-key.util';
 
 const normalizeStatusFilter = (value: unknown): string[] | undefined => {
   const values = Array.isArray(value) ? value : [value];
@@ -55,6 +58,17 @@ export class FilterTaskDto {
   @IsOptional()
   @IsMongoId()
   reporterId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Exact task key lookup within the resolved workspace.',
+    example: 'TESKB-12',
+  })
+  @IsOptional()
+  @Transform(({ value }) => normalizeTaskKey(value))
+  @Matches(TASK_KEY_PATTERN, {
+    message: 'taskKey must match format like TESKB-12',
+  })
+  taskKey?: string;
 
   @ApiPropertyOptional({ enum: TASK_TYPES })
   @IsOptional()

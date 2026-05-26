@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { FilterTaskDto } from '../dtos/requests/create-task.dto';
 import { Task, TaskDocument } from '../schemas/task.schema';
+import { isTaskKey, normalizeTaskKey } from '../utils/task-key.util';
 
 interface TaskLookupOptions {
   includeArchived?: boolean;
@@ -417,6 +418,10 @@ export class TasksRepository {
     if (filterDto.reporterId) {
       filter.reporterId = new Types.ObjectId(filterDto.reporterId);
     }
+    if (filterDto.taskKey) {
+      filter.key = normalizeTaskKey(filterDto.taskKey);
+      return filter;
+    }
     if (filterDto.type) {
       filter.type = filterDto.type;
     }
@@ -427,7 +432,11 @@ export class TasksRepository {
       filter.status = { $in: filterDto.status };
     }
     if (filterDto.search) {
-      filter.$text = { $search: filterDto.search };
+      if (isTaskKey(filterDto.search)) {
+        filter.key = normalizeTaskKey(filterDto.search);
+      } else {
+        filter.$text = { $search: filterDto.search };
+      }
     }
 
     return filter;
