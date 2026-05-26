@@ -137,6 +137,44 @@ export class TasksRepository {
       .exec();
   }
 
+  async findBacklogByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      return [];
+    }
+
+    return this.withRelations(
+      this.taskModel.find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        ...this.buildVisibilityFilter(),
+        $or: [
+          { sprintId: null },
+          { sprintId: { $exists: false } },
+        ],
+      }),
+    )
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async findBySprintInWorkspace(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(sprintId)) {
+      return [];
+    }
+
+    return this.withRelations(
+      this.taskModel.find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        sprintId: new Types.ObjectId(sprintId),
+        ...this.buildVisibilityFilter(),
+      }),
+    )
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
   async countByWorkspace(workspaceId: string): Promise<number> {
     if (!Types.ObjectId.isValid(workspaceId)) {
       return 0;

@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import {
   CreateTaskDto,
   FilterTaskDto,
@@ -28,6 +29,7 @@ export class TasksService {
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
     private readonly transformerService: TaskDataTransformerService,
+    private readonly scrumService: ScrumService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
@@ -138,6 +140,61 @@ export class TasksService {
     return this.taskMapper.mapToDtos(tasks);
   }
 
+  async findBacklogByWorkspaceKey(
+    workspaceKey: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    const { workspace, workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      currentUserId,
+    );
+    this.ensureScrumWorkspace(workspace);
+
+    const tasks = await this.tasksRepository.findBacklogByWorkspace(workspaceId);
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
+  async findActiveSprintBoardByWorkspaceKey(
+    workspaceKey: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    const { workspace, workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      currentUserId,
+    );
+    this.ensureScrumWorkspace(workspace);
+
+    const activeSprint = await this.scrumService.getActiveSprint(workspaceId);
+    if (!activeSprint) {
+      return [];
+    }
+
+    const tasks = await this.tasksRepository.findBySprintInWorkspace(
+      workspaceId,
+      activeSprint._id.toString(),
+    );
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
+  async findTasksBySprintInWorkspaceKey(
+    workspaceKey: string,
+    sprintId: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    const { workspace, workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      currentUserId,
+    );
+    this.ensureScrumWorkspace(workspace);
+    await this.scrumService.findByIdInWorkspace(workspaceId, sprintId);
+
+    const tasks = await this.tasksRepository.findBySprintInWorkspace(
+      workspaceId,
+      sprintId,
+    );
+    return this.taskMapper.mapToDtos(tasks);
+  }
+
   async findById(id: string): Promise<TaskDto> {
     this.validationService.validateObjectId(id, 'Task');
 
@@ -210,6 +267,11 @@ export class TasksService {
     }
 
     const workspaceId = this.toId(existing.workspaceId);
+    await this.ensureCompletedSprintIsNotReassigned(
+      existing,
+      updateTaskDto,
+      workspaceId,
+    );
     const normalizedUpdateDto =
       await this.normalizerService.normalizeUpdateForWorkspaceType(
         updateTaskDto,
@@ -246,6 +308,11 @@ export class TasksService {
       throw new BadRequestException('Archived task cannot be updated');
     }
 
+    await this.ensureCompletedSprintIsNotReassigned(
+      existing,
+      updateTaskDto,
+      workspaceId,
+    );
     const normalizedUpdateDto =
       await this.normalizerService.normalizeUpdateForWorkspaceType(
         updateTaskDto,
@@ -392,5 +459,32 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  private ensureScrumWorkspace(workspace: any): void {
+    if (workspace.type !== 'scrum') {
+      throw new BadRequestException('This endpoint is only available for Scrum workspaces');
+    }
+  }
+
+  private async ensureCompletedSprintIsNotReassigned(
+    existingTask: any,
+    updateTaskDto: UpdateTaskDto,
+    workspaceId: string,
+  ): Promise<void> {
+    if (updateTaskDto.sprintId === undefined || !existingTask.sprintId) {
+      return;
+    }
+
+    const currentSprint = await this.scrumService.findByIdInWorkspace(
+      workspaceId,
+      this.toId(existingTask.sprintId),
+    );
+
+    if (currentSprint.status === 'completed') {
+      throw new BadRequestException(
+        'Task in a completed sprint cannot be reassigned to another sprint',
+      );
+    }
   }
 }

@@ -30,6 +30,34 @@ export class ScrumService {
     return this.sprintModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).sort({ createdAt: -1 }).exec();
   }
 
+  async findByIdInWorkspace(workspaceId: string, sprintId: string): Promise<SprintDocument> {
+    this.validateObjectId(workspaceId, 'Workspace');
+    this.validateObjectId(sprintId, 'Sprint');
+
+    const sprint = await this.sprintModel
+      .findOne({
+        _id: new Types.ObjectId(sprintId),
+        workspaceId: new Types.ObjectId(workspaceId),
+      })
+      .exec();
+
+    if (!sprint) {
+      throw new NotFoundException('Sprint not found');
+    }
+
+    return sprint;
+  }
+
+  async ensureSprintAssignable(workspaceId: string, sprintId: string): Promise<SprintDocument> {
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
+
+    if (sprint.status === 'completed') {
+      throw new BadRequestException('Cannot assign task to a completed sprint');
+    }
+
+    return sprint;
+  }
+
   async startSprint(workspaceId: string, sprintId: string): Promise<SprintDocument> {
     this.logger.log(`Starting sprint: ${sprintId} for workspace: ${workspaceId}`);
 
@@ -43,10 +71,7 @@ export class ScrumService {
       throw new BadRequestException('Cannot start sprint: There is already an active sprint in this workspace.');
     }
 
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
 
     sprint.status = 'active';
     sprint.startedAt = new Date();
@@ -56,10 +81,7 @@ export class ScrumService {
   async completeSprint(workspaceId: string, sprintId: string): Promise<SprintDocument> {
     this.logger.log(`Completing sprint: ${sprintId} for workspace: ${workspaceId}`);
 
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
     if (sprint.status !== 'active') throw new BadRequestException('Only active sprints can be completed');
 
     sprint.status = 'completed';
@@ -81,7 +103,13 @@ export class ScrumService {
     if (doneStatuses.length === 0) doneStatuses.push('done');
 
     await this.taskModel.updateMany(
-      { sprintId: new Types.ObjectId(sprintId), status: { $nin: doneStatuses } },
+      {
+        workspaceId: new Types.ObjectId(workspaceId),
+        sprintId: new Types.ObjectId(sprintId),
+        status: { $nin: doneStatuses },
+        isArchived: { $ne: true },
+        isDeleted: { $ne: true },
+      },
       { $set: { sprintId: null } },
     ).exec();
 
@@ -89,27 +117,19 @@ export class ScrumService {
   }
 
   async getBacklog(workspaceId: string): Promise<any> {
-    const planningSprints = await this.sprintModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId), status: 'planning' })
-      .select('_id')
-      .lean()
-      .exec();
-    const planningIds = planningSprints.map(s => s._id);
-
     return this.taskModel.find({
       workspaceId: new Types.ObjectId(workspaceId),
+      isArchived: { $ne: true },
+      isDeleted: { $ne: true },
       $or: [
         { sprintId: null },
-        { sprintId: { $in: planningIds } },
+        { sprintId: { $exists: false } },
       ],
     }).exec();
   }
 
   async updateSprint(workspaceId: string, sprintId: string, dto: UpdateSprintDto): Promise<SprintDocument> {
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
     if (sprint.status !== 'planning') {
       throw new BadRequestException('Only planning sprints can be edited');
     }
@@ -123,10 +143,7 @@ export class ScrumService {
   }
 
   async deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
     if (sprint.status !== 'planning') {
       throw new BadRequestException('Only planning sprints can be deleted');
     }
@@ -142,5 +159,11 @@ export class ScrumService {
   async deleteByWorkspace(workspaceId: string): Promise<void> {
     this.logger.log(`Deleting all sprints for Workspace: ${workspaceId}`);
     await this.sprintModel.deleteMany({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
+  }
+
+  private validateObjectId(id: string, resourceName: string): void {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException(`Invalid ${resourceName} ID format`);
+    }
   }
 }

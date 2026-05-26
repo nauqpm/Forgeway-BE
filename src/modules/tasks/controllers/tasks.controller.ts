@@ -213,6 +213,119 @@ export class TasksController {
     }
   }
 
+  @Get('backlog')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'List Scrum backlog tasks without sprint assignment' })
+  @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async findBacklogByWorkspaceKey(
+    @Param('key') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: ExpressRequest,
+  ): Promise<TaskDto[]> {
+    try {
+      const tasks = await this.tasksService.findBacklogByWorkspaceKey(
+        key,
+        user.userId,
+      );
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        severity: 'INFO',
+        userId: user.userId,
+        metadata: {
+          workspaceKey: key,
+          queryScope: 'scrum_backlog',
+          resultCount: tasks.length,
+        },
+      });
+      return tasks;
+    } catch (error) {
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceKey: key,
+        queryScope: 'scrum_backlog',
+      });
+      throw error;
+    }
+  }
+
+  @Get('active-sprint/tasks')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'List tasks on the active Scrum sprint board' })
+  @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async findActiveSprintBoardByWorkspaceKey(
+    @Param('key') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: ExpressRequest,
+  ): Promise<TaskDto[]> {
+    try {
+      const tasks = await this.tasksService.findActiveSprintBoardByWorkspaceKey(
+        key,
+        user.userId,
+      );
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        severity: 'INFO',
+        userId: user.userId,
+        metadata: {
+          workspaceKey: key,
+          queryScope: 'scrum_active_sprint_board',
+          resultCount: tasks.length,
+        },
+      });
+      return tasks;
+    } catch (error) {
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceKey: key,
+        queryScope: 'scrum_active_sprint_board',
+      });
+      throw error;
+    }
+  }
+
+  @Get('sprints/:sprintId/tasks')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'List tasks in a specific Scrum sprint' })
+  @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  @ApiNotFoundResponse({ description: 'Sprint not found' })
+  async findTasksBySprintInWorkspaceKey(
+    @Param('key') key: string,
+    @Param('sprintId') sprintId: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: ExpressRequest,
+  ): Promise<TaskDto[]> {
+    try {
+      const tasks = await this.tasksService.findTasksBySprintInWorkspaceKey(
+        key,
+        sprintId,
+        user.userId,
+      );
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        severity: 'INFO',
+        userId: user.userId,
+        metadata: {
+          workspaceKey: key,
+          sprintId,
+          queryScope: 'scrum_sprint_tasks',
+          resultCount: tasks.length,
+        },
+      });
+      return tasks;
+    } catch (error) {
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceKey: key,
+        sprintId,
+        queryScope: 'scrum_sprint_tasks',
+      });
+      throw error;
+    }
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get task by ID' })
