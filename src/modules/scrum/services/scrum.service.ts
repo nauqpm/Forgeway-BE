@@ -21,6 +21,8 @@ export class ScrumService {
     const sprint = new this.sprintModel({
       ...dto,
       workspaceId: new Types.ObjectId(workspaceId),
+      startDate: this.toDate(dto.startDate),
+      endDate: this.toDate(dto.endDate),
       status: 'planning',
     });
     return sprint.save();
@@ -136,8 +138,8 @@ export class ScrumService {
 
     if (dto.name !== undefined) sprint.name = dto.name;
     if (dto.goal !== undefined) sprint.goal = dto.goal;
-    if (dto.startDate !== undefined) sprint.startDate = dto.startDate;
-    if (dto.endDate !== undefined) sprint.endDate = dto.endDate;
+    if (dto.startDate !== undefined) sprint.startDate = this.toDate(dto.startDate);
+    if (dto.endDate !== undefined) sprint.endDate = this.toDate(dto.endDate);
 
     return sprint.save();
   }
@@ -165,5 +167,9 @@ export class ScrumService {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException(`Invalid ${resourceName} ID format`);
     }
+  }
+
+  private toDate(value: string): Date {
+    return new Date(value);
   }
 }
