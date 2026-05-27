@@ -9,6 +9,15 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { KanbanModule } from '../kanban/kanban.module';
 import { Board, BoardSchema } from '../kanban/schemas/kanban-board.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import { 
+  BacklogService, 
+  BoardStatusService, 
+  MongoTransactionService,
+  SprintCommandService,
+  SprintLifecycleService, 
+  SprintQueryService,
+  SprintTaskMovementService 
+  } from './services';
 
 @Module({
   imports: [
@@ -23,7 +32,16 @@ import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.sche
     forwardRef(() => KanbanModule),
   ],
   controllers: [ScrumController],
-  providers: [ScrumService],
+  providers: [
+    ScrumService,
+    SprintCommandService,
+    SprintQueryService,
+    SprintLifecycleService,
+    SprintTaskMovementService,
+    BacklogService,
+    BoardStatusService,
+    MongoTransactionService,
+  ],
   exports: [ScrumService],
 })
 export class ScrumModule {}

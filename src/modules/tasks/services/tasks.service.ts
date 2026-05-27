@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import {
@@ -17,6 +19,7 @@ import { TaskCreationValidationService } from './task-creation-validation.servic
 import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
 
 @Injectable()
 export class TasksService {
@@ -29,6 +32,7 @@ export class TasksService {
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
     private readonly transformerService: TaskDataTransformerService,
+    @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
   ) {}
 
@@ -298,6 +302,7 @@ export class TasksService {
     taskId: string,
     updateTaskDto: UpdateTaskDto,
     userId: string,
+    userRole?: string,
   ): Promise<TaskDto> {
     const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const existing = await this.getTaskForWorkspace(taskId, workspaceId, {
@@ -322,6 +327,7 @@ export class TasksService {
       normalizedUpdateDto,
       workspaceId,
     );
+    await this.ensureCanMoveFromCurrentSprint(task, normalizedUpdateDto, userRole);
 
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
@@ -332,7 +338,37 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    return this.taskMapper.mapToDto(task);
+    return this.taskMapper.mapToDto(updated);
+  }
+
+  private async ensureCanMoveFromCurrentSprint(
+    task: any,
+    updateTaskDto: UpdateTaskDto,
+    userRole?: string,
+  ): Promise<void> {
+    if (
+      updateTaskDto.sprintId === undefined ||
+      userRole === 'super_admin'
+    ) {
+      return;
+    }
+
+    const currentSprintId = this.toId(task.sprintId);
+    if (!currentSprintId) {
+      return;
+    }
+
+    const nextSprintId = updateTaskDto.sprintId ?? '';
+    if (nextSprintId === currentSprintId) {
+      return;
+    }
+
+    const currentSprint = await this.scrumService.findSprintById(currentSprintId);
+    if (currentSprint?.status === 'completed') {
+      throw new BadRequestException(
+        'Cannot move tasks out of a completed sprint without super_admin role',
+      );
+    }
   }
 
   async archiveInWorkspaceKey(

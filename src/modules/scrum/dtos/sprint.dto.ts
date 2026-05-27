@@ -55,18 +55,13 @@ export class CreateSprintDto {
   @ApiPropertyOptional({ example: '2026-05-21T00:00:00.000Z' })
   @IsOptional()
   @IsDateString()
-<<<<<<< Updated upstream
-  startDate!: string;
-=======
   startDate?: string;
->>>>>>> Stashed changes
 
   @ApiPropertyOptional({ example: '2026-06-04T00:00:00.000Z' })
   @IsOptional()
   @IsDateString()
   @Validate(EndDateAfterStartDateConstraint)
-<<<<<<< Updated upstream
-  endDate!: string;
+  endDate?: string;
 
   @ApiPropertyOptional({ example: '2 weeks' })
   @IsOptional()
@@ -97,17 +92,13 @@ export class UpdateSprintDto {
   @ApiPropertyOptional({ example: '2026-06-04T00:00:00.000Z' })
   @IsOptional()
   @IsDateString()
-<<<<<<< Updated upstream
+  @Validate(EndDateAfterStartDateConstraint)
   endDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   duration?: string;
-=======
-  @Validate(EndDateAfterStartDateConstraint)
-  endDate?: string;
->>>>>>> Stashed changes
 }
 
 export class StartSprintDto {
