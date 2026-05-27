@@ -1,12 +1,35 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments, Validate } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsDateString,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Validate,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 @ValidatorConstraint({ name: 'EndDateAfterStartDate', async: false })
 class EndDateAfterStartDateConstraint implements ValidatorConstraintInterface {
   validate(endDate: string, args: ValidationArguments): boolean {
-    const obj = args.object as CreateSprintDto;
-    if (!obj.startDate || !endDate) return true;
-    return new Date(endDate) > new Date(obj.startDate as unknown as string);
+    const obj = args.object as { startDate?: string };
+
+    if (!obj.startDate || !endDate) {
+      return true;
+    }
+
+    const start = new Date(obj.startDate);
+    const end = new Date(endDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return true;
+    }
+
+    return end > start;
   }
 
   defaultMessage(): string {
@@ -15,55 +38,108 @@ class EndDateAfterStartDateConstraint implements ValidatorConstraintInterface {
 }
 
 export class CreateSprintDto {
-  @ApiProperty({ example: 'Sprint 1' })
+  @ApiPropertyOptional({
+    example: 'Sprint 3',
+    description: 'Sprint name. If omitted, the system can generate a default name.',
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  name!: string;
+  name?: string;
 
   @ApiPropertyOptional({ example: 'Complete user authentication' })
   @IsOptional()
   @IsString()
   goal?: string;
 
-  @ApiProperty({ example: '2026-05-21T00:00:00.000Z' })
+  @ApiPropertyOptional({ example: '2026-05-21T00:00:00.000Z' })
+  @IsOptional()
   @IsDateString()
+<<<<<<< Updated upstream
   startDate!: string;
+=======
+  startDate?: string;
+>>>>>>> Stashed changes
 
-  @ApiProperty({ example: '2026-06-04T00:00:00.000Z' })
+  @ApiPropertyOptional({ example: '2026-06-04T00:00:00.000Z' })
+  @IsOptional()
   @IsDateString()
   @Validate(EndDateAfterStartDateConstraint)
+<<<<<<< Updated upstream
   endDate!: string;
 
   @ApiPropertyOptional({ example: '2 weeks' })
   @IsOptional()
   @IsString()
   duration?: string;
+=======
+  endDate?: string;
+>>>>>>> Stashed changes
 }
 
 export class UpdateSprintDto {
-  @ApiPropertyOptional({ example: 'Sprint 2' })
+  @ApiPropertyOptional({ example: 'Sprint 3' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   name?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'Finish sprint planning and authentication tasks' })
   @IsOptional()
   @IsString()
   goal?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: '2026-05-21T00:00:00.000Z' })
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: '2026-06-04T00:00:00.000Z' })
   @IsOptional()
   @IsDateString()
+<<<<<<< Updated upstream
   endDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   duration?: string;
+=======
+  @Validate(EndDateAfterStartDateConstraint)
+  endDate?: string;
+>>>>>>> Stashed changes
+}
+
+export class StartSprintDto {
+  @ApiProperty({ example: '2026-05-25T00:00:00.000Z' })
+  @IsDateString()
+  startDate!: string;
+
+  @ApiProperty({ example: '2026-06-08T00:00:00.000Z' })
+  @IsDateString()
+  @Validate(EndDateAfterStartDateConstraint)
+  endDate!: string;
+}
+
+export class CompleteSprintDto {
+  @ApiPropertyOptional({
+    example: '606065da30a349a19b04c860',
+    description:
+      'Target planning sprint ID for incomplete tasks. If omitted, incomplete tasks are moved back to backlog.',
+  })
+  @IsOptional()
+  @IsMongoId()
+  moveToSprintId?: string;
+}
+
+export class MoveTasksToSprintDto {
+  @ApiProperty({
+    type: [String],
+    example: ['606065da30a349a19b04c860'],
+    description: 'List of task/issue IDs to move into a sprint or back to backlog.',
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsMongoId({ each: true })
+  taskIds!: string[];
 }

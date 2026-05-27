@@ -111,13 +111,13 @@ describe('InviteService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('throws BadRequestException when pending invite already exists for email', async () => {
+    it('throws ConflictException when pending invite already exists for email', async () => {
       workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
       usersService.findByEmail.mockResolvedValue(null);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue({ _id: 'existingInvite' } as any);
 
       await expect(service.createInvite(workspaceId, invitedByUserId, dto))
-        .rejects.toThrow(BadRequestException);
+        .rejects.toThrow(ConflictException);
     });
 
     it('creates invite record and sends email for valid new invite', async () => {

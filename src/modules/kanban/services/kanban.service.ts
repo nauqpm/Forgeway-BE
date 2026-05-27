@@ -114,6 +114,7 @@ export class KanbanService {
       name: dto.name,
       order: maxOrder + 1,
       mappedStatuses: [],
+      isDone: false,
     } as BoardColumn;
 
     board.columns.push(newColumn);
