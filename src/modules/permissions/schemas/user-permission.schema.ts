@@ -7,7 +7,7 @@ export type UserPermissionDocument = UserPermission & Document;
 @Schema({
   timestamps: true,
   toJSON: {
-    transform: (doc, ret) => {
+    transform: (doc, ret: any) => {
       ret.id = ret._id.toString();
       ret.userId = ret.userId.toString();
       if (ret.permissionId) {

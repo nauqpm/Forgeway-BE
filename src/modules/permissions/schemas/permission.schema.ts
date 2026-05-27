@@ -6,7 +6,7 @@ export type PermissionDocument = Permission & Document;
 @Schema({
   timestamps: true,
   toJSON: {
-    transform: (doc, ret) => {
+    transform: (doc, ret: any) => {
       ret.id = ret._id.toString();
       ret._id = ret._id.toString();
       return ret;
@@ -15,10 +15,10 @@ export type PermissionDocument = Permission & Document;
 })
 export class Permission {
   @Prop({ required: true })
-  resource: string;
+  resource!: string;
 
   @Prop({ required: true })
-  action: string;
+  action!: string;
 }
 
 export const PermissionSchema = SchemaFactory.createForClass(Permission);
