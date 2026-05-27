@@ -442,7 +442,7 @@ export class TasksService {
       workspaceId,
     );
     await this.ensureCanMoveFromCurrentSprint(
-      existing,
+      task,
       normalizedUpdateDto,
       userRole,
     );
