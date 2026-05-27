@@ -6,6 +6,7 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import {
   CreateTaskDto,
   FilterTaskDto,
@@ -18,7 +19,6 @@ import { TaskCreationValidationService } from './task-creation-validation.servic
 import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
-import { ScrumService } from '../../scrum/services/scrum.service';
 
 @Injectable()
 export class TasksService {
@@ -270,7 +270,11 @@ export class TasksService {
       normalizedUpdateDto,
       workspaceId,
     );
-    await this.ensureCanMoveFromCurrentSprint(task, normalizedUpdateDto, userRole);
+    await this.ensureCanMoveFromCurrentSprint(
+      existing,
+      normalizedUpdateDto,
+      userRole,
+    );
 
     const updated = await this.tasksRepository.updateInWorkspace(
       this.toId(task._id),
@@ -281,7 +285,7 @@ export class TasksService {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
-    return this.taskMapper.mapToDto(updated);
+    return this.taskMapper.mapToDto(task);
   }
 
   private async ensureCanMoveFromCurrentSprint(
