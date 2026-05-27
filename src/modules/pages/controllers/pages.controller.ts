@@ -35,8 +35,9 @@ import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
 import { FilterPageDto } from '../dtos/filter-page.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
-import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 
 // ---------------------------------------------------------------------------
 // Response shape DTOs (inline, for Swagger schema only — no runtime overhead)
@@ -104,7 +105,8 @@ export class PagesController {
   // POST /pages
   // -------------------------------------------------------------------------
   @Post()
-  // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_CREATE)
   @ApiOperation({
     summary: 'Create a new page',
     description:
@@ -177,7 +179,8 @@ export class PagesController {
   // PATCH /pages/:id
   // -------------------------------------------------------------------------
   @Patch(':id')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Update a page',
     description:
@@ -200,7 +203,8 @@ export class PagesController {
   // DELETE /pages/:id
   // -------------------------------------------------------------------------
   @Delete(':id')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete a page',
@@ -219,7 +223,8 @@ export class PagesController {
   // PUT /pages/:id/move
   // -------------------------------------------------------------------------
   @Put(':id/move')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Move page to a different parent',
     description:
@@ -253,7 +258,8 @@ export class PagesController {
   // POST /pages/:id/publish
   // -------------------------------------------------------------------------
   @Post(':id/publish')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Publish a page',
     description: 'Sets the page status to `published`. Idempotent — safe to call on already-published pages.',
@@ -269,7 +275,8 @@ export class PagesController {
   // POST /pages/:id/unpublish
   // -------------------------------------------------------------------------
   @Post(':id/unpublish')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Unpublish a page',
     description: 'Reverts the page status back to `draft`.',
@@ -335,7 +342,8 @@ export class PagesController {
   // PUT /pages/:id/labels
   // -------------------------------------------------------------------------
   @Put(':id/labels')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Replace all labels on a page',
     description:

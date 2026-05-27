@@ -9,6 +9,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { KanbanModule } from '../kanban/kanban.module';
 import { Board, BoardSchema } from '../kanban/schemas/kanban-board.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.sche
     forwardRef(() => KanbanModule),
   ],
   controllers: [ScrumController],
-  providers: [ScrumService],
+  providers: [ScrumService, WorkspaceRoleGuard],
   exports: [ScrumService],
 })
 export class ScrumModule {}

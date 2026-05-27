@@ -136,8 +136,8 @@ export class ScrumService {
 
     if (dto.name !== undefined) sprint.name = dto.name;
     if (dto.goal !== undefined) sprint.goal = dto.goal;
-    if (dto.startDate !== undefined) sprint.startDate = dto.startDate;
-    if (dto.endDate !== undefined) sprint.endDate = dto.endDate;
+    if (dto.startDate !== undefined) sprint.startDate = new Date(dto.startDate);
+    if (dto.endDate !== undefined) sprint.endDate = new Date(dto.endDate);
 
     return sprint.save();
   }

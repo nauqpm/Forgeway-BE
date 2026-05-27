@@ -12,20 +12,21 @@ export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanAc
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
+      const workspaceId = request.params?.workspaceId;
       const key = request.params?.key;
 
-      if (!key) {
-        throw new BadRequestException('Workspace key not found in request');
+      if (!workspaceId && !key) {
+        throw new BadRequestException('Workspace identifier not found in request');
       }
 
       const workspace = await this.workspaceModel
-        .findOne({ key })
+        .findOne(workspaceId ? { _id: workspaceId } : { key })
         .select('type')
         .lean()
         .exec();
 
       if (!workspace) {
-        throw new NotFoundException(`Workspace with key "${key}" not found`);
+        throw new NotFoundException('Workspace not found');
       }
 
       if (!workspace.type || workspace.type !== requiredType) {

@@ -48,10 +48,20 @@ export class KanbanService {
       throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
     }
 
-    const board = await this.boardModel.findOne({ workspaceId: workspace._id }).exec();
+    return this.findOrCreateByWorkspaceId(workspace._id.toString());
+  }
+
+  public async findOrCreateByWorkspaceId(workspaceId: string): Promise<BoardDocument> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID format');
+    }
+
+    const board = await this.boardModel
+      .findOne({ workspaceId: new Types.ObjectId(workspaceId) })
+      .exec();
     if (board) return board;
 
-    return this.createDefaultBoard(workspace._id.toString());
+    return this.createDefaultBoard(workspaceId);
   }
 
   public async findByWorkspaceKey(workspaceKey: string): Promise<BoardDocument[]> {
@@ -64,7 +74,17 @@ export class KanbanService {
       throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
     }
 
-    return this.boardModel.find({ workspaceId: new Types.ObjectId(workspace._id) }).exec();
+    return this.findByWorkspaceId(workspace._id.toString());
+  }
+
+  public async findByWorkspaceId(workspaceId: string): Promise<BoardDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new BadRequestException('Invalid workspace ID format');
+    }
+
+    return this.boardModel
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .exec();
   }
 
   public async findById(id: string): Promise<BoardDocument> {
