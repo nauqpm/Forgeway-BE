@@ -15,6 +15,7 @@ import { removeVietnameseTones } from '../../../common/utils/slug.utils';
 import { UsersService } from '../../users/services/users.service';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 
@@ -26,6 +27,8 @@ export class WorkspacesService {
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workflowsService: WorkflowsService,
     private readonly kanbanService: KanbanService,
+    @Inject(forwardRef(() => ScrumService))
+    private readonly scrumService: ScrumService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
   ) { }
@@ -162,6 +165,13 @@ export class WorkspacesService {
       this.logger.log(`Đã xóa Board liên quan đến Workspace ID: ${id}`);
     } catch (error) {
       this.logger.error(`Lỗi khi dọn dẹp Board của Workspace ${id}:`, error);
+    }
+
+    try {
+      await this.scrumService.deleteByWorkspace(id);
+      this.logger.log(`Đã xóa Sprint liên quan đến Workspace ID: ${id}`);
+    } catch (error) {
+      this.logger.error(`Lỗi khi dọn dẹp Sprint của Workspace ${id}:`, error);
     }
 
     const deleted = await this.workspacesRepository.delete(id);

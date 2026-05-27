@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { KanbanModule } from '../kanban/kanban.module';
 import { ScrumModule } from '../scrum/scrum.module';
+import { Sprint, SprintSchema } from '../scrum/schemas/sprint.schema';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TasksController } from './controllers/tasks.controller';
@@ -18,7 +19,10 @@ import { TasksService } from './services/tasks.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Task.name, schema: TaskSchema }]),
+    MongooseModule.forFeature([
+      { name: Task.name, schema: TaskSchema },
+      { name: Sprint.name, schema: SprintSchema },
+    ]),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => ScrumModule),
     forwardRef(() => KanbanModule),

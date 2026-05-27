@@ -1,194 +1,120 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Sprint, SprintDocument } from '../schemas/sprint.schema';
-import { CreateSprintDto, UpdateSprintDto } from '../dtos/sprint.dto';
-import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
-import { Board, BoardDocument } from '../../kanban/schemas/kanban-board.schema';
+// Service tổng / facade.
+// File này giữ nguyên các method public để controller hiện tại vẫn gọi ScrumService như cũ.
+// Bên trong chỉ chuyển tiếp logic sang các service nhỏ hơn.
+import { Injectable } from '@nestjs/common';
+import { TaskDocument } from '../../tasks/schemas/task.schema';
+import {
+  CompleteSprintDto,
+  CreateSprintDto,
+  StartSprintDto,
+  UpdateSprintDto,
+} from '../dtos/sprint.dto';
+import { SprintDocument } from '../schemas/sprint.schema';
+import { BacklogService } from './backlog.service';
+import { SprintCommandService } from './sprint-command.service';
+import { SprintLifecycleService } from './sprint-lifecycle.service';
+import { SprintQueryService } from './sprint-query.service';
+import { SprintTaskMovementService } from './sprint-task-movement.service';
 
 @Injectable()
 export class ScrumService {
-  private readonly logger = new Logger(ScrumService.name);
-
   constructor(
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
-    @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
-    @InjectModel(Board.name) private readonly boardModel: Model<BoardDocument>,
+    private readonly sprintCommandService: SprintCommandService,
+    private readonly sprintQueryService: SprintQueryService,
+    private readonly sprintLifecycleService: SprintLifecycleService,
+    private readonly sprintTaskMovementService: SprintTaskMovementService,
+    private readonly backlogService: BacklogService,
   ) {}
 
-  async createSprint(workspaceId: string, dto: CreateSprintDto): Promise<SprintDocument> {
-    this.logger.log(`Creating sprint for Workspace: ${workspaceId}`);
-    const sprint = new this.sprintModel({
-      ...dto,
-      workspaceId: new Types.ObjectId(workspaceId),
-      status: 'planning',
-    });
-    return sprint.save();
+  createSprint(
+    workspaceId: string,
+    dto: CreateSprintDto,
+  ): Promise<SprintDocument> {
+    return this.sprintCommandService.createSprint(workspaceId, dto);
   }
 
-  async findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {
-    return this.sprintModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).sort({ createdAt: -1 }).exec();
+  findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {
+    return this.sprintQueryService.findByWorkspace(workspaceId);
   }
 
-  async startSprint(workspaceId: string, sprintId: string): Promise<SprintDocument> {
-    this.logger.log(`Starting sprint: ${sprintId} for workspace: ${workspaceId}`);
-
-    // Rule: Only one active sprint per workspace
-    const activeSprint = await this.sprintModel.findOne({
-      workspaceId: new Types.ObjectId(workspaceId),
-      status: 'active',
-    }).exec();
-
-    if (activeSprint) {
-      throw new BadRequestException('Cannot start sprint: There is already an active sprint in this workspace.');
-    }
-
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
-
-    sprint.status = 'active';
-    sprint.startedAt = new Date();
-    return sprint.save();
+  startSprint(
+    workspaceId: string,
+    sprintId: string,
+    dto: StartSprintDto,
+  ): Promise<SprintDocument> {
+    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
   }
 
-  async completeSprint(workspaceId: string, sprintId: string): Promise<SprintDocument> {
-    this.logger.log(`Completing sprint: ${sprintId} for workspace: ${workspaceId}`);
-
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
-    if (sprint.status !== 'active') throw new BadRequestException('Only active sprints can be completed');
-
-    sprint.status = 'completed';
-    sprint.completedAt = new Date();
-    const savedSprint = await sprint.save();
-
-    // Resolve done statuses from board columns
-    const board = await this.boardModel
-      .findOne({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    const doneStatuses: string[] = board
-      ? board.columns
-          .filter(col =>
-            col.id?.toLowerCase() === 'done' ||
-            (col.mappedStatuses || []).some(s => s.toLowerCase() === 'done')
-          )
-          .flatMap(col => col.mappedStatuses || [])
-      : ['done'];
-    if (doneStatuses.length === 0) doneStatuses.push('done');
-
-    await this.taskModel.updateMany(
-      { sprintId: new Types.ObjectId(sprintId), status: { $nin: doneStatuses } },
-      { $set: { sprintId: null } },
-    ).exec();
-
-    return savedSprint;
+  completeSprint(
+    workspaceId: string,
+    sprintId: string,
+    dto: CompleteSprintDto,
+  ): Promise<any> {
+    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
   }
 
-  async getBacklog(workspaceId: string): Promise<any> {
-    const planningSprints = await this.sprintModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId), status: 'planning' })
-      .select('_id')
-      .lean()
-      .exec();
-    const planningIds = planningSprints.map(s => s._id);
-
-    return this.taskModel.find({
-      workspaceId: new Types.ObjectId(workspaceId),
-      $or: [
-        { sprintId: null },
-        { sprintId: { $in: planningIds } },
-      ],
-    }).exec();
+  getBacklog(workspaceId: string, grouped = false): Promise<any> {
+    return this.backlogService.getBacklog(workspaceId, grouped);
   }
 
-  async updateSprint(workspaceId: string, sprintId: string, dto: UpdateSprintDto): Promise<SprintDocument> {
-    const timestamp = new Date().toISOString();
-    
-    try {
-      const sprint = await this.sprintModel
-        .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-        .exec();
-        
-      if (!sprint) {
-        this.logger.error(`[AUDIT LOG] [${timestamp}] Sprint Update FAILED | Sprint ID: ${sprintId} | Error: Sprint not found`);
-        throw new NotFoundException('Sprint not found');
-      }
-
-      if (sprint.status !== 'planning' && (dto.startDate !== undefined || dto.endDate !== undefined)) {
-        throw new BadRequestException('Cannot change sprint dates while sprint is active or completed');
-      }
-
-      const oldValues = {
-        name: sprint.name,
-        goal: sprint.goal,
-        startDate: sprint.startDate,
-        endDate: sprint.endDate,
-        duration: sprint.duration,
-      };
-
-      if (dto.name !== undefined) sprint.name = dto.name;
-      if (dto.goal !== undefined) sprint.goal = dto.goal;
-      if (dto.duration !== undefined) sprint.duration = dto.duration;
-      
-      if (sprint.status === 'planning') {
-        if (dto.startDate !== undefined) sprint.startDate = new Date(dto.startDate);
-        if (dto.endDate !== undefined) sprint.endDate = new Date(dto.endDate);
-      }
-
-      const updatedSprint = await sprint.save();
-
-      const newValues = {
-        name: updatedSprint.name,
-        goal: updatedSprint.goal,
-        startDate: updatedSprint.startDate,
-        endDate: updatedSprint.endDate,
-        duration: updatedSprint.duration,
-      };
-
-      this.logger.log(
-        `\n================= AUDIT LOG =================\n` +
-        `Action: Sprint Update\n` +
-        `Status: SUCCESS\n` +
-        `Timestamp: ${timestamp}\n` +
-        `Sprint ID: ${sprintId}\n` +
-        `Workspace ID: ${workspaceId}\n` +
-        `Old Values: ${JSON.stringify(oldValues, null, 2)}\n` +
-        `Updated Values: ${JSON.stringify(newValues, null, 2)}\n` +
-        `=============================================\n`
-      );
-
-      return updatedSprint;
-    } catch (error) {
-      if (!(error instanceof NotFoundException) && !(error instanceof BadRequestException)) {
-        this.logger.error(`[AUDIT LOG] [${timestamp}] Sprint Update FAILED | Sprint ID: ${sprintId} | Error: ${error.message}`);
-      }
-      throw error;
-    }
+  updateSprint(
+    workspaceId: string,
+    sprintId: string,
+    dto: UpdateSprintDto,
+  ): Promise<SprintDocument> {
+    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
   }
 
-  async deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
-    const sprint = await this.sprintModel
-      .findOne({ _id: new Types.ObjectId(sprintId), workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    if (!sprint) throw new NotFoundException('Sprint not found');
-    if (sprint.status !== 'planning') {
-      throw new BadRequestException('Only planning sprints can be deleted');
-    }
-    await sprint.deleteOne();
+  deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
+    return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
   }
 
-  async getActiveSprint(workspaceId: string): Promise<SprintDocument | null> {
-    return this.sprintModel
-      .findOne({ workspaceId: new Types.ObjectId(workspaceId), status: 'active' })
-      .exec();
+  moveTasksToSprint(
+    workspaceId: string,
+    sprintId: string,
+    taskIds: string[],
+    isSuperAdmin = false,
+  ): Promise<{ modifiedCount: number }> {
+    return this.sprintTaskMovementService.moveTasksToSprint(
+      workspaceId,
+      sprintId,
+      taskIds,
+      isSuperAdmin,
+    );
   }
 
-  async deleteByWorkspace(workspaceId: string): Promise<void> {
-    this.logger.log(`Deleting all sprints for Workspace: ${workspaceId}`);
-    await this.sprintModel.deleteMany({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
+  moveTasksToBacklog(
+    workspaceId: string,
+    taskIds: string[],
+    isSuperAdmin = false,
+  ): Promise<{ modifiedCount: number }> {
+    return this.sprintTaskMovementService.moveTasksToBacklog(
+      workspaceId,
+      taskIds,
+      isSuperAdmin,
+    );
+  }
+
+  getActiveSprint(workspaceId: string): Promise<any | null> {
+    return this.sprintQueryService.getActiveSprint(workspaceId);
+  }
+
+  getSprintTasks(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<TaskDocument[]> {
+    return this.sprintQueryService.getSprintTasks(workspaceId, sprintId);
+  }
+
+  getCompleteSprintPreview(workspaceId: string, sprintId: string): Promise<any> {
+    return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
+  }
+
+  findSprintById(sprintId: string): Promise<SprintDocument | null> {
+    return this.sprintQueryService.findSprintById(sprintId);
+  }
+
+  deleteByWorkspace(workspaceId: string): Promise<void> {
+    return this.sprintCommandService.deleteByWorkspace(workspaceId);
   }
 }

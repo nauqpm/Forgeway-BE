@@ -11,17 +11,14 @@ export class Sprint {
   @Prop({ type: String, required: true, trim: true, maxlength: 100 })
   name!: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Board', index: true })
-  boardId?: Types.ObjectId;
-
   @Prop()
   goal?: string;
 
-  @Prop({ required: true })
-  startDate!: Date;
+  @Prop({ required: false })
+  startDate?: Date;
 
-  @Prop({ required: true })
-  endDate!: Date;
+  @Prop({ required: false })
+  endDate?: Date;
 
   @Prop()
   duration?: string;
@@ -41,4 +38,12 @@ export class Sprint {
 }
 
 export const SprintSchema = SchemaFactory.createForClass(Sprint);
-SprintSchema.index({ workspaceId: 1, status: 1 });
+SprintSchema.index({ workspaceId: 1 });
+SprintSchema.index({ status: 1 });
+SprintSchema.index(
+  { workspaceId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: 'active' },
+  },
+);
