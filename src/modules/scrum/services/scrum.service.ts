@@ -23,16 +23,11 @@ export class ScrumService {
     private readonly backlogService: BacklogService,
   ) {}
 
-  async createSprint(workspaceId: string, dto: CreateSprintDto): Promise<SprintDocument> {
-    this.logger.log(`Creating sprint for Workspace: ${workspaceId}`);
-    const sprint = new this.sprintModel({
-      ...dto,
-      workspaceId: new Types.ObjectId(workspaceId),
-      startDate: this.toDate(dto.startDate),
-      endDate: this.toDate(dto.endDate),
-      status: 'planning',
-    });
-    return sprint.save();
+  createSprint(
+    workspaceId: string,
+    dto: CreateSprintDto,
+  ): Promise<SprintDocument> {
+    return this.sprintCommandService.createSprint(workspaceId, dto);
   }
 
   findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {
@@ -72,7 +67,11 @@ export class ScrumService {
     sprintId: string,
     dto: CompleteSprintDto,
   ): Promise<any> {
-    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
+    return this.sprintLifecycleService.completeSprint(
+      workspaceId,
+      sprintId,
+      dto,
+    );
   }
 
   getBacklog(workspaceId: string, grouped = false): Promise<any> {
@@ -128,8 +127,14 @@ export class ScrumService {
     return this.sprintQueryService.getSprintTasks(workspaceId, sprintId);
   }
 
-  getCompleteSprintPreview(workspaceId: string, sprintId: string): Promise<any> {
-    return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
+  getCompleteSprintPreview(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<any> {
+    return this.sprintQueryService.getCompleteSprintPreview(
+      workspaceId,
+      sprintId,
+    );
   }
 
   findSprintById(sprintId: string): Promise<SprintDocument | null> {
@@ -138,9 +143,5 @@ export class ScrumService {
 
   deleteByWorkspace(workspaceId: string): Promise<void> {
     return this.sprintCommandService.deleteByWorkspace(workspaceId);
-  }
-
-  private toDate(value: string): Date {
-    return new Date(value);
   }
 }
