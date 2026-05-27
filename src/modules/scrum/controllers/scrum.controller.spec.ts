@@ -204,7 +204,7 @@ describe('ScrumController', () => {
 
   describe('getActiveSprint', () => {
     it('should return the active sprint details', async () => {
-      const activeSprint = { _id: 's1', status: 'active', tasks: [] };
+      const activeSprint = { _id: 's1', status: 'active', tasks: [] } as any;
       scrumService.getActiveSprint.mockResolvedValue(activeSprint);
 
       const result = await controller.getActiveSprint(workspaceId);

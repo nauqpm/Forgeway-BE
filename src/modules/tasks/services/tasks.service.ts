@@ -441,7 +441,11 @@ export class TasksService {
       normalizedUpdateDto,
       workspaceId,
     );
-    await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, userRole);
+    await this.ensureCanMoveFromCurrentSprint(
+      existing,
+      normalizedUpdateDto,
+      userRole,
+    );
 
     const task = await this.tasksRepository.updateInWorkspace(
       resolvedTaskId,

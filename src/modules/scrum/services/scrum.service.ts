@@ -34,24 +34,16 @@ export class ScrumService {
     return this.sprintQueryService.findByWorkspace(workspaceId);
   }
 
-  findByIdInWorkspace(
+  updateSprint(
     workspaceId: string,
     sprintId: string,
+    dto: UpdateSprintDto,
   ): Promise<SprintDocument> {
-    return this.sprintQueryService.findByIdInWorkspace(workspaceId, sprintId);
+    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
   }
 
-  async ensureSprintAssignable(
-    workspaceId: string,
-    sprintId: string,
-  ): Promise<SprintDocument> {
-    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
-
-    if (sprint.status === 'completed') {
-      throw new BadRequestException('Cannot assign task to a completed sprint');
-    }
-
-    return sprint;
+  deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
+    return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
   }
 
   startSprint(
@@ -66,28 +58,32 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
     dto: CompleteSprintDto,
-  ): Promise<any> {
-    return this.sprintLifecycleService.completeSprint(
-      workspaceId,
-      sprintId,
-      dto,
-    );
+  ): Promise<unknown> {
+    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
   }
 
-  getBacklog(workspaceId: string, grouped = false): Promise<any> {
+  getBacklog(workspaceId: string, grouped = false): Promise<unknown> {
     return this.backlogService.getBacklog(workspaceId, grouped);
   }
 
-  updateSprint(
+  getActiveSprint(
     workspaceId: string,
-    sprintId: string,
-    dto: UpdateSprintDto,
-  ): Promise<SprintDocument> {
-    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
+  ): Promise<(SprintDocument & { tasks?: TaskDocument[] }) | null> {
+    return this.sprintQueryService.getActiveSprint(workspaceId);
   }
 
-  deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
-    return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
+  getSprintTasks(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<TaskDocument[]> {
+    return this.sprintQueryService.getSprintTasks(workspaceId, sprintId);
+  }
+
+  getCompleteSprintPreview(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<unknown> {
+    return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
   }
 
   moveTasksToSprint(
@@ -116,29 +112,36 @@ export class ScrumService {
     );
   }
 
-  getActiveSprint(workspaceId: string): Promise<any | null> {
-    return this.sprintQueryService.getActiveSprint(workspaceId);
-  }
-
-  getSprintTasks(
-    workspaceId: string,
-    sprintId: string,
-  ): Promise<TaskDocument[]> {
-    return this.sprintQueryService.getSprintTasks(workspaceId, sprintId);
-  }
-
-  getCompleteSprintPreview(
-    workspaceId: string,
-    sprintId: string,
-  ): Promise<any> {
-    return this.sprintQueryService.getCompleteSprintPreview(
-      workspaceId,
-      sprintId,
-    );
-  }
-
   findSprintById(sprintId: string): Promise<SprintDocument | null> {
     return this.sprintQueryService.findSprintById(sprintId);
+  }
+
+  findByIdInWorkspace(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<SprintDocument> {
+    return this.sprintQueryService.findByIdInWorkspace(workspaceId, sprintId);
+  }
+
+  // Backward-compatible alias for older callsites
+  FindByIdInWorkspace(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<SprintDocument> {
+    return this.findByIdInWorkspace(workspaceId, sprintId);
+  }
+
+  async ensureSprintAssignable(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<void> {
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
+
+    if (sprint.status === 'completed') {
+      throw new BadRequestException(
+        'Sprint has completed and cannot accept new tasks',
+      );
+    }
   }
 
   deleteByWorkspace(workspaceId: string): Promise<void> {
