@@ -67,9 +67,6 @@ export class CreateSprintDto {
   @IsOptional()
   @IsString()
   duration?: string;
-=======
-  endDate?: string;
->>>>>>> Stashed changes
 }
 
 export class UpdateSprintDto {

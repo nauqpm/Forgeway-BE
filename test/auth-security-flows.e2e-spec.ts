@@ -13,7 +13,8 @@ import { AuthController } from '../src/modules/auth/controllers/auth.controller'
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { Otp, OtpDocument } from '../src/modules/auth/schemas/otp.schema';
 import { Token, TokenDocument } from '../src/modules/auth/schemas/token.schema';
-import { AuditLogService } from '../src/modules/auth/services/audit-log.service';
+import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
+import { InviteService } from '../src/modules/workspaces/services/invite.service';
 import { OtpService } from '../src/modules/auth/services/otp.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
@@ -464,6 +465,9 @@ describe('Auth security flows (integration)', () => {
       new PasswordService(),
       tokenService,
       verifyService,
+      {
+        processPostRegisterInvites: jest.fn().mockResolvedValue(undefined),
+      } as unknown as InviteService,
     );
 
     await authenticationService.register({

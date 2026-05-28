@@ -1,4 +1,4 @@
-﻿import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { TaskDocument } from '../../tasks/schemas/task.schema';
 import {
   CompleteSprintDto,
@@ -34,29 +34,6 @@ export class ScrumService {
     return this.sprintQueryService.findByWorkspace(workspaceId);
   }
 
-<<<<<<< HEAD
-  startSprint(
-    workspaceId: string,
-    sprintId: string,
-    dto: StartSprintDto,
-  ): Promise<SprintDocument> {
-    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
-  }
-
-  completeSprint(
-    workspaceId: string,
-    sprintId: string,
-    dto: CompleteSprintDto,
-  ): Promise<any> {
-    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
-  }
-
-  getBacklog(workspaceId: string, grouped = false): Promise<any> {
-    return this.backlogService.getBacklog(workspaceId, grouped);
-  }
-
-=======
->>>>>>> 94813d1497d0f391518df061fb8fb60227a9170c
   updateSprint(
     workspaceId: string,
     sprintId: string,
@@ -67,8 +44,6 @@ export class ScrumService {
 
   deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
     return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
-<<<<<<< HEAD
-=======
   }
 
   startSprint(
@@ -109,7 +84,6 @@ export class ScrumService {
     sprintId: string,
   ): Promise<unknown> {
     return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
->>>>>>> 94813d1497d0f391518df061fb8fb60227a9170c
   }
 
   moveTasksToSprint(

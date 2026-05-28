@@ -10,7 +10,7 @@ import { App } from 'supertest/types';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
 import { PasswordController } from '../src/modules/auth/controllers/password.controller';
 import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
-import { AuditLogService } from '../src/modules/auth/services/audit-log.service';
+import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { UsersService } from '../src/modules/users/services/users.service';

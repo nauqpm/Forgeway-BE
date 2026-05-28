@@ -329,21 +329,21 @@ export class TasksService {
       workspaceId,
     );
     await this.ensureCanMoveFromCurrentSprint(
-      task,
+      existing,
       normalizedUpdateDto,
       userRole,
     );
 
-    const task = await this.tasksRepository.updateInWorkspace(
+    const updatedTask = await this.tasksRepository.updateInWorkspace(
       taskId,
       workspaceId,
       this.transformerService.transformUpdateInput(normalizedUpdateDto),
     );
-    if (!task) {
+    if (!updatedTask) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    return this.taskMapper.mapToDto(updated);
+    return this.taskMapper.mapToDto(updatedTask);
   }
 
   private async ensureCanMoveFromCurrentSprint(
