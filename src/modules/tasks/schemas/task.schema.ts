@@ -25,6 +25,9 @@ export class Task {
   @Prop({ type: String, required: true, trim: true, maxlength: 100, index: true, default: 'todo' })
   status!: string;
 
+  @Prop({ type: String, trim: true, index: true })
+  rank?: string;
+
   @Prop({
     type: String,
     required: true,
@@ -93,6 +96,7 @@ TaskSchema.index({ workspaceId: 1, key: 1 }, { unique: true });
 TaskSchema.index({ workspaceId: 1, columnId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });
+TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1, rank: 1 });
 TaskSchema.index({ workspaceId: 1, assigneeId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, type: 1, priority: 1 });
 TaskSchema.index({ workspaceId: 1, isArchived: 1, isDeleted: 1, updatedAt: -1 });

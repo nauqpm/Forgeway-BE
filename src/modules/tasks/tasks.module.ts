@@ -10,11 +10,13 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TasksController } from './controllers/tasks.controller';
 import { TaskMapper } from './mappers/task.mapper';
+import { TaskMovePolicy } from './policies/task-move.policy';
 import { TasksRepository } from './repositories/tasks.repository';
 import { Task, TaskSchema } from './schemas/task.schema';
 import { TaskCreationValidationService } from './services/task-creation-validation.service';
 import { TaskDataTransformerService } from './services/task-data-transformer.service';
 import { TaskKeyService } from './services/task-key.service';
+import { TaskMoveService } from './services/task-move.service';
 import { TaskNormalizerService } from './services/task-normalizer.service';
 import { TasksService } from './services/tasks.service';
 
@@ -37,6 +39,8 @@ import { TasksService } from './services/tasks.service';
     TaskMapper,
     TaskKeyService,
     TaskCreationValidationService,
+    TaskMovePolicy,
+    TaskMoveService,
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksService,
@@ -46,6 +50,8 @@ import { TasksService } from './services/tasks.service';
     TasksService,
     TaskKeyService,
     TaskCreationValidationService,
+    TaskMovePolicy,
+    TaskMoveService,
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksRepository,
