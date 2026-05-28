@@ -95,14 +95,7 @@ export class TaskCreationValidationService {
 
   async validateSprint(sprintId: string, workspaceId: string): Promise<void> {
     this.validateObjectId(sprintId, 'Sprint');
-    const sprints = await this.scrumService.findByWorkspace(workspaceId);
-    const belongsToWorkspace = sprints.some(
-      (sprint) => sprint._id.toString() === sprintId,
-    );
-
-    if (!belongsToWorkspace) {
-      throw new BadRequestException('Sprint does not belong to this workspace');
-    }
+    await this.scrumService.ensureSprintAssignable(workspaceId, sprintId);
   }
 
   validateObjectId(id: string, resourceName: string): void {

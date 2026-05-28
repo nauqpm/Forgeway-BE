@@ -147,4 +147,14 @@ export class ScrumService {
   deleteByWorkspace(workspaceId: string): Promise<void> {
     return this.sprintCommandService.deleteByWorkspace(workspaceId);
   }
+
+  private validateObjectId(id: string, resourceName: string): void {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException(`Invalid ${resourceName} ID format`);
+    }
+  }
+
+  private toDate(value: string): Date {
+    return new Date(value);
+  }
 }

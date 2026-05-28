@@ -1,112 +1,76 @@
-import { IsString, IsOptional, IsEnum, IsArray, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePageDto {
-  @ApiProperty({ example: 'Getting Started Guide' })
+  @ApiProperty({
+    example: 'Getting Started Guide',
+    description: 'Page title. Max 255 characters.',
+  })
   @IsString()
   @MaxLength(255)
   title!: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Page body as raw HTML produced by TipTap `editor.getHTML()`. ' +
+      'Stored as-is; no server-side sanitization is applied.',
+    example: '<h1>Hello</h1><p>World</p>',
+  })
   @IsOptional()
   @IsString()
   content?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'MongoDB ObjectId of the owning workspace.',
+    example: '665f1a2b3c4d5e6f7a8b9c0d',
+  })
   @IsOptional()
   @IsString()
   workspaceId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'ObjectId of the parent page. Omit or set null for a root page.',
+    example: '665f1a2b3c4d5e6f7a8b9c0e',
+  })
   @IsOptional()
   @IsString()
   parentId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'URL-friendly slug. Only lowercase letters, digits, and hyphens. ' +
+      'Auto-generated from title if omitted.',
+    example: 'getting-started-guide',
+    pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+  })
   @IsOptional()
   @IsString()
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'slug must contain only lowercase letters, numbers, and hyphens',
+  })
   slug?: string;
 
-  @ApiPropertyOptional({ enum: ['draft', 'published'], default: 'draft' })
+  @ApiPropertyOptional({
+    enum: ['draft', 'published'],
+    default: 'draft',
+    description: 'Publication status.',
+  })
   @IsOptional()
   @IsEnum(['draft', 'published'])
   status?: string;
 
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  labels?: string[];
-}
-
-export class UpdatePageDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  title?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  content?: string;
-
-  @ApiPropertyOptional({ enum: ['draft', 'published'] })
-  @IsOptional()
-  @IsEnum(['draft', 'published'])
-  status?: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  labels?: string[];
-}
-
-export class FilterPageDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  workspaceId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  parentId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  authorId?: string;
-
-  @ApiPropertyOptional({ enum: ['draft', 'published'] })
-  @IsOptional()
-  @IsEnum(['draft', 'published'])
-  status?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  search?: string;
-
-  @ApiPropertyOptional({ default: 1 })
-  @IsOptional()
-  page?: number;
-
-  @ApiPropertyOptional({ default: 20 })
-  @IsOptional()
-  limit?: number;
-}
-
-export class MovePageDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  parentId?: string;
-}
-
-export class UpdateLabelsDto {
-  @ApiPropertyOptional({ type: [String] })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Arbitrary string labels / tags.',
+    example: ['onboarding', 'frontend'],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

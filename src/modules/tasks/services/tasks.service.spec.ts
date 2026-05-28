@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
+import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
@@ -21,6 +22,7 @@ describe('TasksService', () => {
   let normalizerService: jest.Mocked<TaskNormalizerService>;
   let transformerService: jest.Mocked<TaskDataTransformerService>;
   let keyService: jest.Mocked<TaskKeyService>;
+  let scrumService: jest.Mocked<ScrumService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -38,6 +40,8 @@ describe('TasksService', () => {
             findAll: jest.fn(),
             findByWorkspace: jest.fn(),
             findArchivedByWorkspace: jest.fn(),
+            findBacklogByWorkspace: jest.fn(),
+            findBySprintInWorkspace: jest.fn(),
             countByWorkspace: jest.fn(),
             update: jest.fn(),
             updateInWorkspace: jest.fn(),
@@ -86,6 +90,13 @@ describe('TasksService', () => {
             transformUpdateInput: jest.fn(),
           },
         },
+        {
+          provide: ScrumService,
+          useValue: {
+            getActiveSprint: jest.fn(),
+            findByIdInWorkspace: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -96,6 +107,7 @@ describe('TasksService', () => {
     validationService = module.get(TaskCreationValidationService);
     normalizerService = module.get(TaskNormalizerService);
     transformerService = module.get(TaskDataTransformerService);
+    scrumService = module.get(ScrumService);
   });
 
   it('creates a task by delegating validation, normalization and transformation', async () => {
@@ -227,6 +239,94 @@ describe('TasksService', () => {
       workspaceId,
     });
     expect(result).toEqual([{ key: 'TESKB-1', status: 'todo' }]);
+  });
+
+  it('finds Scrum backlog tasks by workspace key', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = {
+      _id: new Types.ObjectId(workspaceId),
+      key: 'SCRUM',
+      type: 'scrum',
+    };
+    const tasks = [{ key: 'SCRUM-1', sprintId: null }];
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findBacklogByWorkspace.mockResolvedValue(tasks as any);
+    mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-1' }] as any);
+
+    const result = await service.findBacklogByWorkspaceKey('SCRUM', userId);
+
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(repository.findBacklogByWorkspace).toHaveBeenCalledWith(workspaceId);
+    expect(result).toEqual([{ key: 'SCRUM-1' }]);
+  });
+
+  it('finds tasks for the active Scrum sprint board', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const sprintId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = {
+      _id: new Types.ObjectId(workspaceId),
+      key: 'SCRUM',
+      type: 'scrum',
+    };
+    const tasks = [{ key: 'SCRUM-2', sprintId }];
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    scrumService.getActiveSprint.mockResolvedValue({
+      _id: new Types.ObjectId(sprintId),
+      status: 'active',
+    } as any);
+    repository.findBySprintInWorkspace.mockResolvedValue(tasks as any);
+    mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-2' }] as any);
+
+    const result = await service.findActiveSprintBoardByWorkspaceKey('SCRUM', userId);
+
+    expect(scrumService.getActiveSprint).toHaveBeenCalledWith(workspaceId);
+    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      sprintId,
+    );
+    expect(result).toEqual([{ key: 'SCRUM-2' }]);
+  });
+
+  it('finds tasks by sprint in workspace key', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const sprintId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const workspace = {
+      _id: new Types.ObjectId(workspaceId),
+      key: 'SCRUM',
+      type: 'scrum',
+    };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    scrumService.findByIdInWorkspace.mockResolvedValue({
+      _id: new Types.ObjectId(sprintId),
+      status: 'planning',
+    } as any);
+    repository.findBySprintInWorkspace.mockResolvedValue([{ key: 'SCRUM-3' }] as any);
+    mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-3' }] as any);
+
+    const result = await service.findTasksBySprintInWorkspaceKey(
+      'SCRUM',
+      sprintId,
+      userId,
+    );
+
+    expect(scrumService.findByIdInWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      sprintId,
+    );
+    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      sprintId,
+    );
+    expect(result).toEqual([{ key: 'SCRUM-3' }]);
   });
 
   it('finds task by id', async () => {
@@ -396,6 +496,38 @@ describe('TasksService', () => {
       workspaceId,
       updateData,
     );
+  });
+
+  it('rejects sprint reassignment when task belongs to a completed sprint', async () => {
+    const taskId = new Types.ObjectId().toString();
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const currentSprintId = new Types.ObjectId().toString();
+    const nextSprintId = new Types.ObjectId().toString();
+    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'SCRUM' };
+    const existingTask = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      sprintId: new Types.ObjectId(currentSprintId),
+      isArchived: false,
+    };
+
+    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
+    scrumService.findByIdInWorkspace.mockResolvedValue({
+      _id: new Types.ObjectId(currentSprintId),
+      status: 'completed',
+    } as any);
+
+    await expect(
+      service.updateInWorkspaceKey(
+        'SCRUM',
+        taskId,
+        { sprintId: nextSprintId },
+        userId,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(repository.updateInWorkspace).not.toHaveBeenCalled();
   });
 
   it('archives a task by workspace key', async () => {

@@ -1,5 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class TaskUserSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiPropertyOptional()
+  fullName?: string;
+
+  @ApiPropertyOptional()
+  email?: string;
+
+  @ApiPropertyOptional()
+  avatar?: string;
+}
+
 export class TaskDto {
   @ApiProperty()
   id!: string;
@@ -35,6 +49,9 @@ export class TaskDto {
   priority!: string;
 
   @ApiPropertyOptional()
+  rank?: string;
+
+  @ApiPropertyOptional()
   assigneeId?: string;
 
   @ApiProperty()
@@ -54,6 +71,9 @@ export class TaskDto {
 
   @ApiPropertyOptional()
   archivedBy?: string;
+
+  @ApiPropertyOptional({ type: TaskUserSummaryDto })
+  archivedByUser?: TaskUserSummaryDto;
 
   @ApiProperty()
   isDeleted!: boolean;
