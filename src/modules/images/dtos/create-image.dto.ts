@@ -16,7 +16,4 @@ export class CreateImageDto {
   @IsString()
   targetId?: string;
 
-  @IsOptional()
-  @IsString()
-  thumbnailUrl?: string;
 }

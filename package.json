@@ -33,6 +33,7 @@
     "@nestjs/mongoose": "^11.0.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.11",
+    "@nestjs/serve-static": "^5.0.5",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.5.0",
     "@types/cookie-parser": "^1.4.10",
@@ -102,7 +103,12 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.json" }]
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

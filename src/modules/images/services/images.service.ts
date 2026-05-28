@@ -1,21 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { promises as fs } from 'fs';
-import { join } from 'path';
 import { Image, ImageDocument } from '../schemas/image.schema';
 import { CreateImageDto } from '../dtos/create-image.dto';
+import { IStorageProvider, STORAGE_PROVIDER } from '../providers';
 
 @Injectable()
 export class ImagesService {
   constructor(
     @InjectModel(Image.name) private imageModel: Model<ImageDocument>,
-  ) {}
+    @Inject(STORAGE_PROVIDER) private readonly storageProvider: IStorageProvider,
+  ) { }
 
   async create(dto: CreateImageDto, file: Express.Multer.File, userId: string): Promise<ImageDocument> {
     if (!file) {
       throw new BadRequestException('File is required');
     }
+
+    const uploadResult = await this.storageProvider.upload(file);
 
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
@@ -23,8 +25,9 @@ export class ImagesService {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      url: `/uploads/${file.filename}`,
-      thumbnailUrl: dto.thumbnailUrl,
+      url: uploadResult.url,
+      storageKey: uploadResult.storageKey,
+      storageProvider: this.storageProvider.name,
       type: dto.type || 'other',
       targetId: dto.targetId,
       downloadCount: 0,
@@ -42,21 +45,26 @@ export class ImagesService {
       throw new BadRequestException('Files are required');
     }
 
-    const images = files.map((file, index) => {
-      const dto = dtos[index] || {};
-      return new this.imageModel({
-        uploadedBy: new Types.ObjectId(userId),
-        filename: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        url: `/uploads/${file.filename}`,
-        thumbnailUrl: dto.thumbnailUrl,
-        type: dto.type || 'other',
-        targetId: dto.targetId,
-        downloadCount: 0,
-      });
-    });
+    const images = await Promise.all(
+      files.map(async (file, index) => {
+        const dto = dtos[index] || {};
+        const uploadResult = await this.storageProvider.upload(file);
+
+        return new this.imageModel({
+          uploadedBy: new Types.ObjectId(userId),
+          filename: file.filename,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          url: uploadResult.url,
+          storageKey: uploadResult.storageKey,
+          storageProvider: this.storageProvider.name,
+          type: dto.type || 'other',
+          targetId: dto.targetId,
+          downloadCount: 0,
+        });
+      }),
+    );
 
     return this.imageModel.insertMany(images);
   }
@@ -117,12 +125,9 @@ export class ImagesService {
   async delete(id: string): Promise<{ success: boolean; message: string }> {
     const image = await this.findById(id);
 
-    const filePath = join(process.cwd(), 'uploads', image.filename);
-    try {
-      await fs.unlink(filePath);
-    } catch (error) {
-      console.warn(`File not found on disk: ${filePath}`);
-    }
+    // Use storageKey if available, fall back to filename for backward compat
+    const key = image.storageKey || image.filename;
+    await this.storageProvider.delete(key);
 
     await this.imageModel.findByIdAndDelete(id).exec();
 

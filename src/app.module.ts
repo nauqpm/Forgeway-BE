@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { join } from 'path';
@@ -46,6 +47,11 @@ import { LoggerMiddleware } from './common/middlewares/logger.middleware';
       validate: validateEnv,
     }),
 
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), './uploads'),
+      serveRoot: '/uploads'
+    }),
+
     // Default rate limiting applies to every endpoint unless a route explicitly opts out.
     // Sensitive auth endpoints override this with tighter method-level @Throttle settings.
     ThrottlerModule.forRootAsync({
@@ -59,20 +65,6 @@ import { LoggerMiddleware } from './common/middlewares/logger.middleware';
             limit: cfg.get<number>('THROTTLE_DEFAULT_LIMIT') ?? 120,
           },
         ],
-      }),
-    }),
-
-    MulterModule.register({
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(
-            null,
-            `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
-          );
-        },
       }),
     }),
 

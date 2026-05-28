@@ -14,8 +14,6 @@ import {
   Request,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -28,27 +26,15 @@ const imageFileFilter = (req: any, file: Express.Multer.File, callback: Function
   callback(null, true);
 };
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    const originalName = file.originalname.replace(/\.[^/.]+$/, '');
-    const safeName = originalName.replace(/[^a-zA-Z0-9-_]/g, '_');
-    cb(null, `${safeName}-${uniqueSuffix}${ext}`);
-  },
-});
-
 @ApiTags('Images')
-@Controller('imagesapi')
+@Controller('images')
 export class ImagesController {
-  constructor(private readonly imagesService: ImagesService) {}
+  constructor(private readonly imagesService: ImagesService) { }
 
   @Post('upload')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage,
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: imageFileFilter,
     }),
@@ -97,7 +83,6 @@ export class ImagesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
-      storage,
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: imageFileFilter,
     }),

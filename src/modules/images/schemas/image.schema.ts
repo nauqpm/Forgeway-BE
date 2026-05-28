@@ -35,6 +35,14 @@ export class Image {
   @Prop({ default: 0 })
   downloadCount!: number;
 
+  /** Provider-specific file identifier (local: filename, S3: object key) */
+  @Prop()
+  storageKey?: string;
+
+  /** Which storage backend holds this file */
+  @Prop({ type: String, enum: ['local', 's3', 'cloudinary'], default: 'local' })
+  storageProvider!: string;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
