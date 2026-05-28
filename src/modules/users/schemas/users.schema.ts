@@ -64,7 +64,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // ✅ Tự động ánh xạ _id thành id trong phản hồi JSON
 UserSchema.set('toJSON', {
   virtuals: true,
-  transform: (_, ret) => {
+  transform: (_, ret: any) => {
     ret.id = ret._id.toString();
     delete ret._id;
     delete ret.__v;

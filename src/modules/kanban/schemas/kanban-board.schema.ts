@@ -19,6 +19,9 @@ export class BoardColumn {
 
   @Prop({ type: [String], default: [] })
   mappedStatuses!: string[];
+
+  @Prop({ type: Boolean, default: false })
+  isDone!: boolean;
 }
 
 @Schema({ timestamps: true })
