@@ -136,17 +136,7 @@ export class PagesService {
    * use findByWorkspaceId instead
    */
   async findByWorkspaceKey(workspaceKey: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding pages for workspace: ${workspaceKey}`);
-
-    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
-    if (!workspace) {
-      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
-    }
-
-    return this.pageModel
-      .find({ workspaceId: new Types.ObjectId(workspace._id) })
-      .sort({ title: 1 })
-      .exec();
+    return this.findByWorkspaceId(workspaceKey);
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<PageDocument[]> {

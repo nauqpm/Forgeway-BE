@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -44,10 +45,7 @@ export const ScopedRoleGuard = (
       let resourceId =
         request.params?.id ||
         routeWorkspaceId ||
-        request.params?.workspaceKey ||
-        request.params?.key ||
-        request.body?.workspaceId ||
-        request.body?.workspaceKey;
+        request.body?.workspaceId;
 
 
       if (!resourceId) {
@@ -71,12 +69,11 @@ export const ScopedRoleGuard = (
         if (!page) throw new NotFoundException('Page not found');
         targetWorkspaceId = page.workspaceId.toString();
       } else if (resourceType === 'workspace') {
-        // resourceId in this case is either ID or Key. 
-        // We need to resolve it to get the real workspace object.
         try {
-          const workspace = Types.ObjectId.isValid(resourceId)
-            ? await workspacesService.findById(resourceId)
-            : await workspacesService.findByKey(resourceId);
+          if (!Types.ObjectId.isValid(resourceId)) {
+            throw new BadRequestException('workspaceId must be a valid MongoDB ObjectId');
+          }
+          const workspace = await workspacesService.findById(resourceId);
 
           targetWorkspaceId = workspace._id.toString();
         } catch (error) {

@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 import { ModuleRef, Reflector } from '@nestjs/core';
@@ -127,18 +128,8 @@ export class WorkspaceRoleGuard implements CanActivate {
       return directWorkspaceId;
     }
 
-    const workspaceKey =
-      directWorkspaceId ??
-      this.getStringValue(request.params?.workspaceKey) ??
-      this.getStringValue(request.params?.key) ??
-      this.getStringValue(request.query?.workspaceKey) ??
-      this.getStringValue(request.query?.key) ??
-      this.getStringValue(request.body?.workspaceKey) ??
-      this.getStringValue(request.body?.key);
-
-    if (workspaceKey) {
-      const workspace = await this.getWorkspacesService().findByKey(workspaceKey);
-      return workspace._id.toString();
+    if (directWorkspaceId) {
+      throw new BadRequestException('workspaceId must be a valid MongoDB ObjectId');
     }
 
     const pageId =

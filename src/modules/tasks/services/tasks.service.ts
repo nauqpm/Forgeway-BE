@@ -67,7 +67,7 @@ export class TasksService {
     createTaskDto: CreateTaskDto,
     userId: string,
   ): Promise<TaskDto> {
-    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     return this.createInWorkspaceId(workspace._id.toString(), createTaskDto, userId);
   }
 
@@ -123,7 +123,7 @@ export class TasksService {
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskDto[]> {
-    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     return this.findByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
   }
 
@@ -153,7 +153,7 @@ export class TasksService {
     workspaceKey: string,
     currentUserId: string,
   ): Promise<TaskDto[]> {
-    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     return this.findArchivedByWorkspaceId(workspace._id.toString(), currentUserId);
   }
 
@@ -789,7 +789,7 @@ export class TasksService {
     workspaceKey: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 

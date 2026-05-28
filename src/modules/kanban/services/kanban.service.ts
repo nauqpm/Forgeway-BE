@@ -65,16 +65,7 @@ export class KanbanService {
   }
 
   public async findOrCreateByWorkspaceKey(workspaceKey: string): Promise<BoardDocument> {
-    if (!workspaceKey) {
-      throw new BadRequestException('workspaceKey is required');
-    }
-
-    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
-    if (!workspace) {
-      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
-    }
-
-    return this.findOrCreateByWorkspaceId(workspace._id.toString());
+    return this.findOrCreateByWorkspaceId(workspaceKey);
   }
 
   public async findOrCreateByWorkspaceId(workspaceId: string): Promise<BoardDocument> {
@@ -107,16 +98,7 @@ export class KanbanService {
   }
 
   public async findByWorkspaceKey(workspaceKey: string): Promise<BoardDocument[]> {
-    if (!workspaceKey) {
-      throw new BadRequestException('workspaceKey is required');
-    }
-
-    const workspace = await this.workspaceModel.findOne({ key: workspaceKey }).exec();
-    if (!workspace) {
-      throw new NotFoundException(`Workspace with key ${workspaceKey} not found`);
-    }
-
-    return this.findByWorkspaceId(workspace._id.toString());
+    return this.findByWorkspaceId(workspaceKey);
   }
 
   public async findByWorkspaceId(workspaceId: string): Promise<BoardDocument[]> {

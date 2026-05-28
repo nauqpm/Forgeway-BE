@@ -449,7 +449,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const result = await this.taskMoveService.moveInWorkspaceKey(
+      const result = await this.taskMoveService.moveInWorkspaceId(
         workspaceId,
         id,
         moveTaskDto,

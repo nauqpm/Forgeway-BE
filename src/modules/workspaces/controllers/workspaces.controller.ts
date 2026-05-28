@@ -39,12 +39,12 @@ export class WorkspacesController {
     return this.workspacesService.findByUserId(req.user.userId);
   }
 
-  @Get(':key')
+  @Get(':workspaceId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Lấy workspace theo ID' })
   @ApiResponse({ status: 200, description: 'Thông tin workspace', schema: { example: { _id: '...', name: 'My Workspace', members: [] } } })
-  async findOne(@Param('key') key: string) {
-    const workspace = await this.workspacesService.findByKey(key);
+  async findOne(@Param('workspaceId') workspaceId: string) {
+    const workspace = await this.workspacesService.findById(workspaceId);
     return workspace;
   }
 
@@ -128,11 +128,11 @@ export class WorkspacesController {
     await this.workspacesService.removeMember(workspaceId, userId);
   }
 
-  @Post(':key/restore')
+  @Post(':workspaceId/restore')
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiOperation({ summary: 'Restore soft-deleted workspace (super_admin only)' })
-  async restore(@Param('key') key: string) {
-    return this.workspacesService.restore(key);
+  async restore(@Param('workspaceId') workspaceId: string) {
+    return this.workspacesService.restore(workspaceId);
   }
 }

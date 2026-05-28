@@ -44,16 +44,8 @@ export class WorkspacesRepository {
     return this.workspaceModel.findOne({ slug }).exec();
   }
 
-  async findByKey(key: string): Promise<WorkspaceDocument | null> {
-    return this.workspaceModel.findOne({ key, deletedAt: null }).exec();
-  }
-
   async findAnyByKey(key: string): Promise<WorkspaceDocument | null> {
     return this.workspaceModel.findOne({ key }).exec();
-  }
-
-  async findByKeyForRestore(key: string): Promise<WorkspaceDocument | null> {
-    return this.workspaceModel.findOne({ key, deletedAt: { $ne: null } }).exec();
   }
 
   async findByUserId(userId: string): Promise<WorkspaceDocument[]> {

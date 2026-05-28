@@ -56,7 +56,7 @@ export class TaskActivitiesService {
     taskId: string,
     userId: string,
   ): Promise<TaskActivityDto[]> {
-    const workspace = await this.workspacesService.findByKey(workspaceKey);
+    const workspace = await this.workspacesService.findById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.assertWorkspaceMember(workspaceId, userId);
 

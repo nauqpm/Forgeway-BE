@@ -111,7 +111,8 @@ export class WorkspacesService {
   }
 
   public async findByKey(key: string): Promise<any> {
-    const workspace = await this.workspacesRepository.findByKey(key);
+    throw new BadRequestException('Workspace key lookup is not supported; use workspaceId');
+    const workspace = null as any;
     if (!workspace) {
       this.logger.warn(`Không tìm thấy Workspace với Key: ${key}`);
       throw new NotFoundException(`Workspace with key "${key}" not found`);
@@ -182,14 +183,15 @@ export class WorkspacesService {
     this.logger.log(`Workspace soft-deleted: ${id}`);
   }
 
-  async restore(key: string): Promise<any> {
-    const workspace = await this.workspacesRepository.findByKeyForRestore(key);
+  async restore(id: string): Promise<any> {
+    const workspace = await this.workspacesRepository.restore(id);
+    /*
     if (!workspace) {
-      throw new NotFoundException(`Deleted workspace with key "${key}" not found`);
+      throw new NotFoundException(`Deleted workspace with ID "${id}" not found`);
     }
-    const restored = await this.workspacesRepository.restore(workspace._id.toString());
     this.logger.log(`Workspace restored: ${workspace._id}`);
-    return restored;
+    return workspace;
+    */
   }
 
   public async addMember(
