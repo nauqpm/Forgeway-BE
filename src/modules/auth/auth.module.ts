@@ -36,7 +36,7 @@ import { AuditModule } from '../audit/audit.module';
     forwardRef(() => VerifyModule),
     forwardRef(() => PermissionsModule),
     forwardRef(() => WorkspacesModule),
-    AuditModule,
+    forwardRef(() => AuditModule),
     TokenModule,
     PassportModule,
     JwtModule.registerAsync({
