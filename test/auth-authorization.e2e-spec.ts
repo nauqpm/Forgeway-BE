@@ -12,6 +12,7 @@ import { UserManagementController } from '../src/modules/auth/controllers/user-m
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/modules/auth/guards/roles.guard';
 import { TokenService } from '../src/modules/auth/services/token.service';
+import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { UsersService } from '../src/modules/users/services/users.service';
 
 describe('Auth user-management authorization (e2e)', () => {
@@ -45,6 +46,12 @@ describe('Auth user-management authorization (e2e)', () => {
         JwtAuthGuard,
         RolesGuard,
         Reflector,
+        {
+          provide: AuditLogService,
+          useValue: {
+            logRequest: jest.fn(),
+          },
+        },
         {
           provide: JwtService,
           useValue: {
