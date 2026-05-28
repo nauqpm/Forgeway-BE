@@ -1,0 +1,378 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
+import {
+  TASK_ACTIVITY_TYPES,
+  TaskActivityType,
+} from '../constants/task-activity.constants';
+import { TaskActivityDto } from '../dtos/task-activity.dto';
+import { TaskActivityMapper } from '../mappers/task-activity.mapper';
+import {
+  CreateTaskActivityData,
+  TaskActivitiesRepository,
+} from '../repositories/task-activities.repository';
+
+interface TaskActivityRecordInput {
+  workspaceId: string;
+  taskId: string;
+  taskKey: string;
+  actorId: string;
+  type: TaskActivityType;
+  metadata?: Record<string, unknown>;
+}
+
+interface TaskSnapshot {
+  id: string;
+  workspaceId: string;
+  key: string;
+  title?: string;
+  description?: string;
+  type?: string;
+  priority?: string;
+  status?: string;
+  columnId?: string;
+  sprintId?: string;
+  assigneeId?: string;
+  storyPoints?: number;
+  dueDate?: string;
+  rank?: string;
+}
+
+@Injectable()
+export class TaskActivitiesService {
+  private readonly logger = new Logger(TaskActivitiesService.name);
+
+  constructor(
+    private readonly taskActivitiesRepository: TaskActivitiesRepository,
+    private readonly taskActivityMapper: TaskActivityMapper,
+    private readonly workspacesService: WorkspacesService,
+    @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+  ) {}
+
+  async findByTaskInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskActivityDto[]> {
+    const workspace = await this.workspacesService.findByKey(workspaceKey);
+    const workspaceId = workspace._id.toString();
+    await this.assertWorkspaceMember(workspaceId, userId);
+
+    const task = await this.findTaskInWorkspace(workspaceId, taskId);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    const activities =
+      await this.taskActivitiesRepository.findByTaskInWorkspace(
+        workspaceId,
+        taskId,
+      );
+
+    return this.taskActivityMapper.mapToDtos(activities);
+  }
+
+  async recordTaskCreated(task: unknown, actorId: string): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.TASK_CREATED,
+      metadata: {
+        type: snapshot.type,
+        priority: snapshot.priority,
+        status: snapshot.status,
+        columnId: snapshot.columnId,
+        sprintId: snapshot.sprintId ?? null,
+        assigneeId: snapshot.assigneeId ?? null,
+      },
+    });
+  }
+
+  async recordTaskUpdated(
+    beforeTask: unknown,
+    afterTask: unknown,
+    actorId: string,
+  ): Promise<void> {
+    const before = this.createSnapshot(beforeTask);
+    const after = this.createSnapshot(afterTask);
+    if (!before || !after) {
+      return;
+    }
+
+    const changes: Array<{
+      field: keyof TaskSnapshot;
+      type: TaskActivityType;
+      sensitive?: boolean;
+    }> = [
+      { field: 'title', type: TASK_ACTIVITY_TYPES.TITLE_CHANGED },
+      {
+        field: 'description',
+        type: TASK_ACTIVITY_TYPES.DESCRIPTION_CHANGED,
+        sensitive: true,
+      },
+      { field: 'type', type: TASK_ACTIVITY_TYPES.TYPE_CHANGED },
+      { field: 'priority', type: TASK_ACTIVITY_TYPES.PRIORITY_CHANGED },
+      { field: 'assigneeId', type: TASK_ACTIVITY_TYPES.ASSIGNEE_CHANGED },
+      { field: 'storyPoints', type: TASK_ACTIVITY_TYPES.STORY_POINTS_CHANGED },
+      { field: 'dueDate', type: TASK_ACTIVITY_TYPES.DUE_DATE_CHANGED },
+    ];
+
+    await Promise.all(
+      changes.map(({ field, type, sensitive }) =>
+        this.recordFieldChange(before, after, actorId, field, type, sensitive),
+      ),
+    );
+  }
+
+  async recordTaskMoved(
+    beforeTask: unknown,
+    afterTask: unknown,
+    actorId: string,
+  ): Promise<void> {
+    const before = this.createSnapshot(beforeTask);
+    const after = this.createSnapshot(afterTask);
+    if (!before || !after) {
+      return;
+    }
+
+    await Promise.all([
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'columnId',
+        TASK_ACTIVITY_TYPES.COLUMN_CHANGED,
+      ),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'status',
+        TASK_ACTIVITY_TYPES.STATUS_CHANGED,
+      ),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'sprintId',
+        TASK_ACTIVITY_TYPES.SPRINT_CHANGED,
+      ),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'rank',
+        TASK_ACTIVITY_TYPES.RANK_CHANGED,
+      ),
+    ]);
+  }
+
+  async recordTaskArchived(task: unknown, actorId: string): Promise<void> {
+    await this.recordLifecycleActivity(
+      task,
+      actorId,
+      TASK_ACTIVITY_TYPES.TASK_ARCHIVED,
+    );
+  }
+
+  async recordTaskRestored(task: unknown, actorId: string): Promise<void> {
+    await this.recordLifecycleActivity(
+      task,
+      actorId,
+      TASK_ACTIVITY_TYPES.TASK_RESTORED,
+    );
+  }
+
+  async recordTaskPermanentlyDeleted(
+    task: unknown,
+    actorId: string,
+  ): Promise<void> {
+    await this.recordLifecycleActivity(
+      task,
+      actorId,
+      TASK_ACTIVITY_TYPES.TASK_PERMANENTLY_DELETED,
+    );
+  }
+
+  private async recordFieldChange(
+    before: TaskSnapshot,
+    after: TaskSnapshot,
+    actorId: string,
+    field: keyof TaskSnapshot,
+    type: TaskActivityType,
+    sensitive = false,
+  ): Promise<void> {
+    const from = before[field] ?? null;
+    const to = after[field] ?? null;
+    if (from === to) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: after.workspaceId,
+      taskId: after.id,
+      taskKey: after.key,
+      actorId,
+      type,
+      metadata: sensitive
+        ? { field, changed: true }
+        : { field, from, to },
+    });
+  }
+
+  private async recordLifecycleActivity(
+    task: unknown,
+    actorId: string,
+    type: TaskActivityType,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type,
+      metadata: {},
+    });
+  }
+
+  private async recordSafely(input: TaskActivityRecordInput): Promise<void> {
+    try {
+      await this.record(input);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(
+        `Failed to record task activity ${input.type} for ${input.taskKey}: ${reason}`,
+      );
+    }
+  }
+
+  private async record(input: TaskActivityRecordInput): Promise<void> {
+    if (
+      !Types.ObjectId.isValid(input.workspaceId) ||
+      !Types.ObjectId.isValid(input.taskId) ||
+      !Types.ObjectId.isValid(input.actorId)
+    ) {
+      return;
+    }
+
+    const data: CreateTaskActivityData = {
+      workspaceId: input.workspaceId,
+      taskId: input.taskId,
+      taskKey: input.taskKey,
+      actorId: input.actorId,
+      type: input.type,
+      metadata: input.metadata || {},
+    };
+
+    await this.taskActivitiesRepository.create(data);
+  }
+
+  private createSnapshot(task: unknown): TaskSnapshot | undefined {
+    if (!task) {
+      return undefined;
+    }
+
+    const value =
+      typeof (task as { toObject?: () => unknown }).toObject === 'function'
+        ? (task as { toObject: () => unknown }).toObject()
+        : task;
+    const plain = value as Record<string, unknown>;
+    const id = this.toId(plain._id || plain.id);
+    const workspaceId = this.toId(plain.workspaceId);
+    const key = String(plain.key || '');
+
+    if (!id || !workspaceId || !key) {
+      return undefined;
+    }
+
+    return {
+      id,
+      workspaceId,
+      key,
+      title: this.toOptionalString(plain.title),
+      description: this.toOptionalString(plain.description),
+      type: this.toOptionalString(plain.type),
+      priority: this.toOptionalString(plain.priority),
+      status: this.toOptionalString(plain.status),
+      columnId: this.toOptionalString(plain.columnId),
+      sprintId: this.toOptionalId(plain.sprintId),
+      assigneeId: this.toOptionalId(plain.assigneeId),
+      storyPoints:
+        typeof plain.storyPoints === 'number' ? plain.storyPoints : undefined,
+      dueDate: this.toOptionalDateString(plain.dueDate),
+      rank: this.toOptionalString(plain.rank),
+    };
+  }
+
+  private async assertWorkspaceMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    if (!isMember) {
+      throw new NotFoundException(`Task not found`);
+    }
+  }
+
+  private async findTaskInWorkspace(
+    workspaceId: string,
+    taskId: string,
+  ): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+      return null;
+    }
+
+    return this.taskModel
+      .findOne({
+        _id: new Types.ObjectId(taskId),
+        workspaceId: new Types.ObjectId(workspaceId),
+        isDeleted: { $ne: true },
+      })
+      .exec();
+  }
+
+  private toId(value: unknown): string {
+    if (!value) {
+      return '';
+    }
+    if (typeof value === 'object' && '_id' in value) {
+      return String((value as { _id: unknown })._id);
+    }
+    return String(value);
+  }
+
+  private toOptionalId(value: unknown): string | undefined {
+    const id = this.toId(value);
+    return id || undefined;
+  }
+
+  private toOptionalString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  private toOptionalDateString(value: unknown): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    return String(value);
+  }
+}

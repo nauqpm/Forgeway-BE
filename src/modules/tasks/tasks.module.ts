@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { KanbanModule } from '../kanban/kanban.module';
 import { ScrumModule } from '../scrum/scrum.module';
+import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TasksController } from './controllers/tasks.controller';
@@ -27,6 +28,7 @@ import { TasksService } from './services/tasks.service';
     forwardRef(() => KanbanModule),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
+    TaskActivitiesModule,
     AuditModule,
   ],
   controllers: [TasksController],

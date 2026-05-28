@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
+import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { MoveTaskDto } from '../dtos/requests/move-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
@@ -37,6 +38,7 @@ export class TaskMoveService {
     private readonly scrumService: ScrumService,
     private readonly taskMovePolicy: TaskMovePolicy,
     private readonly taskMapper: TaskMapper,
+    private readonly taskActivitiesService: TaskActivitiesService,
   ) {}
 
   async moveInWorkspaceKey(
@@ -91,6 +93,8 @@ export class TaskMoveService {
     if (!movedTask) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
+
+    await this.taskActivitiesService.recordTaskMoved(task, movedTask, userId);
 
     return {
       task: this.taskMapper.mapToDto(movedTask),

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
+import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import {
   CreateTaskDto,
   FilterTaskDto,
@@ -30,6 +31,7 @@ export class TasksService {
     private readonly normalizerService: TaskNormalizerService,
     private readonly transformerService: TaskDataTransformerService,
     private readonly scrumService: ScrumService,
+    private readonly taskActivitiesService: TaskActivitiesService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
@@ -53,6 +55,7 @@ export class TasksService {
     );
 
     const task = await this.tasksRepository.create(taskData);
+    await this.taskActivitiesService.recordTaskCreated(task, userId);
     this.logger.log(`Task created: ${key} in workspace ${workspaceId}`);
     return this.taskMapper.mapToDto(task);
   }
@@ -334,6 +337,12 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
+    await this.taskActivitiesService.recordTaskUpdated(
+      existing,
+      task,
+      userId,
+    );
+
     return this.taskMapper.mapToDto(task);
   }
 
@@ -360,6 +369,8 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
+    await this.taskActivitiesService.recordTaskArchived(archived, userId);
+
     return this.taskMapper.mapToDto(archived);
   }
 
@@ -378,6 +389,8 @@ export class TasksService {
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
     }
+
+    await this.taskActivitiesService.recordTaskRestored(restored, userId);
 
     return this.taskMapper.mapToDto(restored);
   }
@@ -406,6 +419,11 @@ export class TasksService {
     if (!deleted) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
+
+    await this.taskActivitiesService.recordTaskPermanentlyDeleted(
+      deleted,
+      userId,
+    );
 
     return this.taskMapper.mapToDto(deleted);
   }
