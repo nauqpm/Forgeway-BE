@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
+import { ClientSession, FilterQuery, Model, Types } from 'mongoose';
 import { FilterTaskDto } from '../dtos/requests/create-task.dto';
 import { Task, TaskDocument } from '../schemas/task.schema';
 import { isTaskKey, normalizeTaskKey } from '../utils/task-key.util';
@@ -8,6 +8,13 @@ import { isTaskKey, normalizeTaskKey } from '../utils/task-key.util';
 interface TaskLookupOptions {
   includeArchived?: boolean;
   includeDeleted?: boolean;
+}
+
+interface MoveTaskData {
+  columnId?: string;
+  status?: string;
+  sprintId?: string | null;
+  rank?: string;
 }
 
 @Injectable()
@@ -234,6 +241,55 @@ export class TasksRepository {
         {
           new: true,
           runValidators: true,
+        },
+      ),
+    ).exec();
+  }
+
+  async moveTaskInWorkspace(
+    id: string,
+    workspaceId: string,
+    data: MoveTaskData,
+    session?: ClientSession,
+  ): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId)) {
+      return null;
+    }
+
+    const update: Record<string, Record<string, unknown>> = {};
+
+    if (data.columnId !== undefined) {
+      update.$set = { ...update.$set, columnId: data.columnId };
+    }
+    if (data.status !== undefined) {
+      update.$set = { ...update.$set, status: data.status };
+    }
+    if (data.rank !== undefined) {
+      update.$set = { ...update.$set, rank: data.rank };
+    }
+    if (data.sprintId !== undefined) {
+      if (data.sprintId === null) {
+        update.$unset = { ...update.$unset, sprintId: 1 };
+      } else {
+        update.$set = {
+          ...update.$set,
+          sprintId: new Types.ObjectId(data.sprintId),
+        };
+      }
+    }
+
+    return this.withRelations(
+      this.taskModel.findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(id),
+          workspaceId: new Types.ObjectId(workspaceId),
+          ...this.buildVisibilityFilter(),
+        },
+        update,
+        {
+          new: true,
+          runValidators: true,
+          session,
         },
       ),
     ).exec();

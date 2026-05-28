@@ -35,6 +35,9 @@ export class TaskDto {
   priority!: string;
 
   @ApiPropertyOptional()
+  rank?: string;
+
+  @ApiPropertyOptional()
   assigneeId?: string;
 
   @ApiProperty()

@@ -24,6 +24,7 @@ export class TaskMapper {
       type: plainTask.type,
       status: plainTask.status || plainTask.columnId || 'todo',
       priority: plainTask.priority,
+      rank: plainTask.rank,
       assigneeId: this.toOptionalId(plainTask.assigneeId),
       reporterId: this.toId(plainTask.reporterId),
       storyPoints: plainTask.storyPoints,
