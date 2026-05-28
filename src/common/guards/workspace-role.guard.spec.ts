@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Types } from 'mongoose';
 import { SPACE_ROLES } from '../constants/space-role.constants';
@@ -94,6 +94,20 @@ describe('WorkspaceRoleGuard', () => {
     expect((request as any).workspaceAuth.permissions).toContain(
       WORKSPACE_PERMISSIONS.TASK_MOVE,
     );
+  });
+
+  it('rejects key strings passed to id-only workspaceId params', async () => {
+    const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);
+    const request = {
+      params: { workspaceId: 'ALTASK' },
+      user: { userId: memberId.toString(), role: 'user' },
+    };
+
+    await expect(guard.canActivate(makeContext(request))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(workspacesService.findByKey).not.toHaveBeenCalled();
+    expect(workspacesService.findById).not.toHaveBeenCalled();
   });
 
   it('rejects a viewer when the role does not grant the required permission', async () => {

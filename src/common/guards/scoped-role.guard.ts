@@ -36,9 +36,14 @@ export const ScopedRoleGuard = (
         return true;
       }
 
+      const routeWorkspaceId = request.params?.workspaceId;
+      if (resourceType === 'workspace' && routeWorkspaceId && !Types.ObjectId.isValid(routeWorkspaceId)) {
+        throw new NotFoundException('Workspace not found');
+      }
+
       let resourceId =
         request.params?.id ||
-        request.params?.workspaceId ||
+        routeWorkspaceId ||
         request.params?.workspaceKey ||
         request.params?.key ||
         request.body?.workspaceId ||

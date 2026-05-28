@@ -110,8 +110,16 @@ export class WorkspaceRoleGuard implements CanActivate {
   private async resolveWorkspaceId(
     request: RequestWithWorkspaceAuth,
   ): Promise<string> {
+    const routeWorkspaceId = this.getStringValue(request.params?.workspaceId);
+    if (routeWorkspaceId) {
+      if (Types.ObjectId.isValid(routeWorkspaceId)) {
+        return routeWorkspaceId;
+      }
+
+      throw new NotFoundException('Workspace context not found');
+    }
+
     const directWorkspaceId =
-      this.getStringValue(request.params?.workspaceId) ??
       this.getStringValue(request.query?.workspaceId) ??
       this.getStringValue(request.body?.workspaceId);
 
