@@ -99,6 +99,42 @@ export class TasksRepository {
     return this.findByKeyInWorkspace(key, workspaceId, options);
   }
 
+  async findDetailByIdInWorkspace(
+    taskId: string,
+    workspaceId: string,
+    options: TaskLookupOptions = { includeArchived: true },
+  ): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
+      return null;
+    }
+
+    return this.withRelations(
+      this.taskModel.findOne({
+        _id: new Types.ObjectId(taskId),
+        workspaceId: new Types.ObjectId(workspaceId),
+        ...this.buildVisibilityFilter(options),
+      }),
+    ).exec();
+  }
+
+  async findDetailByKeyInWorkspace(
+    taskKey: string,
+    workspaceId: string,
+    options: TaskLookupOptions = { includeArchived: true },
+  ): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      return null;
+    }
+
+    return this.withRelations(
+      this.taskModel.findOne({
+        key: normalizeTaskKey(taskKey),
+        workspaceId: new Types.ObjectId(workspaceId),
+        ...this.buildVisibilityFilter(options),
+      }),
+    ).exec();
+  }
+
   async findAll(filterDto: FilterTaskDto): Promise<{
     tasks: TaskDocument[];
     total: number;

@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { TaskDocument } from '../schemas/task.schema';
 import { TaskDto, TaskUserSummaryDto } from '../dtos/responses/task.dto';
+import {
+  BoardSummaryDto,
+  SprintSummaryDto,
+  TaskDetailDto,
+} from '../dtos/responses/task-detail.dto';
 
 @Injectable()
 export class TaskMapper {
@@ -45,6 +50,41 @@ export class TaskMapper {
     return tasks.map((task) => this.mapToDto(task));
   }
 
+  mapToDetailDto(task: TaskDocument | any): TaskDetailDto {
+    const plainTask =
+      typeof task?.toObject === 'function' ? task.toObject() : task;
+
+    return {
+      id: this.toId(plainTask._id || plainTask.id),
+      workspaceId: this.toId(plainTask.workspaceId),
+      key: plainTask.key,
+      title: plainTask.title,
+      description: plainTask.description || '',
+      type: plainTask.type,
+      priority: plainTask.priority,
+      status: plainTask.status || plainTask.columnId || 'todo',
+      columnId: plainTask.columnId,
+      rank: plainTask.rank,
+      sprintId: this.toOptionalId(plainTask.sprintId),
+      sprint: this.mapSprintSummary(plainTask.sprintId),
+      boardId: this.toOptionalId(plainTask.boardId),
+      board: this.mapBoardSummary(plainTask.boardId),
+      assigneeId: this.toOptionalId(plainTask.assigneeId),
+      assignee: this.mapUserSummary(plainTask.assigneeId),
+      reporterId: this.toId(plainTask.reporterId),
+      reporter: this.mapUserSummary(plainTask.reporterId),
+      archivedBy: this.toOptionalId(plainTask.archivedBy),
+      archivedByUser: this.mapUserSummary(plainTask.archivedBy),
+      storyPoints: plainTask.storyPoints,
+      dueDate: plainTask.dueDate,
+      isArchived: plainTask.isArchived || false,
+      archivedAt: plainTask.archivedAt,
+      isDeleted: plainTask.isDeleted || false,
+      createdAt: plainTask.createdAt,
+      updatedAt: plainTask.updatedAt,
+    };
+  }
+
   private toId(value: any): string {
     if (!value) {
       return '';
@@ -72,6 +112,30 @@ export class TaskMapper {
       fullName: value.fullName,
       email: value.email,
       avatar: value.avatar,
+    };
+  }
+
+  private mapSprintSummary(value: any): SprintSummaryDto | undefined {
+    if (!value || !value._id) {
+      return undefined;
+    }
+
+    return {
+      id: this.toId(value),
+      name: value.name,
+      startDate: value.startDate,
+      endDate: value.endDate,
+    };
+  }
+
+  private mapBoardSummary(value: any): BoardSummaryDto | undefined {
+    if (!value || !value._id) {
+      return undefined;
+    }
+
+    return {
+      id: this.toId(value),
+      name: value.name,
     };
   }
 }

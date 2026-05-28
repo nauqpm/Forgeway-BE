@@ -34,7 +34,9 @@ import { DeleteTaskDto } from '../dtos/requests/delete-task.dto';
 import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { MoveTaskDto } from '../dtos/requests/move-task.dto';
 import { UpdateTaskDto } from '../dtos/requests/update-task.dto';
+import { TaskDetailDto } from '../dtos/responses/task-detail.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
+import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TasksService } from '../services/tasks.service';
 import { Request as ExpressRequest } from 'express';
@@ -46,6 +48,7 @@ import { Request as ExpressRequest } from 'express';
 export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
+    private readonly taskDetailService: TaskDetailService,
     private readonly taskMoveService: TaskMoveService,
     private readonly auditLogService: AuditLogService,
   ) {}
@@ -146,8 +149,8 @@ export class TasksController {
 
   @Get('key/:taskKey')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get task by generated task key' })
-  @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
+  @ApiOperation({ summary: 'Get task detail by generated task key' })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskDetailDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Task not found' })
@@ -156,9 +159,9 @@ export class TasksController {
     @Param('taskKey') taskKey: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
-  ): Promise<TaskDto> {
+  ): Promise<TaskDetailDto> {
     try {
-      const task = await this.tasksService.findByKeyInWorkspaceKey(
+      const task = await this.taskDetailService.getDetailByKeyInWorkspaceKey(
         key,
         taskKey,
         user.userId,
@@ -171,6 +174,7 @@ export class TasksController {
           workspaceKey: key,
           taskId: task.id,
           taskKey: task.key,
+          viewedFrom: 'key',
         },
       });
       return task;
@@ -330,21 +334,21 @@ export class TasksController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get task by ID' })
-  @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get task detail by ID' })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskDetailDto })
   @ApiBadRequestResponse({ description: 'Invalid task ID' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  @ApiForbiddenResponse({ description: 'Task access denied' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Task not found' })
   async findById(
     @Param('key') key: string,
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
-  ): Promise<TaskDto> {
+  ): Promise<TaskDetailDto> {
     try {
-      const task = await this.tasksService.findByIdInWorkspaceKey(
+      const task = await this.taskDetailService.getDetailByIdInWorkspaceKey(
         key,
         id,
         user.userId,
@@ -357,6 +361,7 @@ export class TasksController {
           workspaceKey: key,
           taskId: task.id,
           taskKey: task.key,
+          viewedFrom: 'id',
         },
       });
       return task;

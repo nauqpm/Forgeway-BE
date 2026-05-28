@@ -14,6 +14,7 @@ import { Task, TaskSchema } from './schemas/task.schema';
 import { TaskCreationValidationService } from './services/task-creation-validation.service';
 import { TaskDataTransformerService } from './services/task-data-transformer.service';
 import { TaskKeyService } from './services/task-key.service';
+import { TaskDetailService } from './services/task-detail.service';
 import { TaskMoveService } from './services/task-move.service';
 import { TaskNormalizerService } from './services/task-normalizer.service';
 import { TasksService } from './services/tasks.service';
@@ -33,6 +34,7 @@ import { TasksService } from './services/tasks.service';
     TasksRepository,
     TaskMapper,
     TaskKeyService,
+    TaskDetailService,
     TaskCreationValidationService,
     TaskMovePolicy,
     TaskMoveService,
@@ -42,6 +44,7 @@ import { TasksService } from './services/tasks.service';
   ],
   exports: [
     TasksService,
+    TaskDetailService,
     TaskKeyService,
     TaskCreationValidationService,
     TaskMovePolicy,
