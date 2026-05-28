@@ -394,8 +394,7 @@ export class TasksController {
         key,
         id,
         updateTaskDto,
-        user.userId,
-        user.role,
+        user.userId
       );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_UPDATE_SUCCESS,
