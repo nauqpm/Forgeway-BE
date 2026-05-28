@@ -37,6 +37,8 @@ import { validateEnv } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
+import { CacheModule } from './modules/cache/cache.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -77,7 +79,9 @@ import { LoggerMiddleware } from './common/middlewares/logger.middleware';
     }),
 
     CommonModule,
+    CacheModule,
     DatabaseModule,
+    RealtimeModule,
 
     // Core Auth
     AuthModule,

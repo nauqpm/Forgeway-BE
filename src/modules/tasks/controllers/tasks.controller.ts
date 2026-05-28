@@ -43,6 +43,7 @@ import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TasksService } from '../services/tasks.service';
 import { Request as ExpressRequest } from 'express';
+import { RealtimeService } from '@/modules/realtime/realtime.service';
 
 @ApiTags('Workspace Board Tasks')
 @ApiBearerAuth()
@@ -54,6 +55,7 @@ export class TasksController {
     private readonly taskDetailService: TaskDetailService,
     private readonly taskMoveService: TaskMoveService,
     private readonly auditLogService: AuditLogService,
+    private readonly realtimeService: RealtimeService,
   ) {}
 
   @Get('tasks')
@@ -138,6 +140,8 @@ export class TasksController {
         },
       });
 
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:created', { task });
+
       return task;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_CREATE_FAILED, error, {
@@ -181,6 +185,7 @@ export class TasksController {
           viewedFrom: 'key',
         },
       });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', { task });
       return task;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
@@ -461,6 +466,8 @@ export class TasksController {
         },
       });
 
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:moved', { task: result.task });
+
       return result.task;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
@@ -501,6 +508,7 @@ export class TasksController {
           taskKey: task.key,
         },
       });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', { taskId: task.id });
       return task;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED, error, {
@@ -537,6 +545,7 @@ export class TasksController {
           taskKey: task.key,
         },
       });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', { task });
       return task;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED, error, {
@@ -581,6 +590,7 @@ export class TasksController {
           taskKey: task.key,
         },
       });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', { taskId: task.id });
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED, error, {
         workspaceId,
