@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TaskDocument } from '../schemas/task.schema';
-import { TaskDto } from '../dtos/responses/task.dto';
+import { TaskDto, TaskUserSummaryDto } from '../dtos/responses/task.dto';
 
 @Injectable()
 export class TaskMapper {
@@ -32,6 +32,7 @@ export class TaskMapper {
       isArchived: plainTask.isArchived || false,
       archivedAt: plainTask.archivedAt,
       archivedBy: this.toOptionalId(plainTask.archivedBy),
+      archivedByUser: this.mapUserSummary(plainTask.archivedBy),
       isDeleted: plainTask.isDeleted || false,
       deletedAt: plainTask.deletedAt,
       deletedBy: this.toOptionalId(plainTask.deletedBy),
@@ -59,5 +60,18 @@ export class TaskMapper {
       return undefined;
     }
     return this.toId(value);
+  }
+
+  private mapUserSummary(value: any): TaskUserSummaryDto | undefined {
+    if (!value || !value._id) {
+      return undefined;
+    }
+
+    return {
+      id: this.toId(value),
+      fullName: value.fullName,
+      email: value.email,
+      avatar: value.avatar,
+    };
   }
 }

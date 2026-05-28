@@ -524,8 +524,9 @@ export class TasksRepository {
   private withRelations(query: any) {
     return query
       .populate('workspaceId', 'key name type')
-      .populate('assigneeId', 'name email avatar')
-      .populate('reporterId', 'name email avatar')
+      .populate('assigneeId', 'fullName email avatar')
+      .populate('reporterId', 'fullName email avatar')
+      .populate('archivedBy', 'fullName email avatar')
       .populate('sprintId', 'name startDate endDate')
       .populate('boardId', 'name');
   }
