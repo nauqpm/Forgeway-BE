@@ -32,8 +32,10 @@ import { AuditLogService } from '../../audit/services/audit-log.service';
 import { CreateTaskDto } from '../dtos/requests/create-task.dto';
 import { DeleteTaskDto } from '../dtos/requests/delete-task.dto';
 import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
+import { MoveTaskDto } from '../dtos/requests/move-task.dto';
 import { UpdateTaskDto } from '../dtos/requests/update-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
+import { TaskMoveService } from '../services/task-move.service';
 import { TasksService } from '../services/tasks.service';
 import { Request as ExpressRequest } from 'express';
 
@@ -44,6 +46,7 @@ import { Request as ExpressRequest } from 'express';
 export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
+    private readonly taskMoveService: TaskMoveService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
@@ -408,6 +411,53 @@ export class TasksController {
         workspaceKey: key,
         taskId: id,
         changedFields: Object.keys(updateTaskDto),
+      });
+      throw error;
+    }
+  }
+
+  @Patch(':id/move')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @ApiOperation({ summary: 'Move task/card across board columns or Scrum sprint scopes' })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
+  @ApiBadRequestResponse({ description: 'Invalid task move payload' })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Task move denied' })
+  @ApiNotFoundResponse({ description: 'Task or sprint not found' })
+  async move(
+    @Param('key') key: string,
+    @Param('id') id: string,
+    @Body() moveTaskDto: MoveTaskDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: ExpressRequest,
+  ): Promise<TaskDto> {
+    try {
+      const result = await this.taskMoveService.moveInWorkspaceKey(
+        key,
+        id,
+        moveTaskDto,
+        user.userId,
+      );
+
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS,
+        severity: 'INFO',
+        userId: user.userId,
+        metadata: {
+          workspaceKey: key,
+          ...result.auditMetadata,
+        },
+      });
+
+      return result.task;
+    } catch (error) {
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
+        workspaceKey: key,
+        taskId: id,
+        requestedColumnId: moveTaskDto.columnId,
+        requestedStatus: moveTaskDto.status,
+        requestedSprintId: moveTaskDto.sprintId,
+        requestedRank: moveTaskDto.rank,
       });
       throw error;
     }

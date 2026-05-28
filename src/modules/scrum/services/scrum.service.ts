@@ -1,7 +1,4 @@
-// Service tổng / facade.
-// File này giữ nguyên các method public để controller hiện tại vẫn gọi ScrumService như cũ.
-// Bên trong chỉ chuyển tiếp logic sang các service nhỏ hơn.
-import { Injectable } from '@nestjs/common';
+﻿import { BadRequestException, Injectable } from '@nestjs/common';
 import { TaskDocument } from '../../tasks/schemas/task.schema';
 import {
   CompleteSprintDto,
@@ -37,6 +34,7 @@ export class ScrumService {
     return this.sprintQueryService.findByWorkspace(workspaceId);
   }
 
+<<<<<<< HEAD
   startSprint(
     workspaceId: string,
     sprintId: string,
@@ -57,6 +55,8 @@ export class ScrumService {
     return this.backlogService.getBacklog(workspaceId, grouped);
   }
 
+=======
+>>>>>>> 94813d1497d0f391518df061fb8fb60227a9170c
   updateSprint(
     workspaceId: string,
     sprintId: string,
@@ -67,6 +67,49 @@ export class ScrumService {
 
   deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
     return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
+<<<<<<< HEAD
+=======
+  }
+
+  startSprint(
+    workspaceId: string,
+    sprintId: string,
+    dto: StartSprintDto,
+  ): Promise<SprintDocument> {
+    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
+  }
+
+  completeSprint(
+    workspaceId: string,
+    sprintId: string,
+    dto: CompleteSprintDto,
+  ): Promise<unknown> {
+    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
+  }
+
+  getBacklog(workspaceId: string, grouped = false): Promise<unknown> {
+    return this.backlogService.getBacklog(workspaceId, grouped);
+  }
+
+  getActiveSprint(
+    workspaceId: string,
+  ): Promise<(SprintDocument & { tasks?: TaskDocument[] }) | null> {
+    return this.sprintQueryService.getActiveSprint(workspaceId);
+  }
+
+  getSprintTasks(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<TaskDocument[]> {
+    return this.sprintQueryService.getSprintTasks(workspaceId, sprintId);
+  }
+
+  getCompleteSprintPreview(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<unknown> {
+    return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
+>>>>>>> 94813d1497d0f391518df061fb8fb60227a9170c
   }
 
   moveTasksToSprint(
@@ -95,23 +138,36 @@ export class ScrumService {
     );
   }
 
-  getActiveSprint(workspaceId: string): Promise<any | null> {
-    return this.sprintQueryService.getActiveSprint(workspaceId);
-  }
-
-  getSprintTasks(
-    workspaceId: string,
-    sprintId: string,
-  ): Promise<TaskDocument[]> {
-    return this.sprintQueryService.getSprintTasks(workspaceId, sprintId);
-  }
-
-  getCompleteSprintPreview(workspaceId: string, sprintId: string): Promise<any> {
-    return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
-  }
-
   findSprintById(sprintId: string): Promise<SprintDocument | null> {
     return this.sprintQueryService.findSprintById(sprintId);
+  }
+
+  findByIdInWorkspace(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<SprintDocument> {
+    return this.sprintQueryService.findByIdInWorkspace(workspaceId, sprintId);
+  }
+
+  // Backward-compatible alias for older callsites
+  FindByIdInWorkspace(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<SprintDocument> {
+    return this.findByIdInWorkspace(workspaceId, sprintId);
+  }
+
+  async ensureSprintAssignable(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<void> {
+    const sprint = await this.findByIdInWorkspace(workspaceId, sprintId);
+
+    if (sprint.status === 'completed') {
+      throw new BadRequestException(
+        'Sprint has completed and cannot accept new tasks',
+      );
+    }
   }
 
   deleteByWorkspace(workspaceId: string): Promise<void> {

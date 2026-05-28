@@ -19,7 +19,6 @@ import { TaskCreationValidationService } from './task-creation-validation.servic
 import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
-import { ScrumService } from '../../scrum/services/scrum.service';
 
 @Injectable()
 export class TasksService {
@@ -259,6 +258,7 @@ export class TasksService {
 
   async update(id: string, updateTaskDto: UpdateTaskDto): Promise<TaskDto> {
     this.validationService.validateObjectId(id, 'Task');
+    this.assertMetadataUpdateOnly(updateTaskDto);
 
     const existing = await this.tasksRepository.findById(id, {
       includeArchived: true,
@@ -304,6 +304,7 @@ export class TasksService {
     userId: string,
     userRole?: string,
   ): Promise<TaskDto> {
+    this.assertMetadataUpdateOnly(updateTaskDto);
     const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const existing = await this.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
@@ -327,7 +328,11 @@ export class TasksService {
       normalizedUpdateDto,
       workspaceId,
     );
-    await this.ensureCanMoveFromCurrentSprint(task, normalizedUpdateDto, userRole);
+    await this.ensureCanMoveFromCurrentSprint(
+      task,
+      normalizedUpdateDto,
+      userRole,
+    );
 
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
@@ -520,6 +525,19 @@ export class TasksService {
     if (currentSprint.status === 'completed') {
       throw new BadRequestException(
         'Task in a completed sprint cannot be reassigned to another sprint',
+      );
+    }
+  }
+
+  private assertMetadataUpdateOnly(updateTaskDto: UpdateTaskDto): void {
+    const moveFields = ['columnId', 'status', 'sprintId'] as const;
+    const requestedMoveFields = moveFields.filter((field) =>
+      Object.prototype.hasOwnProperty.call(updateTaskDto, field),
+    );
+
+    if (requestedMoveFields.length > 0) {
+      throw new BadRequestException(
+        `Use PATCH /workspaces/:key/board/:taskId/move for move fields: ${requestedMoveFields.join(', ')}`,
       );
     }
   }
