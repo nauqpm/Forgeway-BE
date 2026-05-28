@@ -7,6 +7,7 @@ import { KanbanService } from './services/kanban.service';
 import { AuthModule } from '../auth/auth.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.sche
     forwardRef(() => WorkspacesModule),
   ],
   controllers: [KanbanController],
-  providers: [KanbanService],
+  providers: [KanbanService, WorkspaceRoleGuard],
   exports: [KanbanService],
 })
 export class KanbanModule { }

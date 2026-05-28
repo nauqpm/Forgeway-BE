@@ -16,7 +16,10 @@ import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
@@ -54,80 +57,75 @@ export class WorkspacesController {
     return this.workspacesService.create(req.user.userId, dto);
   }
 
-  @Put(':key')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @Put(':workspaceId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Update workspace (owner/workspace admin only)' })
   async update(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Body() dto: UpdateWorkspaceDto,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.workspacesService.update(workspace._id.toString(), dto);
+    return this.workspacesService.update(workspaceId, dto);
   }
 
-  @Delete(':key')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @Delete(':workspaceId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete workspace (owner only)' })
-  async remove(@Param('key') key: string) {
-    const workspace = await this.workspacesService.findByKey(key);
-    await this.workspacesService.delete(workspace._id.toString());
+  async remove(@Param('workspaceId') workspaceId: string) {
+    await this.workspacesService.delete(workspaceId);
   }
 
-  @Get(':key/members')
+  @Get(':workspaceId/members')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get workspace members' })
-  async getMembers(@Param('key') key: string) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.workspacesService.getMembers(workspace._id.toString());
+  async getMembers(@Param('workspaceId') workspaceId: string) {
+    return this.workspacesService.getMembers(workspaceId);
   }
 
-  @Post(':key/members')
+  @Post(':workspaceId/members')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add member to workspace (owner/workspace admin only)' })
   @ApiBody({ type: CreateInviteDto })
   async addMember(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Body() body: { email: string; role: SpaceRole },
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.workspacesService.addMember(workspace._id.toString(), body.email, body.role);
+    return this.workspacesService.addMember(workspaceId, body.email, body.role);
   }
 
-  @Put(':key/members/:userId')
+  @Put(':workspaceId/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @ApiOperation({ summary: 'Update member role (owner/workspace admin only)' })
   async updateMemberRole(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('userId') userId: string,
     @Body() body: { role: SpaceRole },
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.workspacesService.updateMemberRole(workspace._id.toString(), userId, body.role);
+    return this.workspacesService.updateMemberRole(workspaceId, userId, body.role);
   }
 
-  @Delete(':key/members/me')
+  @Delete(':workspaceId/members/me')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Leave workspace (any member)' })
   async leaveWorkspace(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Request() req: any,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    await this.workspacesService.removeMember(workspace._id.toString(), req.user.userId);
+    await this.workspacesService.removeMember(workspaceId, req.user.userId);
   }
 
-  @Delete(':key/members/:userId')
+  @Delete(':workspaceId/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove member from workspace (owner/workspace admin only)' })
   async removeMember(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('userId') userId: string,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    await this.workspacesService.removeMember(workspace._id.toString(), userId);
+    await this.workspacesService.removeMember(workspaceId, userId);
   }
 
   @Post(':key/restore')

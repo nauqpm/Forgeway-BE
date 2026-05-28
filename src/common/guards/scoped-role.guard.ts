@@ -36,20 +36,18 @@ export const ScopedRoleGuard = (
         return true;
       }
 
-      const resourceId =
-        resourceType === 'workspace'
-          ? request.params?.workspaceId ||
-            request.params?.workspaceKey ||
-            request.params?.key ||
-            request.body?.workspaceId ||
-            request.body?.workspaceKey ||
-            request.params?.id
-          : request.params?.id ||
-            request.params?.workspaceId ||
-            request.params?.workspaceKey ||
-            request.params?.key ||
-            request.body?.workspaceId ||
-            request.body?.workspaceKey;
+      const routeWorkspaceId = request.params?.workspaceId;
+      if (resourceType === 'workspace' && routeWorkspaceId && !Types.ObjectId.isValid(routeWorkspaceId)) {
+        throw new NotFoundException('Workspace not found');
+      }
+
+      let resourceId =
+        request.params?.id ||
+        routeWorkspaceId ||
+        request.params?.workspaceKey ||
+        request.params?.key ||
+        request.body?.workspaceId ||
+        request.body?.workspaceKey;
 
 
       if (!resourceId) {

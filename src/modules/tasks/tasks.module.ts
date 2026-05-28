@@ -7,6 +7,7 @@ import { ScrumModule } from '../scrum/scrum.module';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TasksController } from './controllers/tasks.controller';
 import { TaskMapper } from './mappers/task.mapper';
 import { TaskMovePolicy } from './policies/task-move.policy';
@@ -43,6 +44,7 @@ import { TasksService } from './services/tasks.service';
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksService,
+    WorkspaceRoleGuard,
   ],
   exports: [
     TasksService,
