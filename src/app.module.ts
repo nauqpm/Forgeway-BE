@@ -29,6 +29,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { LabelsModule } from './modules/labels/labels.module';
 import { TaskCoversModule } from './modules/task-covers/task-covers.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 // Real Estate / Blog Modules
 import { UtilitiesModule } from './modules/utilities/utilities.module';
@@ -100,6 +101,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     AttachmentsModule,
     LabelsModule,
     TaskCoversModule,
+    DocumentsModule,
 
     // Confluence Modules
     PagesModule,
