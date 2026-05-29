@@ -1,16 +1,17 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Comment, CommentDocument } from '../schemas/comment.schema';
 import { CreateCommentDto } from '../dtos/create-comment.dto';
 import { UpdateCommentDto } from '../dtos/update-comment.dto';
+import { Comment, CommentDocument } from '../schemas/comment.schema';
 
 @Injectable()
-export class CommentsService {
-  private readonly logger = new Logger(CommentsService.name);
+export class CommentService {
+  private readonly logger = new Logger(CommentService.name);
 
   constructor(
-    @InjectModel(Comment.name) private readonly commentModel: Model<CommentDocument>,
+    @InjectModel(Comment.name)
+    private readonly commentModel: Model<CommentDocument>,
   ) {}
 
   async create(dto: CreateCommentDto, userId: string): Promise<CommentDocument> {
@@ -37,7 +38,9 @@ export class CommentsService {
       throw new NotFoundException(`Comment with id ${id} not found`);
     }
 
-    const comment = await this.commentModel.findById(id).exec();
+    const comment = await this.commentModel
+      .findOne({ _id: new Types.ObjectId(id), isDeleted: { $ne: true } })
+      .exec();
     if (!comment) {
       throw new NotFoundException(`Comment with id ${id} not found`);
     }
@@ -48,7 +51,7 @@ export class CommentsService {
     this.logger.debug(`Finding comments for ${targetType}:${targetId}`);
 
     return this.commentModel
-      .find({ targetType, targetId })
+      .find({ targetType, targetId, isDeleted: { $ne: true } })
       .sort({ createdAt: 1 })
       .exec();
   }
@@ -60,7 +63,7 @@ export class CommentsService {
     this.logger.debug(`Finding threaded comments for ${targetType}:${targetId}`);
 
     const comments = await this.commentModel
-      .find({ targetType, targetId })
+      .find({ targetType, targetId, isDeleted: { $ne: true } })
       .sort({ createdAt: 1 })
       .exec();
 
@@ -96,7 +99,7 @@ export class CommentsService {
     }
 
     return this.commentModel
-      .find({ parentId: new Types.ObjectId(parentId) })
+      .find({ parentId: new Types.ObjectId(parentId), isDeleted: { $ne: true } })
       .sort({ createdAt: 1 })
       .exec();
   }
@@ -115,6 +118,7 @@ export class CommentsService {
     }
 
     comment.content = dto.content;
+    comment.editedAt = new Date();
     return comment.save();
   }
 
@@ -127,13 +131,18 @@ export class CommentsService {
       throw new ForbiddenException('You can only delete your own comments');
     }
 
-    await this.commentModel.deleteOne({ _id: id }).exec();
+    comment.isDeleted = true;
+    comment.deletedAt = new Date();
+    comment.deletedBy = new Types.ObjectId(userId);
+    await comment.save();
     this.logger.log(`Comment ${id} deleted`);
   }
 
   async countByTarget(targetType: string, targetId: string): Promise<number> {
     this.logger.debug(`Counting comments for ${targetType}:${targetId}`);
 
-    return this.commentModel.countDocuments({ targetType, targetId }).exec();
+    return this.commentModel
+      .countDocuments({ targetType, targetId, isDeleted: { $ne: true } })
+      .exec();
   }
 }
