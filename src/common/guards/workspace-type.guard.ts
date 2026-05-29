@@ -1,6 +1,6 @@
 import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException, mixin, Type } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Workspace, WorkspaceDocument } from '@/modules/workspaces/schemas/workspace.schema';
 
 export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanActivate> => {
@@ -12,20 +12,24 @@ export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanAc
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
-      const key = request.params?.key;
+      const workspaceId = request.params?.workspaceId;
 
-      if (!key) {
-        throw new BadRequestException('Workspace key not found in request');
+      if (!workspaceId) {
+        throw new BadRequestException('workspaceId not found in request');
+      }
+
+      if (!Types.ObjectId.isValid(workspaceId)) {
+        throw new BadRequestException('workspaceId must be a valid MongoDB ObjectId');
       }
 
       const workspace = await this.workspaceModel
-        .findOne({ key })
+        .findOne({ _id: new Types.ObjectId(workspaceId) })
         .select('type')
         .lean()
         .exec();
 
       if (!workspace) {
-        throw new NotFoundException(`Workspace with key "${key}" not found`);
+        throw new NotFoundException('Workspace not found');
       }
 
       if (!workspace.type || workspace.type !== requiredType) {

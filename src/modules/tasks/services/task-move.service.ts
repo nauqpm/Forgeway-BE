@@ -41,16 +41,15 @@ export class TaskMoveService {
     private readonly taskActivitiesService: TaskActivitiesService,
   ) {}
 
-  async moveInWorkspaceKey(
-    workspaceKey: string,
+  async moveInWorkspaceId(
+    workspaceId: string,
     taskId: string,
     dto: MoveTaskDto,
     userId: string,
   ): Promise<TaskMoveResult> {
     this.ensureMoveHasMutation(dto);
 
-    const workspace = await this.validationService.getWorkspaceByKey(workspaceKey);
-    const workspaceId = workspace._id.toString();
+    const workspace = await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 

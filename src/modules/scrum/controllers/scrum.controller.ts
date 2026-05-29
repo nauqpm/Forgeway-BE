@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -18,14 +18,16 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { ParseObjectIdPipe } from '../../../common/pipes/parse-object-id.pipe';
+import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
+import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
+import { WorkspaceTypeGuard } from '../../../common/guards/workspace-type.guard';
+import { ParseObjectIdPipe } from '../../../common/pipes/parse-object-id.pipe';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
-import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
-import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
-import { WorkspaceTypeGuard } from '../../../common/guards/workspace-type.guard';
-import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import {
   CompleteSprintDto,
   CreateSprintDto,
@@ -38,137 +40,128 @@ import { ScrumService } from '../services/scrum.service';
 @ApiTags('Workspaces - Scrum')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, WorkspaceTypeGuard('scrum'))
-@Controller('workspaces/:key')
+@Controller('workspaces/:workspaceId')
 export class ScrumController {
-  constructor(
-    private readonly scrumService: ScrumService,
-    private readonly workspacesService: WorkspacesService,
-  ) {}
+  constructor(private readonly scrumService: ScrumService) {}
 
   @Post('sprints')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
-  @ApiOperation({ summary: 'Tạo sprint mới' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
+  @ApiOperation({ summary: 'Create a new sprint' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   async createSprint(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Body() dto: CreateSprintDto,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.createSprint(workspace._id.toString(), dto);
+    return this.scrumService.createSprint(workspaceId, dto);
   }
 
   @Get('sprints')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Lấy tất cả các sprint trong workspace' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
-  async findByWorkspace(@Param('key') key: string) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.findByWorkspace(workspace._id.toString());
+  @ApiOperation({ summary: 'Get all sprints in workspace' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
+  async findByWorkspace(@Param('workspaceId') workspaceId: string) {
+    return this.scrumService.findByWorkspace(workspaceId);
   }
 
   @Patch('sprints/:sprintId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
-  @ApiOperation({ summary: 'Cập nhật tên/goal/ngày của sprint (chỉ khi ở trạng thái lên kế hoạch)' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
+  @ApiOperation({ summary: 'Update sprint name/goal/dates' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async updateSprint(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: UpdateSprintDto,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.updateSprint(workspace._id.toString(), sprintId, dto);
+    return this.scrumService.updateSprint(workspaceId, sprintId, dto);
   }
 
   @Delete('sprints/:sprintId')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Xóa một sprint (chỉ khi ở trạng thái lên kế hoạch)' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Delete a planning sprint' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async deleteSprint(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    await this.scrumService.deleteSprint(workspace._id.toString(), sprintId);
+    await this.scrumService.deleteSprint(workspaceId, sprintId);
   }
 
   @Post('sprints/:sprintId/start')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Bắt đầu một sprint' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Start a sprint' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async startSprint(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: StartSprintDto,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.startSprint(workspace._id.toString(), sprintId, dto);
+    return this.scrumService.startSprint(workspaceId, sprintId, dto);
   }
 
   @Post('sprints/:sprintId/complete')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Hoàn thành một sprint' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Complete a sprint' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async completeSprint(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: CompleteSprintDto,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.completeSprint(workspace._id.toString(), sprintId, dto);
+    return this.scrumService.completeSprint(workspaceId, sprintId, dto);
   }
 
   @Get('backlog')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Lấy backlog của workspace' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Get workspace backlog' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiQuery({
     name: 'grouped',
     required: false,
     type: Boolean,
-    description: 'Gom nhóm các mục backlog theo priority/status nếu service hỗ trợ',
+    description: 'Group backlog items by priority/status when supported',
   })
   async getBacklog(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Query('grouped') grouped?: string,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.getBacklog(
-      workspace._id.toString(),
-      grouped === 'true',
-    );
+    return this.scrumService.getBacklog(workspaceId, grouped === 'true');
   }
 
   @Get('active-sprint')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Lấy sprint đang hoạt động cho workspace' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
-  async getActiveSprint(@Param('key') key: string) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.getActiveSprint(workspace._id.toString());
+  @ApiOperation({ summary: 'Get active sprint for workspace' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
+  async getActiveSprint(@Param('workspaceId') workspaceId: string) {
+    return this.scrumService.getActiveSprint(workspaceId);
   }
 
   @Post('sprints/:sprintId/tasks')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Di chuyển tasks/issues vào sprint' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Move tasks/issues into a sprint' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async moveTasksToSprint(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: MoveTasksToSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
     return this.scrumService.moveTasksToSprint(
-      workspace._id.toString(),
+      workspaceId,
       sprintId,
       dto.taskIds,
       user.role === 'super_admin',
@@ -176,18 +169,18 @@ export class ScrumController {
   }
 
   @Post('backlog/tasks')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Di chuyển tasks/issues về backlog' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Move tasks/issues back to backlog' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   async moveTasksToBacklog(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Body() dto: MoveTasksToSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
     return this.scrumService.moveTasksToBacklog(
-      workspace._id.toString(),
+      workspaceId,
       dto.taskIds,
       user.role === 'super_admin',
     );
@@ -195,30 +188,25 @@ export class ScrumController {
 
   @Get('sprints/:sprintId/tasks')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Lấy tasks trong sprint' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Get tasks in sprint' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async getSprintTasks(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.getSprintTasks(workspace._id.toString(), sprintId);
+    return this.scrumService.getSprintTasks(workspaceId, sprintId);
   }
 
   @Get('sprints/:sprintId/complete-preview')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Lấy bản xem trước khi hoàn thành sprint' })
-  @ApiParam({ name: 'key', description: 'Workspace key' })
+  @ApiOperation({ summary: 'Get sprint completion preview' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
   async getCompleteSprintPreview(
-    @Param('key') key: string,
+    @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
   ) {
-    const workspace = await this.workspacesService.findByKey(key);
-    return this.scrumService.getCompleteSprintPreview(
-      workspace._id.toString(),
-      sprintId,
-    );
+    return this.scrumService.getCompleteSprintPreview(workspaceId, sprintId);
   }
 }

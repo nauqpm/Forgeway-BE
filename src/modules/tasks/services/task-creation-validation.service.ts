@@ -53,8 +53,9 @@ export class TaskCreationValidationService {
     }
   }
 
-  async getWorkspaceByKey(workspaceKey: string): Promise<any> {
-    return this.workspacesService.findByKey(workspaceKey);
+  async getWorkspaceById(workspaceId: string): Promise<any> {
+    this.validateObjectId(workspaceId, 'Workspace');
+    return this.workspacesService.findById(workspaceId);
   }
 
   async validateWorkspaceMember(

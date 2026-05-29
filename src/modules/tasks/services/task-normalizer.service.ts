@@ -21,7 +21,7 @@ export class TaskNormalizerService {
     const workspaceId = workspace._id.toString();
 
     if (workspace.type === 'kanban') {
-      return this.normalizeKanbanTask(dto, workspaceId, workspace.key);
+      return this.normalizeKanbanTask(dto, workspaceId);
     }
 
     return this.normalizeScrumTask(dto, workspaceId);
@@ -82,7 +82,6 @@ export class TaskNormalizerService {
   private async normalizeKanbanTask(
     dto: CreateTaskDto,
     workspaceId: string,
-    workspaceKey: string,
   ): Promise<CreateTaskDto> {
     if (dto.sprintId) {
       throw new BadRequestException(
@@ -92,7 +91,7 @@ export class TaskNormalizerService {
 
     const board = dto.boardId
       ? await this.kanbanService.findById(dto.boardId)
-      : await this.kanbanService.findOrCreateByWorkspaceKey(workspaceKey);
+      : await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
 
     if (board.workspaceId.toString() !== workspaceId) {
       throw new BadRequestException('Board does not belong to this workspace');

@@ -6,6 +6,7 @@ import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import { join } from 'path';
 import mongoose from 'mongoose';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 // 👇 thêm
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -19,6 +20,7 @@ async function bootstrap() {
     console.log('✅ Kết nối MongoDB đã sẵn sàng, khởi động ứng dụng...');
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    app.useWebSocketAdapter(new IoAdapter(app));
 
     // Trust reverse proxy (Nginx)
     app.set('trust proxy', 1);

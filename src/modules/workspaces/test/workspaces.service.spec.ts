@@ -283,6 +283,17 @@ describe('WorkspacesService', () => {
 
     // ── findByUserId ───────────────────────────────────────────────────────────
 
+    describe('id-only lookup', () => {
+        it('does not resolve public keys through workspace id lookup', async () => {
+            repo.findById.mockResolvedValue(null);
+
+            await expect(service.findById('TESTWOR')).rejects.toThrow(NotFoundException);
+            expect(repo.findById).toHaveBeenCalledWith('TESTWOR');
+            expect(repo.findByKey).not.toHaveBeenCalled();
+            expect((service as any).findByIdOrKey).toBeUndefined();
+        });
+    });
+
     describe('findByUserId', () => {
         it('returns workspaces for given user', async () => {
             const workspaces = [buildWorkspace()];

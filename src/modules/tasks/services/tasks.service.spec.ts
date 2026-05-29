@@ -93,6 +93,7 @@ describe('TasksService', () => {
             validateWorkspaceMember: jest.fn(),
             validateObjectId: jest.fn(),
             getWorkspaceByKey: jest.fn(),
+            getWorkspaceById: jest.fn(),
           },
         },
         {
@@ -509,8 +510,15 @@ describe('TasksService', () => {
     await expect(
       service.updateInWorkspaceKey('TESKB', taskId, updateDto, userId),
     ).resolves.toEqual(taskDto);
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(
-      taskId,
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(
+      updateDto,
+      workspaceId,
+    );
+    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
       workspaceId,
       { includeArchived: true },
     );
