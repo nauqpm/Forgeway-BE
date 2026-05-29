@@ -9,6 +9,8 @@ import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
+import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
+import { TaskCounterService } from './task-counter.service';
 import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
@@ -22,6 +24,8 @@ describe('TasksService', () => {
   let normalizerService: jest.Mocked<TaskNormalizerService>;
   let transformerService: jest.Mocked<TaskDataTransformerService>;
   let keyService: jest.Mocked<TaskKeyService>;
+  let taskCounterService: jest.Mocked<TaskCounterService>;
+  let taskActivitiesService: jest.Mocked<TaskActivitiesService>;
   let scrumService: jest.Mocked<ScrumService>;
 
   beforeEach(async () => {
@@ -42,7 +46,6 @@ describe('TasksService', () => {
             findArchivedByWorkspace: jest.fn(),
             findBacklogByWorkspace: jest.fn(),
             findBySprintInWorkspace: jest.fn(),
-            countByWorkspace: jest.fn(),
             update: jest.fn(),
             updateInWorkspace: jest.fn(),
             archive: jest.fn(),
@@ -64,6 +67,22 @@ describe('TasksService', () => {
           provide: TaskKeyService,
           useValue: {
             create: jest.fn(),
+          },
+        },
+        {
+          provide: TaskCounterService,
+          useValue: {
+            nextSequence: jest.fn(),
+          },
+        },
+        {
+          provide: TaskActivitiesService,
+          useValue: {
+            recordTaskCreated: jest.fn(),
+            recordTaskUpdated: jest.fn(),
+            recordTaskArchived: jest.fn(),
+            recordTaskRestored: jest.fn(),
+            recordTaskPermanentlyDeleted: jest.fn(),
           },
         },
         {
@@ -104,6 +123,8 @@ describe('TasksService', () => {
     repository = module.get(TasksRepository);
     mapper = module.get(TaskMapper);
     keyService = module.get(TaskKeyService);
+    taskCounterService = module.get(TaskCounterService);
+    taskActivitiesService = module.get(TaskActivitiesService);
     validationService = module.get(TaskCreationValidationService);
     normalizerService = module.get(TaskNormalizerService);
     transformerService = module.get(TaskDataTransformerService);
@@ -130,7 +151,7 @@ describe('TasksService', () => {
 
     validationService.validateCreateRequest.mockResolvedValue(workspace as any);
     normalizerService.normalizeForWorkspaceType.mockResolvedValue(normalizedDto);
-    repository.countByWorkspace.mockResolvedValue(0);
+    taskCounterService.nextSequence.mockResolvedValue(1);
     keyService.create.mockReturnValue('TESKB-1');
     transformerService.transformCreateInput.mockReturnValue(taskData as any);
     repository.create.mockResolvedValue(task as any);
@@ -148,6 +169,7 @@ describe('TasksService', () => {
       createDto,
       workspace,
     );
+    expect(taskCounterService.nextSequence).toHaveBeenCalledWith(workspaceId);
     expect(transformerService.transformCreateInput).toHaveBeenCalledWith(
       normalizedDto,
       workspaceId,
@@ -155,6 +177,7 @@ describe('TasksService', () => {
       'TESKB-1',
     );
     expect(repository.create).toHaveBeenCalledWith(taskData);
+    expect(taskActivitiesService.recordTaskCreated).toHaveBeenCalledWith(task, userId);
   });
 
   it('rejects create when workspaceId is missing', async () => {

@@ -15,6 +15,7 @@ import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
+import { TaskCounterService } from './task-counter.service';
 import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
@@ -27,6 +28,7 @@ export class TasksService {
     private readonly tasksRepository: TasksRepository,
     private readonly taskMapper: TaskMapper,
     private readonly taskKeyService: TaskKeyService,
+    private readonly taskCounterService: TaskCounterService,
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
     private readonly transformerService: TaskDataTransformerService,
@@ -430,8 +432,7 @@ export class TasksService {
 
   private async createTaskKey(workspace: any): Promise<string> {
     const workspaceId = workspace._id.toString();
-    const taskNumber =
-      (await this.tasksRepository.countByWorkspace(workspaceId)) + 1;
+    const taskNumber = await this.taskCounterService.nextSequence(workspaceId);
 
     return this.taskKeyService.create(
       workspace.key || workspace.name,
