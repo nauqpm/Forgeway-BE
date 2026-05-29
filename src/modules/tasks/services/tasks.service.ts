@@ -69,8 +69,13 @@ export class TasksService {
     createTaskDto: CreateTaskDto,
     userId: string,
   ): Promise<TaskDto> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
-    return this.createInWorkspaceId(workspace._id.toString(), createTaskDto, userId);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
+    return this.createInWorkspaceId(
+      workspace._id.toString(),
+      createTaskDto,
+      userId,
+    );
   }
 
   async createInWorkspaceId(
@@ -78,10 +83,7 @@ export class TasksService {
     createTaskDto: CreateTaskDto,
     userId: string,
   ): Promise<TaskDto> {
-    return this.create(
-      { ...createTaskDto, workspaceId },
-      userId,
-    );
+    return this.create({ ...createTaskDto, workspaceId }, userId);
   }
 
   async findAll(
@@ -125,8 +127,13 @@ export class TasksService {
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
-    return this.findByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
+    return this.findByWorkspaceId(
+      workspace._id.toString(),
+      currentUserId,
+      filterDto,
+    );
   }
 
   async findByWorkspaceId(
@@ -161,8 +168,13 @@ export class TasksService {
     currentUserId: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
-    return this.findArchivedByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
+    return this.findArchivedByWorkspaceId(
+      workspace._id.toString(),
+      currentUserId,
+      filterDto,
+    );
   }
 
   async findArchivedByWorkspaceId(
@@ -171,9 +183,15 @@ export class TasksService {
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
     this.validationService.validateObjectId(workspaceId, 'Workspace');
-    await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
+    await this.validationService.validateWorkspaceMember(
+      workspaceId,
+      currentUserId,
+    );
 
-    const result = await this.tasksRepository.findArchivedByWorkspace(workspaceId, filterDto);
+    const result = await this.tasksRepository.findArchivedByWorkspace(
+      workspaceId,
+      filterDto,
+    );
     return {
       tasks: this.taskMapper.mapToDtos(result.tasks),
       total: result.total,
@@ -192,7 +210,8 @@ export class TasksService {
     );
     this.ensureScrumWorkspace(workspace);
 
-    const tasks = await this.tasksRepository.findBacklogByWorkspace(workspaceId);
+    const tasks =
+      await this.tasksRepository.findBacklogByWorkspace(workspaceId);
     return this.taskMapper.mapToDtos(tasks);
   }
 
@@ -206,7 +225,8 @@ export class TasksService {
     );
     this.ensureScrumWorkspace(workspace);
 
-    const tasks = await this.tasksRepository.findBacklogByWorkspace(workspaceId);
+    const tasks =
+      await this.tasksRepository.findBacklogByWorkspace(workspaceId);
     return this.taskMapper.mapToDtos(tasks);
   }
 
@@ -308,7 +328,10 @@ export class TasksService {
     taskId: string,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     const task = await this.getTaskForWorkspace(taskId, workspaceId);
 
     return this.taskMapper.mapToDto(task);
@@ -352,8 +375,14 @@ export class TasksService {
     taskKey: string,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
-    const task = await this.tasksRepository.findByWorkspaceAndKey(workspaceId, taskKey);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
+    const task = await this.tasksRepository.findByWorkspaceAndKey(
+      workspaceId,
+      taskKey,
+    );
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -375,7 +404,10 @@ export class TasksService {
     userId: string,
   ): Promise<TaskDto> {
     await this.getWorkspaceContextById(workspaceId, userId);
-    const task = await this.tasksRepository.findByWorkspaceAndKey(workspaceId, taskKey);
+    const task = await this.tasksRepository.findByWorkspaceAndKey(
+      workspaceId,
+      taskKey,
+    );
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -431,7 +463,10 @@ export class TasksService {
     userId: string,
   ): Promise<TaskDto> {
     this.assertMetadataUpdateOnly(updateTaskDto);
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     const existing = this.isObjectIdString(taskId)
       ? await this.getTaskForWorkspace(taskId, workspaceId, {
           includeArchived: true,
@@ -507,7 +542,11 @@ export class TasksService {
       normalizedUpdateDto,
       workspaceId,
     );
-    await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, userRole);
+    await this.ensureCanMoveFromCurrentSprint(
+      existing,
+      normalizedUpdateDto,
+      userRole,
+    );
 
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
@@ -518,11 +557,7 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    await this.taskActivitiesService.recordTaskUpdated(
-      existing,
-      task,
-      userId,
-    );
+    await this.taskActivitiesService.recordTaskUpdated(existing, task, userId);
 
     return this.taskMapper.mapToDto(task);
   }
@@ -532,10 +567,7 @@ export class TasksService {
     updateTaskDto: UpdateTaskDto,
     userRole?: string,
   ): Promise<void> {
-    if (
-      updateTaskDto.sprintId === undefined ||
-      userRole === 'super_admin'
-    ) {
+    if (updateTaskDto.sprintId === undefined || userRole === 'super_admin') {
       return;
     }
 
@@ -549,7 +581,8 @@ export class TasksService {
       return;
     }
 
-    const currentSprint = await this.scrumService.findSprintById(currentSprintId);
+    const currentSprint =
+      await this.scrumService.findSprintById(currentSprintId);
     if (currentSprint?.status === 'completed') {
       throw new BadRequestException(
         'Cannot move tasks out of a completed sprint without super_admin role',
@@ -562,7 +595,10 @@ export class TasksService {
     taskId: string,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
 
     const task = await this.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
@@ -590,7 +626,10 @@ export class TasksService {
     taskKey: string,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     const task = await this.getTaskForWorkspaceKey(taskKey, workspaceId, {
       includeArchived: true,
     });
@@ -641,13 +680,19 @@ export class TasksService {
     taskId: string,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
 
     await this.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
     });
 
-    const restored = await this.tasksRepository.restoreInWorkspace(taskId, workspaceId);
+    const restored = await this.tasksRepository.restoreInWorkspace(
+      taskId,
+      workspaceId,
+    );
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
     }
@@ -662,7 +707,10 @@ export class TasksService {
     taskKey: string,
     userId: string,
   ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     const task = await this.getTaskForWorkspaceKey(taskKey, workspaceId, {
       includeArchived: true,
     });
@@ -672,7 +720,9 @@ export class TasksService {
       workspaceId,
     );
     if (!restored) {
-      throw new NotFoundException(`Archived task with key ${taskKey} not found`);
+      throw new NotFoundException(
+        `Archived task with key ${taskKey} not found`,
+      );
     }
 
     return this.taskMapper.mapToDto(restored);
@@ -689,7 +739,10 @@ export class TasksService {
       includeArchived: true,
     });
 
-    const restored = await this.tasksRepository.restoreInWorkspace(taskId, workspaceId);
+    const restored = await this.tasksRepository.restoreInWorkspace(
+      taskId,
+      workspaceId,
+    );
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
     }
@@ -704,10 +757,15 @@ export class TasksService {
     confirmText?: string,
   ): Promise<TaskDto> {
     if (confirmText !== 'delete') {
-      throw new BadRequestException('Type "delete" to permanently delete this task');
+      throw new BadRequestException(
+        'Type "delete" to permanently delete this task',
+      );
     }
 
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     return this.deletePermanentlyInWorkspaceId(
       workspaceId,
       taskId,
@@ -723,10 +781,15 @@ export class TasksService {
     confirmText?: string,
   ): Promise<TaskDto> {
     if (confirmText !== 'delete') {
-      throw new BadRequestException('Type "delete" to permanently delete this task');
+      throw new BadRequestException(
+        'Type "delete" to permanently delete this task',
+      );
     }
 
-    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     const task = await this.getTaskForWorkspaceKey(taskKey, workspaceId, {
       includeArchived: true,
     });
@@ -750,7 +813,9 @@ export class TasksService {
     confirmText?: string,
   ): Promise<TaskDto> {
     if (confirmText !== 'delete') {
-      throw new BadRequestException('Type "delete" to permanently delete this task');
+      throw new BadRequestException(
+        'Type "delete" to permanently delete this task',
+      );
     }
 
     await this.getWorkspaceContextById(workspaceId, userId);
@@ -802,7 +867,8 @@ export class TasksService {
     workspaceKey: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
@@ -813,7 +879,8 @@ export class TasksService {
     workspaceId: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceId);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
     return { workspace, workspaceId };
@@ -861,7 +928,9 @@ export class TasksService {
 
   private ensureScrumWorkspace(workspace: any): void {
     if (workspace.type !== 'scrum') {
-      throw new BadRequestException('This endpoint is only available for Scrum workspaces');
+      throw new BadRequestException(
+        'This endpoint is only available for Scrum workspaces',
+      );
     }
   }
 

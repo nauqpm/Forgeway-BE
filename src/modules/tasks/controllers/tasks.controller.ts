@@ -77,11 +77,15 @@ export class TasksController {
         user.userId,
         filterDto,
       );
-      const filterMetadata = this.getTaskFilterAuditMetadata(filterDto, result.total);
+      const filterMetadata = this.getTaskFilterAuditMetadata(
+        filterDto,
+        result.total,
+      );
       this.auditLogService.logRequest(req, {
-        type: filterMetadata.filterCount > 0
-          ? SECURITY_EVENT_TYPES.TASK_FILTER_APPLIED
-          : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        type:
+          filterMetadata.filterCount > 0
+            ? SECURITY_EVENT_TYPES.TASK_FILTER_APPLIED
+            : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
         userId: user.userId,
         metadata: {
@@ -92,12 +96,18 @@ export class TasksController {
       return result;
     } catch (error) {
       const filterMetadata = this.getTaskFilterAuditMetadata(filterDto);
-      this.auditTaskFailure(req, user.userId, filterMetadata.filterCount > 0
-        ? SECURITY_EVENT_TYPES.TASK_FILTER_FAILED
-        : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        ...filterMetadata,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        filterMetadata.filterCount > 0
+          ? SECURITY_EVENT_TYPES.TASK_FILTER_FAILED
+          : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          ...filterMetadata,
+        },
+      );
       throw error;
     }
   }
@@ -140,17 +150,25 @@ export class TasksController {
         },
       });
 
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:created', { task });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:created', {
+        task,
+      });
 
       return task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_CREATE_FAILED, error, {
-        workspaceId,
-        requestedType: createTaskDto.type,
-        requestedStatus: createTaskDto.status,
-        requestedColumnId: createTaskDto.columnId,
-        requestedSprintId: createTaskDto.sprintId,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_CREATE_FAILED,
+        error,
+        {
+          workspaceId,
+          requestedType: createTaskDto.type,
+          requestedStatus: createTaskDto.status,
+          requestedColumnId: createTaskDto.columnId,
+          requestedSprintId: createTaskDto.sprintId,
+        },
+      );
       throw error;
     }
   }
@@ -185,13 +203,21 @@ export class TasksController {
           viewedFrom: 'key',
         },
       });
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', { task });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', {
+        task,
+      });
       return task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
-        workspaceId,
-        taskKey,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_VIEWED,
+        error,
+        {
+          workspaceId,
+          taskKey,
+        },
+      );
       throw error;
     }
   }
@@ -228,17 +254,25 @@ export class TasksController {
       });
       return result;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        archived: true,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          archived: true,
+        },
+      );
       throw error;
     }
   }
 
   @Get('backlog')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'List Scrum backlog tasks without sprint assignment' })
+  @ApiOperation({
+    summary: 'List Scrum backlog tasks without sprint assignment',
+  })
   @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
@@ -264,10 +298,16 @@ export class TasksController {
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        queryScope: 'scrum_backlog',
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          queryScope: 'scrum_backlog',
+        },
+      );
       throw error;
     }
   }
@@ -300,10 +340,16 @@ export class TasksController {
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        queryScope: 'scrum_active_sprint_board',
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          queryScope: 'scrum_active_sprint_board',
+        },
+      );
       throw error;
     }
   }
@@ -340,11 +386,17 @@ export class TasksController {
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        sprintId,
-        queryScope: 'scrum_sprint_tasks',
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          sprintId,
+          queryScope: 'scrum_sprint_tasks',
+        },
+      );
       throw error;
     }
   }
@@ -382,10 +434,16 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_VIEWED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -431,18 +489,26 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-        changedFields: Object.keys(updateTaskDto),
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+          changedFields: Object.keys(updateTaskDto),
+        },
+      );
       throw error;
     }
   }
 
   @Patch(':id/move')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Move task/card across board columns or Scrum sprint scopes' })
+  @ApiOperation({
+    summary: 'Move task/card across board columns or Scrum sprint scopes',
+  })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiBadRequestResponse({ description: 'Invalid task move payload' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -473,18 +539,26 @@ export class TasksController {
         },
       });
 
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:moved', { task: result.task });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:moved', {
+        task: result.task,
+      });
 
       return result.task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-        requestedColumnId: moveTaskDto.columnId,
-        requestedStatus: moveTaskDto.status,
-        requestedSprintId: moveTaskDto.sprintId,
-        requestedRank: moveTaskDto.rank,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_MOVE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+          requestedColumnId: moveTaskDto.columnId,
+          requestedStatus: moveTaskDto.status,
+          requestedSprintId: moveTaskDto.sprintId,
+          requestedRank: moveTaskDto.rank,
+        },
+      );
       throw error;
     }
   }
@@ -504,7 +578,11 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.archiveInWorkspaceId(workspaceId, id, user.userId);
+      const task = await this.tasksService.archiveInWorkspaceId(
+        workspaceId,
+        id,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_ARCHIVE_SUCCESS,
         severity: 'WARN',
@@ -515,13 +593,21 @@ export class TasksController {
           taskKey: task.key,
         },
       });
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', { taskId: task.id });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', {
+        taskId: task.id,
+      });
       return task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -541,7 +627,11 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.restoreInWorkspaceId(workspaceId, id, user.userId);
+      const task = await this.tasksService.restoreInWorkspaceId(
+        workspaceId,
+        id,
+        user.userId,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_RESTORE_SUCCESS,
         severity: 'INFO',
@@ -552,13 +642,21 @@ export class TasksController {
           taskKey: task.key,
         },
       });
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', { task });
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', {
+        task,
+      });
       return task;
     } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -597,12 +695,20 @@ export class TasksController {
           taskKey: task.key,
         },
       });
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', { taskId: task.id });
-    } catch (error) {
-      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED, error, {
-        workspaceId,
-        taskId: id,
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', {
+        taskId: task.id,
       });
+    } catch (error) {
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -626,7 +732,9 @@ export class TasksController {
     });
   }
 
-  private getAuditSafeTaskFilters(filterDto: FilterTaskDto): Record<string, unknown> {
+  private getAuditSafeTaskFilters(
+    filterDto: FilterTaskDto,
+  ): Record<string, unknown> {
     const {
       workspaceId,
       sprintId,

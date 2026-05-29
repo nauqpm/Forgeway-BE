@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { ScrumService } from '../../scrum/services/scrum.service';
@@ -150,7 +147,9 @@ describe('TasksService', () => {
     const taskDto = { id: task._id.toString(), key: 'TESKB-1' };
 
     validationService.validateCreateRequest.mockResolvedValue(workspace as any);
-    normalizerService.normalizeForWorkspaceType.mockResolvedValue(normalizedDto);
+    normalizerService.normalizeForWorkspaceType.mockResolvedValue(
+      normalizedDto,
+    );
     taskCounterService.nextSequence.mockResolvedValue(1);
     keyService.create.mockReturnValue('TESKB-1');
     transformerService.transformCreateInput.mockReturnValue(taskData as any);
@@ -177,7 +176,10 @@ describe('TasksService', () => {
       'TESKB-1',
     );
     expect(repository.create).toHaveBeenCalledWith(taskData);
-    expect(taskActivitiesService.recordTaskCreated).toHaveBeenCalledWith(task, userId);
+    expect(taskActivitiesService.recordTaskCreated).toHaveBeenCalledWith(
+      task,
+      userId,
+    );
   });
 
   it('rejects create when workspaceId is missing', async () => {
@@ -249,9 +251,15 @@ describe('TasksService', () => {
       page: 1,
       limit: 20,
     });
-    mapper.mapToDtos.mockReturnValue([{ key: 'TESKB-1', status: 'todo' }] as any);
+    mapper.mapToDtos.mockReturnValue([
+      { key: 'TESKB-1', status: 'todo' },
+    ] as any);
 
-    const result = await service.findByWorkspaceKey('TESKB', userId, filters as any);
+    const result = await service.findByWorkspaceKey(
+      'TESKB',
+      userId,
+      filters as any,
+    );
 
     expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
       workspaceId,
@@ -312,7 +320,10 @@ describe('TasksService', () => {
     repository.findBySprintInWorkspace.mockResolvedValue(tasks as any);
     mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-2' }] as any);
 
-    const result = await service.findActiveSprintBoardByWorkspaceKey('SCRUM', userId);
+    const result = await service.findActiveSprintBoardByWorkspaceKey(
+      'SCRUM',
+      userId,
+    );
 
     expect(scrumService.getActiveSprint).toHaveBeenCalledWith(workspaceId);
     expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(
@@ -337,7 +348,9 @@ describe('TasksService', () => {
       _id: new Types.ObjectId(sprintId),
       status: 'planning',
     } as any);
-    repository.findBySprintInWorkspace.mockResolvedValue([{ key: 'SCRUM-3' }] as any);
+    repository.findBySprintInWorkspace.mockResolvedValue([
+      { key: 'SCRUM-3' },
+    ] as any);
     mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-3' }] as any);
 
     const result = await service.findTasksBySprintInWorkspaceKey(
@@ -419,7 +432,10 @@ describe('TasksService', () => {
       updateDto,
     );
     transformerService.transformUpdateInput.mockReturnValue(updateData as any);
-    repository.update.mockResolvedValue({ _id: taskId, title: 'Updated' } as any);
+    repository.update.mockResolvedValue({
+      _id: taskId,
+      title: 'Updated',
+    } as any);
     mapper.mapToDto.mockReturnValue({ id: taskId, title: 'Updated' } as any);
 
     await expect(service.update(taskId, updateDto)).resolves.toEqual({
@@ -430,10 +446,9 @@ describe('TasksService', () => {
       updateDto,
       workspaceId,
     );
-    expect(normalizerService.normalizeUpdateForWorkspaceType).toHaveBeenCalledWith(
-      updateDto,
-      existingTask,
-    );
+    expect(
+      normalizerService.normalizeUpdateForWorkspaceType,
+    ).toHaveBeenCalledWith(updateDto, existingTask);
     expect(repository.update).toHaveBeenCalledWith(taskId, updateData);
   });
 
@@ -594,8 +609,6 @@ describe('TasksService', () => {
     );
   });
 
-
-
   it('restores an archived task by workspace key', async () => {
     const taskId = new Types.ObjectId().toString();
     const workspaceId = new Types.ObjectId().toString();
@@ -623,8 +636,6 @@ describe('TasksService', () => {
     );
   });
 
-
-
   it('soft deletes a task permanently when confirmation is valid', async () => {
     const taskId = new Types.ObjectId().toString();
     const workspaceId = new Types.ObjectId().toString();
@@ -644,7 +655,12 @@ describe('TasksService', () => {
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
     await expect(
-      service.deletePermanentlyInWorkspaceKey('TESKB', taskId, userId, 'delete'),
+      service.deletePermanentlyInWorkspaceKey(
+        'TESKB',
+        taskId,
+        userId,
+        'delete',
+      ),
     ).resolves.toEqual(taskDto);
     expect(repository.softDeleteInWorkspace).toHaveBeenCalledWith(
       taskId,
@@ -653,11 +669,14 @@ describe('TasksService', () => {
     );
   });
 
-
-
   it('rejects permanent delete when confirmation is invalid', async () => {
     await expect(
-      service.deletePermanentlyInWorkspaceKey('TESKB', 'task-id', 'user-id', 'wrong'),
+      service.deletePermanentlyInWorkspaceKey(
+        'TESKB',
+        'task-id',
+        'user-id',
+        'wrong',
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 });

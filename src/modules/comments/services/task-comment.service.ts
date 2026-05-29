@@ -99,7 +99,11 @@ export class TaskCommentService {
     if (!comment) {
       throw new NotFoundException(`Comment with id ${commentId} not found`);
     }
-    if (comment.authorId.toString() !== userId) {
+    const authorIdString = (comment.authorId as any)._id
+      ? (comment.authorId as any)._id.toString()
+      : comment.authorId.toString();
+
+    if (authorIdString !== userId) {
       throw new ForbiddenException('You can only update your own comments');
     }
 
@@ -123,7 +127,11 @@ export class TaskCommentService {
     if (!comment) {
       throw new NotFoundException(`Comment with id ${commentId} not found`);
     }
-    if (comment.authorId.toString() !== userId) {
+    const authorIdString = (comment.authorId as any)._id
+      ? (comment.authorId as any)._id.toString()
+      : comment.authorId.toString();
+
+    if (authorIdString !== userId) {
       throw new ForbiddenException('You can only delete your own comments');
     }
 

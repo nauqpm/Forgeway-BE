@@ -103,7 +103,10 @@ describe('ScrumController', () => {
 
   describe('createSprint', () => {
     it('should call scrumService.createSprint with correct arguments', async () => {
-      const dto: CreateSprintDto = { name: 'Sprint 1', goal: 'Initial goal' } as any;
+      const dto: CreateSprintDto = {
+        name: 'Sprint 1',
+        goal: 'Initial goal',
+      } as any;
       const expectedResult = { _id: 'sprint1', ...dto };
       scrumService.createSprint.mockResolvedValue(expectedResult as any);
 
@@ -116,7 +119,10 @@ describe('ScrumController', () => {
 
   describe('findByWorkspace', () => {
     it('should return all sprints in the workspace', async () => {
-      const sprints = [{ _id: 's1', name: 'Sprint 1' }, { _id: 's2', name: 'Sprint 2' }];
+      const sprints = [
+        { _id: 's1', name: 'Sprint 1' },
+        { _id: 's2', name: 'Sprint 2' },
+      ];
       scrumService.findByWorkspace.mockResolvedValue(sprints as any);
 
       const result = await controller.findByWorkspace(workspaceId);
@@ -135,7 +141,11 @@ describe('ScrumController', () => {
 
       const result = await controller.updateSprint(workspaceId, sprintId, dto);
 
-      expect(scrumService.updateSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto);
+      expect(scrumService.updateSprint).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+        dto,
+      );
       expect(result).toEqual(updatedSprint);
     });
   });
@@ -147,7 +157,10 @@ describe('ScrumController', () => {
 
       const result = await controller.deleteSprint(workspaceId, sprintId);
 
-      expect(scrumService.deleteSprint).toHaveBeenCalledWith(workspaceId, sprintId);
+      expect(scrumService.deleteSprint).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+      );
       expect(result).toBeUndefined();
     });
   });
@@ -155,13 +168,20 @@ describe('ScrumController', () => {
   describe('startSprint', () => {
     it('should start the sprint and return it', async () => {
       const sprintId = new Types.ObjectId().toString();
-      const dto: StartSprintDto = { startDate: '2026-06-01', endDate: '2026-06-15' };
+      const dto: StartSprintDto = {
+        startDate: '2026-06-01',
+        endDate: '2026-06-15',
+      };
       const startedSprint = { _id: sprintId, status: 'active', ...dto };
       scrumService.startSprint.mockResolvedValue(startedSprint as any);
 
       const result = await controller.startSprint(workspaceId, sprintId, dto);
 
-      expect(scrumService.startSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto);
+      expect(scrumService.startSprint).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+        dto,
+      );
       expect(result).toEqual(startedSprint);
     });
   });
@@ -170,12 +190,24 @@ describe('ScrumController', () => {
     it('should complete the sprint and return summary', async () => {
       const sprintId = new Types.ObjectId().toString();
       const dto: CompleteSprintDto = { moveToSprintId: 'sprint2' };
-      const summary = { _id: sprintId, status: 'completed', incompleteTasksMovedTo: 'sprint2' };
+      const summary = {
+        _id: sprintId,
+        status: 'completed',
+        incompleteTasksMovedTo: 'sprint2',
+      };
       scrumService.completeSprint.mockResolvedValue(summary);
 
-      const result = await controller.completeSprint(workspaceId, sprintId, dto);
+      const result = await controller.completeSprint(
+        workspaceId,
+        sprintId,
+        dto,
+      );
 
-      expect(scrumService.completeSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto);
+      expect(scrumService.completeSprint).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+        dto,
+      );
       expect(result).toEqual(summary);
     });
   });
@@ -192,7 +224,11 @@ describe('ScrumController', () => {
     });
 
     it('should return grouped backlog when grouped query is true', async () => {
-      const groupedData = { activeSprint: null, futureSprints: [], backlogTasks: [] };
+      const groupedData = {
+        activeSprint: null,
+        futureSprints: [],
+        backlogTasks: [],
+      };
       scrumService.getBacklog.mockResolvedValue(groupedData);
 
       const result = await controller.getBacklog(workspaceId, 'true');
@@ -221,9 +257,19 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'member' };
       scrumService.moveTasksToSprint.mockResolvedValue({ modifiedCount: 2 });
 
-      const result = await controller.moveTasksToSprint(workspaceId, sprintId, dto, user as any);
+      const result = await controller.moveTasksToSprint(
+        workspaceId,
+        sprintId,
+        dto,
+        user as any,
+      );
 
-      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto.taskIds, false);
+      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+        dto.taskIds,
+        false,
+      );
       expect(result).toEqual({ modifiedCount: 2 });
     });
 
@@ -233,9 +279,19 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'super_admin' };
       scrumService.moveTasksToSprint.mockResolvedValue({ modifiedCount: 1 });
 
-      await controller.moveTasksToSprint(workspaceId, sprintId, dto, user as any);
+      await controller.moveTasksToSprint(
+        workspaceId,
+        sprintId,
+        dto,
+        user as any,
+      );
 
-      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto.taskIds, true);
+      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+        dto.taskIds,
+        true,
+      );
     });
   });
 
@@ -245,9 +301,17 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'member' };
       scrumService.moveTasksToBacklog.mockResolvedValue({ modifiedCount: 1 });
 
-      const result = await controller.moveTasksToBacklog(workspaceId, dto, user as any);
+      const result = await controller.moveTasksToBacklog(
+        workspaceId,
+        dto,
+        user as any,
+      );
 
-      expect(scrumService.moveTasksToBacklog).toHaveBeenCalledWith(workspaceId, dto.taskIds, false);
+      expect(scrumService.moveTasksToBacklog).toHaveBeenCalledWith(
+        workspaceId,
+        dto.taskIds,
+        false,
+      );
       expect(result).toEqual({ modifiedCount: 1 });
     });
   });
@@ -260,7 +324,10 @@ describe('ScrumController', () => {
 
       const result = await controller.getSprintTasks(workspaceId, sprintId);
 
-      expect(scrumService.getSprintTasks).toHaveBeenCalledWith(workspaceId, sprintId);
+      expect(scrumService.getSprintTasks).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+      );
       expect(result).toEqual(tasks);
     });
   });
@@ -268,12 +335,23 @@ describe('ScrumController', () => {
   describe('getCompleteSprintPreview', () => {
     it('should return complete sprint preview details', async () => {
       const sprintId = new Types.ObjectId().toString();
-      const preview = { sprintId, totalTasks: 5, completedTasks: 3, incompleteTasks: 2 };
+      const preview = {
+        sprintId,
+        totalTasks: 5,
+        completedTasks: 3,
+        incompleteTasks: 2,
+      };
       scrumService.getCompleteSprintPreview.mockResolvedValue(preview);
 
-      const result = await controller.getCompleteSprintPreview(workspaceId, sprintId);
+      const result = await controller.getCompleteSprintPreview(
+        workspaceId,
+        sprintId,
+      );
 
-      expect(scrumService.getCompleteSprintPreview).toHaveBeenCalledWith(workspaceId, sprintId);
+      expect(scrumService.getCompleteSprintPreview).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+      );
       expect(result).toEqual(preview);
     });
   });
