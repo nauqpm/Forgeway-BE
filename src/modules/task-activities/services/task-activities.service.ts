@@ -7,7 +7,8 @@ import {
   TASK_ACTIVITY_TYPES,
   TaskActivityType,
 } from '../constants/task-activity.constants';
-import { TaskActivityDto } from '../dtos/task-activity.dto';
+import { FilterTaskActivityDto } from '../dtos/filter-task-activity.dto';
+import { TaskActivityListDto } from '../dtos/task-activity-list.dto';
 import { TaskActivityMapper } from '../mappers/task-activity.mapper';
 import {
   CreateTaskActivityData,
@@ -55,7 +56,8 @@ export class TaskActivitiesService {
     workspaceKey: string,
     taskId: string,
     userId: string,
-  ): Promise<TaskActivityDto[]> {
+    filterDto: FilterTaskActivityDto = {},
+  ): Promise<TaskActivityListDto> {
     const workspace = await this.workspacesService.findById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.assertWorkspaceMember(workspaceId, userId);
@@ -65,13 +67,19 @@ export class TaskActivitiesService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    const activities =
+    const result =
       await this.taskActivitiesRepository.findByTaskInWorkspace(
         workspaceId,
         taskId,
+        filterDto,
       );
 
-    return this.taskActivityMapper.mapToDtos(activities);
+    return {
+      activities: this.taskActivityMapper.mapToDtos(result.activities),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   async recordTaskCreated(task: unknown, actorId: string): Promise<void> {

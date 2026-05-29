@@ -17,6 +17,30 @@ interface MoveTaskData {
   rank?: string;
 }
 
+interface TaskPaginationOptions {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc' | string;
+}
+
+interface TaskPaginatedResult {
+  tasks: TaskDocument[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+const TASK_SORT_FIELDS = new Set([
+  'createdAt',
+  'updatedAt',
+  'key',
+  'priority',
+  'status',
+  'rank',
+  'archivedAt',
+]);
+
 @Injectable()
 export class TasksRepository {
   constructor(
@@ -135,22 +159,16 @@ export class TasksRepository {
     ).exec();
   }
 
-  async findAll(filterDto: FilterTaskDto): Promise<{
-    tasks: TaskDocument[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async findAll(filterDto: FilterTaskDto): Promise<TaskPaginatedResult> {
     const filter = this.buildFilter(filterDto);
-    const page = filterDto.page || 1;
-    const limit = filterDto.limit || 20;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = this.normalizePagination(filterDto);
+    const sort = this.buildSort(filterDto, { createdAt: -1 });
 
     const [tasks, total] = await Promise.all([
       this.withRelations(this.taskModel.find(filter))
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 })
+        .sort(sort)
         .exec(),
       this.taskModel.countDocuments(filter).exec(),
     ]);
@@ -173,20 +191,32 @@ export class TasksRepository {
       .exec();
   }
 
-  async findArchivedByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
+  async findArchivedByWorkspace(
+    workspaceId: string,
+    options: TaskPaginationOptions = {},
+  ): Promise<TaskPaginatedResult> {
     if (!Types.ObjectId.isValid(workspaceId)) {
-      return [];
+      return { tasks: [], total: 0, page: options.page || 1, limit: options.limit || 20 };
     }
 
-    return this.withRelations(
-      this.taskModel.find({
-        workspaceId: new Types.ObjectId(workspaceId),
-        isArchived: true,
-        isDeleted: { $ne: true },
-      }),
-    )
-      .sort({ archivedAt: -1, updatedAt: -1 })
-      .exec();
+    const { page, limit, skip } = this.normalizePagination(options);
+    const filter: FilterQuery<TaskDocument> = {
+      workspaceId: new Types.ObjectId(workspaceId),
+      isArchived: true,
+      isDeleted: { $ne: true },
+    };
+    const sort = this.buildSort(options, { archivedAt: -1, updatedAt: -1 });
+
+    const [tasks, total] = await Promise.all([
+      this.withRelations(this.taskModel.find(filter))
+        .skip(skip)
+        .limit(limit)
+        .sort(sort)
+        .exec(),
+      this.taskModel.countDocuments(filter).exec(),
+    ]);
+
+    return { tasks, total, page, limit };
   }
 
   async findBacklogByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
@@ -487,6 +517,32 @@ export class TasksRepository {
         { new: true, runValidators: true },
       ),
     ).exec();
+  }
+
+  private normalizePagination(options: TaskPaginationOptions): {
+    page: number;
+    limit: number;
+    skip: number;
+  } {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(options.limit) || 20));
+    return { page, limit, skip: (page - 1) * limit };
+  }
+
+  private buildSort(
+    options: TaskPaginationOptions,
+    defaultSort: Record<string, 1 | -1>,
+  ): Record<string, 1 | -1> {
+    const sortBy = options.sortBy && TASK_SORT_FIELDS.has(options.sortBy)
+      ? options.sortBy
+      : undefined;
+    const direction = options.sortOrder === 'asc' ? 1 : -1;
+
+    if (!sortBy) {
+      return defaultSort;
+    }
+
+    return { [sortBy]: direction, _id: direction };
   }
 
   private buildFilter(filterDto: FilterTaskDto): FilterQuery<TaskDocument> {

@@ -28,7 +28,7 @@ describe('TaskActivitiesService', () => {
       mapToDtos: jest.fn(),
     } as unknown as jest.Mocked<TaskActivityMapper>;
     workspacesService = {
-      findByKey: jest.fn(),
+      findById: jest.fn(),
       isMember: jest.fn(),
     } as unknown as jest.Mocked<WorkspacesService>;
     taskModel = {
@@ -52,7 +52,7 @@ describe('TaskActivitiesService', () => {
     const activities = [{ _id: new Types.ObjectId() }];
     const mapped = [{ id: activities[0]._id.toString(), taskId }];
 
-    workspacesService.findByKey.mockResolvedValue({
+    workspacesService.findById.mockResolvedValue({
       _id: new Types.ObjectId(workspaceId),
       key: 'TESKB',
     } as any);
@@ -63,23 +63,34 @@ describe('TaskActivitiesService', () => {
         workspaceId: new Types.ObjectId(workspaceId),
       }),
     });
-    repository.findByTaskInWorkspace.mockResolvedValue(activities as any);
+    repository.findByTaskInWorkspace.mockResolvedValue({
+      activities,
+      total: 1,
+      page: 1,
+      limit: 20,
+    } as any);
     mapper.mapToDtos.mockReturnValue(mapped as any);
 
     await expect(
       service.findByTaskInWorkspaceKey('TESKB', taskId, userId),
-    ).resolves.toEqual(mapped);
+    ).resolves.toEqual({
+      activities: mapped,
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
 
-    expect(workspacesService.findByKey).toHaveBeenCalledWith('TESKB');
+    expect(workspacesService.findById).toHaveBeenCalledWith('TESKB');
     expect(workspacesService.isMember).toHaveBeenCalledWith(workspaceId, userId);
     expect(repository.findByTaskInWorkspace).toHaveBeenCalledWith(
       workspaceId,
       taskId,
+      {},
     );
   });
 
   it('returns not found when user is not a workspace member', async () => {
-    workspacesService.findByKey.mockResolvedValue({
+    workspacesService.findById.mockResolvedValue({
       _id: new Types.ObjectId(workspaceId),
       key: 'TESKB',
     } as any);

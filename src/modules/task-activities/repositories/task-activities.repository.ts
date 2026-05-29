@@ -6,6 +6,7 @@ import {
   TaskActivityDocument,
 } from '../schemas/task-activity.schema';
 import { TaskActivityType } from '../constants/task-activity.constants';
+import { FilterTaskActivityDto } from '../dtos/filter-task-activity.dto';
 
 export interface CreateTaskActivityData {
   workspaceId: string;
@@ -14,6 +15,13 @@ export interface CreateTaskActivityData {
   actorId: string;
   type: TaskActivityType;
   metadata?: Record<string, unknown>;
+}
+
+interface TaskActivityPaginatedResult {
+  activities: TaskActivityDocument[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 @Injectable()
@@ -37,19 +45,45 @@ export class TaskActivitiesRepository {
   async findByTaskInWorkspace(
     workspaceId: string,
     taskId: string,
-  ): Promise<TaskActivityDocument[]> {
+    filterDto: FilterTaskActivityDto = {},
+  ): Promise<TaskActivityPaginatedResult> {
+    const { page, limit, skip } = this.normalizePagination(filterDto);
     if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
-      return [];
+      return { activities: [], total: 0, page, limit };
     }
 
-    return this.withRelations(
-      this.taskActivityModel.find({
-        workspaceId: new Types.ObjectId(workspaceId),
-        taskId: new Types.ObjectId(taskId),
-      }),
-    )
-      .sort({ createdAt: -1 })
-      .exec();
+    const filter = {
+      workspaceId: new Types.ObjectId(workspaceId),
+      taskId: new Types.ObjectId(taskId),
+    };
+    const sort = this.buildSort(filterDto);
+
+    const [activities, total] = await Promise.all([
+      this.withRelations(this.taskActivityModel.find(filter))
+        .skip(skip)
+        .limit(limit)
+        .sort(sort)
+        .exec(),
+      this.taskActivityModel.countDocuments(filter).exec(),
+    ]);
+
+    return { activities, total, page, limit };
+  }
+
+  private normalizePagination(filterDto: FilterTaskActivityDto): {
+    page: number;
+    limit: number;
+    skip: number;
+  } {
+    const page = Math.max(1, Number(filterDto.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(filterDto.limit) || 20));
+    return { page, limit, skip: (page - 1) * limit };
+  }
+
+  private buildSort(filterDto: FilterTaskActivityDto): Record<string, 1 | -1> {
+    const sortBy = filterDto.sortBy === 'type' ? 'type' : 'createdAt';
+    const direction = filterDto.sortOrder === 'asc' ? 1 : -1;
+    return { [sortBy]: direction, _id: direction };
   }
 
   private withRelations(query: any) {

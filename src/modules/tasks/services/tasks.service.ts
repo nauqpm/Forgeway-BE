@@ -124,7 +124,7 @@ export class TasksService {
     workspaceKey: string,
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
-  ): Promise<TaskDto[]> {
+  ): Promise<TaskListDto> {
     const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     return this.findByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
   }
@@ -133,7 +133,7 @@ export class TasksService {
     workspaceId: string,
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
-  ): Promise<TaskDto[]> {
+  ): Promise<TaskListDto> {
     this.validationService.validateObjectId(workspaceId, 'Workspace');
 
     if (currentUserId) {
@@ -148,26 +148,38 @@ export class TasksService {
       workspaceId,
     });
 
-    return this.taskMapper.mapToDtos(result.tasks);
+    return {
+      tasks: this.taskMapper.mapToDtos(result.tasks),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   async findArchivedByWorkspaceKey(
     workspaceKey: string,
     currentUserId: string,
-  ): Promise<TaskDto[]> {
+    filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
+  ): Promise<TaskListDto> {
     const workspace = await this.validationService.getWorkspaceById(workspaceKey);
-    return this.findArchivedByWorkspaceId(workspace._id.toString(), currentUserId);
+    return this.findArchivedByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
   }
 
   async findArchivedByWorkspaceId(
     workspaceId: string,
     currentUserId: string,
-  ): Promise<TaskDto[]> {
+    filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
+  ): Promise<TaskListDto> {
     this.validationService.validateObjectId(workspaceId, 'Workspace');
     await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
 
-    const tasks = await this.tasksRepository.findArchivedByWorkspace(workspaceId);
-    return this.taskMapper.mapToDtos(tasks);
+    const result = await this.tasksRepository.findArchivedByWorkspace(workspaceId, filterDto);
+    return {
+      tasks: this.taskMapper.mapToDtos(result.tasks),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   async findBacklogByWorkspaceKey(

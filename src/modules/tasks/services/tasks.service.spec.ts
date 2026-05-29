@@ -92,7 +92,6 @@ describe('TasksService', () => {
             validateUpdateRequest: jest.fn(),
             validateWorkspaceMember: jest.fn(),
             validateObjectId: jest.fn(),
-            getWorkspaceByKey: jest.fn(),
             getWorkspaceById: jest.fn(),
           },
         },
@@ -194,7 +193,7 @@ describe('TasksService', () => {
       .spyOn(service, 'create')
       .mockResolvedValue({ key: 'TESKB-1' } as any);
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
 
     await service.createInWorkspaceKey('TESKB', { title: 'Task' }, 'user-id');
 
@@ -243,7 +242,7 @@ describe('TasksService', () => {
       workspaceId: new Types.ObjectId().toString(),
     };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findAll.mockResolvedValue({
       tasks: tasks as any,
       total: 1,
@@ -262,7 +261,12 @@ describe('TasksService', () => {
       ...filters,
       workspaceId,
     });
-    expect(result).toEqual([{ key: 'TESKB-1', status: 'todo' }]);
+    expect(result).toEqual({
+      tasks: [{ key: 'TESKB-1', status: 'todo' }],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
   });
 
   it('finds Scrum backlog tasks by workspace key', async () => {
@@ -275,7 +279,7 @@ describe('TasksService', () => {
     };
     const tasks = [{ key: 'SCRUM-1', sprintId: null }];
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findBacklogByWorkspace.mockResolvedValue(tasks as any);
     mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-1' }] as any);
 
@@ -300,7 +304,7 @@ describe('TasksService', () => {
     };
     const tasks = [{ key: 'SCRUM-2', sprintId }];
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     scrumService.getActiveSprint.mockResolvedValue({
       _id: new Types.ObjectId(sprintId),
       status: 'active',
@@ -328,7 +332,7 @@ describe('TasksService', () => {
       type: 'scrum',
     };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     scrumService.findByIdInWorkspace.mockResolvedValue({
       _id: new Types.ObjectId(sprintId),
       status: 'planning',
@@ -376,8 +380,8 @@ describe('TasksService', () => {
     };
     const taskDto = { id: task._id.toString(), workspaceId, key: 'TESKB-1' };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
-    repository.findByKeyInWorkspace.mockResolvedValue(task as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
+    repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
     await expect(
@@ -387,9 +391,9 @@ describe('TasksService', () => {
       workspaceId,
       userId,
     );
-    expect(repository.findByKeyInWorkspace).toHaveBeenCalledWith(
-      'TESKB-1',
+    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
       workspaceId,
+      'TESKB-1',
     );
   });
 
@@ -444,7 +448,7 @@ describe('TasksService', () => {
     };
     const taskDto = { id: taskId, workspaceId };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(task as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
@@ -468,7 +472,7 @@ describe('TasksService', () => {
     const userId = new Types.ObjectId().toString();
     const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(null);
 
     await expect(
@@ -498,7 +502,7 @@ describe('TasksService', () => {
     const updatedTask = { ...existingTask, title: 'Updated' };
     const taskDto = { id: taskId, key: taskKey, title: 'Updated' };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
     normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(
       updateDto,
@@ -518,7 +522,8 @@ describe('TasksService', () => {
       updateDto,
       workspaceId,
     );
-    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
+    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(
+      taskId,
       workspaceId,
       { includeArchived: true },
     );
@@ -543,7 +548,7 @@ describe('TasksService', () => {
       isArchived: false,
     };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
     scrumService.findByIdInWorkspace.mockResolvedValue({
       _id: new Types.ObjectId(currentSprintId),
@@ -574,7 +579,7 @@ describe('TasksService', () => {
     const archivedTask = { ...task, isArchived: true };
     const taskDto = { id: taskId, isArchived: true };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(task as any);
     repository.archiveInWorkspace.mockResolvedValue(archivedTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
@@ -604,7 +609,7 @@ describe('TasksService', () => {
     const restoredTask = { ...task, isArchived: false };
     const taskDto = { id: taskId, isArchived: false };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(task as any);
     repository.restoreInWorkspace.mockResolvedValue(restoredTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
@@ -633,7 +638,7 @@ describe('TasksService', () => {
     const deletedTask = { ...task, isArchived: true, isDeleted: true };
     const taskDto = { id: taskId, isDeleted: true };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(task as any);
     repository.softDeleteInWorkspace.mockResolvedValue(deletedTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);

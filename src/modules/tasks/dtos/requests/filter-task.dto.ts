@@ -8,6 +8,7 @@ import {
   Max,
   IsMongoId,
   IsBoolean,
+  IsIn,
   Matches,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -123,4 +124,19 @@ export class FilterTaskDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    enum: ['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt'],
+    default: 'createdAt',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt'])
+  sortBy?: string;
+
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @IsOptional()
+  @IsString()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 }

@@ -38,7 +38,7 @@ import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { MoveTaskDto } from '../dtos/requests/move-task.dto';
 import { UpdateTaskDto } from '../dtos/requests/update-task.dto';
 import { TaskDetailDto } from '../dtos/responses/task-detail.dto';
-import { TaskDto } from '../dtos/responses/task.dto';
+import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TasksService } from '../services/tasks.service';
@@ -61,7 +61,7 @@ export class TasksController {
   @Get('tasks')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'List tasks in a workspace board by workspace ID' })
-  @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskListDto })
   @ApiBadRequestResponse({ description: 'Invalid workspace ID' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
@@ -70,14 +70,14 @@ export class TasksController {
     @Query() filterDto: FilterTaskDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
-  ): Promise<TaskDto[]> {
+  ): Promise<TaskListDto> {
     try {
-      const tasks = await this.tasksService.findByWorkspaceId(
+      const result = await this.tasksService.findByWorkspaceId(
         workspaceId,
         user.userId,
         filterDto,
       );
-      const filterMetadata = this.getTaskFilterAuditMetadata(filterDto, tasks.length);
+      const filterMetadata = this.getTaskFilterAuditMetadata(filterDto, result.total);
       this.auditLogService.logRequest(req, {
         type: filterMetadata.filterCount > 0
           ? SECURITY_EVENT_TYPES.TASK_FILTER_APPLIED
@@ -89,7 +89,7 @@ export class TasksController {
           ...filterMetadata,
         },
       });
-      return tasks;
+      return result;
     } catch (error) {
       const filterMetadata = this.getTaskFilterAuditMetadata(filterDto);
       this.auditTaskFailure(req, user.userId, filterMetadata.filterCount > 0
@@ -199,16 +199,21 @@ export class TasksController {
   @Get('archives')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'List archived tasks in a workspace board' })
-  @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskListDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   async findArchivedByWorkspaceKey(
     @Param('workspaceId') workspaceId: string,
+    @Query() filterDto: FilterTaskDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: ExpressRequest,
-  ): Promise<TaskDto[]> {
+  ): Promise<TaskListDto> {
     try {
-      const tasks = await this.tasksService.findArchivedByWorkspaceId(workspaceId, user.userId);
+      const result = await this.tasksService.findArchivedByWorkspaceId(
+        workspaceId,
+        user.userId,
+        filterDto,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
@@ -216,10 +221,12 @@ export class TasksController {
         metadata: {
           workspaceId,
           archived: true,
-          count: tasks.length,
+          count: result.total,
+          page: result.page,
+          limit: result.limit,
         },
       });
-      return tasks;
+      return result;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
         workspaceId,
