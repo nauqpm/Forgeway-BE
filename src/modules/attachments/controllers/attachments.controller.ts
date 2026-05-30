@@ -1,110 +1,65 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
-  Get,
-  Post,
   Delete,
+  Get,
   Param,
+  Post,
   Query,
+  Request,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
-  Request,
-  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { v4 as uuidv4 } from 'uuid';
-import { AttachmentsService, CreateAttachmentDto } from '../services/attachments.service';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CreateAttachmentInput } from '../dtos/attachment-input.dto';
+import { AttachmentService } from '../services/attachment.service';
 
 @ApiTags('Attachments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('attachments')
 export class AttachmentsController {
-  constructor(private readonly attachmentsService: AttachmentsService) {}
+  constructor(private readonly attachmentService: AttachmentService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lấy danh sách file đính kèm' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách file đính kèm theo target',
-    schema: {
-      example: [
-        {
-          _id: '...',
-          originalName: 'document.pdf',
-          mimeType: 'application/pdf',
-          size: 1024000,
-          targetType: 'task',
-          targetId: '...',
-        },
-      ],
-    },
-  })
+  @ApiOperation({ summary: 'List generic attachments by target' })
   async findByTarget(
     @Query('targetType') targetType: string,
     @Query('targetId') targetId: string,
   ) {
-    return this.attachmentsService.findByTarget(targetType, targetId);
+    return this.attachmentService.findByTarget(targetType, targetId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lấy file đính kèm theo ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Thông tin file đính kèm',
-    schema: {
-      example: {
-        _id: '...',
-        originalName: 'document.pdf',
-        mimeType: 'application/pdf',
-        size: 1024000,
-        targetType: 'task',
-        targetId: '...',
-        downloadCount: 3,
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Get attachment by ID' })
   async findById(@Param('id') id: string) {
-    return this.attachmentsService.findById(id);
+    return this.attachmentService.findById(id);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Upload file đính kèm' })
+  @ApiOperation({ summary: 'Upload generic attachment' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({
-    status: 201,
-    description: 'Upload file thành công',
-    schema: {
-      example: {
-        _id: '...',
-        originalName: 'document.pdf',
-        mimeType: 'application/pdf',
-        size: 1024000,
-        url: '/uploads/...',
-        targetType: 'task',
-        targetId: '...',
-      },
-    },
-  })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-        },
-        targetType: {
-          type: 'string',
-          enum: ['task', 'page'],
-        },
-        targetId: {
-          type: 'string',
-        },
+        file: { type: 'string', format: 'binary' },
+        targetType: { type: 'string', enum: ['task', 'page'] },
+        targetId: { type: 'string' },
       },
     },
   })
@@ -113,36 +68,36 @@ export class AttachmentsController {
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, callback) => {
-          const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
           const ext = extname(file.originalname);
-          const filename = `${uniqueSuffix}${ext}`;
-          callback(null, filename);
+          callback(null, `${Date.now()}-${uuidv4()}${ext}`);
         },
       }),
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
-      },
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
   async upload(
     @UploadedFile() file: Express.Multer.File,
-    @Query('targetType') targetType: string,
-    @Query('targetId') targetId: string,
-    @Request() req,
+    @Body('targetType') bodyTargetType: string,
+    @Body('targetId') bodyTargetId: string,
+    @Query('targetType') queryTargetType: string,
+    @Query('targetId') queryTargetId: string,
+    @Request() req: any,
   ) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
 
+    const targetType = bodyTargetType || queryTargetType;
+    const targetId = bodyTargetId || queryTargetId;
+
     if (!targetType || !['task', 'page'].includes(targetType)) {
       throw new BadRequestException('targetType must be "task" or "page"');
     }
-
     if (!targetId) {
       throw new BadRequestException('targetId is required');
     }
 
-    const dto: CreateAttachmentDto = {
+    const input: CreateAttachmentInput = {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
@@ -150,36 +105,20 @@ export class AttachmentsController {
       targetId,
     };
 
-    return this.attachmentsService.create(dto, file, req.user.userId);
+    return this.attachmentService.create(input, file, req.user.userId);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Xóa file đính kèm' })
-  @ApiResponse({
-    status: 200,
-    description: 'Xóa file thành công',
-    schema: {
-      example: { message: 'Attachment deleted successfully' },
-    },
-  })
-  async delete(@Param('id') id: string) {
-    await this.attachmentsService.delete(id);
+  @ApiOperation({ summary: 'Soft delete generic attachment metadata' })
+  @ApiResponse({ status: 200, description: 'Attachment soft deleted' })
+  async delete(@Param('id') id: string, @Request() req: any) {
+    await this.attachmentService.softDelete(id, req.user.userId);
     return { message: 'Attachment deleted successfully' };
   }
 
   @Post(':id/download')
-  @ApiOperation({ summary: 'Tăng số lượt download' })
-  @ApiResponse({
-    status: 201,
-    description: 'Đã tăng số lượt download',
-    schema: {
-      example: {
-        _id: '...',
-        downloadCount: 4,
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Increment attachment download count' })
   async incrementDownloadCount(@Param('id') id: string) {
-    return this.attachmentsService.incrementDownloadCount(id);
+    return this.attachmentService.incrementDownloadCount(id);
   }
 }

@@ -1,20 +1,28 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AttachmentsController } from './controllers/attachments.controller';
-import { AttachmentsService } from './services/attachments.service';
-import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { TaskActivitiesModule } from '../task-activities/task-activities.module';
+import { Task, TaskSchema } from '../tasks/schemas/task.schema';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { AttachmentsController } from './controllers/attachments.controller';
+import { TaskAttachmentController } from './controllers/task-attachment.controller';
+import { AttachmentMapper } from './mappers/attachment.mapper';
+import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
+import { AttachmentService } from './services/attachment.service';
+import { TaskAttachmentService } from './services/task-attachment.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Attachment.name, schema: AttachmentSchema },
+      { name: Task.name, schema: TaskSchema },
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => WorkspacesModule),
+    forwardRef(() => TaskActivitiesModule),
   ],
-  controllers: [AttachmentsController],
-  providers: [AttachmentsService, JwtAuthGuard],
-  exports: [AttachmentsService, JwtAuthGuard],
+  controllers: [AttachmentsController, TaskAttachmentController],
+  providers: [AttachmentService, TaskAttachmentService, AttachmentMapper],
+  exports: [AttachmentService, TaskAttachmentService],
 })
 export class AttachmentsModule {}

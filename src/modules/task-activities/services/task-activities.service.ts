@@ -101,6 +101,26 @@ export class TaskActivitiesService {
       metadata: { commentId },
     });
   }
+  async recordAttachmentAdded(
+    task: unknown,
+    actorId: string,
+    attachmentId: string,
+    fileName?: string,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.ATTACHMENT_ADDED,
+      metadata: { attachmentId, fileName },
+    });
+  }
   async recordTaskCreated(task: unknown, actorId: string): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {
