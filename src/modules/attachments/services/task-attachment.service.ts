@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { createReadStream, existsSync, ReadStream } from 'fs';
+import { extname, resolve, sep } from 'path';
 import { Model, Types } from 'mongoose';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
@@ -15,8 +17,17 @@ import { AttachmentMapper } from '../mappers/attachment.mapper';
 import { Attachment, AttachmentDocument } from '../schemas/attachment.schema';
 import { AttachmentService } from './attachment.service';
 
+export interface TaskAttachmentFileStream {
+  stream: ReadStream;
+  mimeType: string;
+  originalName: string;
+  size: number;
+}
+
 @Injectable()
 export class TaskAttachmentService {
+  private readonly uploadsDir = resolve(process.cwd(), 'uploads');
+
   constructor(
     @InjectModel(Attachment.name)
     private readonly attachmentModel: Model<AttachmentDocument>,
@@ -121,6 +132,50 @@ export class TaskAttachmentService {
     await attachment.save();
   }
 
+  async getDownloadStream(
+    workspaceId: string,
+    taskId: string,
+    attachmentId: string,
+    userId: string,
+  ): Promise<TaskAttachmentFileStream> {
+    await this.getReadableTask(workspaceId, taskId, userId);
+    const attachment = await this.getReadableAttachment(
+      workspaceId,
+      taskId,
+      attachmentId,
+    );
+
+    attachment.downloadCount += 1;
+    await attachment.save();
+
+    return this.createFileStream(attachment);
+  }
+
+  async getPreviewStream(
+    workspaceId: string,
+    taskId: string,
+    attachmentId: string,
+    userId: string,
+  ): Promise<TaskAttachmentFileStream> {
+    await this.getReadableTask(workspaceId, taskId, userId);
+    const attachment = await this.getReadableAttachment(
+      workspaceId,
+      taskId,
+      attachmentId,
+    );
+
+    const mimeType = this.resolveMimeType(
+      attachment.mimeType,
+      attachment.originalName || attachment.filename || attachment.storageKey,
+    );
+
+    if (!this.isPreviewable(mimeType)) {
+      throw new BadRequestException('Attachment type does not support preview');
+    }
+
+    return this.createFileStream(attachment, mimeType);
+  }
+
   private async getReadableTask(
     workspaceId: string,
     taskId: string,
@@ -158,6 +213,82 @@ export class TaskAttachmentService {
     }
 
     return task;
+  }
+
+  private async getReadableAttachment(
+    workspaceId: string,
+    taskId: string,
+    attachmentId: string,
+  ): Promise<AttachmentDocument> {
+    const attachment = await this.findTaskAttachmentDocument(
+      workspaceId,
+      taskId,
+      attachmentId,
+    );
+
+    if (!attachment) {
+      throw new NotFoundException(`Attachment with ID ${attachmentId} not found`);
+    }
+
+    return attachment;
+  }
+
+  private createFileStream(
+    attachment: AttachmentDocument,
+    mimeType?: string,
+  ): TaskAttachmentFileStream {
+    const filePath = resolve(this.uploadsDir, attachment.storageKey);
+    const storageRoot = `${this.uploadsDir}${sep}`;
+
+    if (!filePath.startsWith(storageRoot) || !existsSync(filePath)) {
+      throw new NotFoundException('Attachment file not found in storage');
+    }
+
+    return {
+      stream: createReadStream(filePath),
+      mimeType:
+        mimeType ??
+        this.resolveMimeType(
+          attachment.mimeType,
+          attachment.originalName || attachment.filename || attachment.storageKey,
+        ),
+      originalName: attachment.originalName,
+      size: attachment.size,
+    };
+  }
+
+  private resolveMimeType(mimeType?: string, fileName?: string): string {
+    const normalized = mimeType?.trim().toLowerCase();
+    if (normalized && normalized !== 'application/octet-stream') {
+      return normalized;
+    }
+
+    switch (extname(fileName ?? '').toLowerCase()) {
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.webp':
+        return 'image/webp';
+      case '.pdf':
+        return 'application/pdf';
+      case '.txt':
+        return 'text/plain';
+      default:
+        return normalized || 'application/octet-stream';
+    }
+  }
+
+  private isPreviewable(mimeType: string): boolean {
+    const normalized = mimeType.toLowerCase();
+    return (
+      normalized.startsWith('image/') ||
+      normalized === 'application/pdf' ||
+      normalized === 'text/plain'
+    );
   }
 
   private async findTaskAttachmentDocument(
