@@ -29,6 +29,16 @@ const normalizeStatusFilter = (value: unknown): string[] | undefined => {
   return statuses.length > 0 ? statuses : undefined;
 };
 
+const normalizeIdListFilter = (value: unknown): string[] | undefined => {
+  const values = Array.isArray(value) ? value : [value];
+  const ids = values
+    .flatMap((item) => String(item ?? '').split(','))
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return ids.length > 0 ? ids : undefined;
+};
+
 export class FilterTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -60,6 +70,17 @@ export class FilterTaskDto {
   @IsMongoId()
   reporterId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Filter tasks that contain all provided label IDs. Supports labelIds=id1,id2 or repeated labelIds query params.',
+    oneOf: [
+      { type: 'string', example: '665c0a8c3a9b1d6d9c000001' },
+      { type: 'array', items: { type: 'string' } },
+    ],
+  })
+  @IsOptional()
+  @Transform(({ value }) => normalizeIdListFilter(value))
+  @IsMongoId({ each: true })
+  labelIds?: string[];
   @ApiPropertyOptional({
     description: 'Exact task key lookup within the resolved workspace.',
     example: 'TESKB-12',

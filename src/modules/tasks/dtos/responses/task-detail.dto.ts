@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TaskUserSummaryDto } from './task.dto';
+import { TaskLabelSummaryDto, TaskUserSummaryDto } from './task.dto';
 
 export class SprintSummaryDto {
   @ApiProperty()
@@ -68,6 +68,9 @@ export class TaskDetailDto {
 
   @ApiPropertyOptional()
   assigneeId?: string;
+
+  @ApiPropertyOptional({ type: [TaskLabelSummaryDto] })
+  labels?: TaskLabelSummaryDto[];
 
   @ApiPropertyOptional({ type: TaskUserSummaryDto })
   assignee?: TaskUserSummaryDto;

@@ -58,6 +58,9 @@ export class Task {
   @Prop({ type: Types.ObjectId, ref: 'User', index: true })
   assigneeId?: Types.ObjectId;
 
+  @Prop({ type: [Types.ObjectId], ref: 'Label', default: [], index: true })
+  labelIds!: Types.ObjectId[];
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   reporterId!: Types.ObjectId;
 
@@ -99,5 +102,6 @@ TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });
 TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1, rank: 1 });
 TaskSchema.index({ workspaceId: 1, assigneeId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, type: 1, priority: 1 });
+TaskSchema.index({ workspaceId: 1, labelIds: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, isArchived: 1, isDeleted: 1, updatedAt: -1 });
 TaskSchema.index({ title: 'text', description: 'text' });

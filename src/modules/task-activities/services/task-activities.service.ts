@@ -121,6 +121,32 @@ export class TaskActivitiesService {
       metadata: { attachmentId, fileName },
     });
   }
+  async recordTaskLabelsChanged(
+    task: unknown,
+    actorId: string,
+    fromLabelIds: string[],
+    toLabelIds: string[],
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    const from = [...fromLabelIds].sort();
+    const to = [...toLabelIds].sort();
+    if (JSON.stringify(from) === JSON.stringify(to)) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.LABELS_CHANGED,
+      metadata: { field: 'labelIds', from, to },
+    });
+  }
   async recordTaskCreated(task: unknown, actorId: string): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {

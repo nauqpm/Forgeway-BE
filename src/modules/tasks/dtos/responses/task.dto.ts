@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class TaskLabelSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+}
+
 export class TaskUserSummaryDto {
   @ApiProperty()
   id!: string;
@@ -53,6 +62,9 @@ export class TaskDto {
 
   @ApiPropertyOptional()
   assigneeId?: string;
+
+  @ApiPropertyOptional({ type: [TaskLabelSummaryDto] })
+  labels?: TaskLabelSummaryDto[];
 
   @ApiProperty()
   reporterId!: string;

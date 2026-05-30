@@ -574,6 +574,11 @@ export class TasksRepository {
     if (filterDto.reporterId) {
       filter.reporterId = new Types.ObjectId(filterDto.reporterId);
     }
+    if (filterDto.labelIds?.length) {
+      filter.labelIds = {
+        $all: filterDto.labelIds.map((labelId) => new Types.ObjectId(labelId)),
+      };
+    }
     if (filterDto.taskKey) {
       filter.key = normalizeTaskKey(filterDto.taskKey);
       return filter;
@@ -620,6 +625,7 @@ export class TasksRepository {
       .populate('reporterId', 'fullName email avatar')
       .populate('archivedBy', 'fullName email avatar')
       .populate('sprintId', 'name startDate endDate')
-      .populate('boardId', 'name');
+      .populate('boardId', 'name')
+      .populate('labelIds', 'name');
   }
 }

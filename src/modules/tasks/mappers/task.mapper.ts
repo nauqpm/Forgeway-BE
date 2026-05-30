@@ -31,6 +31,7 @@ export class TaskMapper {
       priority: plainTask.priority,
       rank: plainTask.rank,
       assigneeId: this.toOptionalId(plainTask.assigneeId),
+      labels: this.mapLabelSummaries(plainTask.labelIds),
       reporterId: this.toId(plainTask.reporterId),
       storyPoints: plainTask.storyPoints,
       dueDate: plainTask.dueDate,
@@ -70,6 +71,7 @@ export class TaskMapper {
       boardId: this.toOptionalId(plainTask.boardId),
       board: this.mapBoardSummary(plainTask.boardId),
       assigneeId: this.toOptionalId(plainTask.assigneeId),
+      labels: this.mapLabelSummaries(plainTask.labelIds),
       assignee: this.mapUserSummary(plainTask.assigneeId),
       reporterId: this.toId(plainTask.reporterId),
       reporter: this.mapUserSummary(plainTask.reporterId),
@@ -115,6 +117,18 @@ export class TaskMapper {
     };
   }
 
+  private mapLabelSummaries(values: any): Array<{ id: string; name: string }> | undefined {
+    if (!Array.isArray(values) || values.length === 0) {
+      return undefined;
+    }
+
+    return values
+      .filter((value) => value && value._id)
+      .map((value) => ({
+        id: this.toId(value),
+        name: value.name,
+      }));
+  }
   private mapSprintSummary(value: any): SprintSummaryDto | undefined {
     if (!value || !value._id) {
       return undefined;

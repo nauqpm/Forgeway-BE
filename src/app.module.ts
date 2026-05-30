@@ -27,6 +27,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SearchModule } from './modules/search/search.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { LabelsModule } from './modules/labels/labels.module';
 
 // Real Estate / Blog Modules
 import { UtilitiesModule } from './modules/utilities/utilities.module';
@@ -96,6 +97,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     WorkflowsModule,
     CommentsModule,
     AttachmentsModule,
+    LabelsModule,
 
     // Confluence Modules
     PagesModule,
