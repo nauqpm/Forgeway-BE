@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { TaskCover } from '../../task-covers/interfaces/task-cover.interface';
+import { TaskCoverSchema } from '../../task-covers/schemas/task-cover.schema';
 import {
   TASK_KEY_PATTERN,
   TASK_PRIORITIES,
@@ -28,6 +30,8 @@ export class Task {
   @Prop({ type: String, trim: true, index: true })
   rank?: string;
 
+  @Prop({ type: TaskCoverSchema })
+  cover?: TaskCover;
   @Prop({
     type: String,
     required: true,

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TaskCoverDto } from '../../../task-covers/dtos/task-cover.dto';
 import { TaskLabelSummaryDto, TaskUserSummaryDto } from './task.dto';
 
 export class SprintSummaryDto {
@@ -53,6 +54,9 @@ export class TaskDetailDto {
 
   @ApiPropertyOptional()
   rank?: string;
+
+  @ApiPropertyOptional({ type: TaskCoverDto })
+  cover?: TaskCoverDto;
 
   @ApiPropertyOptional()
   sprintId?: string;

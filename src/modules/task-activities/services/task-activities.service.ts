@@ -121,6 +121,32 @@ export class TaskActivitiesService {
       metadata: { attachmentId, fileName },
     });
   }
+  async recordTaskCoverChanged(
+    task: unknown,
+    actorId: string,
+    action: 'set' | 'remove',
+    fromType?: string | null,
+    toType?: string | null,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.COVER_CHANGED,
+      metadata: {
+        field: 'cover',
+        action,
+        fromType: fromType ?? null,
+        toType: toType ?? null,
+      },
+    });
+  }
   async recordTaskLabelsChanged(
     task: unknown,
     actorId: string,

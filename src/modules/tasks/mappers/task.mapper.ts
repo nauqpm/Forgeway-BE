@@ -30,6 +30,7 @@ export class TaskMapper {
       status: plainTask.status || plainTask.columnId || 'todo',
       priority: plainTask.priority,
       rank: plainTask.rank,
+      cover: this.mapCover(plainTask.cover),
       assigneeId: this.toOptionalId(plainTask.assigneeId),
       labels: this.mapLabelSummaries(plainTask.labelIds),
       reporterId: this.toId(plainTask.reporterId),
@@ -66,6 +67,7 @@ export class TaskMapper {
       status: plainTask.status || plainTask.columnId || 'todo',
       columnId: plainTask.columnId,
       rank: plainTask.rank,
+      cover: this.mapCover(plainTask.cover),
       sprintId: this.toOptionalId(plainTask.sprintId),
       sprint: this.mapSprintSummary(plainTask.sprintId),
       boardId: this.toOptionalId(plainTask.boardId),
@@ -117,6 +119,20 @@ export class TaskMapper {
     };
   }
 
+  private mapCover(value: any) {
+    if (!value) {
+      return undefined;
+    }
+
+    return {
+      type: value.type,
+      color: value.color,
+      imageUrl: value.imageUrl,
+      source: value.source,
+      updatedBy: this.toOptionalId(value.updatedBy),
+      updatedAt: value.updatedAt,
+    };
+  }
   private mapLabelSummaries(values: any): Array<{ id: string; name: string }> | undefined {
     if (!Array.isArray(values) || values.length === 0) {
       return undefined;
