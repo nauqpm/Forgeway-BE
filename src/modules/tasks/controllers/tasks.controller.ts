@@ -36,11 +36,13 @@ import { CreateTaskDto } from '../dtos/requests/create-task.dto';
 import { DeleteTaskDto } from '../dtos/requests/delete-task.dto';
 import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { MoveTaskDto } from '../dtos/requests/move-task.dto';
+import { ReorderTaskDto } from '../dtos/requests/reorder-task.dto';
 import { UpdateTaskDto } from '../dtos/requests/update-task.dto';
 import { TaskDetailDto } from '../dtos/responses/task-detail.dto';
 import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
+import { TaskReorderService } from '../services/task-reorder.service';
 import { TasksService } from '../services/tasks.service';
 import { Request as ExpressRequest } from 'express';
 import { RealtimeService } from '@/modules/realtime/realtime.service';
@@ -54,6 +56,7 @@ export class TasksController {
     private readonly tasksService: TasksService,
     private readonly taskDetailService: TaskDetailService,
     private readonly taskMoveService: TaskMoveService,
+    private readonly taskReorderService: TaskReorderService,
     private readonly auditLogService: AuditLogService,
     private readonly realtimeService: RealtimeService,
   ) {}
@@ -498,6 +501,68 @@ export class TasksController {
           workspaceId,
           taskId: id,
           changedFields: Object.keys(updateTaskDto),
+        },
+      );
+      throw error;
+    }
+  }
+
+  @Patch(':id/reorder')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @ApiOperation({
+    summary: 'Reorder task/card by relative neighbor tasks',
+  })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
+  @ApiBadRequestResponse({ description: 'Invalid task reorder payload' })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Task reorder denied' })
+  @ApiNotFoundResponse({ description: 'Task, neighbor task, or sprint not found' })
+  async reorder(
+    @Param('workspaceId') workspaceId: string,
+    @Param('id') id: string,
+    @Body() reorderTaskDto: ReorderTaskDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: ExpressRequest,
+  ): Promise<TaskDto> {
+    try {
+      const result = await this.taskReorderService.reorderInWorkspaceId(
+        workspaceId,
+        id,
+        reorderTaskDto,
+        user.userId,
+      );
+
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS,
+        severity: 'INFO',
+        userId: user.userId,
+        metadata: {
+          workspaceId,
+          reorder: true,
+          ...result.auditMetadata,
+        },
+      });
+
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:moved', {
+        task: result.task,
+      });
+
+      return result.task;
+    } catch (error) {
+      this.auditTaskFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_MOVE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+          reorder: true,
+          requestedColumnId: reorderTaskDto.columnId,
+          requestedStatus: reorderTaskDto.status,
+          requestedSprintId: reorderTaskDto.sprintId,
+          beforeTaskId: reorderTaskDto.beforeTaskId,
+          afterTaskId: reorderTaskDto.afterTaskId,
         },
       );
       throw error;

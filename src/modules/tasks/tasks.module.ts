@@ -12,6 +12,7 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TasksController } from './controllers/tasks.controller';
 import { TaskMapper } from './mappers/task.mapper';
 import { TaskMovePolicy } from './policies/task-move.policy';
+import { TaskReorderPolicy } from './policies/task-reorder.policy';
 import { TasksRepository } from './repositories/tasks.repository';
 import { TaskCounter, TaskCounterSchema } from './schemas/task-counter.schema';
 import { Task, TaskSchema } from './schemas/task.schema';
@@ -22,6 +23,7 @@ import { TaskKeyService } from './services/task-key.service';
 import { TaskDetailService } from './services/task-detail.service';
 import { TaskMoveService } from './services/task-move.service';
 import { TaskNormalizerService } from './services/task-normalizer.service';
+import { TaskReorderService } from './services/task-reorder.service';
 import { TasksService } from './services/tasks.service';
 
 @Module({
@@ -49,6 +51,8 @@ import { TasksService } from './services/tasks.service';
     TaskCreationValidationService,
     TaskMovePolicy,
     TaskMoveService,
+    TaskReorderPolicy,
+    TaskReorderService,
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksService,
@@ -62,6 +66,8 @@ import { TasksService } from './services/tasks.service';
     TaskCreationValidationService,
     TaskMovePolicy,
     TaskMoveService,
+    TaskReorderPolicy,
+    TaskReorderService,
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksRepository,

@@ -88,7 +88,7 @@ export class TokenService {
       const refreshToken = this.createRefreshToken(userId);
 
       const familyId = randomBytes(16).toString('hex');
-      const accessExpiry = new Date(Date.now() + 15 * 60 * 1000);
+      const accessExpiry = new Date(Date.now() + 60 * 60 * 1000);
       const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       await this.tokenModel.create({

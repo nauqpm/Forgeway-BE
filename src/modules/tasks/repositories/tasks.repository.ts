@@ -17,6 +17,12 @@ interface MoveTaskData {
   rank?: string;
 }
 
+interface TaskRankScope {
+  workspaceId: string;
+  columnId?: string;
+  sprintId?: string | null;
+}
+
 interface TaskPaginationOptions {
   page?: number;
   limit?: number;
@@ -361,6 +367,54 @@ export class TasksRepository {
     ).exec();
   }
 
+  async findNeighborForReorder(
+    taskId: string,
+    workspaceId: string,
+    session?: ClientSession,
+  ): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
+      return null;
+    }
+
+    const query = this.taskModel.findOne({
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      ...this.buildVisibilityFilter(),
+    });
+    if (session) {
+      query.session(session);
+    }
+
+    return this.withRelations(query).exec();
+  }
+
+  async findTasksInRankScope(
+    scope: TaskRankScope,
+    session?: ClientSession,
+  ): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(scope.workspaceId)) {
+      return [];
+    }
+
+    const query = this.taskModel
+      .find(this.buildRankScopeFilter(scope))
+      .sort({ rank: 1, createdAt: 1 });
+    if (session) {
+      query.session(session);
+    }
+
+    return this.withRelations(query).exec();
+  }
+
+  async reorderTaskInWorkspace(
+    id: string,
+    workspaceId: string,
+    data: MoveTaskData,
+    session?: ClientSession,
+  ): Promise<TaskDocument | null> {
+    return this.moveTaskInWorkspace(id, workspaceId, data, session);
+  }
+
   async archive(id: string, archivedBy: string): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
@@ -613,6 +667,28 @@ export class TasksRepository {
     }
     if (!options.includeDeleted) {
       filter.isDeleted = { $ne: true };
+    }
+
+    return filter;
+  }
+
+  private buildRankScopeFilter(scope: TaskRankScope): FilterQuery<TaskDocument> {
+    const filter: FilterQuery<TaskDocument> = {
+      workspaceId: new Types.ObjectId(scope.workspaceId),
+      ...this.buildVisibilityFilter(),
+    };
+
+    if (scope.columnId) {
+      filter.columnId = scope.columnId;
+    }
+
+    if (scope.sprintId === null) {
+      filter.$or = [
+        { sprintId: null },
+        { sprintId: { $exists: false } },
+      ];
+    } else if (scope.sprintId) {
+      filter.sprintId = new Types.ObjectId(scope.sprintId);
     }
 
     return filter;
