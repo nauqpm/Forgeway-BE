@@ -110,6 +110,7 @@ export class TaskReorderService {
     );
 
     const nextRank = generateRankBetween(beforeTask?.rank, afterTask?.rank);
+    this.ensureRankWillChange(task, dto, targetColumnId, targetStatus, targetSprintId, nextRank);
     const reorderedTask = await this.tasksRepository.reorderTaskInWorkspace(
       taskId,
       workspaceId,
@@ -168,6 +169,35 @@ export class TaskReorderService {
       throw new BadRequestException(
         'beforeTaskId and afterTaskId must be different',
       );
+    }
+  }
+
+  private ensureRankWillChange(
+    task: TaskDocument,
+    dto: ReorderTaskDto,
+    targetColumnId: string | undefined,
+    targetStatus: string | undefined,
+    targetSprintId: string | null,
+    nextRank: string,
+  ): void {
+    const currentSprintId = this.toOptionalId(task.sprintId) ?? null;
+    const isSameColumn = task.columnId === targetColumnId;
+    const isSameStatus = task.status === targetStatus;
+    const isSameSprint = currentSprintId === targetSprintId;
+    const isSameRank = task.rank === nextRank;
+
+    if (isSameColumn && isSameStatus && isSameSprint && isSameRank) {
+      throw new BadRequestException(
+        'Reorder did not change task position. Check beforeTaskId and afterTaskId.',
+      );
+    }
+
+    if (dto.beforeTaskId && dto.beforeTaskId === task._id.toString()) {
+      throw new BadRequestException('beforeTaskId cannot be the moved task');
+    }
+
+    if (dto.afterTaskId && dto.afterTaskId === task._id.toString()) {
+      throw new BadRequestException('afterTaskId cannot be the moved task');
     }
   }
 
