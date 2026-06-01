@@ -122,7 +122,12 @@ export class TaskAttachmentService {
       throw new NotFoundException(`Attachment with ID ${attachmentId} not found`);
     }
 
-    if (attachment.uploadedBy.toString() !== userId) {
+    const uploadedById =
+      attachment.uploadedBy instanceof Types.ObjectId
+        ? attachment.uploadedBy.toString()
+        : (attachment.uploadedBy as { _id?: Types.ObjectId | string })?._id?.toString();
+
+    if (uploadedById !== userId) {
       throw new ForbiddenException('You can only delete your own attachments');
     }
 
