@@ -82,6 +82,45 @@ export class TaskActivitiesService {
     };
   }
 
+  async recordCommentUpdated(
+    task: unknown,
+    actorId: string,
+    commentId: string,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.COMMENT_UPDATED,
+      metadata: { commentId },
+    });
+  }
+
+  async recordCommentDeleted(
+    task: unknown,
+    actorId: string,
+    commentId: string,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.COMMENT_DELETED,
+      metadata: { commentId },
+    });
+  }
   async recordCommentAdded(
     task: unknown,
     actorId: string,
@@ -99,6 +138,26 @@ export class TaskActivitiesService {
       actorId,
       type: TASK_ACTIVITY_TYPES.COMMENT_ADDED,
       metadata: { commentId },
+    });
+  }
+  async recordAttachmentDeleted(
+    task: unknown,
+    actorId: string,
+    attachmentId: string,
+    fileName?: string,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.ATTACHMENT_DELETED,
+      metadata: { attachmentId, fileName },
     });
   }
   async recordAttachmentAdded(

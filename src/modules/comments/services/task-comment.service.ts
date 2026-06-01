@@ -93,7 +93,7 @@ export class TaskCommentService {
     dto: UpdateCommentDto,
     userId: string,
   ): Promise<CommentDto> {
-    await this.getCommentableTask(workspaceId, taskId, userId);
+    const task = await this.getCommentableTask(workspaceId, taskId, userId);
     const comment = await this.findTaskCommentDocument(workspaceId, taskId, commentId);
 
     if (!comment) {
@@ -111,6 +111,11 @@ export class TaskCommentService {
     comment.editedAt = new Date();
     const saved = await comment.save();
     await saved.populate('authorId', 'fullName email avatar');
+    await this.taskActivitiesService.recordCommentUpdated(
+      task,
+      userId,
+      comment._id.toString(),
+    );
 
     return this.commentMapper.mapToDto(saved);
   }
@@ -121,7 +126,7 @@ export class TaskCommentService {
     commentId: string,
     userId: string,
   ): Promise<void> {
-    await this.getCommentableTask(workspaceId, taskId, userId);
+    const task = await this.getCommentableTask(workspaceId, taskId, userId);
     const comment = await this.findTaskCommentDocument(workspaceId, taskId, commentId);
 
     if (!comment) {
@@ -139,6 +144,11 @@ export class TaskCommentService {
     comment.deletedAt = new Date();
     comment.deletedBy = new Types.ObjectId(userId);
     await comment.save();
+    await this.taskActivitiesService.recordCommentDeleted(
+      task,
+      userId,
+      comment._id.toString(),
+    );
   }
 
   private async getReadableTask(
