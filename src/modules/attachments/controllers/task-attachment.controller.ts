@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Req,
   Res,
   StreamableFile,
   UploadedFile,
@@ -15,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -32,6 +33,9 @@ import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
+import type { SecurityEventType } from '../../audit/schemas/security-event.schema';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { AttachmentDto } from '../dtos/attachment.dto';
 import { TaskAttachmentFileStream, TaskAttachmentService } from '../services/task-attachment.service';
@@ -41,7 +45,10 @@ import { TaskAttachmentFileStream, TaskAttachmentService } from '../services/tas
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces/:workspaceId/board/:taskId/attachments')
 export class TaskAttachmentController {
-  constructor(private readonly taskAttachmentService: TaskAttachmentService) {}
+  constructor(
+    private readonly taskAttachmentService: TaskAttachmentService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
@@ -102,6 +109,7 @@ export class TaskAttachmentController {
     @Param('taskId') taskId: string,
     @Param('attachmentId') attachmentId: string,
     @CurrentUser() user: JwtPayload,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     const file = await this.taskAttachmentService.getDownloadStream(
@@ -111,6 +119,15 @@ export class TaskAttachmentController {
       user.userId,
     );
     this.setFileHeaders(response, file, 'attachment');
+    this.logAttachmentAccess(request, {
+      type: SECURITY_EVENT_TYPES.TASK_ATTACHMENT_DOWNLOADED,
+      userId: user.userId,
+      workspaceId,
+      taskId,
+      attachmentId,
+      fileName: file.originalName,
+      mimeType: file.mimeType,
+    });
     return new StreamableFile(file.stream);
   }
 
@@ -127,6 +144,7 @@ export class TaskAttachmentController {
     @Param('taskId') taskId: string,
     @Param('attachmentId') attachmentId: string,
     @CurrentUser() user: JwtPayload,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     const file = await this.taskAttachmentService.getPreviewStream(
@@ -136,6 +154,15 @@ export class TaskAttachmentController {
       user.userId,
     );
     this.setFileHeaders(response, file, 'inline');
+    this.logAttachmentAccess(request, {
+      type: SECURITY_EVENT_TYPES.TASK_ATTACHMENT_PREVIEWED,
+      userId: user.userId,
+      workspaceId,
+      taskId,
+      attachmentId,
+      fileName: file.originalName,
+      mimeType: file.mimeType,
+    });
     return new StreamableFile(file.stream);
   }
 
@@ -161,6 +188,31 @@ export class TaskAttachmentController {
     );
   }
 
+  private logAttachmentAccess(
+    request: Request,
+    payload: {
+      type: SecurityEventType;
+      userId: string;
+      workspaceId: string;
+      taskId: string;
+      attachmentId: string;
+      fileName: string;
+      mimeType: string;
+    },
+  ): void {
+    this.auditLogService.logRequest(request, {
+      type: payload.type,
+      severity: 'INFO',
+      userId: payload.userId,
+      metadata: {
+        workspaceId: payload.workspaceId,
+        taskId: payload.taskId,
+        attachmentId: payload.attachmentId,
+        fileName: payload.fileName,
+        mimeType: payload.mimeType,
+      },
+    });
+  }
   private setFileHeaders(
     response: Response,
     file: TaskAttachmentFileStream,

@@ -111,7 +111,7 @@ export class TaskAttachmentService {
     attachmentId: string,
     userId: string,
   ): Promise<void> {
-    await this.getAttachableTask(workspaceId, taskId, userId);
+    const task = await this.getAttachableTask(workspaceId, taskId, userId);
     const attachment = await this.findTaskAttachmentDocument(
       workspaceId,
       taskId,
@@ -130,6 +130,12 @@ export class TaskAttachmentService {
     attachment.deletedAt = new Date();
     attachment.deletedBy = new Types.ObjectId(userId);
     await attachment.save();
+    await this.taskActivitiesService.recordAttachmentDeleted(
+      task,
+      userId,
+      attachment._id.toString(),
+      attachment.originalName,
+    );
   }
 
   async getDownloadStream(

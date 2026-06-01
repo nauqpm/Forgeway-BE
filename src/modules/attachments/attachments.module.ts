@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
@@ -18,6 +19,7 @@ import { TaskAttachmentService } from './services/task-attachment.service';
       { name: Task.name, schema: TaskSchema },
     ]),
     forwardRef(() => AuthModule),
+    AuditModule,
     forwardRef(() => WorkspacesModule),
     forwardRef(() => TaskActivitiesModule),
   ],
