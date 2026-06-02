@@ -26,7 +26,10 @@ export class SprintQueryService {
 
   async findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {
     return this.sprintModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        deletedAt: null,
+      })
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -36,6 +39,7 @@ export class SprintQueryService {
       .findOne({
         workspaceId: new Types.ObjectId(workspaceId),
         status: 'active',
+        deletedAt: null,
       })
       .exec();
 
@@ -75,7 +79,11 @@ export class SprintQueryService {
     const sprintObjectId = new Types.ObjectId(sprintId);
 
     const sprint = await this.sprintModel
-      .findOne({ _id: sprintObjectId, workspaceId: workspaceObjectId })
+      .findOne({
+        _id: sprintObjectId,
+        workspaceId: workspaceObjectId,
+        deletedAt: null,
+      })
       .lean()
       .exec();
 
@@ -115,7 +123,12 @@ export class SprintQueryService {
   }
 
   async findSprintById(sprintId: string): Promise<SprintDocument | null> {
-    return this.sprintModel.findById(new Types.ObjectId(sprintId)).exec();
+    return this.sprintModel
+      .findOne({
+        _id: new Types.ObjectId(sprintId),
+        deletedAt: null,
+      })
+      .exec();
   }
 
   async findByIdInWorkspace(
@@ -129,6 +142,7 @@ export class SprintQueryService {
       .findOne({
         _id: new Types.ObjectId(sprintId),
         workspaceId: new Types.ObjectId(workspaceId),
+        deletedAt: null,
       })
       .exec();
 

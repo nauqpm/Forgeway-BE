@@ -37,6 +37,7 @@ export class SprintTaskMovementService {
       .findOne({
         _id: new Types.ObjectId(sprintId),
         workspaceId: workspaceObjectId,
+        deletedAt: null,
       })
       .exec();
 
@@ -153,6 +154,7 @@ export class SprintTaskMovementService {
         _id: { $in: sprintIds },
         workspaceId,
         status: 'completed',
+        deletedAt: null,
       })
       .lean()
       .exec();

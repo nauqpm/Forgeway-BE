@@ -185,13 +185,19 @@ export class WorkspacesService {
 
   async restore(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.restore(id);
-    /*
     if (!workspace) {
-      throw new NotFoundException(`Deleted workspace with ID "${id}" not found`);
+      throw new NotFoundException(`Không tìm thấy Workspace bị xóa với ID "${id}" để khôi phục`);
     }
-    this.logger.log(`Workspace restored: ${workspace._id}`);
+
+    try {
+      await this.scrumService.restoreByWorkspace(id);
+      this.logger.log(`Khôi phục dữ liệu Sprint cho Workspace với ID: ${id}`);
+    } catch (error) {
+      this.logger.error(`Lỗi khi khôi phục dữ liệu Sprint cho Workspace ${id}:`, error);
+    }
+
+    this.logger.log(`Workspace đã được khôi phục: ${workspace._id}`);
     return workspace;
-    */
   }
 
   public async addMember(

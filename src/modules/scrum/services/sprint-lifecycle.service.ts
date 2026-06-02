@@ -42,6 +42,7 @@ export class SprintLifecycleService {
           this.sprintModel.findOne({
             _id: sprintObjectId,
             workspaceId: workspaceObjectId,
+            deletedAt: null,
           }),
           session,
         )
@@ -61,6 +62,7 @@ export class SprintLifecycleService {
             workspaceId: workspaceObjectId,
             status: 'active',
             _id: { $ne: sprintObjectId },
+            deletedAt: null,
           }),
           session,
         )
@@ -97,10 +99,11 @@ export class SprintLifecycleService {
 
       const sprint = await this.mongoTransactionService
         .withSession(
-          this.sprintModel.findOne({
-            _id: sprintObjectId,
-            workspaceId: workspaceObjectId,
-          }),
+            this.sprintModel.findOne({
+              _id: sprintObjectId,
+              workspaceId: workspaceObjectId,
+              deletedAt: null,
+            }),
           session,
         )
         .exec();
@@ -120,6 +123,7 @@ export class SprintLifecycleService {
               _id: moveToSprintObjectId,
               workspaceId: workspaceObjectId,
               status: 'planning',
+              deletedAt: null,
             }),
             session,
           )

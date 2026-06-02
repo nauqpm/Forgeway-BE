@@ -40,6 +40,7 @@ describe('SprintCommandService', () => {
             countDocuments: jest.fn(),
             deleteOne: jest.fn(),
             deleteMany: jest.fn(),
+            updateMany: jest.fn(),
           },
         },
         {
@@ -83,6 +84,10 @@ describe('SprintCommandService', () => {
       const dto = { goal: 'Test goals' };
       const result = await service.createSprint(workspaceId, dto as any);
       
+      expect(sprintModel.countDocuments).toHaveBeenCalledWith({
+        workspaceId: new Types.ObjectId(workspaceId),
+        deletedAt: null,
+      });
       expect(result.name).toBe('Sprint 3'); // 2 existing + 1
       expect(result.status).toBe('planning');
       expect(result.workspaceId).toEqual(new Types.ObjectId(workspaceId));
@@ -217,6 +222,38 @@ describe('SprintCommandService', () => {
       expect(sprintModel.deleteOne).toHaveBeenCalledWith(
         { _id: mockSprint._id },
         { session: mockSession },
+      );
+    });
+  });
+
+  describe('workspace-scoped sprint soft delete and restore', () => {
+    const workspaceId = new Types.ObjectId().toString();
+
+    it('soft deletes sprints for a workspace', async () => {
+      sprintModel.updateMany.mockReturnValue(mockQuery({ modifiedCount: 2 }));
+
+      await service.deleteByWorkspace(workspaceId);
+
+      expect(sprintModel.updateMany).toHaveBeenCalledWith(
+        {
+          workspaceId: new Types.ObjectId(workspaceId),
+          deletedAt: null,
+        },
+        { $set: { deletedAt: expect.any(Date) } },
+      );
+    });
+
+    it('restores soft-deleted sprints for a workspace', async () => {
+      sprintModel.updateMany.mockReturnValue(mockQuery({ modifiedCount: 2 }));
+
+      await service.restoreByWorkspace(workspaceId);
+
+      expect(sprintModel.updateMany).toHaveBeenCalledWith(
+        {
+          workspaceId: new Types.ObjectId(workspaceId),
+          deletedAt: { $ne: null },
+        },
+        { $set: { deletedAt: null } },
       );
     });
   });

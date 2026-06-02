@@ -32,6 +32,9 @@ export class Sprint {
   @Prop()
   completedAt?: Date;
 
+  @Prop({ type: Date, default: null, index: true })
+  deletedAt!: Date | null;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -44,6 +47,6 @@ SprintSchema.index(
   { workspaceId: 1, status: 1 },
   {
     unique: true,
-    partialFilterExpression: { status: 'active' },
+    partialFilterExpression: { status: 'active', deletedAt: null },
   },
 );

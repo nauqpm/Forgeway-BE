@@ -35,11 +35,19 @@ export class BacklogService {
 
     const [activeSprint, futureSprints, backlogTasks] = await Promise.all([
       this.sprintModel
-        .findOne({ workspaceId: workspaceObjectId, status: 'active' })
+        .findOne({
+          workspaceId: workspaceObjectId,
+          status: 'active',
+          deletedAt: null,
+        })
         .lean()
         .exec(),
       this.sprintModel
-        .find({ workspaceId: workspaceObjectId, status: 'planning' })
+        .find({
+          workspaceId: workspaceObjectId,
+          status: 'planning',
+          deletedAt: null,
+        })
         .sort({ createdAt: 1 })
         .lean()
         .exec(),

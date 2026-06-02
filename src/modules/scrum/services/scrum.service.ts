@@ -139,12 +139,16 @@ export class ScrumService {
 
     if (sprint.status === 'completed') {
       throw new BadRequestException(
-        'Sprint has completed and cannot accept new tasks',
+        'Sprint đã hoàn thành và không thể nhận thêm nhiệm vụ mới',
       );
     }
   }
 
   deleteByWorkspace(workspaceId: string): Promise<void> {
     return this.sprintCommandService.deleteByWorkspace(workspaceId);
+  }
+
+  restoreByWorkspace(workspaceId: string): Promise<void> {
+    return this.sprintCommandService.restoreByWorkspace(workspaceId);
   }
 }
