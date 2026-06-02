@@ -20,6 +20,8 @@ import { DocumentsService } from '../services/documents.service';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
 import { UpdateDocumentDto } from '../dtos/update-document.dto';
 import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dto';
+import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
+import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('documents')
@@ -36,6 +38,11 @@ export class DocumentsController {
     return this.documentsService.upload(userId, file, dto);
   }
 
+  @Post('create-online')
+  createOnline(@CurrentUser('userId') userId: string, @Body() dto: CreateOnlineDocumentDto) {
+    return this.documentsService.createOnline(userId, dto);
+  }
+
   @Get()
   listMine(@CurrentUser('userId') userId: string) {
     return this.documentsService.listMine(userId);
@@ -46,6 +53,11 @@ export class DocumentsController {
     return this.documentsService.getMineById(userId, id);
   }
 
+  @Get(':id/content')
+  getContent(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.documentsService.getContent(userId, id);
+  }
+
   @Patch(':id')
   updateMine(
     @CurrentUser('userId') userId: string,
@@ -53,6 +65,15 @@ export class DocumentsController {
     @Body() dto: UpdateDocumentDto,
   ) {
     return this.documentsService.updateMine(userId, id, dto);
+  }
+
+  @Patch(':id/content')
+  updateContent(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentContentDto,
+  ) {
+    return this.documentsService.updateContent(userId, id, dto);
   }
 
   @Delete(':id')

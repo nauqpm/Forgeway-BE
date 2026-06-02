@@ -12,11 +12,14 @@ import { randomUUID } from 'crypto';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
+import sanitizeHtml = require('sanitize-html');
 import { DocumentDoc, DocumentEntity } from '../schemas/document.schema';
 import { Workspace, WorkspaceDocument } from '../../workspaces/schemas/workspace.schema';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
 import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dto';
 import { UpdateDocumentDto } from '../dtos/update-document.dto';
+import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
+import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.webp',
@@ -59,6 +62,21 @@ export class DocumentsService {
     }
 
     return extension;
+  }
+
+  private sanitizeContent(html: string): string {
+    return sanitizeHtml(html, {
+      allowedTags: [
+        'h1', 'h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'u', 's', 'code', 'pre',
+        'blockquote', 'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'span',
+      ],
+      allowedAttributes: {
+        a: ['href', 'name', 'target'],
+        img: ['src', 'alt', 'title', 'width', 'height'],
+        span: ['class'],
+      },
+      allowedSchemes: ['http', 'https', 'mailto'],
+    });
   }
 
   private async getActiveWorkspaceAndMember(workspaceId: string, userId: string) {
@@ -107,6 +125,37 @@ export class DocumentsService {
     return created;
   }
 
+  async createOnline(userId: string, dto: CreateOnlineDocumentDto) {
+    const rawContent = dto.content ?? '';
+    const sanitizedContent = this.sanitizeContent(rawContent);
+    const size = Buffer.byteLength(sanitizedContent, 'utf8');
+
+    const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
+    for (const wsId of workspaceIds) {
+      await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
+    }
+
+    const extension = '.html';
+    const filename = `${randomUUID()}${extension}`;
+    const storagePath = resolve(process.cwd(), 'uploads', filename);
+    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
+    await fs.writeFile(storagePath, sanitizedContent, 'utf8');
+
+    return this.documentModel.create({
+      uploadedBy: new Types.ObjectId(userId),
+      name: dto.name.trim(),
+      originalName: `${dto.name.trim()}${extension}`,
+      filename,
+      storagePath,
+      mimeType: 'text/html',
+      extension,
+      size,
+      documentType: 'online',
+      workspaceIds,
+      deletedAt: null,
+    });
+  }
+
   async listMine(userId: string) {
     return this.documentModel.find({
       uploadedBy: new Types.ObjectId(userId),
@@ -125,11 +174,15 @@ export class DocumentsService {
   }
 
   async updateMine(userId: string, id: string, dto: UpdateDocumentDto) {
-    const doc = await this.documentModel.findOneAndUpdate(
-      { _id: new Types.ObjectId(id), uploadedBy: new Types.ObjectId(userId), deletedAt: null },
-      { $set: { name: dto.name.trim() } },
-      { new: true },
-    );
+    const doc = await this.documentModel.findOneAndUpdate({
+      _id: new Types.ObjectId(id),
+      uploadedBy: new Types.ObjectId(userId),
+      deletedAt: null,
+    }, {
+      $set: { name: dto.name.trim() },
+    }, {
+      new: true,
+    });
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
@@ -194,6 +247,42 @@ export class DocumentsService {
     return doc;
   }
 
+  async getContent(userId: string, id: string) {
+    const doc = await this.resolveDownloadable(userId, id);
+    if (doc.documentType !== 'online') {
+      throw new BadRequestException('Content API is only available for online documents');
+    }
+
+    const content = await fs.readFile(doc.storagePath, 'utf8');
+    return { content };
+  }
+
+  async updateContent(userId: string, id: string, dto: UpdateDocumentContentDto) {
+    const doc = await this.documentModel.findOne({
+      _id: new Types.ObjectId(id),
+      deletedAt: null,
+    });
+    if (!doc) throw new NotFoundException('Document not found');
+    if (doc.uploadedBy.toString() !== userId) {
+      throw new ForbiddenException('Only owner can update document content');
+    }
+    if (doc.documentType !== 'online') {
+      throw new BadRequestException('Content API is only available for online documents');
+    }
+
+    const sanitizedContent = this.sanitizeContent(dto.content);
+    const size = Buffer.byteLength(sanitizedContent, 'utf8');
+    await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
+
+    const updated = await this.documentModel.findOneAndUpdate(
+      { _id: doc._id },
+      { $set: { size } },
+      { new: true },
+    );
+
+    return updated;
+  }
+
   private escapeHtml(input: string): string {
     return input
       .replace(/&/g, '&amp;')
@@ -223,6 +312,11 @@ export class DocumentsService {
   }
 
   async renderPreviewHtml(doc: DocumentDoc): Promise<string | null> {
+    if (doc.documentType === 'online') {
+      const content = await fs.readFile(doc.storagePath, 'utf8');
+      return this.wrapPreviewHtml(doc.name, content);
+    }
+
     const buffer = await fs.readFile(doc.storagePath);
 
     if (doc.extension === '.docx') {
