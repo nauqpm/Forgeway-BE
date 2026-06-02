@@ -34,7 +34,10 @@ export class SprintCommandService {
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const count = await this.sprintModel
-      .countDocuments({ workspaceId: workspaceObjectId })
+      .countDocuments({
+        workspaceId: workspaceObjectId,
+        deletedAt: null,
+      })
       .exec();
 
     const sprint = new this.sprintModel({
@@ -59,6 +62,7 @@ export class SprintCommandService {
         .findOne({
           _id: new Types.ObjectId(sprintId),
           workspaceId: new Types.ObjectId(workspaceId),
+          deletedAt: null,
         })
         .exec();
 
@@ -167,6 +171,7 @@ export class SprintCommandService {
           this.sprintModel.findOne({
             _id: sprintObjectId,
             workspaceId: workspaceObjectId,
+            deletedAt: null,
           }),
           session,
         )
@@ -206,7 +211,26 @@ export class SprintCommandService {
   async deleteByWorkspace(workspaceId: string): Promise<void> {
     this.logger.log(`Xóa tất cả sprint cho Workspace: ${workspaceId}`);
     await this.sprintModel
-      .deleteMany({ workspaceId: new Types.ObjectId(workspaceId) })
+      .updateMany(
+        {
+          workspaceId: new Types.ObjectId(workspaceId),
+          deletedAt: null,
+        },
+        { $set: { deletedAt: new Date() } },
+      )
+      .exec();
+  }
+
+  async restoreByWorkspace(workspaceId: string): Promise<void> {
+    this.logger.log(`Khôi phục tất cả sprint cho Workspace: ${workspaceId}`);
+    await this.sprintModel
+      .updateMany(
+        {
+          workspaceId: new Types.ObjectId(workspaceId),
+          deletedAt: { $ne: null },
+        },
+        { $set: { deletedAt: null } },
+      )
       .exec();
   }
 }

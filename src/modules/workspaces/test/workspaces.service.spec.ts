@@ -54,6 +54,7 @@ const mockWorkspacesRepository = () => ({
     findByUserId: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    restore: jest.fn(),
     addMember: jest.fn(),
     removeMember: jest.fn(),
     updateMemberRole: jest.fn(),
@@ -70,6 +71,7 @@ const mockKanbanService = () => ({
 
 const mockScrumService = () => ({
     deleteByWorkspace: jest.fn(),
+    restoreByWorkspace: jest.fn(),
 });
 
 const mockUsersService = () => ({
@@ -388,6 +390,27 @@ describe('WorkspacesService', () => {
     });
 
     // ── addMember ──────────────────────────────────────────────────────────────
+
+    describe('restore', () => {
+        it('restores workspace and sprint data', async () => {
+            const workspace = buildWorkspace();
+            repo.restore.mockResolvedValue(workspace);
+            scrumService.restoreByWorkspace.mockResolvedValue(undefined);
+
+            const result = await service.restore(WORKSPACE_ID);
+
+            expect(repo.restore).toHaveBeenCalledWith(WORKSPACE_ID);
+            expect(scrumService.restoreByWorkspace).toHaveBeenCalledWith(WORKSPACE_ID);
+            expect(result).toEqual(workspace);
+        });
+
+        it('throws NotFoundException when restore target is missing', async () => {
+            repo.restore.mockResolvedValue(null);
+
+            await expect(service.restore(WORKSPACE_ID)).rejects.toThrow(NotFoundException);
+            expect(scrumService.restoreByWorkspace).not.toHaveBeenCalled();
+        });
+    });
 
     describe('addMember', () => {
         const email = 'newmember@example.com';
