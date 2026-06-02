@@ -50,7 +50,7 @@ export class ForYouService {
       status: workspace.status,
       role: isOwner ? SPACE_ROLES.WORKSPACE_ADMIN : member?.role ?? SPACE_ROLES.VIEWER,
       relationship: isOwner ? 'owner' : 'member',
-      ownershipLabel: isOwner ? 'Sở hữu' : 'Tham gia',
+      ownershipLabel: isOwner ? 'Owner' : 'Member',
       createdAt: workspace.createdAt,
       updatedAt: workspace.updatedAt,
     };

@@ -34,8 +34,8 @@ export class ForYouWorkspaceDto {
   @ApiProperty({ example: 'owner', enum: ['owner', 'member'], description: 'Current user relationship to workspace' })
   relationship!: 'owner' | 'member';
 
-  @ApiProperty({ example: 'Sở hữu', enum: ['Sở hữu', 'Tham gia'], description: 'Human-readable ownership label' })
-  ownershipLabel!: 'Sở hữu' | 'Tham gia';
+  @ApiProperty({ example: 'Owner', enum: ['Owner', 'Member'], description: 'Human-readable ownership label' })
+  ownershipLabel!: 'Owner' | 'Member';
 
   @ApiPropertyOptional({ example: '2026-05-19T08:00:00.000Z', description: 'Workspace creation time' })
   createdAt?: Date;
