@@ -25,9 +25,9 @@ type AuthenticatedSocket = Socket & {
 };
 
 @WebSocketGateway({
-  namespace: '/chat',
+  namespace: 'chat',
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: true,
     credentials: true,
   },
 })
@@ -51,11 +51,12 @@ export class ChatGateway implements OnGatewayConnection {
         return;
       }
 
-      client.data.user = await this.jwtService.verifyAsync(token, {
+      const decoded = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
+      client.data.user = decoded;
       
-      this.logger.debug(`Chat client connected: ${client.id} (User: ${client.data.user?.userId})`);
+      this.logger.debug(`Chat client connected: ${client.id} (User: ${decoded.userId})`);
     } catch (error) {
       this.logger.warn(`Rejected chat connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
@@ -73,7 +74,6 @@ export class ChatGateway implements OnGatewayConnection {
     const channel = await this.chatService.getChannelById(body.channelId);
     if (!channel) return { ok: false };
 
-    // Basic permission check
     if (channel.type === 'private') {
       const isMember = channel.members.some((m) => m.userId.toString() === userId);
       if (!isMember) return { ok: false, error: 'Forbidden' };
@@ -87,7 +87,9 @@ export class ChatGateway implements OnGatewayConnection {
   async joinDefault(@ConnectedSocket() client: AuthenticatedSocket) {
     const defaultChannel = await this.chatService.getDefaultChannel();
     if (defaultChannel) {
-      await client.join(`channel:${defaultChannel._id}`);
+      const room = `channel:${defaultChannel._id}`;
+      await client.join(room);
+      this.logger.debug(`User ${client.data.user?.userId} joined room: ${room}`);
       return { ok: true, channelId: defaultChannel._id };
     }
     return { ok: false };
@@ -96,17 +98,19 @@ export class ChatGateway implements OnGatewayConnection {
   @SubscribeMessage('chat:send_message')
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { channelId: string; content: string },
+    @MessageBody() payload: any,
   ) {
+    const body = Array.isArray(payload) ? payload[0] : payload;
     const userId = client.data.user?.userId;
-    if (!userId || !body.channelId || !body.content) {
-      return { ok: false };
+
+    if (!userId || !body?.channelId || !body?.content) {
+      return { ok: false, error: 'Invalid payload' };
     }
 
     const message = await this.chatService.saveMessage(userId, body.channelId, body.content);
+    const room = `channel:${body.channelId}`;
     
-    // Emit to everyone in the room
-    this.server.to(`channel:${body.channelId}`).emit('chat:message_received', message);
+    this.server.to(room).emit('chat:message_received', message);
     
     return { ok: true };
   }
@@ -119,7 +123,7 @@ export class ChatGateway implements OnGatewayConnection {
 
     const header = client.handshake.headers.authorization;
     if (header?.startsWith('Bearer ')) {
-      return header.slice('Bearer '.length);
+      return header.slice(7);
     }
 
     const cookies = parse(client.handshake.headers.cookie ?? '');
