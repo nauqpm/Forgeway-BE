@@ -11,6 +11,7 @@ import { WorkflowsModule } from '../workflows/workflows.module';
 import { UsersModule } from '../users/users.module';
 import { KanbanModule } from '../kanban/kanban.module';
 import { ScrumModule } from '../scrum/scrum.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Invite, InviteSchema } from './schemas/invite.schema';
 import { InviteRepository } from './repositories/invite.repository';
 import { InviteService } from './services/invite.service';
@@ -28,6 +29,7 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
     forwardRef(() => UsersModule),
     forwardRef(() => KanbanModule),
     forwardRef(() => ScrumModule),
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [WorkspacesController, ForYouController, InviteController],
   providers: [

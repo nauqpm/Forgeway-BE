@@ -2,10 +2,12 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
@@ -17,6 +19,8 @@ import { Comment, CommentDocument } from '../schemas/comment.schema';
 
 @Injectable()
 export class TaskCommentService {
+  private readonly logger = new Logger(TaskCommentService.name);
+
   constructor(
     @InjectModel(Comment.name)
     private readonly commentModel: Model<CommentDocument>,
@@ -25,6 +29,7 @@ export class TaskCommentService {
     private readonly workspacesService: WorkspacesService,
     private readonly commentMapper: CommentMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createForTask(
@@ -51,6 +56,7 @@ export class TaskCommentService {
       userId,
       comment._id.toString(),
     );
+    await this.notifyTaskComment(comment, task, userId);
 
     const populated = await this.findTaskCommentDocument(
       workspaceId,
@@ -241,5 +247,59 @@ export class TaskCommentService {
     if (!Types.ObjectId.isValid(value)) {
       throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
     }
+  }
+  private async notifyTaskComment(
+    comment: CommentDocument,
+    task: TaskDocument,
+    actorId: string,
+  ): Promise<void> {
+    try {
+      const mentionRecipientIds = this.uniqueIds(comment.mentions).filter(
+        (recipientId) => recipientId !== actorId,
+      );
+      await this.notificationsService.notifyCommentMentioned({
+        recipientIds: mentionRecipientIds,
+        actorId,
+        workspaceId: this.toId(task.workspaceId),
+        taskId: task._id.toString(),
+        taskKey: task.key,
+        taskTitle: task.title,
+        commentId: comment._id.toString(),
+      });
+
+      const mentioned = new Set(mentionRecipientIds);
+      const relatedRecipientIds = this.uniqueIds([
+        task.assigneeId,
+        task.reporterId,
+      ]).filter(
+        (recipientId) => recipientId !== actorId && !mentioned.has(recipientId),
+      );
+      await this.notificationsService.notifyTaskCommentCreated({
+        recipientIds: relatedRecipientIds,
+        actorId,
+        workspaceId: this.toId(task.workspaceId),
+        taskId: task._id.toString(),
+        taskKey: task.key,
+        taskTitle: task.title,
+        commentId: comment._id.toString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to create task comment notification: ${message}`);
+    }
+  }
+
+  private uniqueIds(values: Array<unknown>): string[] {
+    return Array.from(
+      new Set(
+        values
+          .map((value) => this.toId(value))
+          .filter((value) => Types.ObjectId.isValid(value)),
+      ),
+    );
+  }
+
+  private toId(value: any): string {
+    return value?._id?.toString?.() ?? value?.toString?.() ?? '';
   }
 }

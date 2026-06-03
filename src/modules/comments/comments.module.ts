@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
@@ -20,6 +21,7 @@ import { TaskCommentService } from './services/task-comment.service';
     forwardRef(() => AuthModule),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => TaskActivitiesModule),
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [CommentsController, TaskCommentController],
   providers: [CommentService, TaskCommentService, CommentMapper],

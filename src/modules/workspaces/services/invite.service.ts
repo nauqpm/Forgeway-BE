@@ -15,6 +15,7 @@ import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateInviteDto } from '../dtos/create-invite.dto';
 import { Invite, INVITE_STATUS } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { UsersService } from '@/modules/users/services/users.service';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class InviteService {
     private readonly usersService: UsersService,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createInvite(
@@ -64,6 +66,14 @@ export class InviteService {
       token,
       status: INVITE_STATUS.PENDING,
     });
+
+    await this.notifyExistingUserInvited(
+      existingUser,
+      workspace,
+      invite,
+      invitedByUserId,
+      role,
+    );
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const acceptUrl = `${frontendUrl}/invites/accept/${token}`;
@@ -166,5 +176,30 @@ export class InviteService {
         );
       }),
     );
+  }
+  private async notifyExistingUserInvited(
+    invitedUser: any,
+    workspace: any,
+    invite: Invite,
+    invitedByUserId: string,
+    role: string,
+  ): Promise<void> {
+    if (!invitedUser || invitedUser._id.toString() === invitedByUserId) {
+      return;
+    }
+
+    try {
+      await this.notificationsService.notifyWorkspaceInvited({
+        recipientId: invitedUser._id.toString(),
+        actorId: invitedByUserId,
+        workspaceId: workspace._id.toString(),
+        workspaceName: workspace.name,
+        inviteId: (invite as any)._id.toString(),
+        role,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to create workspace invite notification: ${message}`);
+    }
   }
 }

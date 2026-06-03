@@ -8,6 +8,7 @@ import { TaskActivitiesModule } from '../task-activities/task-activities.module'
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TasksController } from './controllers/tasks.controller';
 import { TaskMapper } from './mappers/task.mapper';
@@ -38,6 +39,7 @@ import { TasksService } from './services/tasks.service';
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
     RealtimeModule,
+    forwardRef(() => NotificationsModule),
     TaskActivitiesModule,
     AuditModule,
   ],

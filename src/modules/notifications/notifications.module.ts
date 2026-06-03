@@ -1,10 +1,13 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { NotificationsController } from './controllers/notifications.controller';
-import { NotificationsService } from './services/notifications.service';
-import { Notification, NotificationSchema } from './schemas/notification.schema';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NotificationsController } from './controllers/notifications.controller';
+import { NotificationMapper } from './mappers/notification.mapper';
+import { NotificationsRepository } from './repositories/notifications.repository';
+import { Notification, NotificationSchema } from './schemas/notification.schema';
+import { NotificationFactoryService } from './services/notification-factory.service';
+import { NotificationsService } from './services/notifications.service';
 
 @Module({
   imports: [
@@ -14,7 +17,13 @@ import { AuthModule } from '../auth/auth.module';
     forwardRef(() => AuthModule),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, JwtAuthGuard],
-  exports: [NotificationsService, JwtAuthGuard],
+  providers: [
+    NotificationsRepository,
+    NotificationMapper,
+    NotificationFactoryService,
+    NotificationsService,
+    JwtAuthGuard,
+  ],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}

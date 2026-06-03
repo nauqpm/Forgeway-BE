@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import {
@@ -36,6 +37,8 @@ export class TasksService {
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
     private readonly taskActivitiesService: TaskActivitiesService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
@@ -509,6 +512,8 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
+    await this.notifyAssigneeChanged(existing, task, userId, workspaceId);
+
     return this.taskMapper.mapToDto(task);
   }
 
@@ -557,6 +562,7 @@ export class TasksService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
+    await this.notifyAssigneeChanged(existing, task, userId, workspaceId);
     await this.taskActivitiesService.recordTaskUpdated(existing, task, userId);
 
     return this.taskMapper.mapToDto(task);
@@ -965,6 +971,33 @@ export class TasksService {
       throw new BadRequestException(
         `Use PATCH /workspaces/:key/board/:taskId/move for move fields: ${requestedMoveFields.join(', ')}`,
       );
+    }
+  }
+  private async notifyAssigneeChanged(
+    previousTask: any,
+    updatedTask: any,
+    actorId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    const previousAssigneeId = this.toId(previousTask.assigneeId);
+    const nextAssigneeId = this.toId(updatedTask.assigneeId);
+
+    if (!nextAssigneeId || nextAssigneeId === previousAssigneeId) {
+      return;
+    }
+
+    try {
+      await this.notificationsService.notifyTaskAssigned({
+        recipientId: nextAssigneeId,
+        actorId,
+        workspaceId,
+        taskId: updatedTask._id.toString(),
+        taskKey: updatedTask.key,
+        taskTitle: updatedTask.title,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Failed to create task assigned notification: ${message}`);
     }
   }
 }
