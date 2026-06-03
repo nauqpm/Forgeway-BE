@@ -7,7 +7,6 @@ export class TaskLabelSummaryDto {
 
   @ApiProperty()
   name!: string;
-
 }
 
 export class TaskUserSummaryDto {
@@ -77,7 +76,13 @@ export class TaskDto {
   storyPoints?: number;
 
   @ApiPropertyOptional()
+  startDate?: Date;
+
+  @ApiPropertyOptional()
   dueDate?: Date;
+
+  @ApiPropertyOptional()
+  epicId?: string;
 
   @ApiProperty()
   isArchived!: boolean;

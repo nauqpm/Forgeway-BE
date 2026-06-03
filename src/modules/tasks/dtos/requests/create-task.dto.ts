@@ -75,7 +75,17 @@ export class CreateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
   dueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  epicId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
