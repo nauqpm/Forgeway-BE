@@ -20,6 +20,7 @@ import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskCounterService } from './task-counter.service';
 import { TaskDataTransformerService } from './task-data-transformer.service';
+import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
 @Injectable()
@@ -37,6 +38,7 @@ export class TasksService {
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
     private readonly taskActivitiesService: TaskActivitiesService,
+    private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -63,6 +65,7 @@ export class TasksService {
 
     const task = await this.tasksRepository.create(taskData);
     await this.taskActivitiesService.recordTaskCreated(task, userId);
+    this.taskDomainEventPublisher.publishCreated(task, userId);
     this.logger.log(`Task created: ${key} in workspace ${workspaceId}`);
     return this.taskMapper.mapToDto(task);
   }
@@ -513,6 +516,7 @@ export class TasksService {
     }
 
     await this.notifyAssigneeChanged(existing, task, userId, workspaceId);
+    this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
     return this.taskMapper.mapToDto(task);
   }
@@ -564,6 +568,7 @@ export class TasksService {
 
     await this.notifyAssigneeChanged(existing, task, userId, workspaceId);
     await this.taskActivitiesService.recordTaskUpdated(existing, task, userId);
+    this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
     return this.taskMapper.mapToDto(task);
   }
@@ -623,6 +628,7 @@ export class TasksService {
     }
 
     await this.taskActivitiesService.recordTaskArchived(archived, userId);
+    this.taskDomainEventPublisher.publishArchived(archived, userId);
 
     return this.taskMapper.mapToDto(archived);
   }
@@ -652,6 +658,8 @@ export class TasksService {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
+    this.taskDomainEventPublisher.publishArchived(archived, userId);
+
     return this.taskMapper.mapToDto(archived);
   }
 
@@ -677,6 +685,8 @@ export class TasksService {
     if (!archived) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
+
+    this.taskDomainEventPublisher.publishArchived(archived, userId);
 
     return this.taskMapper.mapToDto(archived);
   }
@@ -704,6 +714,7 @@ export class TasksService {
     }
 
     await this.taskActivitiesService.recordTaskRestored(restored, userId);
+    this.taskDomainEventPublisher.publishRestored(restored, userId);
 
     return this.taskMapper.mapToDto(restored);
   }
@@ -731,6 +742,8 @@ export class TasksService {
       );
     }
 
+    this.taskDomainEventPublisher.publishRestored(restored, userId);
+
     return this.taskMapper.mapToDto(restored);
   }
 
@@ -752,6 +765,8 @@ export class TasksService {
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
     }
+
+    this.taskDomainEventPublisher.publishRestored(restored, userId);
 
     return this.taskMapper.mapToDto(restored);
   }
@@ -809,6 +824,8 @@ export class TasksService {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
+    this.taskDomainEventPublisher.publishDeleted(deleted, userId);
+
     return this.taskMapper.mapToDto(deleted);
   }
 
@@ -843,6 +860,7 @@ export class TasksService {
       deleted,
       userId,
     );
+    this.taskDomainEventPublisher.publishDeleted(deleted, userId);
 
     return this.taskMapper.mapToDto(deleted);
   }
