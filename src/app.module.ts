@@ -42,6 +42,7 @@ import { AppService } from './app.service';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 import { CacheModule } from './modules/cache/cache.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     CacheModule,
     DatabaseModule,
     RealtimeModule,
+    ChatModule,
 
     // Core Auth
     AuthModule,
