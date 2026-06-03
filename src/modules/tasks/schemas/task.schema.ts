@@ -24,7 +24,14 @@ export class Task {
   @Prop({ type: String, trim: true, maxlength: 100, index: true })
   columnId?: string;
 
-  @Prop({ type: String, required: true, trim: true, maxlength: 100, index: true, default: 'todo' })
+  @Prop({
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 100,
+    index: true,
+    default: 'todo',
+  })
   status!: string;
 
   @Prop({ type: String, trim: true, index: true })
@@ -52,6 +59,9 @@ export class Task {
 
   @Prop({ type: String, trim: true, maxlength: 5000 })
   description?: string;
+
+  @Prop({ type: [String], default: [], index: true })
+  searchTokens!: string[];
 
   @Prop({ type: String, enum: TASK_TYPES, required: true })
   type!: string;
@@ -100,6 +110,7 @@ export class Task {
 export const TaskSchema = SchemaFactory.createForClass(Task);
 
 TaskSchema.index({ workspaceId: 1, key: 1 }, { unique: true });
+TaskSchema.index({ workspaceId: 1, searchTokens: 1 });
 TaskSchema.index({ workspaceId: 1, columnId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });
@@ -107,5 +118,10 @@ TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1, rank: 1 });
 TaskSchema.index({ workspaceId: 1, assigneeId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, type: 1, priority: 1 });
 TaskSchema.index({ workspaceId: 1, labelIds: 1, updatedAt: -1 });
-TaskSchema.index({ workspaceId: 1, isArchived: 1, isDeleted: 1, updatedAt: -1 });
+TaskSchema.index({
+  workspaceId: 1,
+  isArchived: 1,
+  isDeleted: 1,
+  updatedAt: -1,
+});
 TaskSchema.index({ title: 'text', description: 'text' });

@@ -450,7 +450,7 @@ export class TasksService {
 
     const task = await this.tasksRepository.update(
       id,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
@@ -506,7 +506,7 @@ export class TasksService {
     const task = await this.tasksRepository.updateInWorkspace(
       resolvedTaskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -556,7 +556,7 @@ export class TasksService {
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);

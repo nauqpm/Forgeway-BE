@@ -25,6 +25,7 @@ import { TaskDetailService } from './services/task-detail.service';
 import { TaskMoveService } from './services/task-move.service';
 import { TaskNormalizerService } from './services/task-normalizer.service';
 import { TaskReorderService } from './services/task-reorder.service';
+import { TaskSearchService } from './services/task-search.service';
 import { TasksService } from './services/tasks.service';
 
 @Module({
@@ -55,6 +56,7 @@ import { TasksService } from './services/tasks.service';
     TaskMoveService,
     TaskReorderPolicy,
     TaskReorderService,
+    TaskSearchService,
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksService,
