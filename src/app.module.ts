@@ -43,6 +43,7 @@ import { AppService } from './app.service';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 import { CacheModule } from './modules/cache/cache.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { RedisModule } from './infra/redis/redis.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 
     CommonModule,
     CacheModule,
+    RedisModule,
     DatabaseModule,
     RealtimeModule,
 
