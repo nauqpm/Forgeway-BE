@@ -706,6 +706,48 @@ export class TasksRepository {
     return filter;
   }
 
+  async findCalendarByWorkspace(
+    workspaceId: string,
+    startRange: Date,
+    endRange: Date,
+  ): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) return [];
+    const wId = new Types.ObjectId(workspaceId);
+    const docs = await this.withRelations(
+      this.taskModel.find({
+        workspaceId: wId,
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true },
+        $or: [
+          // task starts within the range
+          { startDate: { $gte: startRange, $lte: endRange } },
+          // task ends within the range
+          { dueDate: { $gte: startRange, $lte: endRange } },
+          // task spans the entire range
+          { startDate: { $lte: startRange }, dueDate: { $gte: endRange } },
+          // tasks with only dueDate set, within range
+          {
+            startDate: { $exists: false },
+            dueDate: { $gte: startRange, $lte: endRange },
+          },
+        ],
+      }),
+    ).exec();
+    return docs as TaskDocument[];
+  }
+
+  async findTimelineByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) return [];
+    const docs = await this.withRelations(
+      this.taskModel.find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true },
+      }),
+    ).exec();
+    return docs as TaskDocument[];
+  }
+
   private withRelations(query: any) {
     return query
       .populate('workspaceId', 'key name type')

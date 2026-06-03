@@ -29,7 +29,11 @@ export class TaskDataTransformerService {
         : undefined,
       reporterId: new Types.ObjectId(userId),
       storyPoints: dto.storyPoints,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+      epicId: (dto as any).epicId
+        ? new Types.ObjectId((dto as any).epicId)
+        : undefined,
     };
   }
 
@@ -47,6 +51,9 @@ export class TaskDataTransformerService {
     }
     if (dto.boardId) {
       updateData.boardId = new Types.ObjectId(dto.boardId);
+    }
+    if (dto.startDate) {
+      updateData.startDate = new Date(dto.startDate);
     }
     if (dto.dueDate) {
       updateData.dueDate = new Date(dto.dueDate);

@@ -17,6 +17,11 @@ import { TaskReorderPolicy } from './policies/task-reorder.policy';
 import { TasksRepository } from './repositories/tasks.repository';
 import { TaskCounter, TaskCounterSchema } from './schemas/task-counter.schema';
 import { Task, TaskSchema } from './schemas/task.schema';
+import {
+  TaskDependency,
+  TaskDependencySchema,
+} from './schemas/task-dependency.schema';
+import { TaskDependencyService } from './services/task-dependency.service';
 import { TaskCounterService } from './services/task-counter.service';
 import { TaskCreationValidationService } from './services/task-creation-validation.service';
 import { TaskDataTransformerService } from './services/task-data-transformer.service';
@@ -33,6 +38,7 @@ import { TasksService } from './services/tasks.service';
     MongooseModule.forFeature([
       { name: Task.name, schema: TaskSchema },
       { name: TaskCounter.name, schema: TaskCounterSchema },
+      { name: TaskDependency.name, schema: TaskDependencySchema },
     ]),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => ScrumModule),
@@ -60,6 +66,7 @@ import { TasksService } from './services/tasks.service';
     TaskNormalizerService,
     TaskDataTransformerService,
     TasksService,
+    TaskDependencyService,
     WorkspaceRoleGuard,
   ],
   exports: [
@@ -76,6 +83,7 @@ import { TasksService } from './services/tasks.service';
     TaskDataTransformerService,
     TasksRepository,
     TaskMapper,
+    TaskDependencyService,
   ],
 })
 export class TasksModule {}

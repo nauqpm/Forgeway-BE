@@ -35,7 +35,9 @@ export class TaskMapper {
       labels: this.mapLabelSummaries(plainTask.labelIds),
       reporterId: this.toId(plainTask.reporterId),
       storyPoints: plainTask.storyPoints,
+      startDate: plainTask.startDate,
       dueDate: plainTask.dueDate,
+      epicId: this.toOptionalId(plainTask.epicId),
       isArchived: plainTask.isArchived || false,
       archivedAt: plainTask.archivedAt,
       archivedBy: this.toOptionalId(plainTask.archivedBy),
@@ -133,7 +135,9 @@ export class TaskMapper {
       updatedAt: value.updatedAt,
     };
   }
-  private mapLabelSummaries(values: any): Array<{ id: string; name: string }> | undefined {
+  private mapLabelSummaries(
+    values: any,
+  ): Array<{ id: string; name: string }> | undefined {
     if (!Array.isArray(values) || values.length === 0) {
       return undefined;
     }

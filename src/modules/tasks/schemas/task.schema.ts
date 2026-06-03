@@ -82,7 +82,13 @@ export class Task {
   storyPoints?: number;
 
   @Prop({ type: Date })
+  startDate?: Date;
+
+  @Prop({ type: Date })
   dueDate?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'Task', index: true })
+  epicId?: Types.ObjectId;
 
   @Prop({ type: Boolean, default: false, index: true })
   isArchived!: boolean;
@@ -124,4 +130,6 @@ TaskSchema.index({
   isDeleted: 1,
   updatedAt: -1,
 });
+TaskSchema.index({ workspaceId: 1, startDate: 1, dueDate: 1 });
+TaskSchema.index({ workspaceId: 1, epicId: 1 });
 TaskSchema.index({ title: 'text', description: 'text' });
