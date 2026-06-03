@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { AuthModule } from '../auth/auth.module';
+import { TokenModule } from '../auth/token.module';
+import { AuditModule } from '../audit/audit.module';
 import { ChatService } from './services/chat.service';
 import { ChatGateway } from './gateways/chat.gateway';
 import { ChatController } from './controllers/chat.controller';
@@ -14,16 +15,12 @@ import { Message, MessageSchema } from './schemas/message.schema';
       { name: Channel.name, schema: ChannelSchema },
       { name: Message.name, schema: MessageSchema },
     ]),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
-      }),
-    }),
+    AuthModule,
+    TokenModule,
+    AuditModule,
   ],
   controllers: [ChatController],
-  providers: [ChatService, ChatGateway, ConfigService],
+  providers: [ChatService, ChatGateway],
   exports: [ChatService],
 })
 export class ChatModule {}
