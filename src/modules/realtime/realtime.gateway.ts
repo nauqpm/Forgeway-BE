@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,27 +9,11 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { JwtService } from '@nestjs/jwt';
-import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { parse } from 'cookie';
 import { Server, Socket } from 'socket.io';
-import { COOKIE_NAMES } from '../auth/constants/cookie.constants';
-import { RealtimeService } from './realtime.service';
 
-type AuthenticatedSocket = Socket & {
-  data: {
-    user?: {
-      userId: string;
-      email?: string;
-      role?: string;
-    };
-    rateLimit?: {
-      windowStartedAt: number;
-      count: number;
-    };
-  };
-};
+import { AuthenticatedSocket, RoomBuilder } from './contracts';
+import { RealtimeService } from './realtime.service';
+import { SocketAuthService } from './services/socket-auth.service';
 
 @WebSocketGateway({
   namespace: '/realtime',
@@ -48,9 +33,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   private readonly clientEventLimit = 30;
 
   constructor(
-    private readonly jwtService: JwtService,
     private readonly realtimeService: RealtimeService,
-    private readonly configService: ConfigService,
+    private readonly socketAuthService: SocketAuthService,
   ) {}
 
   afterInit(server: Server): void {
@@ -59,15 +43,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
-      const token = this.extractToken(client);
-      if (!token) {
-        client.disconnect(true);
-        return;
-      }
-
-      client.data.user = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
+      const user = await this.socketAuthService.authenticate(client);
+      await client.join(RoomBuilder.user(user.userId));
+      this.logger.debug(`Realtime client connected: ${client.id}, userId: ${user.userId}`);
     } catch (error) {
       this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
@@ -75,6 +53,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   handleDisconnect(client: Socket): void {
+    this.socketAuthService.clearDisconnectTimer(client as AuthenticatedSocket);
     this.logger.debug(`Realtime client disconnected: ${client.id}`);
   }
 
@@ -102,21 +81,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
     await client.leave(this.realtimeService.workspaceRoom(body.workspaceId));
     return { ok: true };
-  }
-
-  private extractToken(client: Socket): string | undefined {
-    const authToken = client.handshake.auth?.token;
-    if (typeof authToken === 'string' && authToken.length > 0) {
-      return authToken;
-    }
-
-    const header = client.handshake.headers.authorization;
-    if (header?.startsWith('Bearer ')) {
-      return header.slice('Bearer '.length);
-    }
-
-    const cookies = parse(client.handshake.headers.cookie ?? '');
-    return cookies[COOKIE_NAMES.ACCESS];
   }
 
   private consumeClientEvent(client: AuthenticatedSocket): boolean {
