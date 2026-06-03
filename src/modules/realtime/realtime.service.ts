@@ -33,6 +33,10 @@ export class RealtimeService {
     this.server = server;
   }
 
+  getServer(): Server | undefined {
+    return this.server;
+  }
+
   emitBoardDelta<TPayload>(
     workspaceId: string,
     action: BoardDeltaAction,

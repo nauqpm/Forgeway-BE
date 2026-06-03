@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -12,8 +12,18 @@ import {
 import { Server, Socket } from 'socket.io';
 
 import { AuthenticatedSocket, RoomBuilder } from './contracts';
+import { JoinTaskRoomDto } from './dto/join-task-room.dto';
+import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
+import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
 import { RealtimeService } from './realtime.service';
+import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
+
+const socketValidationPipe = new ValidationPipe({
+  transform: true,
+  whitelist: true,
+  forbidNonWhitelisted: true,
+});
 
 @WebSocketGateway({
   namespace: '/realtime',
@@ -35,6 +45,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   constructor(
     private readonly realtimeService: RealtimeService,
     private readonly socketAuthService: SocketAuthService,
+    private readonly roomManagerService: RoomManagerService,
   ) {}
 
   afterInit(server: Server): void {
@@ -58,29 +69,55 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   @SubscribeMessage('workspace:join')
+  @UsePipes(socketValidationPipe)
   async joinWorkspace(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { workspaceId?: string },
+    @MessageBody() body: JoinWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client) || !body?.workspaceId) {
+    if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
 
-    await client.join(this.realtimeService.workspaceRoom(body.workspaceId));
-    return { ok: true };
+    return this.roomManagerService.joinWorkspace(client, body);
   }
 
   @SubscribeMessage('workspace:leave')
+  @UsePipes(socketValidationPipe)
   async leaveWorkspace(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { workspaceId?: string },
+    @MessageBody() body: JoinWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client) || !body?.workspaceId) {
+    if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
 
-    await client.leave(this.realtimeService.workspaceRoom(body.workspaceId));
-    return { ok: true };
+    return this.roomManagerService.leaveWorkspace(client, body);
+  }
+
+  @SubscribeMessage('task:join')
+  @UsePipes(socketValidationPipe)
+  async joinTask(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: JoinTaskRoomDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    return this.roomManagerService.joinTask(client, body);
+  }
+
+  @SubscribeMessage('task:leave')
+  @UsePipes(socketValidationPipe)
+  async leaveTask(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: LeaveTaskRoomDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    return this.roomManagerService.leaveTask(client, body);
   }
 
   private consumeClientEvent(client: AuthenticatedSocket): boolean {
