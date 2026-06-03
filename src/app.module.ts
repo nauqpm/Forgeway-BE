@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { join } from 'path';
@@ -49,6 +50,12 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
       isGlobal: true,
       envFilePath: '.env',
       validate: validateEnv,
+    }),
+
+    EventEmitterModule.forRoot({
+      ignoreErrors: true,
+      maxListeners: 20,
+      verboseMemoryLeak: true,
     }),
 
     // Default rate limiting applies to every endpoint unless a route explicitly opts out.

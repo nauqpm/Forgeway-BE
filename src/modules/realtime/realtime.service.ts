@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';
+import { RoomBuilder } from './contracts';
 
 export const BOARD_REALTIME_EVENTS = {
   BOARD_DELTA: 'board:delta',
@@ -54,6 +55,6 @@ export class RealtimeService {
   }
 
   workspaceRoom(workspaceId: string): string {
-    return `workspace:${workspaceId}`;
+    return RoomBuilder.workspace(workspaceId);
   }
 }
