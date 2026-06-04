@@ -207,7 +207,10 @@ export class TaskDomainEventPublisher {
     }, []);
   }
 
-  private valueForField(task: TaskDocument | any, field: string): TaskChangeValue {
+  private valueForField(
+    task: TaskDocument | any,
+    field: string,
+  ): TaskChangeValue {
     const value = task?.[field];
 
     if (field.endsWith('Id')) {

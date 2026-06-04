@@ -1,4 +1,4 @@
-﻿export const REALTIME_EVENT_TYPES = {
+export const REALTIME_EVENT_TYPES = {
   TASK_CREATED: 'task.created',
   TASK_UPDATED: 'task.updated',
   TASK_MOVED: 'task.moved',
@@ -24,6 +24,8 @@
   TASK_LABELS_UPDATED: 'task.labels.updated',
   TASK_COVER_UPDATED: 'task.cover.updated',
   TASK_ACTIVITY_CREATED: 'task.activity.created',
+
+  PAGE_UPDATED: 'page.updated',
 } as const;
 
 export type RealtimeEventType =

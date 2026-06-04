@@ -11,11 +11,14 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import { AuthenticatedSocket, RoomBuilder } from './contracts';
+import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contracts';
+import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
 import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
+import { PageUpdateDto } from './dto/page-update.dto';
 import { RealtimeService } from './realtime.service';
+import { PageCollabService } from './services/page-collab.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
 
@@ -46,6 +49,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     private readonly realtimeService: RealtimeService,
     private readonly socketAuthService: SocketAuthService,
     private readonly roomManagerService: RoomManagerService,
+    private readonly pageCollabService: PageCollabService,
   ) {}
 
   afterInit(server: Server): void {
@@ -118,6 +122,76 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
 
     return this.roomManagerService.leaveTask(client, body);
+  }
+
+  // ── Page collaboration events ─────────────────────────────
+
+  @SubscribeMessage('page:join')
+  @UsePipes(socketValidationPipe)
+  async joinPage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: JoinPageRoomDto,
+  ): Promise<{ ok: boolean; draft?: string }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    const pageRoom = RoomBuilder.page(body.pageId);
+    await client.join(pageRoom);
+
+    const draft = await this.pageCollabService.getDraft(body.pageId);
+    return { ok: true, draft };
+  }
+
+  @SubscribeMessage('page:leave')
+  @UsePipes(socketValidationPipe)
+  async leavePage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: JoinPageRoomDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    const pageRoom = RoomBuilder.page(body.pageId);
+    await client.leave(pageRoom);
+
+    // Check if room is now empty and flush if so
+    const roomSockets = await this.server.in(pageRoom).fetchSockets();
+    await this.pageCollabService.flushDraftIfRoomEmpty(
+      body.pageId,
+      roomSockets.length,
+    );
+
+    return { ok: true };
+  }
+
+  @SubscribeMessage('page:update')
+  @UsePipes(socketValidationPipe)
+  async updatePage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: PageUpdateDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    const user = client.data.user!;
+    await this.pageCollabService.handleUpdate(
+      user.userId,
+      body.pageId,
+      body.content,
+    );
+
+    // Broadcast to all OTHER clients in the page room (not the sender)
+    const pageRoom = RoomBuilder.page(body.pageId);
+    client.to(pageRoom).emit(REALTIME_EVENT_TYPES.PAGE_UPDATED, {
+      pageId: body.pageId,
+      content: body.content,
+      editedBy: user.userId,
+    });
+
+    return { ok: true };
   }
 
   private consumeClientEvent(client: AuthenticatedSocket): boolean {

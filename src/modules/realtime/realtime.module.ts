@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { TokenModule } from '../auth/token.module';
+import { PagesModule } from '../pages/pages.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
 import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
@@ -13,6 +14,7 @@ import { RealtimeRoomRepository } from './repositories/realtime-room.repository'
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeService } from './realtime.service';
 import { RoomManagerService } from './services/room-manager.service';
+import { PageCollabService } from './services/page-collab.service';
 import { SocketAuthService } from './services/socket-auth.service';
 
 @Module({
@@ -29,6 +31,7 @@ import { SocketAuthService } from './services/socket-auth.service';
       }),
     }),
     TokenModule,
+    PagesModule,
   ],
   providers: [
     RealtimeGateway,
@@ -37,6 +40,7 @@ import { SocketAuthService } from './services/socket-auth.service';
     RoomManagerService,
     RealtimeRoomRepository,
     RealtimePublisher,
+    PageCollabService,
     TaskRealtimeListener,
     NotificationRealtimeListener,
   ],
