@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { TokenModule } from '../auth/token.module';
 import { AuditModule } from '../audit/audit.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ChatService } from './services/chat.service';
 import { ChatGateway } from './gateways/chat.gateway';
 import { ChatController } from './controllers/chat.controller';
@@ -18,6 +19,7 @@ import { Message, MessageSchema } from './schemas/message.schema';
     AuthModule,
     TokenModule,
     AuditModule,
+    WorkspacesModule,
   ],
   controllers: [ChatController],
   providers: [ChatService, ChatGateway],

@@ -13,6 +13,7 @@ import { Server, Socket } from 'socket.io';
 import { parse } from 'cookie';
 import { COOKIE_NAMES } from '../../auth/constants/cookie.constants';
 import { ChatService } from '../services/chat.service';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 
 type AuthenticatedSocket = Socket & {
   data: {
@@ -41,6 +42,7 @@ export class ChatGateway implements OnGatewayConnection {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly chatService: ChatService,
+    private readonly workspacesService: WorkspacesService,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
@@ -72,11 +74,21 @@ export class ChatGateway implements OnGatewayConnection {
     if (!userId || !body.channelId) return { ok: false };
 
     const channel = await this.chatService.getChannelById(body.channelId);
-    if (!channel) return { ok: false };
+    if (!channel) return { ok: false, error: 'Channel not found' };
 
+    // 1. Check Private Channel membership (explicit members list)
     if (channel.type === 'private') {
       const isMember = channel.members.some((m) => m.userId.toString() === userId);
       if (!isMember) return { ok: false, error: 'Forbidden' };
+    }
+
+    // 2. Check Workspace-specific Channel membership
+    if (channel.workspaceId) {
+      const isWorkspaceMember = await this.workspacesService.isMember(
+        channel.workspaceId.toString(),
+        userId,
+      );
+      if (!isWorkspaceMember) return { ok: false, error: 'Workspace membership required' };
     }
 
     await client.join(`channel:${channel._id}`);
@@ -113,6 +125,23 @@ export class ChatGateway implements OnGatewayConnection {
     this.server.to(room).emit('chat:message_received', message);
     
     return { ok: true };
+  }
+
+  @SubscribeMessage('chat:typing')
+  async handleTyping(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: { channelId: string; isTyping: boolean },
+  ) {
+    const user = client.data.user;
+    if (!user || !body.channelId) return;
+
+    const room = `channel:${body.channelId}`;
+    // Broadcast to everyone else in the room
+    client.to(room).emit('chat:user_typing', {
+      userId: user.userId,
+      email: user.email, // Using email as requested
+      isTyping: body.isTyping,
+    });
   }
 
   private extractToken(client: Socket): string | undefined {
