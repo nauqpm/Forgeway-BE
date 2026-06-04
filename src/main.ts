@@ -36,11 +36,27 @@ async function bootstrap() {
     // Cookie parser
     app.use(cookieParser());
 
-    // CORS
+    // CORS - cho phép nhiều frontend origins
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      'http://localhost:5173',      // Vite dev server (Admin FE)
+      'http://localhost:5174',      // Vite alternative
+      'http://localhost:5175',
+      'http://localhost:3000',      // Next.js/React default
+      'http://localhost:3001',
+    ].filter(Boolean);
+
     app.enableCors({
-      origin: process.env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile, curl, etc.)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+        }
+      },
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      allowedHeaders: 'Content-Type, Authorization',
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: true,
     });
 

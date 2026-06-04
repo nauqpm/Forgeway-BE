@@ -162,6 +162,36 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
+  // 🔑 Super admin: Cập nhật role của user
+  async updateUserRole(userId: string, role: string): Promise<User> {
+    this.logger.log(`Cập nhật role cho User ID: ${userId} thành ${role}`);
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const updated = await this.usersRepository.update(userId, { role });
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    this.logger.log(`Đã cập nhật role của user ${userId} thành ${role}`);
+    return updated;
+  }
+
+  // 🔑 Super admin: Cập nhật status của user
+  async updateUserStatus(userId: string, status: string): Promise<User> {
+    this.logger.log(`Cập nhật status cho User ID: ${userId} thành ${status}`);
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const updated = await this.usersRepository.update(userId, { status });
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    this.logger.log(`Đã cập nhật status của user ${userId} thành ${status}`);
+    return updated;
+  }
+
   /**
    * 🔄 Cập nhật mật khẩu cho người dùng
    */
