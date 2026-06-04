@@ -4,26 +4,41 @@ import { Document, Types } from 'mongoose';
 export type MessageDocument = Message & Document;
 
 @Schema({ timestamps: true })
+export class MessageAttachment {
+  @Prop() url!: string;
+  @Prop() name!: string;
+  @Prop() size!: number;
+  @Prop() mimeType!: string;
+}
+
+@Schema({ timestamps: true })
 export class Message {
-  @Prop({ type: Types.ObjectId, ref: 'Channel', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Channel', required: true, index: true })
   channelId!: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   senderId!: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, maxlength: 4000 })
   content!: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Attachment' }], default: [] })
-  attachments!: Types.ObjectId[];
+  @Prop({ type: String, enum: ['text', 'file', 'image', 'system'], default: 'text' })
+  type!: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
-  readBy!: Types.ObjectId[];
+  @Prop({ type: [SchemaFactory.createForClass(MessageAttachment)], default: [] })
+  attachments!: MessageAttachment[];
 
-  readonly _id!: Types.ObjectId;
-  readonly createdAt!: Date;
-  readonly updatedAt!: Date;
+  @Prop({ type: Types.ObjectId, ref: 'Message', default: null })
+  replyToId?: Types.ObjectId;
+
+  @Prop({ type: Date, default: null })
+  editedAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  deletedAt?: Date;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
+
 MessageSchema.index({ channelId: 1, createdAt: -1 });
+MessageSchema.index({ channelId: 1, _id: -1 });
