@@ -34,6 +34,8 @@ export class Meeting {
 
   @Prop({ type: Date, default: null }) startedAt?: Date;
   @Prop({ type: Date, default: null }) endedAt?: Date;
+
+  readonly _id!: Types.ObjectId;
 }
 
 export const MeetingSchema = SchemaFactory.createForClass(Meeting);

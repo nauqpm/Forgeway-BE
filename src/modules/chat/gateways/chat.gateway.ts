@@ -11,11 +11,14 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
 import { parse } from 'cookie';
+import { Types } from 'mongoose';
 import { COOKIE_NAMES } from '../../auth/constants/cookie.constants';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
 import { MeetingService } from '../services/meeting.service';
-import { REALTIME_EVENT_TYPES, RealtimeEnvelope } from '../../realtime/contracts/realtime-event-types';
+import { MeetingDocument } from '../schemas/meeting.schema';
+import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
+import { RealtimeEnvelope } from '../../realtime/contracts/realtime-envelope.interface';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 
 type AuthenticatedSocket = Socket & {
@@ -108,9 +111,10 @@ export class ChatGateway implements OnGatewayConnection {
     const room = RoomBuilder.channel(payload.channelId);
     
     const envelope: RealtimeEnvelope<any> = {
-      event: REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT,
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT,
       data: message,
-      timestamp: new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
     };
 
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT, envelope);
@@ -129,9 +133,10 @@ export class ChatGateway implements OnGatewayConnection {
     const room = RoomBuilder.channel(payload.channelId);
 
     const envelope: RealtimeEnvelope<any> = {
-      event: REALTIME_EVENT_TYPES.CHAT_MESSAGE_EDITED,
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_EDITED,
       data: message,
-      timestamp: new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
     };
 
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_EDITED, envelope);
@@ -150,9 +155,10 @@ export class ChatGateway implements OnGatewayConnection {
     const room = RoomBuilder.channel(payload.channelId);
 
     const envelope: RealtimeEnvelope<any> = {
-      event: REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED,
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED,
       data: { messageId: payload.messageId, channelId: payload.channelId },
-      timestamp: new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
     };
 
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED, envelope);
@@ -195,9 +201,10 @@ export class ChatGateway implements OnGatewayConnection {
     await client.join(RoomBuilder.meeting(meetingId));
 
     const envelope: RealtimeEnvelope<any> = {
-      event: REALTIME_EVENT_TYPES.MEETING_USER_JOINED,
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.MEETING_USER_JOINED,
       data: { userId, meetingId, participants: meeting.participants },
-      timestamp: new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
     };
 
     this.server.to(RoomBuilder.meeting(meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_USER_JOINED, envelope);
@@ -216,9 +223,10 @@ export class ChatGateway implements OnGatewayConnection {
     await client.leave(RoomBuilder.meeting(body.meetingId));
 
     const envelope: RealtimeEnvelope<any> = {
-      event: REALTIME_EVENT_TYPES.MEETING_USER_LEFT,
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.MEETING_USER_LEFT,
       data: { userId, meetingId: body.meetingId, participants: meeting.participants },
-      timestamp: new Date().toISOString(),
+      occurredAt: new Date().toISOString(),
     };
 
     this.server.to(RoomBuilder.meeting(body.meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);

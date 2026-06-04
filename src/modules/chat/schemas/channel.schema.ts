@@ -22,6 +22,8 @@ export class Channel {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   createdBy!: Types.ObjectId;
+
+  readonly _id!: Types.ObjectId;
 }
 
 export const ChannelSchema = SchemaFactory.createForClass(Channel);

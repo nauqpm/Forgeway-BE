@@ -36,6 +36,8 @@ export class Message {
 
   @Prop({ type: Date, default: null })
   deletedAt?: Date;
+
+  readonly _id!: Types.ObjectId;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

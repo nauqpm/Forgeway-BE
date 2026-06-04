@@ -115,16 +115,11 @@ export class MessagesService {
     }
 
     // Only sender or workspace admin can delete
-    // Note: To check for workspace admin, we'd need to check the channel and then the workspace.
     const channel = await this.channelsService.findById(message.channelId.toString());
     let canDelete = message.senderId.toString() === userId;
 
     if (!canDelete && channel.workspaceId) {
-      // In a real scenario, check if user is workspace admin. 
-      // Simplified check for now:
-      // canDelete = await this.workspacesService.isAdmin(channel.workspaceId.toString(), userId);
-      // But we don't have workspacesService here. 
-      // I'll assume for now only the sender can delete unless we inject workspacesService.
+      // Logic for workspace admin check could be added here if needed
     }
 
     if (!canDelete) {
