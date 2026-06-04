@@ -14,10 +14,24 @@ import {
 } from '../policies/task-reorder.policy';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskDocument } from '../schemas/task.schema';
-import { generateRankBetween } from '../utils/rank.util';
+import {
+  compareRanks,
+  generateRankBetween,
+  generateRebalanceRank,
+} from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskMoveAuditMetadata, TaskMoveResult } from './task-move.service';
+
+interface RankUpdate {
+  taskId: string;
+  rank: string;
+}
+
+interface RankRebalanceResult {
+  nextRank: string;
+  rankUpdates: RankUpdate[];
+}
 
 @Injectable()
 export class TaskReorderService {
@@ -39,7 +53,7 @@ export class TaskReorderService {
     session?: ClientSession,
   ): Promise<TaskMoveResult> {
     this.ensureReorderHasMutation(dto);
-    this.ensureNeighborIdsAreDifferent(dto);
+    this.ensureNeighborIdsAreValid(dto, taskId);
 
     const workspace = await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
@@ -111,8 +125,37 @@ export class TaskReorderService {
       currentSprint,
     );
 
-    const nextRank = generateRankBetween(beforeTask?.rank, afterTask?.rank);
-    this.ensureRankWillChange(task, dto, targetColumnId, targetStatus, targetSprintId, nextRank);
+    let nextRank = this.generateInitialRank(task, beforeTask, afterTask);
+    let rankUpdates: RankUpdate[] = [];
+
+    if (this.shouldRebalanceRanks(task, beforeTask, afterTask, nextRank)) {
+      const rebalanceResult = await this.rebalanceRankScope(
+        scope,
+        task,
+        beforeTask,
+        afterTask,
+        session,
+      );
+      nextRank = rebalanceResult.nextRank;
+      rankUpdates = rebalanceResult.rankUpdates;
+    }
+
+    this.ensureRankWillChange(
+      task,
+      targetColumnId,
+      targetStatus,
+      targetSprintId,
+      nextRank,
+    );
+
+    if (rankUpdates.length > 0) {
+      await this.tasksRepository.updateRanksInWorkspace(
+        workspaceId,
+        rankUpdates,
+        session,
+      );
+    }
+
     const reorderedTask = await this.tasksRepository.reorderTaskInWorkspace(
       taskId,
       workspaceId,
@@ -166,7 +209,7 @@ export class TaskReorderService {
     }
   }
 
-  private ensureNeighborIdsAreDifferent(dto: ReorderTaskDto): void {
+  private ensureNeighborIdsAreValid(dto: ReorderTaskDto, taskId: string): void {
     if (
       dto.beforeTaskId &&
       dto.afterTaskId &&
@@ -176,11 +219,134 @@ export class TaskReorderService {
         'beforeTaskId and afterTaskId must be different',
       );
     }
+
+    if (dto.beforeTaskId === taskId) {
+      throw new BadRequestException('beforeTaskId cannot be the moved task');
+    }
+
+    if (dto.afterTaskId === taskId) {
+      throw new BadRequestException('afterTaskId cannot be the moved task');
+    }
+  }
+
+  private generateInitialRank(
+    task: TaskDocument,
+    beforeTask: TaskDocument | null,
+    afterTask: TaskDocument | null,
+  ): string {
+    if (
+      beforeTask?.rank &&
+      afterTask?.rank &&
+      beforeTask.rank === afterTask.rank
+    ) {
+      return task.rank ?? '';
+    }
+
+    return generateRankBetween(beforeTask?.rank, afterTask?.rank);
+  }
+
+  private shouldRebalanceRanks(
+    task: TaskDocument,
+    beforeTask: TaskDocument | null,
+    afterTask: TaskDocument | null,
+    nextRank: string,
+  ): boolean {
+    return (
+      !task.rank ||
+      Boolean(beforeTask && !beforeTask.rank) ||
+      Boolean(afterTask && !afterTask.rank) ||
+      Boolean(beforeTask?.rank && afterTask?.rank && beforeTask.rank === afterTask.rank) ||
+      task.rank === nextRank
+    );
+  }
+
+  private async rebalanceRankScope(
+    scope: TaskReorderScope,
+    task: TaskDocument,
+    beforeTask: TaskDocument | null,
+    afterTask: TaskDocument | null,
+    session?: ClientSession,
+  ): Promise<RankRebalanceResult> {
+    const taskId = task._id.toString();
+    const scopeTasks = await this.tasksRepository.findTasksInRankScope(
+      scope,
+      session,
+    );
+    const orderedTasks = scopeTasks
+      .filter((scopeTask) => scopeTask._id.toString() !== taskId)
+      .sort((left, right) => this.compareTaskOrder(left, right));
+    const insertIndex = this.resolveInsertIndex(
+      orderedTasks,
+      beforeTask,
+      afterTask,
+    );
+    const orderedTaskIds = orderedTasks.map((scopeTask) => ({
+      taskId: scopeTask._id.toString(),
+      rank: scopeTask.rank,
+    }));
+
+    orderedTaskIds.splice(insertIndex, 0, {
+      taskId,
+      rank: task.rank,
+    });
+
+    const withNewRanks = orderedTaskIds.map((item, index) => ({
+      ...item,
+      newRank: generateRebalanceRank(index),
+    }));
+    const movedIndex = withNewRanks.findIndex((item) => item.taskId === taskId);
+    const rankUpdates = withNewRanks
+      .filter((item) => item.taskId !== taskId && item.newRank !== item.rank)
+      .map(({ taskId: id, newRank }) => ({ taskId: id, rank: newRank }));
+
+    return {
+      nextRank: generateRebalanceRank(movedIndex),
+      rankUpdates,
+    };
+  }
+
+  private resolveInsertIndex(
+    orderedTasks: TaskDocument[],
+    beforeTask: TaskDocument | null,
+    afterTask: TaskDocument | null,
+  ): number {
+    if (beforeTask) {
+      const beforeIndex = orderedTasks.findIndex(
+        (task) => task._id.toString() === beforeTask._id.toString(),
+      );
+      if (beforeIndex >= 0) {
+        return beforeIndex;
+      }
+    }
+
+    if (afterTask) {
+      const afterIndex = orderedTasks.findIndex(
+        (task) => task._id.toString() === afterTask._id.toString(),
+      );
+      if (afterIndex >= 0) {
+        return afterIndex + 1;
+      }
+    }
+
+    return orderedTasks.length;
+  }
+
+  private compareTaskOrder(left: TaskDocument, right: TaskDocument): number {
+    const rankDiff = compareRanks(left.rank, right.rank);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    return this.toTimestamp(left.createdAt) - this.toTimestamp(right.createdAt);
+  }
+
+  private toTimestamp(value: unknown): number {
+    const timestamp = new Date(value as string | Date).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
   }
 
   private ensureRankWillChange(
     task: TaskDocument,
-    dto: ReorderTaskDto,
     targetColumnId: string | undefined,
     targetStatus: string | undefined,
     targetSprintId: string | null,
@@ -196,14 +362,6 @@ export class TaskReorderService {
       throw new BadRequestException(
         'Reorder did not change task position. Check beforeTaskId and afterTaskId.',
       );
-    }
-
-    if (dto.beforeTaskId && dto.beforeTaskId === task._id.toString()) {
-      throw new BadRequestException('beforeTaskId cannot be the moved task');
-    }
-
-    if (dto.afterTaskId && dto.afterTaskId === task._id.toString()) {
-      throw new BadRequestException('afterTaskId cannot be the moved task');
     }
   }
 
