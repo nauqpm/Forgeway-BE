@@ -30,9 +30,13 @@ export class ChatService implements OnModuleInit {
     return this.channelModel.findOne({ name: 'General' });
   }
 
-  async createChannel(userId: string, data: { name: string; description?: string; type?: string }) {
+  async createChannel(
+    userId: string,
+    data: { name: string; description?: string; type?: string; workspaceId?: string },
+  ) {
     const channel = await this.channelModel.create({
       ...data,
+      workspaceId: data.workspaceId ? new Types.ObjectId(data.workspaceId) : undefined,
       ownerId: new Types.ObjectId(userId),
       members: [{ userId: new Types.ObjectId(userId), role: 'admin' }],
     });
@@ -40,12 +44,14 @@ export class ChatService implements OnModuleInit {
   }
 
   async getUserChannels(userId: string) {
-    return this.channelModel.find({
-      $or: [
-        { type: 'public' },
-        { 'members.userId': new Types.ObjectId(userId) }
-      ]
-    }).sort({ updatedAt: -1 });
+    // Note: In a real scenario, you'd want to join with a Workspace collection
+    // to find workspaces where the user is a member.
+    // For now, we'll return public channels and channels where the user is a member.
+    return this.channelModel
+      .find({
+        $or: [{ type: 'public' }, { 'members.userId': new Types.ObjectId(userId) }],
+      })
+      .sort({ updatedAt: -1 });
   }
 
   async getChannelById(channelId: string) {
@@ -63,7 +69,7 @@ export class ChatService implements OnModuleInit {
       lastMessageId: message._id,
     });
 
-    return message.populate('senderId', 'firstName lastName avatar email');
+    return message.populate('senderId', 'email fullName avatar');
   }
 
   async getMessages(channelId: string, limit = 50, before?: string) {
@@ -76,7 +82,7 @@ export class ChatService implements OnModuleInit {
       .find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
-      .populate('senderId', 'firstName lastName avatar email')
+      .populate('senderId', 'email fullName avatar')
       .exec();
   }
 }
