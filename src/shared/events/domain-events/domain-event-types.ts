@@ -9,6 +9,10 @@ export const DOMAIN_EVENT_TYPES = {
   NOTIFICATION_CREATED: 'notification.created',
   NOTIFICATION_READ: 'notification.read',
   NOTIFICATION_READ_ALL: 'notification.read_all',
+  WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
+  WORKSPACE_MEMBER_JOINED: 'workspace.member.joined',
+  WORKSPACE_MEMBER_REMOVED: 'workspace.member.removed',
+  WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
 } as const;
 
 export type DomainEventType =
