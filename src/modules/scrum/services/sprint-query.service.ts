@@ -88,11 +88,11 @@ export class SprintQueryService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint không tồn tại');
+      throw new NotFoundException('Sprint not exist');
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException('Chỉ có thể hoàn thành sprint đang ở trạng thái hoạt động');
+      throw new BadRequestException('Only sprint in active status can be completed');
     }
 
     const completedStatuses = await this.boardStatusService.getCompletedStatuses(
@@ -147,7 +147,7 @@ export class SprintQueryService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint không tồn tại');
+      throw new NotFoundException('Sprint not exist');
     }
 
     return sprint;
@@ -155,7 +155,7 @@ export class SprintQueryService {
 
   private validateObjectId(id: string, resourceName: string): void {
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException(`ID format ${resourceName} không hợp lệ`);
+      throw new BadRequestException(`ID format ${resourceName} is invalid`);
     }
   }
 }
