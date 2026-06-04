@@ -3,16 +3,23 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 
+import { RedisModule } from '../../infra/redis/redis.module';
 import { TokenModule } from '../auth/token.module';
 import { PagesModule } from '../pages/pages.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
-import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
 import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
+import { TaskDetailRealtimeListener } from './listeners/task-detail-realtime.listener';
 import { TaskRealtimeListener } from './listeners/task-realtime.listener';
+import { WorkspaceRealtimeListener } from './listeners/workspace-realtime.listener';
 import { RealtimePublisher } from './publishers/realtime.publisher';
 import { RealtimeRoomRepository } from './repositories/realtime-room.repository';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeService } from './realtime.service';
+import { PresenceService } from './services/presence.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { PageCollabService } from './services/page-collab.service';
 import { SocketAuthService } from './services/socket-auth.service';
@@ -32,17 +39,21 @@ import { SocketAuthService } from './services/socket-auth.service';
     }),
     TokenModule,
     PagesModule,
+    RedisModule,
   ],
   providers: [
     RealtimeGateway,
     RealtimeService,
     SocketAuthService,
     RoomManagerService,
+    PresenceService,
     RealtimeRoomRepository,
     RealtimePublisher,
     PageCollabService,
     TaskRealtimeListener,
+    TaskDetailRealtimeListener,
     NotificationRealtimeListener,
+    WorkspaceRealtimeListener,
   ],
   exports: [RealtimeService, RealtimePublisher],
 })

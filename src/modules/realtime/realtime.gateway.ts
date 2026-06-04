@@ -11,14 +11,21 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contracts';
+import {
+  AuthenticatedSocket,
+  REALTIME_EVENT_TYPES,
+  RoomBuilder,
+} from './contracts';
 import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
 import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
 import { PageUpdateDto } from './dto/page-update.dto';
-import { RealtimeService } from './realtime.service';
 import { PageCollabService } from './services/page-collab.service';
+import { LeaveWorkspaceRoomDto } from './dto/leave-workspace-room.dto';
+import { PresenceHeartbeatDto } from './dto/presence-heartbeat.dto';
+import { RealtimeService } from './realtime.service';
+import { PresenceService } from './services/presence.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
 
@@ -37,7 +44,9 @@ const socketValidationPipe = new ValidationPipe({
   pingInterval: 10_000,
   pingTimeout: 5_000,
 })
-export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -50,6 +59,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     private readonly socketAuthService: SocketAuthService,
     private readonly roomManagerService: RoomManagerService,
     private readonly pageCollabService: PageCollabService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   afterInit(server: Server): void {
@@ -60,9 +70,13 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
-      this.logger.debug(`Realtime client connected: ${client.id}, userId: ${user.userId}`);
+      this.logger.debug(
+        `Realtime client connected: ${client.id}, userId: ${user.userId}`,
+      );
     } catch (error) {
-      this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
+      this.logger.warn(
+        `Rejected realtime connection ${client.id}: ${(error as Error).message}`,
+      );
       client.disconnect(true);
     }
   }
@@ -89,7 +103,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   @UsePipes(socketValidationPipe)
   async leaveWorkspace(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: JoinWorkspaceRoomDto,
+    @MessageBody() body: LeaveWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
     if (!this.consumeClientEvent(client)) {
       return { ok: false };
@@ -195,6 +209,10 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   private consumeClientEvent(client: AuthenticatedSocket): boolean {
+    if (!client.data.user) {
+      return false;
+    }
+
     const now = Date.now();
     const current = client.data.rateLimit;
 

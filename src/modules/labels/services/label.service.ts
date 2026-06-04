@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { CreateLabelDto } from '../dtos/create-label.dto';
 import { LabelDto } from '../dtos/label.dto';
 import { UpdateLabelDto } from '../dtos/update-label.dto';
@@ -23,6 +24,7 @@ export class LabelService {
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly labelMapper: LabelMapper,
   ) {}
 
@@ -175,7 +177,7 @@ export class LabelService {
     this.validateObjectId(workspaceId, 'Workspace');
     await this.workspacesService.findById(workspaceId);
 
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }

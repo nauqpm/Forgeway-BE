@@ -19,6 +19,7 @@ describe('InviteController', () => {
           provide: InviteService,
           useValue: {
             createInvite: jest.fn(),
+            createInviteLink: jest.fn(),
             getInvites: jest.fn(),
             cancelInvite: jest.fn(),
             getInviteByToken: jest.fn(),
@@ -45,6 +46,16 @@ describe('InviteController', () => {
 
     expect(service.createInvite).toHaveBeenCalledWith('workspaceId', mockUser.userId, dto);
     expect(result).toEqual({ token: 'abc' });
+  });
+
+  it('createInviteLink calls service with workspaceId, userId, dto', async () => {
+    const dto = { role: SPACE_ROLES.VIEWER };
+    service.createInviteLink.mockResolvedValue({ token: 'link-token' } as any);
+
+    const result = await controller.createInviteLink('workspaceId', mockUser as any, dto);
+
+    expect(service.createInviteLink).toHaveBeenCalledWith('workspaceId', mockUser.userId, dto);
+    expect(result).toEqual({ token: 'link-token' });
   });
 
   it('getInvites calls service with workspaceId', async () => {

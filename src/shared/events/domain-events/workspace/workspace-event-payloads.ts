@@ -19,7 +19,7 @@ export interface WorkspaceSummaryPayload {
 export interface WorkspaceInviteSummaryPayload {
   id: string;
   workspaceId: string;
-  invitedEmail: string;
+  invitedEmail: string | null;
   invitedBy: string;
   role: string;
   status: string;
@@ -36,6 +36,7 @@ export interface WorkspaceMemberSummaryPayload {
 export interface WorkspaceInviteCreatedEventData extends WorkspaceEventContext {
   inviteId: string;
   recipientEmail: string;
+  recipientId?: string;
   role: string;
   workspace?: WorkspaceSummaryPayload;
   invite?: WorkspaceInviteSummaryPayload;

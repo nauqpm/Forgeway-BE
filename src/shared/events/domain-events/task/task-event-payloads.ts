@@ -76,3 +76,93 @@ export interface TaskDeletedEventData extends TaskEventContext {
   deletedBy: string;
   deletedAt: Date | string;
 }
+
+export interface TaskCommentRealtimePayload {
+  id: string;
+  content?: string;
+  authorId: string;
+  author?: object;
+  targetType: string;
+  targetId: string;
+  parentId?: string;
+  mentions?: string[];
+  isDeleted?: boolean;
+  editedAt?: Date | string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export interface TaskAttachmentRealtimePayload {
+  id: string;
+  originalName: string;
+  filename?: string;
+  mimeType: string;
+  size: number;
+  targetType: string;
+  targetId: string;
+  uploadedBy: string;
+  uploader?: object;
+  downloadCount?: number;
+  isDeleted?: boolean;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export interface TaskCoverRealtimePayload {
+  type: string;
+  color?: string;
+  imageUrl?: string;
+  source?: string;
+  updatedBy?: string;
+  updatedAt?: Date | string;
+}
+
+export interface TaskActivityRealtimePayload {
+  id: string;
+  workspaceId: string;
+  taskId: string;
+  taskKey: string;
+  actorId: string;
+  actor?: object;
+  type: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: Date | string;
+}
+
+export interface TaskCommentCreatedEventData extends TaskEventContext {
+  commentId: string;
+  comment?: TaskCommentRealtimePayload;
+}
+
+export interface TaskCommentUpdatedEventData extends TaskEventContext {
+  commentId: string;
+  comment?: TaskCommentRealtimePayload;
+}
+
+export interface TaskCommentDeletedEventData extends TaskEventContext {
+  commentId: string;
+}
+
+export interface TaskAttachmentAddedEventData extends TaskEventContext {
+  attachmentId: string;
+  attachment?: TaskAttachmentRealtimePayload;
+}
+
+export interface TaskAttachmentDeletedEventData extends TaskEventContext {
+  attachmentId: string;
+  fileName?: string;
+}
+
+export interface TaskLabelsUpdatedEventData extends TaskEventContext {
+  labelIds: string[];
+  task?: TaskSummaryPayload;
+}
+
+export interface TaskCoverUpdatedEventData extends TaskEventContext {
+  cover: TaskCoverRealtimePayload | null;
+}
+
+export interface TaskActivityCreatedEventData extends TaskEventContext {
+  activityId: string;
+  activity?: TaskActivityRealtimePayload;
+}
