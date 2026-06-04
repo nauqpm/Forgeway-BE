@@ -12,6 +12,7 @@ import {
 } from '../interfaces/create-notification-input.interface';
 import { NotificationMapper } from '../mappers/notification.mapper';
 import { NotificationsRepository } from '../repositories/notifications.repository';
+import { NotificationDomainEventPublisher } from './notification-domain-event.publisher';
 import { NotificationFactoryService } from './notification-factory.service';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class NotificationsService {
     private readonly notificationsRepository: NotificationsRepository,
     private readonly notificationMapper: NotificationMapper,
     private readonly notificationFactory: NotificationFactoryService,
+    private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
   ) {}
 
   async create(input: CreateNotificationInput): Promise<NotificationDto | null> {
@@ -31,7 +33,10 @@ export class NotificationsService {
     }
 
     const notification = await this.notificationsRepository.create(input);
-    return this.notificationMapper.mapToDto(notification);
+    const notificationDto = this.notificationMapper.mapToDto(notification);
+    this.notificationDomainEventPublisher.publishCreated(notificationDto);
+
+    return notificationDto;
   }
 
   async createMany(
@@ -46,9 +51,12 @@ export class NotificationsService {
 
     const notifications =
       await this.notificationsRepository.createMany(validInputs);
-    return notifications.map((notification) =>
+    const notificationDtos = notifications.map((notification) =>
       this.notificationMapper.mapToDto(notification),
     );
+    this.notificationDomainEventPublisher.publishManyCreated(notificationDtos);
+
+    return notificationDtos;
   }
 
   async notifyTaskAssigned(input: TaskNotificationInput): Promise<void> {
@@ -139,11 +147,25 @@ export class NotificationsService {
       throw new NotFoundException('Notification not found');
     }
 
-    return this.notificationMapper.mapToDto(notification);
+    const notificationDto = this.notificationMapper.mapToDto(notification);
+    this.notificationDomainEventPublisher.publishRead(notificationDto);
+
+    return notificationDto;
   }
 
   async markAllAsRead(userId: string): Promise<{ modifiedCount: number }> {
-    return this.notificationsRepository.markAllAsReadForRecipient(userId);
+    const readAt = new Date();
+    const result = await this.notificationsRepository.markAllAsReadForRecipient(
+      userId,
+      readAt,
+    );
+    this.notificationDomainEventPublisher.publishReadAll(
+      userId,
+      readAt,
+      result.modifiedCount,
+    );
+
+    return result;
   }
 
   async findByIdForUser(

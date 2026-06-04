@@ -8,6 +8,7 @@ import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import {
   CreateTaskDto,
   UpdateTaskDto,
@@ -17,6 +18,7 @@ import {
 export class TaskCreationValidationService {
   constructor(
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly kanbanService: KanbanService,
     private readonly scrumService: ScrumService,
     private readonly usersService: UsersService,
@@ -62,7 +64,7 @@ export class TaskCreationValidationService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
@@ -75,7 +77,7 @@ export class TaskCreationValidationService {
     this.validateObjectId(assigneeId, 'Assignee');
     await this.usersService.getUserById(assigneeId);
 
-    const isMember = await this.workspacesService.isMember(
+    const isMember = await this.workspaceMemberService.isMember(
       workspaceId,
       assigneeId,
     );

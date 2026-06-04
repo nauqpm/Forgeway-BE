@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { createReadStream, existsSync, ReadStream } from 'fs';
 import { extname, resolve, sep } from 'path';
@@ -11,6 +12,11 @@ import { Model, Types } from 'mongoose';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
+import {
+  TaskAttachmentAddedEvent,
+  TaskAttachmentDeletedEvent,
+} from '../../../shared/events/domain-events/task';
 import { AttachmentDto } from '../dtos/attachment.dto';
 import { AttachmentFile } from '../dtos/attachment-input.dto';
 import { AttachmentMapper } from '../mappers/attachment.mapper';
@@ -34,9 +40,11 @@ export class TaskAttachmentService {
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly attachmentService: AttachmentService,
     private readonly attachmentMapper: AttachmentMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async uploadForTask(
@@ -81,7 +89,10 @@ export class TaskAttachmentService {
       throw new NotFoundException('Attachment not found');
     }
 
-    return this.attachmentMapper.mapToDto(populated);
+    const attachmentDto = this.attachmentMapper.mapToDto(populated);
+    this.publishAttachmentAddedEvent(task, userId, attachmentDto);
+
+    return attachmentDto;
   }
 
   async findByTask(
@@ -141,6 +152,12 @@ export class TaskAttachmentService {
       attachment._id.toString(),
       attachment.originalName,
     );
+    this.publishAttachmentDeletedEvent(
+      task,
+      userId,
+      attachment._id.toString(),
+      attachment.originalName,
+    );
   }
 
   async getDownloadStream(
@@ -187,6 +204,42 @@ export class TaskAttachmentService {
     return this.createFileStream(attachment, mimeType);
   }
 
+  private publishAttachmentAddedEvent(
+    task: TaskDocument,
+    actorId: string,
+    attachment: AttachmentDto,
+  ): void {
+    const event = new TaskAttachmentAddedEvent({
+      workspaceId: this.toId(task.workspaceId),
+      taskId: task._id.toString(),
+      taskKey: task.key,
+      actorId,
+      version: task.version,
+      attachmentId: attachment.id,
+      attachment,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private publishAttachmentDeletedEvent(
+    task: TaskDocument,
+    actorId: string,
+    attachmentId: string,
+    fileName?: string,
+  ): void {
+    const event = new TaskAttachmentDeletedEvent({
+      workspaceId: this.toId(task.workspaceId),
+      taskId: task._id.toString(),
+      taskKey: task.key,
+      actorId,
+      version: task.version,
+      attachmentId,
+      fileName,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
   private async getReadableTask(
     workspaceId: string,
     taskId: string,
@@ -327,10 +380,14 @@ export class TaskAttachmentService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
+  }
+
+  private toId(value: any): string {
+    return value?._id?.toString?.() ?? value?.toString?.() ?? '';
   }
 
   private validateObjectId(value: string, label: string): void {

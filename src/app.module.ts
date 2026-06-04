@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
+// import { EventEmitterModule } from '@nestjs/event-emitter';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { join } from 'path';
@@ -42,6 +43,7 @@ import { AppService } from './app.service';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 import { CacheModule } from './modules/cache/cache.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { RedisModule } from './infra/redis/redis.module';
 import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
@@ -50,6 +52,12 @@ import { ChatModule } from './modules/chat/chat.module';
       isGlobal: true,
       envFilePath: '.env',
       validate: validateEnv,
+    }),
+
+    EventEmitterModule.forRoot({
+      ignoreErrors: true,
+      maxListeners: 20,
+      verboseMemoryLeak: true,
     }),
 
     // Default rate limiting applies to every endpoint unless a route explicitly opts out.
@@ -84,6 +92,7 @@ import { ChatModule } from './modules/chat/chat.module';
 
     CommonModule,
     CacheModule,
+    RedisModule,
     DatabaseModule,
     RealtimeModule,
     ChatModule,

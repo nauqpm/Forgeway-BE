@@ -30,6 +30,7 @@ export class TaskMapper {
       status: plainTask.status || plainTask.columnId || 'todo',
       priority: plainTask.priority,
       rank: plainTask.rank,
+      version: this.toVersion(plainTask.version),
       cover: this.mapCover(plainTask.cover),
       assigneeId: this.toOptionalId(plainTask.assigneeId),
       labels: this.mapLabelSummaries(plainTask.labelIds),
@@ -69,6 +70,7 @@ export class TaskMapper {
       status: plainTask.status || plainTask.columnId || 'todo',
       columnId: plainTask.columnId,
       rank: plainTask.rank,
+      version: this.toVersion(plainTask.version),
       cover: this.mapCover(plainTask.cover),
       sprintId: this.toOptionalId(plainTask.sprintId),
       sprint: this.mapSprintSummary(plainTask.sprintId),
@@ -89,6 +91,11 @@ export class TaskMapper {
       createdAt: plainTask.createdAt,
       updatedAt: plainTask.updatedAt,
     };
+  }
+
+  private toVersion(value: unknown): number {
+    const version = Number(value);
+    return Number.isFinite(version) && version > 0 ? version : 1;
   }
 
   private toId(value: any): string {

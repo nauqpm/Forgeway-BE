@@ -30,7 +30,7 @@ export class SprintCommandService {
     workspaceId: string,
     dto: CreateSprintDto,
   ): Promise<SprintDocument> {
-    this.logger.log(`Tạo sprint cho Workspace: ${workspaceId}`);
+    this.logger.log(`Creating Sprint for Workspace: ${workspaceId}`);
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const count = await this.sprintModel
@@ -68,16 +68,16 @@ export class SprintCommandService {
 
       if (!sprint) {
         this.logger.error(
-          `[AUDIT LOG] [${timestamp}] Cập nhật sprint thất bại | Sprint ID: ${sprintId} | Lỗi: Sprint không tồn tại`,
+          `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: Sprint not exist`,
         );
-        throw new NotFoundException('Sprint không tồn tại');
+        throw new NotFoundException('Sprint not exist');
       }
 
       if (sprint.status === 'completed') {
         this.logger.error(
-          `[AUDIT LOG] [${timestamp}] Cập nhật sprint thất bại | Sprint ID: ${sprintId} | Lỗi: Không thể chỉnh sửa sprint đã hoàn thành`,
+          `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: Cannot edit completed sprint`,
         );
-        throw new BadRequestException('Không thể chỉnh sửa sprint đã hoàn thành');
+        throw new BadRequestException('Cannot edit completed sprint');
       }
 
       if (
@@ -85,10 +85,10 @@ export class SprintCommandService {
         (dto.startDate !== undefined || dto.endDate !== undefined)
       ) {
         this.logger.error(
-          `[AUDIT LOG] [${timestamp}] Cập nhật sprint thất bại | Sprint ID: ${sprintId} | Lỗi: Không thể thay đổi ngày của sprint khi sprint đang hoạt động hoặc hoàn thành`,
+          `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: Cannot change dates of active or completed sprint`,
         );
         throw new BadRequestException(
-          'Không thể thay đổi ngày của sprint khi sprint đang hoạt động hoặc hoàn thành',
+          'Cannot change dates of active or completed sprint',
         );
       }
 
@@ -117,7 +117,7 @@ export class SprintCommandService {
         nextEndDate &&
         new Date(nextEndDate).getTime() <= new Date(nextStartDate).getTime()
       ) {
-        throw new BadRequestException('Ngày kết thúc phải lớn hơn ngày bắt đầu');
+        throw new BadRequestException('EndDate must be greater than StartDate');
       }
 
       if (sprint.status === 'planning') {
@@ -154,7 +154,7 @@ export class SprintCommandService {
         !(error instanceof BadRequestException)
       ) {
         this.logger.error(
-          `[AUDIT LOG] [${timestamp}] Cập nhật sprint thất bại | Sprint ID: ${sprintId} | Lỗi: ${error}`,
+          `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: ${error}`,
         );
       }
       throw error;
@@ -178,11 +178,11 @@ export class SprintCommandService {
         .exec();
 
       if (!sprint) {
-        throw new NotFoundException('Sprint không tồn tại');
+        throw new NotFoundException('Sprint not exist');
       }
 
       if (sprint.status !== 'planning') {
-        throw new BadRequestException('Chỉ có thể xóa sprint đang ở trạng thái lên kế hoạch');
+        throw new BadRequestException('Only planning sprints can be deleted');
       }
 
       await this.taskModel
@@ -209,7 +209,7 @@ export class SprintCommandService {
   }
 
   async deleteByWorkspace(workspaceId: string): Promise<void> {
-    this.logger.log(`Xóa tất cả sprint cho Workspace: ${workspaceId}`);
+    this.logger.log(`Delete all Sprints for Workspace: ${workspaceId}`);
     await this.sprintModel
       .updateMany(
         {
@@ -222,7 +222,7 @@ export class SprintCommandService {
   }
 
   async restoreByWorkspace(workspaceId: string): Promise<void> {
-    this.logger.log(`Khôi phục tất cả sprint cho Workspace: ${workspaceId}`);
+    this.logger.log(`Restore all Sprints for Workspace: ${workspaceId}`);
     await this.sprintModel
       .updateMany(
         {

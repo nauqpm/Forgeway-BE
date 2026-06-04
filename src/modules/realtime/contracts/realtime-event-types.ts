@@ -1,5 +1,10 @@
+export interface RealtimeEnvelope<TData> {
+  event: RealtimeEventType;
+  data: TData;
+  timestamp: string;
+}
+
 export const REALTIME_EVENT_TYPES = {
-  // Chat events
   CHAT_MESSAGE_SENT: 'chat.message.sent',
   CHAT_MESSAGE_EDITED: 'chat.message.edited',
   CHAT_MESSAGE_DELETED: 'chat.message.deleted',
@@ -17,23 +22,36 @@ export const REALTIME_EVENT_TYPES = {
   RTC_ANSWER: 'rtc.answer',
   RTC_ICE_CANDIDATE: 'rtc.ice',
 
-  // Task events (assuming these from prompt's mention of task.*)
   TASK_CREATED: 'task.created',
   TASK_UPDATED: 'task.updated',
-  TASK_DELETED: 'task.deleted',
   TASK_MOVED: 'task.moved',
-
-  // Notification events
-  NOTIFICATION_CREATED: 'notification.created',
+  TASK_REORDERED: 'task.reordered',
+  TASK_ARCHIVED: 'task.archived',
+  TASK_RESTORED: 'task.restored',
+  TASK_DELETED: 'task.deleted',
   
-  // Workspace events
+
+  NOTIFICATION_CREATED: 'notification.created',
+  NOTIFICATION_READ: 'notification.read',
+  NOTIFICATION_READ_ALL: 'notification.read_all',
+
+  WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
+  WORKSPACE_MEMBER_JOINED: 'workspace.member.joined',
+  WORKSPACE_MEMBER_REMOVED: 'workspace.member.removed',
+  WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
   WORKSPACE_UPDATED: 'workspace.updated',
+
+  TASK_COMMENT_CREATED: 'task.comment.created',
+  TASK_COMMENT_UPDATED: 'task.comment.updated',
+  TASK_COMMENT_DELETED: 'task.comment.deleted',
+  TASK_ATTACHMENT_ADDED: 'task.attachment.added',
+  TASK_ATTACHMENT_DELETED: 'task.attachment.deleted',
+  TASK_LABELS_UPDATED: 'task.labels.updated',
+  TASK_COVER_UPDATED: 'task.cover.updated',
+  TASK_ACTIVITY_CREATED: 'task.activity.created',
+
+  PAGE_UPDATED: 'page.updated',
 } as const;
 
-export type RealtimeEventType = typeof REALTIME_EVENT_TYPES[keyof typeof REALTIME_EVENT_TYPES];
-
-export interface RealtimeEnvelope<TData> {
-  event: RealtimeEventType;
-  data: TData;
-  timestamp: string;
-}
+export type RealtimeEventType =
+  (typeof REALTIME_EVENT_TYPES)[keyof typeof REALTIME_EVENT_TYPES];

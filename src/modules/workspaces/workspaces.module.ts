@@ -16,6 +16,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { Invite, InviteSchema } from './schemas/invite.schema';
 import { InviteRepository } from './repositories/invite.repository';
 import { InviteService } from './services/invite.service';
+import { WorkspaceKeyService } from './services/workspace-key.service';
+import { WorkspaceMemberService } from './services/workspace-member.service';
 import { InviteController } from './controllers/invite.controller';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 
@@ -37,11 +39,13 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
   providers: [
     WorkspacesRepository,
     WorkspacesService,
+    WorkspaceKeyService,
+    WorkspaceMemberService,
     ForYouService,
     InviteRepository,
     InviteService,
     WorkspaceRoleGuard,
   ],
-  exports: [WorkspacesService, ForYouService, InviteService],
+  exports: [WorkspacesService, WorkspaceMemberService, ForYouService, InviteService],
 })
 export class WorkspacesModule { }

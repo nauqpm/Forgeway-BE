@@ -37,6 +37,9 @@ export class Task {
   @Prop({ type: String, trim: true, index: true })
   rank?: string;
 
+  @Prop({ type: Number, default: 1, min: 1 })
+  version!: number;
+
   @Prop({ type: TaskCoverSchema })
   cover?: TaskCover;
   @Prop({
@@ -132,4 +135,5 @@ TaskSchema.index({
 });
 TaskSchema.index({ workspaceId: 1, startDate: 1, dueDate: 1 });
 TaskSchema.index({ workspaceId: 1, epicId: 1 });
+TaskSchema.index({ workspaceId: 1, version: 1 });
 TaskSchema.index({ title: 'text', description: 'text' });

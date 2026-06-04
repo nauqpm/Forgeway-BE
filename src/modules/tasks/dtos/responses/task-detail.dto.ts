@@ -55,6 +55,9 @@ export class TaskDetailDto {
   @ApiPropertyOptional()
   rank?: string;
 
+  @ApiProperty()
+  version!: number;
+
   @ApiPropertyOptional({ type: TaskCoverDto })
   cover?: TaskCoverDto;
 

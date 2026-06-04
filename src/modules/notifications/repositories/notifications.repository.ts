@@ -108,6 +108,7 @@ export class NotificationsRepository {
 
   async markAllAsReadForRecipient(
     recipientId: string,
+    readAt = new Date(),
   ): Promise<{ modifiedCount: number }> {
     const result = await this.notificationModel
       .updateMany(
@@ -115,7 +116,7 @@ export class NotificationsRepository {
           recipientId: new Types.ObjectId(recipientId),
           readAt: null,
         },
-        { $set: { readAt: new Date() } },
+        { $set: { readAt } },
       )
       .exec();
 
