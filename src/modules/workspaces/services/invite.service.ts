@@ -13,7 +13,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { InviteRepository } from '../repositories/invite.repository';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateInviteDto } from '../dtos/create-invite.dto';
-import { Invite, INVITE_STATUS } from '../schemas/invite.schema';
+import { CreateInviteLinkDto } from '../dtos/create-invite-link.dto';
+import { Invite, INVITE_STATUS, INVITE_TYPES } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { UsersService } from '@/modules/users/services/users.service';
@@ -21,6 +22,7 @@ import { UsersService } from '@/modules/users/services/users.service';
 @Injectable()
 export class InviteService {
   private readonly logger = new Logger(InviteService.name);
+  private readonly inviteLinkTtlMs = 10 * 60 * 1000;
 
   constructor(
     private readonly inviteRepository: InviteRepository,
@@ -64,6 +66,7 @@ export class InviteService {
       invitedBy: invitedByUserId as any,
       role,
       token,
+      type: INVITE_TYPES.EMAIL,
       status: INVITE_STATUS.PENDING,
     });
 
@@ -97,6 +100,35 @@ export class InviteService {
     return invite;
   }
 
+  async createInviteLink(
+    workspaceId: string,
+    invitedByUserId: string,
+    dto: CreateInviteLinkDto,
+  ): Promise<Invite & { inviteUrl: string }> {
+    const workspace = await this.workspacesRepository.findById(workspaceId);
+    if (!workspace) throw new NotFoundException('Workspace not found');
+
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + this.inviteLinkTtlMs);
+
+    const invite = await this.inviteRepository.create({
+      workspaceId: (workspace as any)._id,
+      invitedEmail: null,
+      invitedBy: invitedByUserId as any,
+      role: dto.role,
+      token,
+      type: INVITE_TYPES.LINK,
+      status: INVITE_STATUS.PENDING,
+      expiresAt,
+      acceptedBy: [],
+    });
+
+    return {
+      ...(invite as any),
+      inviteUrl: this.buildAcceptUrl(token),
+    };
+  }
+
   async getInvites(workspaceId: string): Promise<Invite[]> {
     return this.inviteRepository.findPendingByWorkspace(workspaceId);
   }
@@ -120,7 +152,8 @@ export class InviteService {
       throw new GoneException('Invite has expired or already been used');
     }
 
-    if (invite.invitedEmail !== userEmail.toLowerCase()) {
+    const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
+    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== userEmail.toLowerCase()) {
       throw new ForbiddenException('This invite was sent to a different email address');
     }
 
@@ -131,6 +164,11 @@ export class InviteService {
     if (alreadyMember) throw new ConflictException('You are already a member of this workspace');
 
     await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
+    if (inviteType === INVITE_TYPES.LINK) {
+      await this.inviteRepository.addAcceptedBy((invite as any)._id.toString(), userId);
+      return;
+    }
+
     await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
   }
 
@@ -138,9 +176,10 @@ export class InviteService {
     workspaceId: string;
     workspaceName: string;
     workspaceKey: string;
-    invitedEmail: string;
+    invitedEmail: string | null;
     invitedBy: any;
     role: string;
+    type: string;
     status: string;
     expiresAt: Date | null;
   }> {
@@ -153,9 +192,10 @@ export class InviteService {
       workspaceId: invite.workspaceId.toString(),
       workspaceName: workspace?.name ?? '',
       workspaceKey: (workspace as any)?.key ?? '',
-      invitedEmail: invite.invitedEmail,
+      invitedEmail: invite.invitedEmail ?? null,
       invitedBy: (invite as any).invitedBy,
       role: invite.role,
+      type: (invite as any).type ?? INVITE_TYPES.EMAIL,
       status: invite.status,
       expiresAt: invite.expiresAt ?? null,
     };
@@ -201,5 +241,10 @@ export class InviteService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Failed to create workspace invite notification: ${message}`);
     }
+  }
+
+  private buildAcceptUrl(token: string): string {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') ?? '';
+    return `${frontendUrl}/invites/accept/${token}`;
   }
 }

@@ -18,6 +18,7 @@ import { TransformInterceptor } from '@/common/interceptors/transform.intercepto
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { InviteService } from '../services/invite.service';
 import { CreateInviteDto } from '../dtos/create-invite.dto';
+import { CreateInviteLinkDto } from '../dtos/create-invite-link.dto';
 
 @ApiTags('Workspaces - Invites')
 @Controller('workspaces')
@@ -42,6 +43,20 @@ export class InviteController {
 
   @ApiOperation({ summary: 'Lấy danh sách lời mời của workspace' })
   @ApiParam({ name: 'id', description: 'ID của workspace', type: String })
+  @ApiOperation({ summary: 'Tao link moi tham gia workspace' })
+  @ApiParam({ name: 'id', description: 'ID cua workspace', type: String })
+  @ApiBody({ type: CreateInviteLinkDto })
+  @ApiBearerAuth()
+  @Post(':id/invites/link')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  createInviteLink(
+    @Param('id') workspaceId: string,
+    @CurrentUser() user: any,
+    @Body() dto: CreateInviteLinkDto,
+  ) {
+    return this.inviteService.createInviteLink(workspaceId, user.userId, dto);
+  }
+
   @ApiBearerAuth()
   @Get(':id/invites')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
