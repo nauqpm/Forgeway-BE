@@ -36,6 +36,7 @@ export interface WorkspaceMemberSummaryPayload {
 export interface WorkspaceInviteCreatedEventData extends WorkspaceEventContext {
   inviteId: string;
   recipientEmail: string;
+  recipientId?: string;
   role: string;
   workspace?: WorkspaceSummaryPayload;
   invite?: WorkspaceInviteSummaryPayload;

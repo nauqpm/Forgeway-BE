@@ -11,6 +11,7 @@ import { Model, Types } from 'mongoose';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { AttachmentDto } from '../dtos/attachment.dto';
 import { AttachmentFile } from '../dtos/attachment-input.dto';
 import { AttachmentMapper } from '../mappers/attachment.mapper';
@@ -34,6 +35,7 @@ export class TaskAttachmentService {
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly attachmentService: AttachmentService,
     private readonly attachmentMapper: AttachmentMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
@@ -327,7 +329,7 @@ export class TaskAttachmentService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }

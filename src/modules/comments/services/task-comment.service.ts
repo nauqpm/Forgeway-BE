@@ -11,6 +11,7 @@ import { NotificationsService } from '../../notifications/services/notifications
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { CommentDto } from '../dtos/comment.dto';
 import { CreateTaskCommentDto } from '../dtos/create-task-comment.dto';
 import { UpdateCommentDto } from '../dtos/update-comment.dto';
@@ -27,6 +28,7 @@ export class TaskCommentService {
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly commentMapper: CommentMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly notificationsService: NotificationsService,
@@ -237,7 +239,7 @@ export class TaskCommentService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }

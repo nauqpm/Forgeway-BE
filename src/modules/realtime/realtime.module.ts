@@ -8,6 +8,7 @@ import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
 import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
 import { TaskRealtimeListener } from './listeners/task-realtime.listener';
+import { WorkspaceRealtimeListener } from './listeners/workspace-realtime.listener';
 import { RealtimePublisher } from './publishers/realtime.publisher';
 import { RealtimeRoomRepository } from './repositories/realtime-room.repository';
 import { RealtimeGateway } from './realtime.gateway';
@@ -39,6 +40,7 @@ import { SocketAuthService } from './services/socket-auth.service';
     RealtimePublisher,
     TaskRealtimeListener,
     NotificationRealtimeListener,
+    WorkspaceRealtimeListener,
   ],
   exports: [RealtimeService, RealtimePublisher],
 })

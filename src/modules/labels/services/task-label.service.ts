@@ -6,6 +6,7 @@ import { TaskMapper } from '../../tasks/mappers/task.mapper';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { TaskDto } from '../../tasks/dtos/responses/task.dto';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { SetTaskLabelsDto } from '../dtos/set-task-labels.dto';
 import { LabelService } from './label.service';
 
@@ -15,6 +16,7 @@ export class TaskLabelService {
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly labelService: LabelService,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
@@ -98,7 +100,7 @@ export class TaskLabelService {
   }
 
   private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }

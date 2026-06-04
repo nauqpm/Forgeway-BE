@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,6 +18,12 @@ import { Invite, INVITE_STATUS } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { UsersService } from '@/modules/users/services/users.service';
+import {
+  WorkspaceInviteCreatedEvent,
+  WorkspaceInviteSummaryPayload,
+  WorkspaceMemberJoinedEvent,
+  WorkspaceSummaryPayload,
+} from '@/shared/events/domain-events/workspace';
 
 @Injectable()
 export class InviteService {
@@ -29,6 +36,7 @@ export class InviteService {
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createInvite(
@@ -66,6 +74,15 @@ export class InviteService {
       token,
       status: INVITE_STATUS.PENDING,
     });
+
+    this.publishWorkspaceInviteCreatedEvent(
+      workspace,
+      invite,
+      normalizedEmail,
+      role,
+      invitedByUserId,
+      existingUser?._id?.toString(),
+    );
 
     await this.notifyExistingUserInvited(
       existingUser,
@@ -132,6 +149,7 @@ export class InviteService {
 
     await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
     await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
+    this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
   }
 
   async getInviteByToken(token: string): Promise<{
@@ -165,6 +183,9 @@ export class InviteService {
     const pendingInvites = await this.inviteRepository.findPendingValidByEmail(email);
     await Promise.all(
       pendingInvites.map(async (invite) => {
+        const workspace = await this.workspacesRepository.findById(
+          invite.workspaceId.toString(),
+        );
         await this.workspacesRepository.addMember(
           invite.workspaceId.toString(),
           userId,
@@ -174,8 +195,76 @@ export class InviteService {
           (invite as any)._id.toString(),
           INVITE_STATUS.ACCEPTED,
         );
+        if (workspace) {
+          this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
+        }
       }),
     );
+  }
+  private publishWorkspaceInviteCreatedEvent(
+    workspace: any,
+    invite: Invite,
+    recipientEmail: string,
+    role: string,
+    actorId: string,
+    recipientId?: string,
+  ): void {
+    const event = new WorkspaceInviteCreatedEvent({
+      workspaceId: workspace._id.toString(),
+      actorId,
+      inviteId: (invite as any)._id.toString(),
+      recipientEmail,
+      recipientId,
+      role,
+      workspace: this.toWorkspaceSummary(workspace),
+      invite: this.toInviteSummary(invite),
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private publishWorkspaceMemberJoinedEvent(
+    workspace: any,
+    userId: string,
+    role: string,
+    actorId?: string,
+  ): void {
+    const event = new WorkspaceMemberJoinedEvent({
+      workspaceId: workspace._id.toString(),
+      actorId,
+      userId,
+      role,
+      workspace: this.toWorkspaceSummary(workspace),
+      member: { userId, role },
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private toWorkspaceSummary(workspace: any): WorkspaceSummaryPayload {
+    return {
+      id: workspace._id.toString(),
+      key: workspace.key,
+      name: workspace.name,
+      slug: workspace.slug,
+      type: workspace.type,
+      status: workspace.status,
+      access: workspace.access,
+    };
+  }
+
+  private toInviteSummary(invite: Invite): WorkspaceInviteSummaryPayload {
+    return {
+      id: (invite as any)._id.toString(),
+      workspaceId: invite.workspaceId.toString(),
+      invitedEmail: invite.invitedEmail,
+      invitedBy: invite.invitedBy.toString(),
+      role: invite.role,
+      status: invite.status,
+      expiresAt: invite.expiresAt ?? null,
+      createdAt: (invite as any).createdAt,
+      updatedAt: (invite as any).updatedAt,
+    };
   }
   private async notifyExistingUserInvited(
     invitedUser: any,

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { SetTaskCoverDto } from '../dtos/set-task-cover.dto';
 import { TaskCoverDto } from '../dtos/task-cover.dto';
 import { TaskCoverMapper } from '../mappers/task-cover.mapper';
@@ -11,6 +12,7 @@ import { TaskCoverRepository } from '../repositories/task-cover.repository';
 export class TaskCoverService {
   constructor(
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly taskCoverRepository: TaskCoverRepository,
     private readonly taskCoverMapper: TaskCoverMapper,
     private readonly taskCoverPolicy: TaskCoverPolicy,
@@ -105,7 +107,7 @@ export class TaskCoverService {
     userId: string,
   ): Promise<void> {
     await this.workspacesService.findById(workspaceId);
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
