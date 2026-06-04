@@ -6,6 +6,9 @@ export const DOMAIN_EVENT_TYPES = {
   TASK_ARCHIVED: 'task.archived',
   TASK_RESTORED: 'task.restored',
   TASK_DELETED: 'task.deleted',
+  NOTIFICATION_CREATED: 'notification.created',
+  NOTIFICATION_READ: 'notification.read',
+  NOTIFICATION_READ_ALL: 'notification.read_all',
 } as const;
 
 export type DomainEventType =
