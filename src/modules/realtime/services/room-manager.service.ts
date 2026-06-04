@@ -4,6 +4,7 @@ import { WsException } from '@nestjs/websockets';
 import { JoinTaskRoomDto } from '../dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from '../dto/join-workspace-room.dto';
 import { LeaveTaskRoomDto } from '../dto/leave-task-room.dto';
+import { LeaveWorkspaceRoomDto } from '../dto/leave-workspace-room.dto';
 import { AuthenticatedSocket, RoomBuilder, SocketUser } from '../contracts';
 import { RealtimeRoomRepository } from '../repositories/realtime-room.repository';
 
@@ -24,7 +25,7 @@ export class RoomManagerService {
 
   async leaveWorkspace(
     client: AuthenticatedSocket,
-    dto: JoinWorkspaceRoomDto,
+    dto: LeaveWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
     this.getAuthenticatedUser(client);
 
