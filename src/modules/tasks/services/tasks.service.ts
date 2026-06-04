@@ -450,7 +450,7 @@ export class TasksService {
 
     const task = await this.tasksRepository.update(
       id,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
@@ -506,7 +506,7 @@ export class TasksService {
     const task = await this.tasksRepository.updateInWorkspace(
       resolvedTaskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -556,7 +556,7 @@ export class TasksService {
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto),
+      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -847,6 +847,61 @@ export class TasksService {
     return this.taskMapper.mapToDto(deleted);
   }
 
+  // ─── Calendar ───────────────────────────────────────────────────────────────
+
+  async findCalendarByWorkspaceId(
+    workspaceId: string,
+    year: number,
+    month: number,
+    userId: string,
+  ): Promise<{ tasks: TaskDto[] }> {
+    await this.getWorkspaceContextById(workspaceId, userId);
+
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+
+    const startBuffer = new Date(startOfMonth);
+    startBuffer.setDate(startBuffer.getDate() - 7);
+    const endBuffer = new Date(endOfMonth);
+    endBuffer.setDate(endBuffer.getDate() + 7);
+
+    const tasks = await this.tasksRepository.findCalendarByWorkspace(
+      workspaceId,
+      startBuffer,
+      endBuffer,
+    );
+    return { tasks: this.taskMapper.mapToDtos(tasks) };
+  }
+
+  // ─── Timeline hierarchy ───────────────────────────────────────────────────
+
+  async findTimelineHierarchyByWorkspaceId(
+    workspaceId: string,
+    userId: string,
+  ): Promise<{
+    epics: TaskDto[];
+    children: TaskDto[];
+    standalones: TaskDto[];
+  }> {
+    await this.getWorkspaceContextById(workspaceId, userId);
+
+    const allTasks =
+      await this.tasksRepository.findTimelineByWorkspace(workspaceId);
+    const dtos = this.taskMapper.mapToDtos(allTasks);
+
+    const epics = dtos.filter((t) => t.type === 'epic');
+    const epicIdSet = new Set(epics.map((e) => e.id));
+
+    const children = dtos.filter(
+      (t) => (t as any).epicId && epicIdSet.has((t as any).epicId),
+    );
+    const standalones = dtos.filter(
+      (t) => t.type !== 'epic' && !(t as any).epicId,
+    );
+
+    return { epics, children, standalones };
+  }
+
   private async createTaskKey(workspace: any): Promise<string> {
     const workspaceId = workspace._id.toString();
     const taskNumber = await this.taskCounterService.nextSequence(workspaceId);
@@ -997,7 +1052,9 @@ export class TasksService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Failed to create task assigned notification: ${message}`);
+      this.logger.warn(
+        `Failed to create task assigned notification: ${message}`,
+      );
     }
   }
 }

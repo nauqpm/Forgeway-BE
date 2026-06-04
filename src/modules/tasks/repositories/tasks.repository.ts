@@ -3,7 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, FilterQuery, Model, Types } from 'mongoose';
 import { FilterTaskDto } from '../dtos/requests/create-task.dto';
 import { Task, TaskDocument } from '../schemas/task.schema';
-import { isTaskKey, normalizeTaskKey } from '../utils/task-key.util';
+import { TaskSearchService } from '../services/task-search.service';
+import { normalizeTaskKey } from '../utils/task-key.util';
 
 interface TaskLookupOptions {
   includeArchived?: boolean;
@@ -51,6 +52,7 @@ const TASK_SORT_FIELDS = new Set([
 export class TasksRepository {
   constructor(
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    private readonly taskSearchService: TaskSearchService,
   ) {}
 
   async create(data: Partial<Task>): Promise<TaskDocument> {
@@ -134,7 +136,10 @@ export class TasksRepository {
     workspaceId: string,
     options: TaskLookupOptions = { includeArchived: true },
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
+    if (
+      !Types.ObjectId.isValid(taskId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
       return null;
     }
 
@@ -202,7 +207,12 @@ export class TasksRepository {
     options: TaskPaginationOptions = {},
   ): Promise<TaskPaginatedResult> {
     if (!Types.ObjectId.isValid(workspaceId)) {
-      return { tasks: [], total: 0, page: options.page || 1, limit: options.limit || 20 };
+      return {
+        tasks: [],
+        total: 0,
+        page: options.page || 1,
+        limit: options.limit || 20,
+      };
     }
 
     const { page, limit, skip } = this.normalizePagination(options);
@@ -234,10 +244,7 @@ export class TasksRepository {
       this.taskModel.find({
         workspaceId: new Types.ObjectId(workspaceId),
         ...this.buildVisibilityFilter(),
-        $or: [
-          { sprintId: null },
-          { sprintId: { $exists: false } },
-        ],
+        $or: [{ sprintId: null }, { sprintId: { $exists: false } }],
       }),
     )
       .sort({ createdAt: -1 })
@@ -248,7 +255,10 @@ export class TasksRepository {
     workspaceId: string,
     sprintId: string,
   ): Promise<TaskDocument[]> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(sprintId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(sprintId)
+    ) {
       return [];
     }
 
@@ -372,7 +382,10 @@ export class TasksRepository {
     workspaceId: string,
     session?: ClientSession,
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
+    if (
+      !Types.ObjectId.isValid(taskId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
       return null;
     }
 
@@ -516,7 +529,10 @@ export class TasksRepository {
     ).exec();
   }
 
-  async softDelete(id: string, deletedBy: string): Promise<TaskDocument | null> {
+  async softDelete(
+    id: string,
+    deletedBy: string,
+  ): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -587,9 +603,10 @@ export class TasksRepository {
     options: TaskPaginationOptions,
     defaultSort: Record<string, 1 | -1>,
   ): Record<string, 1 | -1> {
-    const sortBy = options.sortBy && TASK_SORT_FIELDS.has(options.sortBy)
-      ? options.sortBy
-      : undefined;
+    const sortBy =
+      options.sortBy && TASK_SORT_FIELDS.has(options.sortBy)
+        ? options.sortBy
+        : undefined;
     const direction = options.sortOrder === 'asc' ? 1 : -1;
 
     if (!sortBy) {
@@ -609,10 +626,7 @@ export class TasksRepository {
     }
 
     if (filterDto.backlog) {
-      filter.$or = [
-        { sprintId: null },
-        { sprintId: { $exists: false } },
-      ];
+      filter.$or = [{ sprintId: null }, { sprintId: { $exists: false } }];
     } else if (filterDto.sprintId) {
       filter.sprintId = new Types.ObjectId(filterDto.sprintId);
     }
@@ -647,11 +661,10 @@ export class TasksRepository {
       filter.status = { $in: filterDto.status };
     }
     if (filterDto.search) {
-      if (isTaskKey(filterDto.search)) {
-        filter.key = normalizeTaskKey(filterDto.search);
-      } else {
-        filter.$text = { $search: filterDto.search };
-      }
+      Object.assign(
+        filter,
+        this.taskSearchService.buildSearchFilter(filterDto.search),
+      );
     }
 
     return filter;
@@ -672,7 +685,9 @@ export class TasksRepository {
     return filter;
   }
 
-  private buildRankScopeFilter(scope: TaskRankScope): FilterQuery<TaskDocument> {
+  private buildRankScopeFilter(
+    scope: TaskRankScope,
+  ): FilterQuery<TaskDocument> {
     const filter: FilterQuery<TaskDocument> = {
       workspaceId: new Types.ObjectId(scope.workspaceId),
       ...this.buildVisibilityFilter(),
@@ -683,15 +698,54 @@ export class TasksRepository {
     }
 
     if (scope.sprintId === null) {
-      filter.$or = [
-        { sprintId: null },
-        { sprintId: { $exists: false } },
-      ];
+      filter.$or = [{ sprintId: null }, { sprintId: { $exists: false } }];
     } else if (scope.sprintId) {
       filter.sprintId = new Types.ObjectId(scope.sprintId);
     }
 
     return filter;
+  }
+
+  async findCalendarByWorkspace(
+    workspaceId: string,
+    startRange: Date,
+    endRange: Date,
+  ): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) return [];
+    const wId = new Types.ObjectId(workspaceId);
+    const docs = await this.withRelations(
+      this.taskModel.find({
+        workspaceId: wId,
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true },
+        $or: [
+          // task starts within the range
+          { startDate: { $gte: startRange, $lte: endRange } },
+          // task ends within the range
+          { dueDate: { $gte: startRange, $lte: endRange } },
+          // task spans the entire range
+          { startDate: { $lte: startRange }, dueDate: { $gte: endRange } },
+          // tasks with only dueDate set, within range
+          {
+            startDate: { $exists: false },
+            dueDate: { $gte: startRange, $lte: endRange },
+          },
+        ],
+      }),
+    ).exec();
+    return docs as TaskDocument[];
+  }
+
+  async findTimelineByWorkspace(workspaceId: string): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) return [];
+    const docs = await this.withRelations(
+      this.taskModel.find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true },
+      }),
+    ).exec();
+    return docs as TaskDocument[];
   }
 
   private withRelations(query: any) {
