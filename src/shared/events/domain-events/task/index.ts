@@ -7,3 +7,4 @@ export * from './task-moved.event';
 export * from './task-reordered.event';
 export * from './task-restored.event';
 export * from './task-updated.event';
+export * from './task-detail.event';

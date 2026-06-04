@@ -1,9 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
+import { TaskActivityCreatedEvent } from '../../../shared/events/domain-events/task';
 import {
   TASK_ACTIVITY_TYPES,
   TaskActivityType,
@@ -52,6 +54,7 @@ export class TaskActivitiesService {
     private readonly workspacesService: WorkspacesService,
     private readonly workspaceMemberService: WorkspaceMemberService,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findByTaskInWorkspaceKey(
@@ -438,9 +441,23 @@ export class TaskActivitiesService {
       metadata: input.metadata || {},
     };
 
-    await this.taskActivitiesRepository.create(data);
+    const activity = await this.taskActivitiesRepository.create(data);
+    this.publishActivityCreatedEvent(activity);
   }
 
+  private publishActivityCreatedEvent(activity: any): void {
+    const activityDto = this.taskActivityMapper.mapToDto(activity);
+    const event = new TaskActivityCreatedEvent({
+      workspaceId: activityDto.workspaceId,
+      taskId: activityDto.taskId,
+      taskKey: activityDto.taskKey,
+      actorId: activityDto.actorId,
+      activityId: activityDto.id,
+      activity: activityDto,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
   private createSnapshot(task: unknown): TaskSnapshot | undefined {
     if (!task) {
       return undefined;

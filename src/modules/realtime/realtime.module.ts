@@ -7,6 +7,7 @@ import { TokenModule } from '../auth/token.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
 import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
+import { TaskDetailRealtimeListener } from './listeners/task-detail-realtime.listener';
 import { TaskRealtimeListener } from './listeners/task-realtime.listener';
 import { WorkspaceRealtimeListener } from './listeners/workspace-realtime.listener';
 import { RealtimePublisher } from './publishers/realtime.publisher';
@@ -39,6 +40,7 @@ import { SocketAuthService } from './services/socket-auth.service';
     RealtimeRoomRepository,
     RealtimePublisher,
     TaskRealtimeListener,
+    TaskDetailRealtimeListener,
     NotificationRealtimeListener,
     WorkspaceRealtimeListener,
   ],

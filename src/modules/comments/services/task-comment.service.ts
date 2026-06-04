@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { NotificationsService } from '../../notifications/services/notifications.service';
@@ -12,6 +13,11 @@ import { TaskActivitiesService } from '../../task-activities/services/task-activ
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
+import {
+  TaskCommentCreatedEvent,
+  TaskCommentDeletedEvent,
+  TaskCommentUpdatedEvent,
+} from '../../../shared/events/domain-events/task';
 import { CommentDto } from '../dtos/comment.dto';
 import { CreateTaskCommentDto } from '../dtos/create-task-comment.dto';
 import { UpdateCommentDto } from '../dtos/update-comment.dto';
@@ -32,6 +38,7 @@ export class TaskCommentService {
     private readonly commentMapper: CommentMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createForTask(
@@ -70,7 +77,10 @@ export class TaskCommentService {
       throw new NotFoundException('Comment not found');
     }
 
-    return this.commentMapper.mapToDto(populated);
+    const commentDto = this.commentMapper.mapToDto(populated);
+    this.publishCommentCreatedEvent(task, userId, commentDto);
+
+    return commentDto;
   }
 
   async findByTask(
@@ -125,7 +135,10 @@ export class TaskCommentService {
       comment._id.toString(),
     );
 
-    return this.commentMapper.mapToDto(saved);
+    const commentDto = this.commentMapper.mapToDto(saved);
+    this.publishCommentUpdatedEvent(task, userId, commentDto);
+
+    return commentDto;
   }
 
   async deleteForTask(
@@ -157,8 +170,61 @@ export class TaskCommentService {
       userId,
       comment._id.toString(),
     );
+    this.publishCommentDeletedEvent(task, userId, comment._id.toString());
   }
 
+  private publishCommentCreatedEvent(
+    task: TaskDocument,
+    actorId: string,
+    comment: CommentDto,
+  ): void {
+    const event = new TaskCommentCreatedEvent({
+      workspaceId: this.toId(task.workspaceId),
+      taskId: task._id.toString(),
+      taskKey: task.key,
+      actorId,
+      version: task.version,
+      commentId: comment.id,
+      comment,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private publishCommentUpdatedEvent(
+    task: TaskDocument,
+    actorId: string,
+    comment: CommentDto,
+  ): void {
+    const event = new TaskCommentUpdatedEvent({
+      workspaceId: this.toId(task.workspaceId),
+      taskId: task._id.toString(),
+      taskKey: task.key,
+      actorId,
+      version: task.version,
+      commentId: comment.id,
+      comment,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private publishCommentDeletedEvent(
+    task: TaskDocument,
+    actorId: string,
+    commentId: string,
+  ): void {
+    const event = new TaskCommentDeletedEvent({
+      workspaceId: this.toId(task.workspaceId),
+      taskId: task._id.toString(),
+      taskKey: task.key,
+      actorId,
+      version: task.version,
+      commentId,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
   private async getReadableTask(
     workspaceId: string,
     taskId: string,
