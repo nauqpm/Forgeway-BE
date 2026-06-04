@@ -1,8 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Channel, ChannelDocument } from '../schemas/channel.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 
 @Injectable()
 export class ChannelsService {
@@ -10,7 +11,9 @@ export class ChannelsService {
 
   constructor(
     @InjectModel(Channel.name) private readonly channelModel: Model<ChannelDocument>,
+    @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
   ) {}
 
   async createGeneralChannel(): Promise<ChannelDocument> {
@@ -108,7 +111,7 @@ export class ChannelsService {
     }
 
     if (channel.type === 'workspace' && channel.workspaceId) {
-      return this.workspacesService.isMember(channel.workspaceId.toString(), userId);
+      return this.workspaceMemberService.isMember(channel.workspaceId.toString(), userId);
     }
 
     return false;

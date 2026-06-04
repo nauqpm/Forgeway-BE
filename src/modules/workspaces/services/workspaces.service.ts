@@ -33,6 +33,7 @@ export class WorkspacesService {
     private readonly workspaceKeyService: WorkspaceKeyService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
   ) { }
 
