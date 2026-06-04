@@ -18,6 +18,8 @@ import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceKeyService } from './workspace-key.service';
 import { ChannelsService } from '../../chat/services/channels.service';
 
+import { UsersService } from '../../users/services/users.service';
+
 @Injectable()
 export class WorkspacesService {
   private readonly logger = new Logger(WorkspacesService.name);
@@ -29,7 +31,6 @@ export class WorkspacesService {
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
     private readonly workspaceKeyService: WorkspaceKeyService,
-  ) {}
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly channelsService: ChannelsService,
