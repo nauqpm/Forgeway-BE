@@ -164,6 +164,10 @@ export class DocumentsService {
     }).sort({ createdAt: -1 });
   }
 
+  async listAll() {
+    return this.documentModel.find({ deletedAt: null }).sort({ createdAt: -1 });
+  }
+
   async getMineById(userId: string, id: string) {
     const doc = await this.documentModel.findOne({
       _id: new Types.ObjectId(id),

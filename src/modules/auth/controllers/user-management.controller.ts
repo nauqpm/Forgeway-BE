@@ -8,10 +8,12 @@ import {
   Get,
   Put,
   Body,
+  Param,
   UseGuards,
   Request,
   Logger,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
@@ -124,6 +126,54 @@ export class UserManagementController {
     } catch (error) {
       const err = error as AuthError;
       this.logger.error(`❌ Lỗi khi cập nhật thông tin người dùng: ${err.message}`, err.stack);
+      throw error;
+    }
+  }
+
+  // 🔑 Super admin: Cập nhật role của user
+  @Put('users/:userId/role')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Super admin: Cập nhật role của user' })
+  @ApiResponse({ status: 200, description: 'Cập nhật role thành công' })
+  async updateUserRole(
+    @Param('userId') userId: string,
+    @Body() body: { role: string },
+  ) {
+    try {
+      const validRoles = ['user', 'super_admin'];
+      if (!validRoles.includes(body.role)) {
+        throw new BadRequestException(`Role phải là một trong: ${validRoles.join(', ')}`);
+      }
+      return await this.userService.updateUserRole(userId, body.role);
+    } catch (error) {
+      const err = error as AuthError;
+      this.logger.error(`❌ Lỗi khi cập nhật role: ${err.message}`, err.stack);
+      throw error;
+    }
+  }
+
+  // 🔑 Super admin: Cập nhật status của user
+  @Put('users/:userId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Super admin: Cập nhật status của user' })
+  @ApiResponse({ status: 200, description: 'Cập nhật status thành công' })
+  async updateUserStatus(
+    @Param('userId') userId: string,
+    @Body() body: { status: string },
+  ) {
+    try {
+      const validStatuses = ['active', 'inactive', 'pending_verification', 'suspended'];
+      if (!validStatuses.includes(body.status)) {
+        throw new BadRequestException(`Status phải là một trong: ${validStatuses.join(', ')}`);
+      }
+      return await this.userService.updateUserStatus(userId, body.status);
+    } catch (error) {
+      const err = error as AuthError;
+      this.logger.error(`❌ Lỗi khi cập nhật status: ${err.message}`, err.stack);
       throw error;
     }
   }

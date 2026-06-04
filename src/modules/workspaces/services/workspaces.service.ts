@@ -89,6 +89,10 @@ export class WorkspacesService {
     return this.workspacesRepository.findAll();
   }
 
+  async findAllWithDeleted(): Promise<any[]> {
+    return this.workspacesRepository.findAllWithDeleted();
+  }
+
   async findById(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
