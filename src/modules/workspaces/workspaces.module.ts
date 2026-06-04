@@ -7,6 +7,7 @@ import { ForYouService } from './services/for-you.service';
 import { WorkspacesRepository } from './repositories/workspaces.repository';
 import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
+import { ChatModule } from '../chat/chat.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
 import { UsersModule } from '../users/users.module';
 import { KanbanModule } from '../kanban/kanban.module';
@@ -25,6 +26,7 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
       { name: Invite.name, schema: InviteSchema },
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => ChatModule),
     forwardRef(() => WorkflowsModule),
     forwardRef(() => UsersModule),
     forwardRef(() => KanbanModule),

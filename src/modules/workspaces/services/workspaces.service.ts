@@ -18,6 +18,7 @@ import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
+import { ChannelsService } from '../../chat/services/channels.service';
 
 @Injectable()
 export class WorkspacesService {
@@ -31,6 +32,7 @@ export class WorkspacesService {
     private readonly scrumService: ScrumService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    private readonly channelsService: ChannelsService,
   ) { }
 
   public async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
@@ -80,6 +82,12 @@ export class WorkspacesService {
           this.logger.error(`Lỗi khi tạo Workflow mặc định cho Workspace ${workspace._id}`, error);
         }
       }
+
+      // Create workspace channel
+      await this.channelsService.createWorkspaceChannel(
+        workspace._id.toString(),
+        userId
+      );
 
       return workspace;
     } catch (error) {
