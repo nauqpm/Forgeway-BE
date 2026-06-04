@@ -11,7 +11,7 @@ import { promises as fs } from 'fs';
 import { randomUUID } from 'crypto';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-import JSZip from 'jszip';
+import * as JSZip from 'jszip';
 import sanitizeHtml = require('sanitize-html');
 import { DocumentDoc, DocumentEntity } from '../schemas/document.schema';
 import { Workspace, WorkspaceDocument } from '../../workspaces/schemas/workspace.schema';
@@ -32,7 +32,7 @@ export class DocumentsService {
     private readonly documentModel: Model<DocumentDoc>,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
-  ) {}
+  ) { }
 
   private ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -192,7 +192,7 @@ export class DocumentsService {
     await this.documentModel.updateOne({ _id: doc._id }, { $set: { deletedAt: new Date() } });
     try {
       await fs.unlink(doc.storagePath);
-    } catch {}
+    } catch { }
     return { success: true };
   }
 
