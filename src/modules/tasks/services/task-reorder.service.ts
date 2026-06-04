@@ -16,6 +16,7 @@ import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskDocument } from '../schemas/task.schema';
 import { generateRankBetween } from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
+import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskMoveAuditMetadata, TaskMoveResult } from './task-move.service';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class TaskReorderService {
     private readonly taskReorderPolicy: TaskReorderPolicy,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
+    private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
   ) {}
 
   async reorderInWorkspaceId(
@@ -132,6 +134,10 @@ export class TaskReorderService {
       reorderedTask,
       userId,
     );
+    this.taskDomainEventPublisher.publishReordered(task, reorderedTask, userId, {
+      beforeTaskId: dto.beforeTaskId ?? null,
+      afterTaskId: dto.afterTaskId ?? null,
+    });
 
     return {
       task: this.taskMapper.mapToDto(reorderedTask),

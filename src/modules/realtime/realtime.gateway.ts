@@ -1,3 +1,4 @@
+import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,27 +9,21 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { JwtService } from '@nestjs/jwt';
-import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { parse } from 'cookie';
 import { Server, Socket } from 'socket.io';
-import { COOKIE_NAMES } from '../auth/constants/cookie.constants';
-import { RealtimeService } from './realtime.service';
 
-type AuthenticatedSocket = Socket & {
-  data: {
-    user?: {
-      userId: string;
-      email?: string;
-      role?: string;
-    };
-    rateLimit?: {
-      windowStartedAt: number;
-      count: number;
-    };
-  };
-};
+import { AuthenticatedSocket, RoomBuilder } from './contracts';
+import { JoinTaskRoomDto } from './dto/join-task-room.dto';
+import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
+import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
+import { RealtimeService } from './realtime.service';
+import { RoomManagerService } from './services/room-manager.service';
+import { SocketAuthService } from './services/socket-auth.service';
+
+const socketValidationPipe = new ValidationPipe({
+  transform: true,
+  whitelist: true,
+  forbidNonWhitelisted: true,
+});
 
 @WebSocketGateway({
   namespace: '/realtime',
@@ -48,9 +43,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   private readonly clientEventLimit = 30;
 
   constructor(
-    private readonly jwtService: JwtService,
     private readonly realtimeService: RealtimeService,
-    private readonly configService: ConfigService,
+    private readonly socketAuthService: SocketAuthService,
+    private readonly roomManagerService: RoomManagerService,
   ) {}
 
   afterInit(server: Server): void {
@@ -59,15 +54,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
-      const token = this.extractToken(client);
-      if (!token) {
-        client.disconnect(true);
-        return;
-      }
-
-      client.data.user = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
+      const user = await this.socketAuthService.authenticate(client);
+      await client.join(RoomBuilder.user(user.userId));
+      this.logger.debug(`Realtime client connected: ${client.id}, userId: ${user.userId}`);
     } catch (error) {
       this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
@@ -75,48 +64,60 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   handleDisconnect(client: Socket): void {
+    this.socketAuthService.clearDisconnectTimer(client as AuthenticatedSocket);
     this.logger.debug(`Realtime client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('workspace:join')
+  @UsePipes(socketValidationPipe)
   async joinWorkspace(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { workspaceId?: string },
+    @MessageBody() body: JoinWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client) || !body?.workspaceId) {
+    if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
 
-    await client.join(this.realtimeService.workspaceRoom(body.workspaceId));
-    return { ok: true };
+    return this.roomManagerService.joinWorkspace(client, body);
   }
 
   @SubscribeMessage('workspace:leave')
+  @UsePipes(socketValidationPipe)
   async leaveWorkspace(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { workspaceId?: string },
+    @MessageBody() body: JoinWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client) || !body?.workspaceId) {
+    if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
 
-    await client.leave(this.realtimeService.workspaceRoom(body.workspaceId));
-    return { ok: true };
+    return this.roomManagerService.leaveWorkspace(client, body);
   }
 
-  private extractToken(client: Socket): string | undefined {
-    const authToken = client.handshake.auth?.token;
-    if (typeof authToken === 'string' && authToken.length > 0) {
-      return authToken;
+  @SubscribeMessage('task:join')
+  @UsePipes(socketValidationPipe)
+  async joinTask(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: JoinTaskRoomDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
     }
 
-    const header = client.handshake.headers.authorization;
-    if (header?.startsWith('Bearer ')) {
-      return header.slice('Bearer '.length);
+    return this.roomManagerService.joinTask(client, body);
+  }
+
+  @SubscribeMessage('task:leave')
+  @UsePipes(socketValidationPipe)
+  async leaveTask(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: LeaveTaskRoomDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
     }
 
-    const cookies = parse(client.handshake.headers.cookie ?? '');
-    return cookies[COOKIE_NAMES.ACCESS];
+    return this.roomManagerService.leaveTask(client, body);
   }
 
   private consumeClientEvent(client: AuthenticatedSocket): boolean {

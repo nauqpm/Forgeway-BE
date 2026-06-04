@@ -6,7 +6,8 @@ import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import { join } from 'path';
 import mongoose from 'mongoose';
-import { IoAdapter } from '@nestjs/platform-socket.io';
+import { RedisService } from './infra/redis/redis.service';
+import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter';
 
 // 👇 thêm
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -20,7 +21,10 @@ async function bootstrap() {
     console.log('✅ Kết nối MongoDB đã sẵn sàng, khởi động ứng dụng...');
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
-    app.useWebSocketAdapter(new IoAdapter(app));
+    const redisService = app.get(RedisService);
+    const websocketAdapter = new RedisSocketIoAdapter(app, redisService);
+    await websocketAdapter.connectToRedis();
+    app.useWebSocketAdapter(websocketAdapter);
 
     // Trust reverse proxy (Nginx)
     app.set('trust proxy', 1);

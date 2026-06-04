@@ -1,0 +1,63 @@
+import { DomainEventMetadata } from '../domain-event.interface';
+
+export interface WorkspaceEventContext extends DomainEventMetadata {
+  workspaceId: string;
+  actorId?: string;
+  version?: number;
+}
+
+export interface WorkspaceSummaryPayload {
+  id: string;
+  key: string;
+  name: string;
+  slug?: string;
+  type?: string;
+  status?: string;
+  access?: string;
+}
+
+export interface WorkspaceInviteSummaryPayload {
+  id: string;
+  workspaceId: string;
+  invitedEmail: string;
+  invitedBy: string;
+  role: string;
+  status: string;
+  expiresAt?: Date | string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export interface WorkspaceMemberSummaryPayload {
+  userId: string;
+  role: string;
+}
+
+export interface WorkspaceInviteCreatedEventData extends WorkspaceEventContext {
+  inviteId: string;
+  recipientEmail: string;
+  role: string;
+  workspace?: WorkspaceSummaryPayload;
+  invite?: WorkspaceInviteSummaryPayload;
+}
+
+export interface WorkspaceMemberJoinedEventData extends WorkspaceEventContext {
+  userId: string;
+  role: string;
+  workspace?: WorkspaceSummaryPayload;
+  member?: WorkspaceMemberSummaryPayload;
+}
+
+export interface WorkspaceMemberRemovedEventData extends WorkspaceEventContext {
+  userId: string;
+  previousRole?: string;
+  workspace?: WorkspaceSummaryPayload;
+}
+
+export interface WorkspaceMemberRoleUpdatedEventData extends WorkspaceEventContext {
+  userId: string;
+  previousRole: string;
+  nextRole: string;
+  workspace?: WorkspaceSummaryPayload;
+  member?: WorkspaceMemberSummaryPayload;
+}
