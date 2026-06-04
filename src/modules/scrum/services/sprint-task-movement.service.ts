@@ -27,7 +27,7 @@ export class SprintTaskMovementService {
     isSuperAdmin = false,
   ): Promise<{ modifiedCount: number }> {
     if (!taskIds?.length) {
-      throw new BadRequestException('taskIds là bắt buộc');
+      throw new BadRequestException('taskIds is required');
     }
 
     await this.ensureTaskWorkspaceOwnership(workspaceId, taskIds);
@@ -42,11 +42,11 @@ export class SprintTaskMovementService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint không tồn tại');
+      throw new NotFoundException('Sprint not exist');
     }
 
     if (sprint.status === 'completed') {
-      throw new BadRequestException('Không thể di chuyển task vào sprint đã hoàn thành');
+      throw new BadRequestException('Cant move tasks into completed sprint');
     }
 
     const taskObjectIds = taskIds.map((taskId) => new Types.ObjectId(taskId));
@@ -73,7 +73,7 @@ export class SprintTaskMovementService {
     isSuperAdmin = false,
   ): Promise<{ modifiedCount: number }> {
     if (!taskIds?.length) {
-      throw new BadRequestException('taskIds là bắt buộc');
+      throw new BadRequestException('taskIds is required');
     }
 
     await this.ensureTaskWorkspaceOwnership(workspaceId, taskIds);
@@ -122,7 +122,7 @@ export class SprintTaskMovementService {
 
     if (count !== uniqueTaskIds.length) {
       throw new BadRequestException(
-        'Một hoặc nhiều taskIds không tồn tại, đã bị xóa, đã bị lưu trữ hoặc không thuộc workspace này',
+        'One or more taskIds do not exist, have been deleted, have been archived, or do not belong to this workspace',
       );
     }
   }
@@ -161,7 +161,7 @@ export class SprintTaskMovementService {
 
     if (completedSprint) {
       throw new BadRequestException(
-        'Không thể di chuyển task ra khỏi sprint đã hoàn thành mà không có quyền super_admin',
+        'Cant move tasks out of completed sprint without super_admin permission',
       );
     }
   }
