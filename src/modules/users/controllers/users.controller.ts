@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateUsersDto } from '../dtos/create-users.dto';
@@ -19,11 +31,13 @@ export class UsersController {
     return await this.usersService.getUserById(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
+  @UseGuards(JwtAuthGuard)
   @Roles(GLOBAL_ROLES.USER)
-  @RequirePermission('users', 'update')
   @Put('me')
-  async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserProfileDto) {
+  async updateProfile(
+    @Request() req,
+    @Body() updateUserDto: UpdateUserProfileDto,
+  ) {
     return await this.usersService.updateUser(req.user.userId, updateUserDto);
   }
 
@@ -48,7 +62,9 @@ export class UsersController {
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Post()
   async createUser(@Body() createUserDto: CreateUsersDto) {
-    const existingUser = await this.usersService.findByEmail(createUserDto.email);
+    const existingUser = await this.usersService.findByEmail(
+      createUserDto.email,
+    );
     if (existingUser) {
       throw new BadRequestException('Email đã tồn tại');
     }
@@ -60,7 +76,10 @@ export class UsersController {
   @RequirePermission('users', 'update')
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Put(':id')
-  async updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUsersDto) {
+  async updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUsersDto,
+  ) {
     return await this.usersService.updateUser(id, updateUserDto);
   }
 

@@ -1,5 +1,10 @@
 // users.service.ts
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
@@ -11,7 +16,7 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly usersRepository: UsersRepository) { }
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   // 📢 Lấy thông tin người dùng theo ID
   async getUserById(id: string): Promise<User> {
@@ -49,29 +54,77 @@ export class UsersService {
   }
 
   // 📢 Cập nhật thông tin người dùng
-  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: Record<string, unknown> }, isPasswordHashed: boolean = false): Promise<User> {
+  async updateUser(
+    userId: string,
+    updateData: UpdateUsersDto | { $unset: Record<string, unknown> },
+    isPasswordHashed = false,
+  ): Promise<User> {
     this.logger.log(`Cập nhật thông tin cho User ID: ${userId}`);
-    // Only hash password if updateData is UpdateUsersDto and has password field
-    if ('password' in updateData && !isPasswordHashed) {
-      const salt = await bcrypt.genSalt();
-      (updateData as UpdateUsersDto).password = await bcrypt.hash((updateData as UpdateUsersDto).password!, salt);
+
+    if (this.isPasswordUpdate(updateData) && !isPasswordHashed) {
+      await this.handlePasswordUpdate(userId, updateData);
     }
 
     const updatedUser = await this.usersRepository.update(userId, updateData);
+
     if (!updatedUser) {
-      this.logger.warn(`Cập nhật thất bại: Không tìm thấy User ID: ${userId}`);
-      throw new NotFoundException('User not found');
+      this.logger.warn(`Không tìm thấy User ID: ${userId}`);
+      throw new NotFoundException('Không tìm thấy người dùng');
     }
+
     return updatedUser;
   }
 
+  private isPasswordUpdate(
+    data: UpdateUsersDto | { $unset: Record<string, unknown> },
+  ): data is UpdateUsersDto {
+    return 'password' in data && !!data.password;
+  }
+
+  private async handlePasswordUpdate(
+    userId: string,
+    updateData: UpdateUsersDto,
+  ): Promise<void> {
+    this.logger.log(`Cập nhật mật khẩu cho User ID: ${userId}`);
+    this.logger.log(updateData, 'Update data');
+
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    if (!updateData.currentPassword) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    // THAY VÌ LÀM NHƯ SAU THÌ RESET PASSWORK
+    // OAuth account chưa có password
+    // if (!user.password) {
+    //   return;
+    // }
+
+    const isMatch = await bcrypt.compare(
+      updateData.currentPassword,
+      user.password,
+    );
+
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    updateData.password = await bcrypt.hash(updateData.password!, 10);
+  }
 
   // 📢 Lấy danh sách tất cả người dùng
   async getAllUsers(): Promise<User[]> {
     return await this.usersRepository.findAll();
   }
 
-  async getUsersPage(page: number, limit: number): Promise<{
+  async getUsersPage(
+    page: number,
+    limit: number,
+  ): Promise<{
     data: SanitizedUserRecord[];
     pagination: {
       page: number;
@@ -81,8 +134,13 @@ export class UsersService {
     };
   }> {
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-    const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.floor(limit))) : 20;
-    const { users, total } = await this.usersRepository.findAllPaginated(safePage, safeLimit);
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(100, Math.max(1, Math.floor(limit)))
+      : 20;
+    const { users, total } = await this.usersRepository.findAllPaginated(
+      safePage,
+      safeLimit,
+    );
 
     return {
       data: users,
