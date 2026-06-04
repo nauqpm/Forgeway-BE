@@ -1,10 +1,5 @@
-export interface RealtimeEnvelope<TData> {
-  event: RealtimeEventType;
-  data: TData;
-  timestamp: string;
-}
-
 export const REALTIME_EVENT_TYPES = {
+  // Chat events
   CHAT_MESSAGE_SENT: 'chat.message.sent',
   CHAT_MESSAGE_EDITED: 'chat.message.edited',
   CHAT_MESSAGE_DELETED: 'chat.message.deleted',
@@ -22,6 +17,7 @@ export const REALTIME_EVENT_TYPES = {
   RTC_ANSWER: 'rtc.answer',
   RTC_ICE_CANDIDATE: 'rtc.ice',
 
+  // Task events
   TASK_CREATED: 'task.created',
   TASK_UPDATED: 'task.updated',
   TASK_MOVED: 'task.moved',
@@ -29,7 +25,6 @@ export const REALTIME_EVENT_TYPES = {
   TASK_ARCHIVED: 'task.archived',
   TASK_RESTORED: 'task.restored',
   TASK_DELETED: 'task.deleted',
-  
 
   NOTIFICATION_CREATED: 'notification.created',
   NOTIFICATION_READ: 'notification.read',
@@ -53,5 +48,4 @@ export const REALTIME_EVENT_TYPES = {
   PAGE_UPDATED: 'page.updated',
 } as const;
 
-export type RealtimeEventType =
-  (typeof REALTIME_EVENT_TYPES)[keyof typeof REALTIME_EVENT_TYPES];
+export type RealtimeEventType = typeof REALTIME_EVENT_TYPES[keyof typeof REALTIME_EVENT_TYPES];

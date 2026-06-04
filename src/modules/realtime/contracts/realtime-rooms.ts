@@ -6,6 +6,15 @@ export type MeetingRoom = `meeting:${string}`;
 export type PageRoom = `page:${string}`;
 export type PresenceKey = `presence:${string}:${string}`;
 
+export type RealtimeRoom =
+  | WorkspaceRoom
+  | UserRoom
+  | TaskRoom
+  | ChannelRoom
+  | MeetingRoom
+  | PageRoom
+  | string;
+
 export const RoomBuilder = {
   workspace: (id: string): WorkspaceRoom => `workspace:${id}`,
   user: (id: string): UserRoom => `user:${id}`,
