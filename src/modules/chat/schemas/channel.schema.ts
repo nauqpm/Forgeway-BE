@@ -14,6 +14,9 @@ export class Channel {
   @Prop({ type: String, enum: ['public', 'private', 'direct'], default: 'public' })
   type!: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'Workspace' })
+  workspaceId?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'User' })
   ownerId?: Types.ObjectId;
 
@@ -39,3 +42,4 @@ export class Channel {
 
 export const ChannelSchema = SchemaFactory.createForClass(Channel);
 ChannelSchema.index({ type: 1 });
+ChannelSchema.index({ workspaceId: 1 });
