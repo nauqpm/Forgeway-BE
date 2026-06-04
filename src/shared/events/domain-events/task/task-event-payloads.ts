@@ -18,6 +18,7 @@ export interface TaskSummaryPayload {
   columnId?: string;
   sprintId?: string | null;
   rank?: string;
+  version?: number;
   assigneeId?: string | null;
   reporterId?: string;
   isArchived?: boolean;

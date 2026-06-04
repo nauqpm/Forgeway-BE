@@ -36,6 +36,7 @@ export class TaskLabelService {
 
     const beforeLabelIds = this.toIdList(task.labelIds || []);
     task.labelIds = labelIds.map((labelId) => new Types.ObjectId(labelId));
+    task.version = (task.version ?? 0) + 1;
     await task.save();
 
     const updatedTask = await this.taskModel

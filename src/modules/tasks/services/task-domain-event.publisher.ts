@@ -154,6 +154,7 @@ export class TaskDomainEventPublisher {
       taskId: this.toId(task._id ?? task.id),
       taskKey: task.key,
       actorId,
+      version: this.toVersion(task.version),
     };
   }
 
@@ -168,6 +169,7 @@ export class TaskDomainEventPublisher {
       columnId: task.columnId,
       sprintId: this.toOptionalId(task.sprintId) ?? null,
       rank: task.rank,
+      version: this.toVersion(task.version),
       assigneeId: this.toOptionalId(task.assigneeId) ?? null,
       reporterId: this.toOptionalId(task.reporterId),
       isArchived: Boolean(task.isArchived),
@@ -221,6 +223,11 @@ export class TaskDomainEventPublisher {
     }
 
     return value ?? null;
+  }
+
+  private toVersion(value: unknown): number {
+    const version = Number(value);
+    return Number.isFinite(version) && version > 0 ? version : 1;
   }
 
   private toId(value: any): string {
