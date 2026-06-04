@@ -11,6 +11,8 @@ import {
   Query,
   Req,
   UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -44,6 +46,11 @@ import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TaskReorderService } from '../services/task-reorder.service';
 import { TasksService } from '../services/tasks.service';
+import {
+  TaskDependencyService,
+  TaskDependencyDto,
+} from '../services/task-dependency.service';
+import { DependencyType } from '../schemas/task-dependency.schema';
 import { Request as ExpressRequest } from 'express';
 import { RealtimeService } from '@/modules/realtime/realtime.service';
 
@@ -59,6 +66,7 @@ export class TasksController {
     private readonly taskReorderService: TaskReorderService,
     private readonly auditLogService: AuditLogService,
     private readonly realtimeService: RealtimeService,
+    private readonly taskDependencyService: TaskDependencyService,
   ) {}
 
   @Get('tasks')
@@ -404,6 +412,71 @@ export class TasksController {
     }
   }
 
+  // ─── Calendar ──────────────────────────────────────────────────────────────
+
+  @Get('calendar')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({
+    summary: 'Get tasks for calendar view (month ± 1-week buffer)',
+  })
+  @ApiResponse({ status: HttpStatus.OK })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async getCalendarTasks(
+    @Param('workspaceId') workspaceId: string,
+    @Query('year', new DefaultValuePipe(new Date().getFullYear()), ParseIntPipe)
+    year: number,
+    @Query(
+      'month',
+      new DefaultValuePipe(new Date().getMonth() + 1),
+      ParseIntPipe,
+    )
+    month: number,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<{ tasks: TaskDto[] }> {
+    return this.tasksService.findCalendarByWorkspaceId(
+      workspaceId,
+      year,
+      month,
+      user.userId,
+    );
+  }
+
+  // ─── Timeline hierarchy ────────────────────────────────────────────────────
+
+  @Get('timeline')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({
+    summary: 'Get tasks grouped as epic hierarchy for timeline view',
+  })
+  @ApiResponse({ status: HttpStatus.OK })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async getTimelineHierarchy(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<{
+    epics: TaskDto[];
+    children: TaskDto[];
+    standalones: TaskDto[];
+  }> {
+    return this.tasksService.findTimelineHierarchyByWorkspaceId(
+      workspaceId,
+      user.userId,
+    );
+  }
+
+  // ─── Workspace-level dependencies ─────────────────────────────────────────
+
+  @Get('dependencies')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'List all task dependencies for this workspace' })
+  async getWorkspaceDependencies(
+    @Param('workspaceId') workspaceId: string,
+  ): Promise<TaskDependencyDto[]> {
+    return this.taskDependencyService.findByWorkspace(workspaceId);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get task detail by ID' })
@@ -516,7 +589,9 @@ export class TasksController {
   @ApiBadRequestResponse({ description: 'Invalid task reorder payload' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Task reorder denied' })
-  @ApiNotFoundResponse({ description: 'Task, neighbor task, or sprint not found' })
+  @ApiNotFoundResponse({
+    description: 'Task, neighbor task, or sprint not found',
+  })
   async reorder(
     @Param('workspaceId') workspaceId: string,
     @Param('id') id: string,
@@ -776,6 +851,48 @@ export class TasksController {
       );
       throw error;
     }
+  }
+
+  // ─── Task-level dependency CRUD ───────────────────────────────────────────
+
+  @Get(':taskId/dependencies')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'List dependencies for a specific task' })
+  async getTaskDependencies(
+    @Param('workspaceId') workspaceId: string,
+    @Param('taskId') taskId: string,
+  ): Promise<TaskDependencyDto[]> {
+    return this.taskDependencyService.findByTask(workspaceId, taskId);
+  }
+
+  @Post(':taskId/dependencies')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a dependency between two tasks' })
+  async createDependency(
+    @Param('workspaceId') workspaceId: string,
+    @Param('taskId') taskId: string,
+    @Body() body: { toTaskId: string; type?: DependencyType },
+  ): Promise<TaskDependencyDto> {
+    return this.taskDependencyService.create(
+      workspaceId,
+      taskId,
+      body.toTaskId,
+      body.type ?? 'blocks',
+    );
+  }
+
+  @Delete(':taskId/dependencies/:depId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a task dependency' })
+  async deleteDependency(
+    @Param('workspaceId') workspaceId: string,
+    @Param('depId') depId: string,
+  ): Promise<void> {
+    return this.taskDependencyService.delete(workspaceId, depId);
   }
 
   private auditTaskFailure(

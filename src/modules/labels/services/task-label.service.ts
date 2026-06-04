@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
@@ -6,6 +7,8 @@ import { TaskMapper } from '../../tasks/mappers/task.mapper';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { TaskDto } from '../../tasks/dtos/responses/task.dto';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
+import { TaskLabelsUpdatedEvent } from '../../../shared/events/domain-events/task';
 import { SetTaskLabelsDto } from '../dtos/set-task-labels.dto';
 import { LabelService } from './label.service';
 
@@ -15,9 +18,11 @@ export class TaskLabelService {
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     private readonly workspacesService: WorkspacesService,
+    private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly labelService: LabelService,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async setTaskLabels(
@@ -36,6 +41,7 @@ export class TaskLabelService {
 
     const beforeLabelIds = this.toIdList(task.labelIds || []);
     task.labelIds = labelIds.map((labelId) => new Types.ObjectId(labelId));
+    task.version = (task.version ?? 0) + 1;
     await task.save();
 
     const updatedTask = await this.taskModel
@@ -64,9 +70,30 @@ export class TaskLabelService {
       labelIds,
     );
 
-    return this.taskMapper.mapToDto(updatedTask);
+    const taskDto = this.taskMapper.mapToDto(updatedTask);
+    this.publishLabelsUpdatedEvent(updatedTask, userId, labelIds, taskDto);
+
+    return taskDto;
   }
 
+  private publishLabelsUpdatedEvent(
+    task: TaskDocument,
+    actorId: string,
+    labelIds: string[],
+    taskDto: TaskDto,
+  ): void {
+    const event = new TaskLabelsUpdatedEvent({
+      workspaceId: this.toId(task.workspaceId),
+      taskId: task._id.toString(),
+      taskKey: task.key,
+      actorId,
+      version: task.version,
+      labelIds,
+      task: taskDto,
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
   private async getWritableTask(
     workspaceId: string,
     taskId: string,
@@ -97,10 +124,14 @@ export class TaskLabelService {
   }
 
   private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
-    const isMember = await this.workspacesService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
+  }
+
+  private toId(value: any): string {
+    return value?._id?.toString?.() ?? value?.toString?.() ?? '';
   }
 
   private toIdList(values: unknown[]): string[] {

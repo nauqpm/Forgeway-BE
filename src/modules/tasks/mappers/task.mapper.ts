@@ -30,12 +30,15 @@ export class TaskMapper {
       status: plainTask.status || plainTask.columnId || 'todo',
       priority: plainTask.priority,
       rank: plainTask.rank,
+      version: this.toVersion(plainTask.version),
       cover: this.mapCover(plainTask.cover),
       assigneeId: this.toOptionalId(plainTask.assigneeId),
       labels: this.mapLabelSummaries(plainTask.labelIds),
       reporterId: this.toId(plainTask.reporterId),
       storyPoints: plainTask.storyPoints,
+      startDate: plainTask.startDate,
       dueDate: plainTask.dueDate,
+      epicId: this.toOptionalId(plainTask.epicId),
       isArchived: plainTask.isArchived || false,
       archivedAt: plainTask.archivedAt,
       archivedBy: this.toOptionalId(plainTask.archivedBy),
@@ -67,6 +70,7 @@ export class TaskMapper {
       status: plainTask.status || plainTask.columnId || 'todo',
       columnId: plainTask.columnId,
       rank: plainTask.rank,
+      version: this.toVersion(plainTask.version),
       cover: this.mapCover(plainTask.cover),
       sprintId: this.toOptionalId(plainTask.sprintId),
       sprint: this.mapSprintSummary(plainTask.sprintId),
@@ -87,6 +91,11 @@ export class TaskMapper {
       createdAt: plainTask.createdAt,
       updatedAt: plainTask.updatedAt,
     };
+  }
+
+  private toVersion(value: unknown): number {
+    const version = Number(value);
+    return Number.isFinite(version) && version > 0 ? version : 1;
   }
 
   private toId(value: any): string {
@@ -133,7 +142,9 @@ export class TaskMapper {
       updatedAt: value.updatedAt,
     };
   }
-  private mapLabelSummaries(values: any): Array<{ id: string; name: string }> | undefined {
+  private mapLabelSummaries(
+    values: any,
+  ): Array<{ id: string; name: string }> | undefined {
     if (!Array.isArray(values) || values.length === 0) {
       return undefined;
     }

@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Page, PageSchema } from './schemas/page.schema';
+import { PageDraft, PageDraftSchema } from './schemas/page-draft.schema';
 import { PagesController } from './controllers/pages.controller';
 import { PagesService } from './services/pages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,12 +13,13 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
   imports: [
     MongooseModule.forFeature([
       { name: Page.name, schema: PageSchema },
+      { name: PageDraft.name, schema: PageDraftSchema },
       { name: Workspace.name, schema: WorkspaceSchema },
     ]),
     forwardRef(() => AuthModule),
   ],
   controllers: [PagesController],
   providers: [PagesService, JwtAuthGuard, WorkspaceRoleGuard],
-  exports: [PagesService, JwtAuthGuard],
+  exports: [PagesService, JwtAuthGuard, MongooseModule],
 })
 export class PagesModule { }

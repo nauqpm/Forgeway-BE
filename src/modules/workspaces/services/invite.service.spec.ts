@@ -15,6 +15,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { INVITE_STATUS } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 
 const mockWorkspace = {
   _id: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
@@ -54,6 +55,7 @@ describe('InviteService', () => {
             findPendingValidByEmail: jest.fn(),
             findById: jest.fn(),
             updateStatus: jest.fn(),
+            addAcceptedBy: jest.fn(),
           },
         },
         {
@@ -74,6 +76,10 @@ describe('InviteService', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('http://localhost:3000') },
+        },
+        {
+          provide: NotificationsService,
+          useValue: { notifyWorkspaceInvited: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
@@ -149,6 +155,42 @@ describe('InviteService', () => {
       mailerService.sendMail.mockRejectedValue(new Error('SMTP error'));
 
       await expect(service.createInvite(workspaceId, invitedByUserId, dto)).resolves.toBeDefined();
+    });
+  });
+
+  describe('createInviteLink', () => {
+    const workspaceId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const invitedByUserId = 'bbbbbbbbbbbbbbbbbbbbbbbb';
+
+    it('creates a multi-use invite link that expires in 10 minutes', async () => {
+      const before = Date.now();
+      workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
+      inviteRepo.create.mockImplementation(async (data) => ({
+        _id: 'linkInviteId',
+        token: 'mock-link-token',
+        ...data,
+      }) as any);
+
+      const result = await service.createInviteLink(workspaceId, invitedByUserId, {
+        role: SPACE_ROLES.VIEWER,
+      });
+
+      const createdData = inviteRepo.create.mock.calls[0][0] as any;
+      expect(createdData).toEqual(
+        expect.objectContaining({
+          workspaceId: mockWorkspace._id,
+          invitedEmail: null,
+          invitedBy: invitedByUserId,
+          role: SPACE_ROLES.VIEWER,
+          type: 'link',
+          status: INVITE_STATUS.PENDING,
+          acceptedBy: [],
+        }),
+      );
+      expect(createdData.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 10 * 60 * 1000 - 1000);
+      expect(createdData.expiresAt.getTime()).toBeLessThanOrEqual(before + 10 * 60 * 1000 + 1000);
+      expect((result as any).inviteUrl).toBe(`http://localhost:3000/invites/accept/${createdData.token}`);
+      expect(mailerService.sendMail).not.toHaveBeenCalled();
     });
   });
 
@@ -268,6 +310,32 @@ describe('InviteService', () => {
         INVITE_STATUS.ACCEPTED,
       );
     });
+
+    it('accepts link invite for any authenticated email and keeps token pending for reuse', async () => {
+      const linkInvite = {
+        ...mockInvite,
+        type: 'link',
+        invitedEmail: null,
+        acceptedBy: [],
+      };
+      inviteRepo.findByToken.mockResolvedValue(linkInvite as any);
+      workspacesRepo.findById.mockResolvedValue({ ...mockWorkspace, members: [] } as any);
+      workspacesRepo.addMember.mockResolvedValue({} as any);
+      inviteRepo.addAcceptedBy.mockResolvedValue({} as any);
+
+      await service.acceptInvite(mockToken, userId, 'anyone@example.com');
+
+      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
+        linkInvite.workspaceId.toString(),
+        userId,
+        linkInvite.role,
+      );
+      expect(inviteRepo.addAcceptedBy).toHaveBeenCalledWith('inviteObjectId', userId);
+      expect(inviteRepo.updateStatus).not.toHaveBeenCalledWith(
+        'inviteObjectId',
+        INVITE_STATUS.ACCEPTED,
+      );
+    });
   });
 
   describe('getInviteByToken', () => {
@@ -291,6 +359,26 @@ describe('InviteService', () => {
       const result = await service.getInviteByToken('valid-token');
 
       expect(result.invitedEmail).toBe('a@b.com');
+      expect(result.workspaceName).toBe('Test Workspace');
+    });
+
+    it('returns link invite info without invited email', async () => {
+      inviteRepo.findByToken.mockResolvedValue({
+        token: 'link-token',
+        invitedEmail: null,
+        type: 'link',
+        role: SPACE_ROLES.VIEWER,
+        status: INVITE_STATUS.PENDING,
+        expiresAt: new Date(Date.now() + 600000),
+        invitedBy: { fullName: 'Admin', avatar: null },
+        workspaceId: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+      } as any);
+      workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
+
+      const result = await service.getInviteByToken('link-token');
+
+      expect(result.type).toBe('link');
+      expect(result.invitedEmail).toBeNull();
       expect(result.workspaceName).toBe('Test Workspace');
     });
   });

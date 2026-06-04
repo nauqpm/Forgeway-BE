@@ -12,13 +12,20 @@ export const INVITE_STATUS = {
 
 export type InviteStatusValue = typeof INVITE_STATUS[keyof typeof INVITE_STATUS];
 
+export const INVITE_TYPES = {
+  EMAIL: 'email',
+  LINK: 'link',
+} as const;
+
+export type InviteTypeValue = typeof INVITE_TYPES[keyof typeof INVITE_TYPES];
+
 @Schema({ timestamps: true })
 export class Invite {
   @Prop({ required: true, type: Types.ObjectId, ref: 'Workspace' })
   workspaceId!: Types.ObjectId;
 
-  @Prop({ required: true, lowercase: true, trim: true })
-  invitedEmail!: string;
+  @Prop({ type: String, required: false, lowercase: true, trim: true, default: null })
+  invitedEmail?: string | null;
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   invitedBy!: Types.ObjectId;
@@ -31,6 +38,13 @@ export class Invite {
 
   @Prop({
     required: true,
+    enum: Object.values(INVITE_TYPES),
+    default: INVITE_TYPES.EMAIL,
+  })
+  type!: InviteTypeValue;
+
+  @Prop({
+    required: true,
     enum: Object.values(INVITE_STATUS),
     default: INVITE_STATUS.PENDING,
   })
@@ -38,9 +52,13 @@ export class Invite {
 
   @Prop({ type: Date, required: false, default: null })
   expiresAt?: Date | null;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  acceptedBy!: Types.ObjectId[];
 }
 
 export const InviteSchema = SchemaFactory.createForClass(Invite);
 InviteSchema.index({ workspaceId: 1, invitedEmail: 1, status: 1 });
 InviteSchema.index({ token: 1 }, { unique: true });
 InviteSchema.index({ invitedEmail: 1, status: 1 });
+InviteSchema.index({ workspaceId: 1, status: 1, type: 1 });

@@ -58,7 +58,17 @@ export class UpdateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
   dueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  epicId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -74,5 +84,4 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsString()
   columnId?: string;
-
 }

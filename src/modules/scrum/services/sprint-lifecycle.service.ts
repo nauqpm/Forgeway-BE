@@ -49,11 +49,11 @@ export class SprintLifecycleService {
         .exec();
 
       if (!sprint) {
-        throw new NotFoundException('Sprint không tồn tại');
+        throw new NotFoundException('Sprint not exist');
       }
 
       if (sprint.status !== 'planning') {
-        throw new BadRequestException('Chỉ có thể kích hoạt sprint đang ở trạng thái lên kế hoạch');
+        throw new BadRequestException('Only sprint in planning status can be started');
       }
 
       const activeSprint = await this.mongoTransactionService
@@ -70,7 +70,7 @@ export class SprintLifecycleService {
 
       if (activeSprint) {
         throw new BadRequestException(
-          'Không thể kích hoạt sprint: Đã có một sprint đang hoạt động trong workspace này.',
+          'Cannot start sprint: There is already an active sprint in this workspace.',
         );
       }
 
@@ -88,7 +88,7 @@ export class SprintLifecycleService {
     sprintId: string,
     dto: CompleteSprintDto,
   ): Promise<any> {
-    this.logger.log(`Hoàn thành sprint: ${sprintId} cho workspace: ${workspaceId}`);
+    this.logger.log(`Completing sprint: ${sprintId} for workspace: ${workspaceId}`);
 
     return this.mongoTransactionService.withTransaction(async (session) => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
@@ -109,11 +109,11 @@ export class SprintLifecycleService {
         .exec();
 
       if (!sprint) {
-        throw new NotFoundException('Sprint không tồn tại');
+        throw new NotFoundException('Sprint not exist');
       }
 
       if (sprint.status !== 'active') {
-        throw new BadRequestException('Chỉ có thể hoàn thành sprint đang ở trạng thái hoạt động');
+        throw new BadRequestException('Only sprint in active status can be completed');
       }
 
       if (moveToSprintObjectId) {
@@ -131,7 +131,7 @@ export class SprintLifecycleService {
 
         if (!targetSprint) {
           throw new BadRequestException(
-            'moveToSprintId không hợp lệ: Sprint đích phải tồn tại, thuộc cùng workspace và đang ở trạng thái lên kế hoạch',
+            'moveToSprintId is invalid: Target sprint must exist, belong to the same workspace, and be in the planning status',
           );
         }
       }
