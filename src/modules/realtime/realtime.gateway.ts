@@ -15,7 +15,10 @@ import { AuthenticatedSocket, RoomBuilder } from './contracts';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
 import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
+import { LeaveWorkspaceRoomDto } from './dto/leave-workspace-room.dto';
+import { PresenceHeartbeatDto } from './dto/presence-heartbeat.dto';
 import { RealtimeService } from './realtime.service';
+import { PresenceService } from './services/presence.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
 
@@ -46,6 +49,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     private readonly realtimeService: RealtimeService,
     private readonly socketAuthService: SocketAuthService,
     private readonly roomManagerService: RoomManagerService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   afterInit(server: Server): void {
@@ -85,7 +89,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   @UsePipes(socketValidationPipe)
   async leaveWorkspace(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: JoinWorkspaceRoomDto,
+    @MessageBody() body: LeaveWorkspaceRoomDto,
   ): Promise<{ ok: boolean }> {
     if (!this.consumeClientEvent(client)) {
       return { ok: false };
@@ -120,7 +124,24 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     return this.roomManagerService.leaveTask(client, body);
   }
 
+  @SubscribeMessage('presence:heartbeat')
+  @UsePipes(socketValidationPipe)
+  async heartbeatPresence(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: PresenceHeartbeatDto,
+  ): Promise<{ ok: boolean; expiresInMs: number; reason?: 'PRESENCE_UNAVAILABLE' }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false, expiresInMs: 0 };
+    }
+
+    return this.presenceService.heartbeat(client, body);
+  }
+
   private consumeClientEvent(client: AuthenticatedSocket): boolean {
+    if (!client.data.user) {
+      return false;
+    }
+
     const now = Date.now();
     const current = client.data.rateLimit;
 
