@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { TokenModule } from '../auth/token.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
 import { TaskRealtimeListener } from './listeners/task-realtime.listener';
 import { RealtimePublisher } from './publishers/realtime.publisher';
 import { RealtimeRoomRepository } from './repositories/realtime-room.repository';
@@ -37,6 +38,7 @@ import { SocketAuthService } from './services/socket-auth.service';
     RealtimeRoomRepository,
     RealtimePublisher,
     TaskRealtimeListener,
+    NotificationRealtimeListener,
   ],
   exports: [RealtimeService, RealtimePublisher],
 })
