@@ -183,10 +183,10 @@ export class InviteService {
     await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
     if (inviteType === INVITE_TYPES.LINK) {
       await this.inviteRepository.addAcceptedBy((invite as any)._id.toString(), userId);
-      return;
+    } else {
+      await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
     }
 
-    await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
     this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
   }
 
@@ -241,6 +241,7 @@ export class InviteService {
       }),
     );
   }
+
   private publishWorkspaceInviteCreatedEvent(
     workspace: any,
     invite: Invite,
@@ -293,11 +294,20 @@ export class InviteService {
     };
   }
 
+  private buildAcceptUrl(token: string): string {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '');
+    if (!frontendUrl) {
+      throw new BadRequestException('FRONTEND_URL is not configured');
+    }
+
+    return frontendUrl + '/invites/accept/' + token;
+  }
+
   private toInviteSummary(invite: Invite): WorkspaceInviteSummaryPayload {
     return {
       id: (invite as any)._id.toString(),
       workspaceId: invite.workspaceId.toString(),
-      invitedEmail: invite.invitedEmail,
+      invitedEmail: invite.invitedEmail ?? null,
       invitedBy: invite.invitedBy.toString(),
       role: invite.role,
       status: invite.status,
@@ -306,6 +316,7 @@ export class InviteService {
       updatedAt: (invite as any).updatedAt,
     };
   }
+
   private async notifyExistingUserInvited(
     invitedUser: any,
     workspace: any,

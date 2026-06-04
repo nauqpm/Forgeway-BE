@@ -19,7 +19,7 @@ export interface WorkspaceSummaryPayload {
 export interface WorkspaceInviteSummaryPayload {
   id: string;
   workspaceId: string;
-  invitedEmail: string;
+  invitedEmail: string | null;
   invitedBy: string;
   role: string;
   status: string;
