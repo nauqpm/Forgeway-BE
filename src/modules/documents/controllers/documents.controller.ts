@@ -22,6 +22,7 @@ import { UpdateDocumentDto } from '../dtos/update-document.dto';
 import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dto';
 import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
 import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
+import { UpdateDocumentWorkspacesDto } from '../dtos/update-document-workspaces.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('documents')
@@ -97,6 +98,15 @@ export class DocumentsController {
     @Body() dto: DetachDocumentDto,
   ) {
     return this.documentsService.detach(userId, id, dto);
+  }
+
+  @Patch(':id/workspaces')
+  updateWorkspaces(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentWorkspacesDto,
+  ) {
+    return this.documentsService.updateWorkspaces(userId, id, dto);
   }
 
   @Get('workspace/:workspaceId')

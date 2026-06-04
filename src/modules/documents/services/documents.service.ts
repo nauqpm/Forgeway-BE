@@ -20,6 +20,7 @@ import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dt
 import { UpdateDocumentDto } from '../dtos/update-document.dto';
 import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
 import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
+import { UpdateDocumentWorkspacesDto } from '../dtos/update-document-workspaces.dto';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.webp',
@@ -213,6 +214,19 @@ export class DocumentsService {
     await this.documentModel.updateOne(
       { _id: new Types.ObjectId(id), uploadedBy: new Types.ObjectId(userId), deletedAt: null },
       { $pull: { workspaceIds: new Types.ObjectId(dto.workspaceId) } },
+    );
+    return this.getMineById(userId, id);
+  }
+
+  async updateWorkspaces(userId: string, id: string, dto: UpdateDocumentWorkspacesDto) {
+    await this.getMineById(userId, id);
+    const objectIds = dto.workspaceIds.map((wsId) => new Types.ObjectId(wsId));
+    for (const wsId of objectIds) {
+      await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
+    }
+    await this.documentModel.updateOne(
+      { _id: new Types.ObjectId(id), uploadedBy: new Types.ObjectId(userId), deletedAt: null },
+      { $set: { workspaceIds: objectIds } },
     );
     return this.getMineById(userId, id);
   }
