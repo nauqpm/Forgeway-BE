@@ -21,7 +21,6 @@ import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceKeyService } from './workspace-key.service';
 import { ChannelsService } from '../../chat/services/channels.service';
-
 import { UsersService } from '../../users/services/users.service';
 
 @Injectable()
@@ -41,12 +40,11 @@ export class WorkspacesService {
     private readonly pageModel: Model<PageDocument>,
     @InjectModel(DocumentEntity.name)
     private readonly documentModel: Model<DocumentDoc>,
-  ) {}
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
-  ) { }
+  ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);
