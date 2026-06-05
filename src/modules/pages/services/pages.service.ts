@@ -226,7 +226,7 @@ export class PagesService {
 
     const page = await this.findById(id);
 
-    if (dto.title) page.title = dto.title;
+    if (dto.title !== undefined) page.title = dto.title;
     if (dto.content !== undefined) page.content = dto.content;
     if (dto.status) page.status = dto.status;
     if (dto.labels) page.labels = dto.labels;
