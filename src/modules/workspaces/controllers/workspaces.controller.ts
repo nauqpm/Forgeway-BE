@@ -152,4 +152,12 @@ export class WorkspacesController {
   async restore(@Param('workspaceId') workspaceId: string) {
     return this.workspacesService.restore(workspaceId);
   }
+
+  @Post(':workspaceId/archive')
+  @UseGuards(RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Archive workspace (super_admin only)' })
+  async archive(@Param('workspaceId') workspaceId: string) {
+    return this.workspacesService.archive(workspaceId);
+  }
 }
