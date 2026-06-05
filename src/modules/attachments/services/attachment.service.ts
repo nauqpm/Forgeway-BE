@@ -20,6 +20,9 @@ export class AttachmentService {
   ): Promise<AttachmentDocument> {
     this.logger.log(`Creating attachment for ${input.targetType}:${input.targetId}`);
 
+    const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
+    const url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
+
     const attachment = new this.attachmentModel({
       workspaceId: input.workspaceId ? new Types.ObjectId(input.workspaceId) : undefined,
       uploadedBy: new Types.ObjectId(userId),
@@ -28,7 +31,7 @@ export class AttachmentService {
       mimeType: input.mimeType,
       size: input.size,
       storageKey: file.filename,
-      url: `/uploads/${file.filename}`,
+      url: url,
       targetType: input.targetType,
       targetId: input.targetId,
       downloadCount: 0,

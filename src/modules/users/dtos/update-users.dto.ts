@@ -30,7 +30,7 @@ export class UpdateUsersDto {
   fullName?: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'Email không hợp lệ' })
+  @IsEmail({}, { message: 'Invalid email address' })
   @MaxLength(255)
   email?: string;
 
@@ -44,25 +44,25 @@ export class UpdateUsersDto {
 
   @IsOptional()
   @IsEnum(Object.values(GLOBAL_ROLES), {
-    message: 'Role không hợp lệ',
+    message: 'Invalid role',
   })
   role?: string;
 
   @IsOptional()
   @IsMongoId({
-    message: 'roleId không phải MongoId hợp lệ',
+    message: 'roleId must be a valid MongoId',
   })
   roleId?: Types.ObjectId;
 
   @IsOptional()
   @IsEnum(Object.values(USER_STATUSES), {
-    message: 'Trạng thái không hợp lệ',
+    message: 'Invalid status',
   })
   status?: string;
 
   @IsOptional()
   @Matches(/^(\+?[1-9]\d{7,14}|0\d{9,10})$/, {
-    message: 'Số điện thoại không hợp lệ',
+    message: 'Invalid phone number',
   })
   phone?: string;
 
@@ -75,14 +75,14 @@ export class UpdateUsersDto {
   @IsDateString(
     {},
     {
-      message: 'Ngày sinh không hợp lệ',
+      message: 'Invalid date of birth',
     },
   )
   birthday?: string;
 
   @IsOptional()
   @IsEnum(['male', 'female', 'other'], {
-    message: 'Giới tính không hợp lệ',
+    message: 'Invalid gender',
   })
   gender?: 'male' | 'female' | 'other';
 
@@ -91,10 +91,10 @@ export class UpdateUsersDto {
     {
       protocols: ['http', 'https'],
       require_protocol: true,
-      require_tld: false, // Thêm dòng này để cho phép localhost
+      require_tld: false, // Allow localhost
     },
     {
-      message: 'Avatar phải là URL hợp lệ',
+      message: 'Avatar must be a valid URL',
     },
   )
   avatar?: string;

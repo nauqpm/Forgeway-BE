@@ -34,8 +34,8 @@ import { AuditModule } from '../audit/audit.module';
     // Needed for TokenService(UsersService)
     forwardRef(() => UsersModule),
 
-    // Needed for TokenService(AuditLogService)
-    AuditModule,
+    // Needed for TokenService(AuditLogService) — circular: TokenModule ↔ AuditModule
+    forwardRef(() => AuditModule),
   ],
   providers: [TokenService],
   exports: [TokenService, MongooseModule],

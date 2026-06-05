@@ -1,15 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { Image, ImageDocument } from '../schemas/image.schema';
-import { CreateImageDto } from '../dtos/create-image.dto';
+import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
+import { CloudinaryService } from './cloudinary.service';
 
 @Injectable()
 export class ImagesService {
+  private readonly logger = new Logger(ImagesService.name);
+
   constructor(
     @InjectModel(Image.name) private imageModel: Model<ImageDocument>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async create(dto: CreateImageDto, file: Express.Multer.File, userId: string): Promise<ImageDocument> {
@@ -17,15 +21,52 @@ export class ImagesService {
       throw new BadRequestException('File is required');
     }
 
+    let url = '';
+    const isAvatar = 
+      dto.type === ImageType.AVATAR || 
+      dto.targetType === 'avatar' || 
+      file.fieldname === 'avatar' || 
+      file.fieldname === 'avatars' ||
+      dto.type === 'avatars' as any;
+    
+    // Auto-route to Cloudinary if it's an avatar
+    if (isAvatar && (file.path || file.buffer)) {
+      let result;
+      if (file.path) {
+        // Case: Uploaded via diskStorage
+        this.logger.log(`Uploading avatar to Cloudinary from path: ${file.path}`);
+        result = await this.cloudinaryService.uploadImageFromPath(file.path, 'avatars');
+        
+        // Cleanup local temp file
+        try {
+          await fs.unlink(file.path);
+        } catch (err) {
+          this.logger.error(`Failed to delete local temp file: ${file.path}`, err);
+        }
+      } else {
+        // Case: Uploaded via memoryStorage
+        this.logger.log('Uploading avatar to Cloudinary from buffer');
+        result = await this.cloudinaryService.uploadImage(file, 'avatars');
+      }
+      url = result.secure_url;
+    } else if (file.path || file.destination) {
+      // Case: Standard local storage
+      const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
+      url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
+    } else {
+      // Fallback
+      url = `/uploads/others/${file.filename}`;
+    }
+
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
-      filename: file.filename,
+      filename: file.filename || file.originalname,
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      url: `/uploads/${file.filename}`,
+      url: url,
       thumbnailUrl: dto.thumbnailUrl,
-      type: dto.type || 'other',
+      type: dto.type || (isAvatar ? ImageType.AVATAR : 'other'),
       targetId: dto.targetId,
       downloadCount: 0,
     });
@@ -42,23 +83,12 @@ export class ImagesService {
       throw new BadRequestException('Files are required');
     }
 
-    const images = files.map((file, index) => {
+    const imagePromises = files.map((file, index) => {
       const dto = dtos[index] || {};
-      return new this.imageModel({
-        uploadedBy: new Types.ObjectId(userId),
-        filename: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        url: `/uploads/${file.filename}`,
-        thumbnailUrl: dto.thumbnailUrl,
-        type: dto.type || 'other',
-        targetId: dto.targetId,
-        downloadCount: 0,
-      });
+      return this.create(dto, file, userId);
     });
 
-    return this.imageModel.insertMany(images);
+    return Promise.all(imagePromises);
   }
 
   async findById(id: string): Promise<ImageDocument> {

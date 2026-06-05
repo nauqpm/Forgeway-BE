@@ -5,8 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { join } from 'path';
+import { extname, join } from 'path';
+import * as fs from 'fs';
 
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -77,7 +77,28 @@ import { RedisModule } from './infra/redis/redis.module';
 
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads',
+        destination: (req: any, file, cb) => {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          
+          // Try to determine module type from URL
+          let moduleType = 'others';
+          const url = req.url || '';
+          if (url.includes('tasks') || url.includes('board')) moduleType = 'tasks';
+          else if (url.includes('documents')) moduleType = 'documents';
+          else if (url.includes('comments')) moduleType = 'comments';
+          else if (url.includes('imagesapi')) moduleType = req.body?.type || 'others';
+          
+          const uploadPath = join('uploads', moduleType, String(year), month, day);
+          
+          if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+          }
+          
+          cb(null, uploadPath);
+        },
         filename: (req, file, cb) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
