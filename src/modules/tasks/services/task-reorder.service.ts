@@ -310,6 +310,14 @@ export class TaskReorderService {
     beforeTask: TaskDocument | null,
     afterTask: TaskDocument | null,
   ): number {
+    if (beforeTask && !afterTask) {
+      return 0;
+    }
+
+    if (afterTask && !beforeTask) {
+      return orderedTasks.length;
+    }
+
     if (beforeTask) {
       const beforeIndex = orderedTasks.findIndex(
         (task) => task._id.toString() === beforeTask._id.toString(),
