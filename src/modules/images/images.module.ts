@@ -8,6 +8,8 @@ import { ImagesService } from './services/images.service';
 import { ImagesController } from './controllers/images.controller';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { CloudinaryProvider } from './providers/cloudinary.provider';
+import { CloudinaryService } from './services/cloudinary.service';
 
 const storage = diskStorage({
   destination: './uploads',
@@ -30,7 +32,7 @@ const storage = diskStorage({
     forwardRef(() => AuthModule),
   ],
   controllers: [ImagesController],
-  providers: [ImagesService, JwtAuthGuard],
-  exports: [ImagesService, JwtAuthGuard],
+  providers: [ImagesService, JwtAuthGuard, CloudinaryProvider, CloudinaryService],
+  exports: [ImagesService, JwtAuthGuard, CloudinaryService],
 })
 export class ImagesModule {}
