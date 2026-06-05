@@ -1,17 +1,17 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { join } from 'path';
+import { extname, join } from 'path';
+import * as fs from 'fs';
 
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
-import { ManagerPermissionsModule } from './modules/manager-permissions/manager-permissions.module';
 import { CommonModule } from './common/common.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
@@ -19,26 +19,31 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
 // Jira + Confluence Modules
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { TasksModule } from './modules/tasks/tasks.module';
-import { BoardsModule } from './modules/boards/boards.module';
-import { SprintsModule } from './modules/sprints/sprints.module';
+import { KanbanModule } from './modules/kanban/kanban.module';
+import { ScrumModule } from './modules/scrum/scrum.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { CommentsModule } from './modules/comments/comments.module';
-import { SpacesModule } from './modules/spaces/spaces.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SearchModule } from './modules/search/search.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { LabelsModule } from './modules/labels/labels.module';
+import { TaskCoversModule } from './modules/task-covers/task-covers.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 // Real Estate / Blog Modules
-import { PostsModule } from './modules/posts/posts.module';
-import { PostPropertyModule } from './modules/post-property/post-property.module';
-import { CategoriesPostModule } from './modules/categories-post/categories-post.module';
 import { UtilitiesModule } from './modules/utilities/utilities.module';
 import { AddressesModule } from './modules/addresses/addresses.module';
 import { ImagesModule } from './modules/images/images.module';
 import { VerifyModule } from './modules/verify/verify.module';
 import { validateEnv } from './config/env.validation';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { LoggerMiddleware } from './common/middlewares/logger.middleware';
+import { CacheModule } from './modules/cache/cache.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
+import { RedisModule } from './infra/redis/redis.module';
 
 @Module({
   imports: [
@@ -46,6 +51,12 @@ import { validateEnv } from './config/env.validation';
       isGlobal: true,
       envFilePath: '.env',
       validate: validateEnv,
+    }),
+
+    EventEmitterModule.forRoot({
+      ignoreErrors: true,
+      maxListeners: 20,
+      verboseMemoryLeak: true,
     }),
 
     // Default rate limiting applies to every endpoint unless a route explicitly opts out.
@@ -66,34 +77,63 @@ import { validateEnv } from './config/env.validation';
 
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads',
+        destination: (req: any, file, cb) => {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          
+          // Try to determine module type from URL
+          let moduleType = 'others';
+          const url = req.url || '';
+          if (url.includes('tasks') || url.includes('board')) moduleType = 'tasks';
+          else if (url.includes('documents')) moduleType = 'documents';
+          else if (url.includes('comments')) moduleType = 'comments';
+          else if (url.includes('imagesapi')) moduleType = req.body?.type || 'others';
+          
+          const uploadPath = join('uploads', moduleType, String(year), month, day);
+          
+          if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+          }
+          
+          cb(null, uploadPath);
+        },
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(
+            null,
+            `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
+          );
         },
       }),
     }),
 
     CommonModule,
+    CacheModule,
+    RedisModule,
     DatabaseModule,
+    RealtimeModule,
 
     // Core Auth
     AuthModule,
     UsersModule,
     PermissionsModule,
-    ManagerPermissionsModule,
 
     // Jira Modules
     WorkspacesModule,
     TasksModule,
-    BoardsModule,
-    SprintsModule,
+    KanbanModule,
+    ScrumModule,
     WorkflowsModule,
     CommentsModule,
     AttachmentsModule,
+    LabelsModule,
+    TaskCoversModule,
+    DocumentsModule,
 
     // Confluence Modules
-    SpacesModule,
     PagesModule,
 
     // System
@@ -102,9 +142,6 @@ import { validateEnv } from './config/env.validation';
     DashboardModule,
 
     // Real Estate / Blog Modules
-    PostsModule,
-    PostPropertyModule,
-    CategoriesPostModule,
     UtilitiesModule,
     AddressesModule,
     ImagesModule,
@@ -141,6 +178,12 @@ import { validateEnv } from './config/env.validation';
   providers: [
     // Throttler guard applied globally — individual routes override via @Throttle/@SkipThrottle
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    AppService,
   ],
+  controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

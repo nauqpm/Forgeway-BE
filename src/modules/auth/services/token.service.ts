@@ -1,5 +1,6 @@
 // src/modules/auth/services/token.service.ts
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -12,10 +13,9 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../../users/services/users.service';
-import { AuditLogService } from './audit-log.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
-import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
-import { AUTH_CONSTANTS } from '../constants/auth.constants';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { RefreshJwtPayload } from '../types/jwt-payload.type';
 
 @Injectable()
@@ -88,7 +88,7 @@ export class TokenService {
       const refreshToken = this.createRefreshToken(userId);
 
       const familyId = randomBytes(16).toString('hex');
-      const accessExpiry = new Date(Date.now() + 15 * 60 * 1000);
+      const accessExpiry = new Date(Date.now() + 60 * 60 * 1000);
       const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       await this.tokenModel.create({
@@ -164,46 +164,81 @@ export class TokenService {
     }
   }
 
-  async createPasswordResetTokenRecord(userId: string, email: string, resetToken: string): Promise<void> {
+  async createResetGrant(
+    userId: string,
+    email: string,
+  ): Promise<{ resetGrant: string; expiresInMs: number }> {
+    this.logger.debug(`Creating password reset grant for userId: ${userId}`);
+
+    const expiresInMs = 10 * 60 * 1000;
+    const resetGrant = randomBytes(32).toString('base64url');
+
     await this.tokenModel.create({
       userId,
       email,
-      token: this.hashToken(resetToken),
-      deviceInfo: 'Password Reset',
+      token: this.hashToken(resetGrant),
+      deviceInfo: 'Password Reset Grant',
       status: true,
-      type: TOKEN_TYPES.PASSWORD_RESET,
-      expiresAt: new Date(Date.now() + AUTH_CONSTANTS.PASSWORD_RESET_EXPIRES_MS),
+      type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
+      expiresAt: new Date(Date.now() + expiresInMs),
     });
+
+    this.logger.debug(`Password reset grant stored for userId: ${userId}; expiresInMs: ${expiresInMs}`);
+    return { resetGrant, expiresInMs };
   }
 
-  async findActivePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {
-    return this.tokenModel.findOne({
-      token: this.hashToken(resetToken),
-      status: true,
-      type: TOKEN_TYPES.PASSWORD_RESET,
-    });
-  }
+  async consumeResetGrant(resetGrant: string): Promise<{ email: string }> {
+    this.logger.debug('Consuming password reset grant');
 
-  async consumePasswordResetToken(resetToken: string): Promise<TokenDocument | null> {
-    return this.tokenModel.findOneAndUpdate(
+    if (!resetGrant?.trim()) {
+      this.logger.warn('Password reset grant consume rejected: empty grant');
+      throw new BadRequestException('Reset grant khong hop le');
+    }
+
+    const consumed = await this.tokenModel.findOneAndUpdate(
       {
-        token: this.hashToken(resetToken),
+        token: this.hashToken(resetGrant),
         status: true,
-        type: TOKEN_TYPES.PASSWORD_RESET,
+        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
         expiresAt: { $gt: new Date() },
       },
       { $set: { status: false } },
       { new: false },
     );
+
+    if (!consumed) {
+      this.logger.warn('Password reset grant consume rejected: invalid, expired, or reused grant');
+      throw new UnauthorizedException('Reset grant khong hop le, da het han hoac da duoc su dung');
+    }
+
+    this.logger.debug(`Password reset grant consumed for userId: ${consumed.userId}`);
+    return { email: consumed.email };
   }
 
-  async revokePasswordResetToken(resetToken: string): Promise<void> {
-    await this.tokenModel.updateOne(
-      { token: this.hashToken(resetToken), type: TOKEN_TYPES.PASSWORD_RESET },
-      { status: false },
-    );
-  }
+  async validateResetGrant(resetGrant: string): Promise<{ email: string }> {
+    this.logger.debug('Validating password reset grant');
 
+    if (!resetGrant?.trim()) {
+      this.logger.warn('Password reset grant validation rejected: empty grant');
+      throw new BadRequestException('Reset grant khong hop le');
+    }
+
+    const activeGrant = await this.tokenModel
+      .findOne({
+        token: this.hashToken(resetGrant),
+        status: true,
+        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
+        expiresAt: { $gt: new Date() },
+      })
+      .exec();
+
+    if (!activeGrant) {
+      this.logger.warn('Password reset grant validation rejected: invalid, expired, or reused grant');
+      throw new UnauthorizedException('Reset grant khong hop le, da het han hoac da duoc su dung');
+    }
+
+    return { email: activeGrant.email };
+  }
   /**
    * 🔄 Refresh Access Token
    * SEC-8: Atomic consume + token family theft detection

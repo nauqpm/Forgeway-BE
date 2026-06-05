@@ -3,7 +3,6 @@ import {
   CanActivate,
   ExecutionContext,
   Logger,
-  UnauthorizedException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -12,7 +11,6 @@ import { PermissionsService } from '../services/permissions.service';
 import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
 import { Auth } from '../../auth/schemas/auth.schema';
-import { RoleService } from '../../manager-permissions/services/role.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
@@ -31,7 +29,6 @@ export class PermissionGuard implements CanActivate {
     private permissionsService: PermissionsService,
     private jwtService: JwtService,
     @Inject(getModelToken(Auth.name)) private authModel: Model<Auth>,
-    @Inject(forwardRef(() => RoleService)) private roleService: RoleService
   ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -69,3 +66,4 @@ export class PermissionGuard implements CanActivate {
     return hasPermission;
   }
 }
+

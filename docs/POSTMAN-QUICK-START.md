@@ -293,10 +293,8 @@ Content-Type: application/json
 Body (raw):
 {
   "email": "{{testEmail}}",
-  "resetMethod": "link"
-}
+  }
 
-(Alternative resetMethod: "otp")
 
 Tests:
 pm.test("Status 200", function () {
@@ -338,7 +336,7 @@ pm.test("OTP verified", function () {
 let data = pm.response.json();
 pm.test("Token returned", function () {
   pm.expect(data).to.have.property('token');
-  pm.environment.set("resetToken", data.token);
+  pm.environment.set("resetGrant", data.resetGrant);
 });
 ```
 
@@ -349,7 +347,7 @@ pm.test("Token returned", function () {
 ```
 Name: Reset Password with OTP
 Method: POST
-URL: {{baseUrl}}/auth/reset-password/otp
+URL: {{baseUrl}}/auth/reset-password
 
 Headers:
 Content-Type: application/json
@@ -379,14 +377,14 @@ pm.test("Password reset success", function () {
 ```
 Name: Reset Password with Token
 Method: POST
-URL: {{baseUrl}}/auth/reset-password/token
+URL: {{baseUrl}}/auth/reset-password
 
 Headers:
 Content-Type: application/json
 
 Body (raw):
 {
-  "token": "{{resetToken}}",
+  "resetGrant": "{{resetGrant}}",
   "newPassword": "AnotherPassword@9999"
 }
 

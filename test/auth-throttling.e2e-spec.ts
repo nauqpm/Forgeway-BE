@@ -10,7 +10,7 @@ import { App } from 'supertest/types';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
 import { PasswordController } from '../src/modules/auth/controllers/password.controller';
 import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
-import { AuditLogService } from '../src/modules/auth/services/audit-log.service';
+import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { UsersService } from '../src/modules/users/services/users.service';
@@ -40,9 +40,13 @@ describe('Auth throttling (e2e)', () => {
 
   const passwordResetServiceMock = {
     requestPasswordReset: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
-    verifyOtp: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
-    resetPasswordWithToken: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
-    resetPasswordWithOtp: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
+    verifyOtpAndIssueGrant: jest.fn().mockResolvedValue({
+      success: true,
+      message: 'ok',
+      resetGrant: 'reset-grant',
+      expiresIn: 600_000,
+    }),
+    resetPasswordWithGrant: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
   };
 
   beforeEach(async () => {
@@ -191,7 +195,7 @@ describe('Auth throttling (e2e)', () => {
   it('limits repeated password reset requests', async () => {
     const responses = await postUntilLimited(
       '/auth/request-password-reset',
-      { email: 'test@example.com', resetMethod: 'otp' },
+      { email: 'test@example.com' },
       4,
     );
 

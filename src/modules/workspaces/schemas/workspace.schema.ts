@@ -24,9 +24,6 @@ export class Workspace {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   ownerId!: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  leadId?: Types.ObjectId;
-
   @Prop({ type: [{ userId: { type: Types.ObjectId, ref: 'User' }, role: { type: String, enum: Object.values(SPACE_ROLES) } }], default: [] })
   members!: { userId: Types.ObjectId; role: string }[];
 
@@ -35,6 +32,12 @@ export class Workspace {
 
   @Prop({ type: String, enum: ['active', 'archived'], default: 'active' })
   status!: string;
+
+  @Prop({ type: String, enum: ['private', 'public'], default: 'public' })
+  access!: string;
+
+  @Prop({ type: Date, default: null })
+  deletedAt!: Date | null;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
@@ -45,3 +48,4 @@ export const WorkspaceSchema = SchemaFactory.createForClass(Workspace);
 WorkspaceSchema.index({ slug: 1 }, { unique: true });
 WorkspaceSchema.index({ key: 1 }, { unique: true });
 WorkspaceSchema.index({ 'members.userId': 1 });
+WorkspaceSchema.index({ deletedAt: 1 });

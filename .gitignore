@@ -4,6 +4,11 @@
 /build
 /uploads
 
+# Local API testing artifacts
+/postman/
+*.yaml
+*.yml
+
 # Logs
 logs
 *.log
@@ -55,3 +60,17 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+.claude
+.agents
+.agent
+
+.planning
+superpowers
+
+# CodeGraph
+.codegraph/
+
+# Headroom local-only artifacts
+.headroom/
+node_modules/headroom-ai/

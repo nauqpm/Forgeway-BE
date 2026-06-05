@@ -4,7 +4,7 @@ import { DashboardController } from './controllers/dashboard.controller';
 import { DashboardService } from './services/dashboard.service';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
-import { Sprint, SprintSchema } from '../sprints/schemas/sprint.schema';
+import { Sprint, SprintSchema } from '../scrum/schemas/sprint.schema';
 import { Page, PageSchema } from '../pages/schemas/page.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';

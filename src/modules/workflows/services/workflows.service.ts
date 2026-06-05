@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workflow, WorkflowDocument } from '../schemas/workflow.schema';
@@ -6,15 +12,19 @@ import { CreateWorkflowDto, WorkflowTransitionDto } from '../dtos/create-workflo
 import { UpdateWorkflowDto } from '../dtos/update-workflow.dto';
 
 @Injectable()
-export class WorkflowsService {
+export class WorkflowsService implements OnModuleInit {
   private readonly logger = new Logger(WorkflowsService.name);
 
   constructor(
     @InjectModel(Workflow.name) private readonly workflowModel: Model<WorkflowDocument>,
   ) {}
 
+  async onModuleInit(): Promise<void> {
+    await this.dropLegacyProjectIndex();
+  }
+
   async create(dto: CreateWorkflowDto & { workspaceId: string }): Promise<WorkflowDocument> {
-    const existingWorkflow = await this.workflowModel.findOne({ workspaceId: dto.workspaceId });
+    const existingWorkflow = await this.findByWorkspace(dto.workspaceId);
     if (existingWorkflow) {
       throw new ConflictException('Workflow already exists for this Workspace');
     }
@@ -123,5 +133,24 @@ export class WorkflowsService {
     const saved = await workflow.save();
     this.logger.log(`Created default workflow ${saved._id} for Workspace ${workspaceId}`);
     return saved;
+  }
+
+  private async dropLegacyProjectIndex(): Promise<void> {
+    try {
+      const collection = this.workflowModel.collection;
+      const indexExists = await collection.indexExists('projectId_1');
+
+      if (indexExists) {
+        await collection.dropIndex('projectId_1');
+        this.logger.warn(
+          'Dropped legacy workflows.projectId_1 index; workflows now use workspaceId',
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        'Could not drop legacy workflows.projectId_1 index automatically',
+        error,
+      );
+    }
   }
 }

@@ -1,5 +1,10 @@
 // users.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
@@ -9,13 +14,16 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) { }
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   // 📢 Lấy thông tin người dùng theo ID
   async getUserById(id: string): Promise<User> {
-    console.log('🔍 ID được truyền vào:', id);
+    this.logger.debug(`Đang tìm người dùng với ID: ${id}`);
     const user = await this.usersRepository.findById(id);
     if (!user) {
+      this.logger.warn(`Không tìm thấy người dùng với ID: ${id}`);
       throw new NotFoundException('User not found');
     }
     return user;
@@ -28,28 +36,84 @@ export class UsersService {
 
   // 📢 Tạo người dùng mới
   async createUser(userData: CreateUsersDto): Promise<User> {
+    this.logger.log(`Đang tạo người dùng mới với email: ${userData.email}`);
     // Hash mật khẩu nếu có
     if (userData.password) {
       const salt = await bcrypt.genSalt();
       userData.password = await bcrypt.hash(userData.password, salt);
     }
 
-    return await this.usersRepository.create(userData);
+    try {
+      const user = await this.usersRepository.create(userData);
+      this.logger.log(`Đã tạo người dùng thành công: ${user.email}`);
+      return user;
+    } catch (error) {
+      this.logger.error(`Lỗi khi tạo người dùng (${userData.email}):`, error);
+      throw error;
+    }
   }
 
   // 📢 Cập nhật thông tin người dùng
-  async updateUser(userId: string, updateData: UpdateUsersDto | { $unset: Record<string, unknown> }, isPasswordHashed: boolean = false): Promise<User> {
-    // Only hash password if updateData is UpdateUsersDto and has password field
-    if ('password' in updateData && !isPasswordHashed) {
-      const salt = await bcrypt.genSalt();
-      (updateData as UpdateUsersDto).password = await bcrypt.hash((updateData as UpdateUsersDto).password!, salt);
+  async updateUser(
+    userId: string,
+    updateData: UpdateUsersDto | { $unset: Record<string, unknown> },
+    isPasswordHashed = false,
+  ): Promise<User> {
+    this.logger.log(`Cập nhật thông tin cho User ID: ${userId}`);
+
+    if (this.isPasswordUpdate(updateData) && !isPasswordHashed) {
+      await this.handlePasswordUpdate(userId, updateData);
     }
 
     const updatedUser = await this.usersRepository.update(userId, updateData);
+
     if (!updatedUser) {
-      throw new NotFoundException('User not found');
+      this.logger.warn(`Không tìm thấy User ID: ${userId}`);
+      throw new NotFoundException('Không tìm thấy người dùng');
     }
+
     return updatedUser;
+  }
+
+  private isPasswordUpdate(
+    data: UpdateUsersDto | { $unset: Record<string, unknown> },
+  ): data is UpdateUsersDto {
+    return 'password' in data && !!data.password;
+  }
+
+  private async handlePasswordUpdate(
+    userId: string,
+    updateData: UpdateUsersDto,
+  ): Promise<void> {
+    this.logger.log(`Cập nhật mật khẩu cho User ID: ${userId}`);
+    this.logger.log(updateData, 'Update data');
+
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    if (!updateData.currentPassword) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    // THAY VÌ LÀM NHƯ SAU THÌ RESET PASSWORK
+    // OAuth account chưa có password
+    // if (!user.password) {
+    //   return;
+    // }
+
+    const isMatch = await bcrypt.compare(
+      updateData.currentPassword,
+      user.password,
+    );
+
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    updateData.password = await bcrypt.hash(updateData.password!, 10);
   }
 
   // 📢 Lấy danh sách tất cả người dùng
@@ -57,7 +121,10 @@ export class UsersService {
     return await this.usersRepository.findAll();
   }
 
-  async getUsersPage(page: number, limit: number): Promise<{
+  async getUsersPage(
+    page: number,
+    limit: number,
+  ): Promise<{
     data: SanitizedUserRecord[];
     pagination: {
       page: number;
@@ -67,8 +134,13 @@ export class UsersService {
     };
   }> {
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-    const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.floor(limit))) : 20;
-    const { users, total } = await this.usersRepository.findAllPaginated(safePage, safeLimit);
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(100, Math.max(1, Math.floor(limit)))
+      : 20;
+    const { users, total } = await this.usersRepository.findAllPaginated(
+      safePage,
+      safeLimit,
+    );
 
     return {
       data: users,
@@ -88,6 +160,36 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return { message: 'User deleted successfully' };
+  }
+
+  // 🔑 Super admin: Cập nhật role của user
+  async updateUserRole(userId: string, role: string): Promise<User> {
+    this.logger.log(`Cập nhật role cho User ID: ${userId} thành ${role}`);
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const updated = await this.usersRepository.update(userId, { role });
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    this.logger.log(`Đã cập nhật role của user ${userId} thành ${role}`);
+    return updated;
+  }
+
+  // 🔑 Super admin: Cập nhật status của user
+  async updateUserStatus(userId: string, status: string): Promise<User> {
+    this.logger.log(`Cập nhật status cho User ID: ${userId} thành ${status}`);
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const updated = await this.usersRepository.update(userId, { status });
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    this.logger.log(`Đã cập nhật status của user ${userId} thành ${status}`);
+    return updated;
   }
 
   /**

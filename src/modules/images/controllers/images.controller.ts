@@ -14,12 +14,14 @@ import {
   Request,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { diskStorage, memoryStorage } from 'multer';
+import { extname, join } from 'path';
+import * as fs from 'fs';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
+import { CloudinaryService } from '../services/cloudinary.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { CreateImageDto } from '../dtos/create-image.dto';
+import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
 
 const imageFileFilter = (req: any, file: Express.Multer.File, callback: Function) => {
   if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
@@ -29,7 +31,24 @@ const imageFileFilter = (req: any, file: Express.Multer.File, callback: Function
 };
 
 const storage = diskStorage({
-  destination: './uploads',
+  destination: (req: any, file, cb) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    
+    // Lấy module type từ body hoặc query hoặc mặc định là 'others'
+    const moduleType = req.body?.type || req.query?.type || req.body?.targetType || req.query?.targetType || 'others';
+    
+    const uploadPath = join('uploads', moduleType, String(year), month, day);
+    
+    // Tạo folder nếu chưa tồn tại
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = extname(file.originalname);
@@ -42,7 +61,10 @@ const storage = diskStorage({
 @ApiTags('Images')
 @Controller('imagesapi')
 export class ImagesController {
-  constructor(private readonly imagesService: ImagesService) {}
+  constructor(
+    private readonly imagesService: ImagesService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Post('upload')
   @UseGuards(JwtAuthGuard)
@@ -53,24 +75,102 @@ export class ImagesController {
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload single image' })
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Upload single image (Local Storage with Date Structure)' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid file or no file provided' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Image file to upload (jpg, jpeg, png, gif, webp)',
+        },
+        type: {
+          type: 'string',
+          enum: ['post', 'property', 'task', 'other', 'avatar'],
+          description: 'Module type for folder classification',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Image uploaded successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Image uploaded successfully',
+        data: { _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task', targetId: '...' },
+      },
+    },
+  })
   async uploadSingle(
     @UploadedFile() file: Express.Multer.File,
-    @Body() dto: CreateImageDto,
+    @Body() body: CreateImageDto,
+    @Query() query: any,
     @Request() req: any,
   ) {
     const userId = req.user.userId;
+    // Merge body and query to handle cases where UI sends type in URL
+    const dto: CreateImageDto = { ...body, ...query };
     const image = await this.imagesService.create(dto, file, userId);
     return {
       success: true,
-      message: 'Image uploaded successfully',
+      message: image.url.includes('cloudinary') 
+        ? 'Avatar uploaded to Cloudinary successfully' 
+        : 'Image uploaded successfully',
       data: image,
     };
   }
+
+  @Post('upload/avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: imageFileFilter,
+    }),
+  )
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Upload avatar to Cloudinary' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Avatar image file (jpg, jpeg, png, gif, webp)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Avatar uploaded successfully',
+  })
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+    const userId = req.user.userId;
+
+    // The service now handles Cloudinary upload automatically if type is AVATAR
+    const image = await this.imagesService.create(
+      { type: ImageType.AVATAR, targetId: userId },
+      file,
+      userId,
+    );
+
+    return {
+      success: true,
+      message: 'Avatar uploaded to Cloudinary successfully',
+      url: image.url,
+      data: image,
+    };
+  }
+
 
   @Post('upload/multiple')
   @UseGuards(JwtAuthGuard)
@@ -81,18 +181,43 @@ export class ImagesController {
       fileFilter: imageFileFilter,
     }),
   )
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload multiple images (max 10)' })
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Upload multiple images at once (max 10)' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Images uploaded successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid files or no files provided' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'List of image files to upload',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Multiple images uploaded successfully',
+    schema: {
+      example: {
+        success: true,
+        message: '3 images uploaded successfully',
+        data: [{ _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg' }],
+      },
+    },
+  })
   async uploadMultiple(
     @UploadedFiles() files: Express.Multer.File[],
-    @Body() dto: CreateImageDto,
+    @Body() body: CreateImageDto,
+    @Query() query: any,
     @Request() req: any,
   ) {
     const userId = req.user.userId;
-    const images = await this.imagesService.createMultiple(files as any, files, userId);
+    const dto: CreateImageDto = { ...body, ...query };
+    // Pass the same dto for all files if only one dto is provided in body
+    const dtos = files.map(() => dto);
+    const images = await this.imagesService.createMultiple(dtos, files, userId);
     return {
       success: true,
       message: `${images.length} images uploaded successfully`,
@@ -101,8 +226,18 @@ export class ImagesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all images with filters' })
-  @ApiResponse({ status: 200, description: 'List of images' })
+  @ApiOperation({ summary: 'Get list of images by filter' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of images',
+    schema: {
+      example: {
+        success: true,
+        data: [{ _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task' }],
+        pagination: { page: 1, limit: 20, total: 50 },
+      },
+    },
+  })
   async findAll(
     @Query('targetType') targetType?: string,
     @Query('targetId') targetId?: string,
@@ -124,9 +259,17 @@ export class ImagesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get image by ID' })
-  @ApiResponse({ status: 200, description: 'Image details' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
+  @ApiOperation({ summary: 'Get image info by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Image info',
+    schema: {
+      example: {
+        success: true,
+        data: { _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task', downloadCount: 5 },
+      },
+    },
+  })
   async findById(@Param('id') id: string) {
     const image = await this.imagesService.findById(id);
     return {
@@ -137,10 +280,18 @@ export class ImagesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Delete image by ID' })
-  @ApiResponse({ status: 200, description: 'Image deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Image deleted successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Image deleted successfully',
+      },
+    },
+  })
   async delete(@Param('id') id: string) {
     const result = await this.imagesService.delete(id);
     return {
@@ -150,9 +301,17 @@ export class ImagesController {
   }
 
   @Put(':id/view')
-  @ApiOperation({ summary: 'Increment image download/view count' })
-  @ApiResponse({ status: 200, description: 'Count incremented' })
-  @ApiResponse({ status: 404, description: 'Image not found' })
+  @ApiOperation({ summary: 'Increment image view/download count' })
+  @ApiResponse({
+    status: 200,
+    description: 'Download count incremented',
+    schema: {
+      example: {
+        success: true,
+        data: { id: '...', downloadCount: 6 },
+      },
+    },
+  })
   async incrementDownloadCount(@Param('id') id: string) {
     const image = await this.imagesService.incrementDownloadCount(id);
     return {

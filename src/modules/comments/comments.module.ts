@@ -1,18 +1,30 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Comment, CommentSchema } from './schemas/comment.schema';
-import { CommentsController } from './controllers/comments.controller';
-import { CommentsService } from './services/comments.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { TaskActivitiesModule } from '../task-activities/task-activities.module';
+import { Task, TaskSchema } from '../tasks/schemas/task.schema';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { CommentsController } from './controllers/comments.controller';
+import { TaskCommentController } from './controllers/task-comment.controller';
+import { CommentMapper } from './mappers/comment.mapper';
+import { Comment, CommentSchema } from './schemas/comment.schema';
+import { CommentService } from './services/comment.service';
+import { TaskCommentService } from './services/task-comment.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Comment.name, schema: CommentSchema }]),
+    MongooseModule.forFeature([
+      { name: Comment.name, schema: CommentSchema },
+      { name: Task.name, schema: TaskSchema },
+    ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => WorkspacesModule),
+    forwardRef(() => TaskActivitiesModule),
+    forwardRef(() => NotificationsModule),
   ],
-  controllers: [CommentsController],
-  providers: [CommentsService, JwtAuthGuard],
-  exports: [CommentsService, JwtAuthGuard],
+  controllers: [CommentsController, TaskCommentController],
+  providers: [CommentService, TaskCommentService, CommentMapper],
+  exports: [CommentService, TaskCommentService],
 })
 export class CommentsModule {}

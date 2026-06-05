@@ -1,22 +1,55 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WorkspacesController } from './controllers/workspaces.controller';
+import { ForYouController } from './controllers/for-you.controller';
 import { WorkspacesService } from './services/workspaces.service';
+import { ForYouService } from './services/for-you.service';
 import { WorkspacesRepository } from './repositories/workspaces.repository';
 import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
+import { UsersModule } from '../users/users.module';
+import { KanbanModule } from '../kanban/kanban.module';
+import { ScrumModule } from '../scrum/scrum.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { Invite, InviteSchema } from './schemas/invite.schema';
+import { InviteRepository } from './repositories/invite.repository';
+import { InviteService } from './services/invite.service';
+import { WorkspaceKeyService } from './services/workspace-key.service';
+import { WorkspaceMemberService } from './services/workspace-member.service';
+import { InviteController } from './controllers/invite.controller';
+import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
+import { Task, TaskSchema } from '../tasks/schemas/task.schema';
+import { DocumentEntity, DocumentSchema } from '../documents/schemas/document.schema';
+import { Page, PageSchema } from '../pages/schemas/page.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Workspace.name, schema: WorkspaceSchema },
+      { name: Invite.name, schema: InviteSchema },
+      { name: Task.name, schema: TaskSchema },
+      { name: Page.name, schema: PageSchema },
+      { name: DocumentEntity.name, schema: DocumentSchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkflowsModule),
+    forwardRef(() => UsersModule),
+    forwardRef(() => KanbanModule),
+    forwardRef(() => ScrumModule),
+    forwardRef(() => NotificationsModule),
   ],
-  controllers: [WorkspacesController],
-  providers: [WorkspacesService, WorkspacesRepository],
-  exports: [WorkspacesService],
+  controllers: [WorkspacesController, ForYouController, InviteController],
+  providers: [
+    WorkspacesRepository,
+    WorkspacesService,
+    WorkspaceKeyService,
+    WorkspaceMemberService,
+    ForYouService,
+    InviteRepository,
+    InviteService,
+    WorkspaceRoleGuard,
+  ],
+  exports: [WorkspacesService, WorkspaceMemberService, ForYouService, InviteService],
 })
-export class WorkspacesModule {}
+export class WorkspacesModule { }

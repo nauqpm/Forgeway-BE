@@ -47,6 +47,30 @@ export class OtpService {
     }
   }
 
+  async consumeVerifiedOtp(email: string, otpPlaintext: string): Promise<OtpDocument> {
+    const otpRecord = await this.getLatestActiveOtp(email);
+    const isValid = otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
+    if (!isValid) {
+      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+    }
+
+    const consumed = await this.otpModel.findOneAndUpdate(
+      {
+        _id: otpRecord._id,
+        isUsed: false,
+        expiresAt: { $gt: new Date() },
+      },
+      { $set: { isUsed: true } },
+      { new: false },
+    );
+
+    if (!consumed) {
+      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+    }
+
+    return consumed;
+  }
+
   async markUsed(otpId: string): Promise<void> {
     await this.otpModel.updateOne({ _id: otpId }, { isUsed: true });
   }

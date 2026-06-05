@@ -2,6 +2,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 
 export type UserDocument = User & Document;
 
@@ -22,8 +23,12 @@ export class User {
   @Prop({ type: Types.ObjectId, ref: 'Role' })
   roleId?: Types.ObjectId; // 👈 ID của vai trò tùy chỉnh
 
-  @Prop({ default: 'active' })
-  status!: string; // Trạng thái người dùng: 'active', 'offline', 'banned'
+  @Prop({
+    type: String,
+    enum: Object.values(USER_STATUSES),
+    default: USER_STATUSES.PENDING_VERIFICATION,
+  })
+  status!: string;
 
   @Prop()
   fullName?: string; // Tên đầy đủ (tùy chọn)
@@ -59,7 +64,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // ✅ Tự động ánh xạ _id thành id trong phản hồi JSON
 UserSchema.set('toJSON', {
   virtuals: true,
-  transform: (_, ret) => {
+  transform: (_, ret: any) => {
     ret.id = ret._id.toString();
     delete ret._id;
     delete ret.__v;

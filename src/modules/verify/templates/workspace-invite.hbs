@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workspace Invitation</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f5f7; margin: 0; padding: 20px; }
+    .container { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .title { font-size: 22px; font-weight: bold; color: #172b4d; margin-bottom: 16px; }
+    .body { color: #42526e; line-height: 1.6; margin-bottom: 24px; }
+    .badge { display: inline-block; background: #e3fcef; color: #006644; padding: 3px 10px; border-radius: 4px; font-size: 13px; font-weight: bold; }
+    .btn { display: inline-block; background: #0052cc; color: #fff !important; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 15px; }
+    .expire { font-size: 12px; color: #97a0af; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Workspace Invitation</div>
+    <div class="body">
+      You have been invited to join the workspace <strong>{{workspaceName}}</strong>
+      as <span class="badge">{{role}}</span>.<br><br>
+      Click the button below to accept the invitation. You need to sign in
+      (or create an account if you don’t have one yet) to continue.
+    </div>
+    <a href="{{acceptUrl}}" class="btn">Accept Invitation</a>
+    <div class="expire">
+      If you do not wish to join, you can safely ignore this email.
+    </div>
+  </div>
+</body>
+</html>

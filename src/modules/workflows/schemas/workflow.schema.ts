@@ -15,7 +15,7 @@ export class WorkflowStatus {
   color!: string;
 
   @Prop({ type: String, enum: ['todo', 'inprogress', 'done'], default: 'todo' })
-  nategory!: string;
+  category!: string;
 }
 
 @Schema()

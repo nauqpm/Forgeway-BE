@@ -30,7 +30,7 @@ export class Token {
 
   @Prop({
     type: String,
-    enum: ['access', 'refresh', 'password-reset'],
+    enum: ['access', 'refresh', 'password-reset-grant'],
     default: 'access',
   })
   type!: TokenType;

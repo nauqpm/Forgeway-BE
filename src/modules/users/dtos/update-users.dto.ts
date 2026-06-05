@@ -1,104 +1,112 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsMongoId } from 'class-validator';
-import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsEnum,
+  IsUrl,
+  Matches,
+  IsMongoId,
+  IsDateString,
+  Length,
+  MaxLength,
+} from 'class-validator';
+
 import { Types } from 'mongoose';
 
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
+import { OmitType } from '@nestjs/swagger';
 
-// 📄 DTO cho cập nhật thông tin người dùng
 export class UpdateUsersDto {
   @IsOptional()
   @IsString()
+  @Length(5, 100)
   googleId?: string;
 
   @IsOptional()
   @IsString()
+  @Length(2, 100)
   fullName?: string;
 
   @IsOptional()
-  @IsEmail()
+  @IsEmail({}, { message: 'Invalid email address' })
+  @MaxLength(255)
   email?: string;
 
   @IsOptional()
   @IsString()
-  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
+  @Length(8, 100)
+  @Matches(PASSWORD_POLICY.pattern, {
+    message: PASSWORD_POLICY.message,
+  })
   password?: string;
 
   @IsOptional()
-  @IsString()
   @IsEnum(Object.values(GLOBAL_ROLES), {
-    message: 'Role không hợp lệ',
+    message: 'Invalid role',
   })
   role?: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsMongoId({
+    message: 'roleId must be a valid MongoId',
+  })
   roleId?: Types.ObjectId;
 
   @IsOptional()
-  @IsString()
-  @IsEnum(['active', 'inactive', 'banned'], {
-    message: 'Trạng thái không hợp lệ',
+  @IsEnum(Object.values(USER_STATUSES), {
+    message: 'Invalid status',
   })
   status?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^(\+?[1-9]\d{7,14}|0\d{9,10})$/, {
+    message: 'Invalid phone number',
+  })
   phone?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   address?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString(
+    {},
+    {
+      message: 'Invalid date of birth',
+    },
+  )
   birthday?: string;
 
   @IsOptional()
-  @IsString()
   @IsEnum(['male', 'female', 'other'], {
-    message: 'Giới tính không hợp lệ',
+    message: 'Invalid gender',
   })
-  gender?: string;
+  gender?: 'male' | 'female' | 'other';
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl(
+    {
+      protocols: ['http', 'https'],
+      require_protocol: true,
+      require_tld: false, // Allow localhost
+    },
+    {
+      message: 'Avatar must be a valid URL',
+    },
+  )
   avatar?: string;
+
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
 }
 
-export class UpdateUserProfileDto {
-  @IsOptional()
-  @IsString()
-  fullName?: string;
-
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
-  password?: string;
-
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsOptional()
-  @IsString()
-  birthday?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsEnum(['male', 'female', 'other'], {
-    message: 'Giá»›i tÃ­nh khÃ´ng há»£p lá»‡',
-  })
-  gender?: string;
-
-  @IsOptional()
-  @IsUrl()
-  avatar?: string;
-}
+export class UpdateUserProfileDto extends OmitType(UpdateUsersDto, [
+  'googleId',
+  'role',
+  'roleId',
+  'status',
+] as const) {}

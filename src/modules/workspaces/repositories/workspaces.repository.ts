@@ -22,14 +22,29 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
-    return this.workspaceModel.findById(id).exec();
+    return this.workspaceModel.findOne({ _id: id, deletedAt: null }).exec();
+  }
+
+  async findByIdWithMembers(id: string): Promise<any | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    return this.workspaceModel
+      .findOne({ _id: id, deletedAt: null })
+      .populate('members.userId', 'fullName email avatar')
+      .lean()
+      .exec();
   }
 
   async findBySlug(slug: string): Promise<WorkspaceDocument | null> {
+    return this.workspaceModel.findOne({ slug, deletedAt: null }).exec();
+  }
+
+  async findAnyBySlug(slug: string): Promise<WorkspaceDocument | null> {
     return this.workspaceModel.findOne({ slug }).exec();
   }
 
-  async findByKey(key: string): Promise<WorkspaceDocument | null> {
+  async findAnyByKey(key: string): Promise<WorkspaceDocument | null> {
     return this.workspaceModel.findOne({ key }).exec();
   }
 
@@ -37,13 +52,47 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
     }
+    const objectUserId = new Types.ObjectId(userId);
     return this.workspaceModel
-      .find({ 'members.userId': new Types.ObjectId(userId) })
+      .find({
+        deletedAt: null,
+        $or: [
+          { ownerId: objectUserId },
+          { 'members.userId': objectUserId },
+        ],
+      })
+      .exec();
+  }
+
+  async findActiveForUserOverview(userId: string): Promise<WorkspaceDocument[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
+    const objectUserId = new Types.ObjectId(userId);
+    return this.workspaceModel
+      .find({
+        status: 'active',
+        deletedAt: null,
+        $or: [
+          { ownerId: objectUserId },
+          { 'members.userId': objectUserId },
+        ],
+      })
+      .select('_id name description slug key type ownerId members status createdAt updatedAt')
+      .sort({ updatedAt: -1 })
       .exec();
   }
 
   async findAll(): Promise<WorkspaceDocument[]> {
-    return this.workspaceModel.find().exec();
+    return this.workspaceModel.find({ deletedAt: null }).exec();
+  }
+
+  async findAllWithDeleted(): Promise<WorkspaceDocument[]> {
+    return this.workspaceModel
+      .find({})
+      .populate('ownerId', 'fullName email avatar')
+      .populate('members.userId', 'fullName email avatar')
+      .exec();
   }
 
   async update(
@@ -62,8 +111,19 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(id)) {
       return false;
     }
-    const result = await this.workspaceModel.findByIdAndDelete(id).exec();
+    const result = await this.workspaceModel
+      .findByIdAndUpdate(id, { deletedAt: new Date() }, { new: true })
+      .exec();
     return !!result;
+  }
+
+  async restore(id: string): Promise<WorkspaceDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+    return this.workspaceModel
+      .findByIdAndUpdate(id, { deletedAt: null }, { new: true })
+      .exec();
   }
 
   async addMember(

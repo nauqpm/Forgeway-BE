@@ -4,7 +4,6 @@ const REQUIRED_ENV_VARS = [
   'DB_CONNECTION_STRING',
   'JWT_SECRET',
   'REFRESH_TOKEN_SECRET',
-  'PASSWORD_RESET_SECRET',
 ] as const;
 
 const MIN_SECRET_LENGTH = 32;
@@ -17,7 +16,7 @@ function requireValue(config: Env, key: (typeof REQUIRED_ENV_VARS)[number]): str
   return value;
 }
 
-function requireStrongSecret(config: Env, key: 'JWT_SECRET' | 'REFRESH_TOKEN_SECRET' | 'PASSWORD_RESET_SECRET'): void {
+function requireStrongSecret(config: Env, key: 'JWT_SECRET' | 'REFRESH_TOKEN_SECRET'): void {
   const value = requireValue(config, key);
   if (value.length < MIN_SECRET_LENGTH) {
     throw new Error(`${key} must be at least ${MIN_SECRET_LENGTH} characters long`);
@@ -31,7 +30,6 @@ export function validateEnv(config: Env): Env {
 
   requireStrongSecret(config, 'JWT_SECRET');
   requireStrongSecret(config, 'REFRESH_TOKEN_SECRET');
-  requireStrongSecret(config, 'PASSWORD_RESET_SECRET');
 
   return config;
 }

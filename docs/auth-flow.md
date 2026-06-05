@@ -197,8 +197,6 @@ Endpoints:
 ```http
 POST /auth/request-password-reset
 POST /auth/verify-otp
-POST /auth/reset-password/token
-POST /auth/reset-password/otp
 ```
 
 DTO password reset da co validation:

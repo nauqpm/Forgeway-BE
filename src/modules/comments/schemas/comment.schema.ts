@@ -5,7 +5,10 @@ export type CommentDocument = Comment & Document;
 
 @Schema({ timestamps: true })
 export class Comment {
-  @Prop({ required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Workspace' })
+  workspaceId?: Types.ObjectId;
+
+  @Prop({ required: true, trim: true, maxlength: 5000 })
   content!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -23,12 +26,26 @@ export class Comment {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   mentions!: Types.ObjectId[];
 
+  @Prop({ type: Boolean, default: false, index: true })
+  isDeleted!: boolean;
+
+  @Prop({ type: Date })
+  deletedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  deletedBy?: Types.ObjectId;
+
+  @Prop({ type: Date })
+  editedAt?: Date;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);
-CommentSchema.index({ targetType: 1, targetId: 1 });
+CommentSchema.index({ targetType: 1, targetId: 1, isDeleted: 1, createdAt: 1 });
+CommentSchema.index({ workspaceId: 1, targetType: 1, targetId: 1, isDeleted: 1, createdAt: 1 });
+CommentSchema.index({ workspaceId: 1, targetType: 1, targetId: 1, parentId: 1 });
 CommentSchema.index({ parentId: 1 });
 CommentSchema.index({ authorId: 1 });

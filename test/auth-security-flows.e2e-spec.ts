@@ -8,16 +8,21 @@ import { Types } from 'mongoose';
 import request = require('supertest');
 
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
+import { USER_STATUSES } from '../src/common/constants/user-status.constants';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { Otp, OtpDocument } from '../src/modules/auth/schemas/otp.schema';
 import { Token, TokenDocument } from '../src/modules/auth/schemas/token.schema';
-import { AuditLogService } from '../src/modules/auth/services/audit-log.service';
+import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
+import { InviteService } from '../src/modules/workspaces/services/invite.service';
 import { OtpService } from '../src/modules/auth/services/otp.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
 import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
 import { UsersService } from '../src/modules/users/services/users.service';
+import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
+import { PasswordService } from '../src/modules/auth/services/password.service';
+import { VerifyService } from '../src/modules/verify/services/verify.service';
 
 type TokenRecord = {
   _id: Types.ObjectId;
@@ -164,6 +169,24 @@ class InMemoryOtpModel {
       Object.assign(record, update);
     }
   }
+
+  async findOneAndUpdate(
+    query: { _id: Types.ObjectId; isUsed: boolean; expiresAt: { $gt: Date } },
+    update: { $set: Partial<OtpRecord> },
+  ): Promise<OtpRecord | null> {
+    const record = this.records.find(
+      (item) =>
+        String(item._id) === String(query._id) &&
+        item.isUsed === query.isUsed &&
+        item.expiresAt > query.expiresAt.$gt,
+    );
+    if (!record) {
+      return null;
+    }
+    const before = { ...record };
+    Object.assign(record, update.$set);
+    return before;
+  }
 }
 
 describe('Auth security flows (integration)', () => {
@@ -230,18 +253,6 @@ describe('Auth security flows (integration)', () => {
     expect(familyRecords.every((record) => record.status === false)).toBe(true);
   });
 
-  it('consumes a password reset token exactly once', async () => {
-    const rawToken = 'reset-token';
-    await tokenService.createPasswordResetTokenRecord(userId, 'user@example.com', rawToken);
-
-    const [first, second] = await Promise.all([
-      tokenService.consumePasswordResetToken(rawToken),
-      tokenService.consumePasswordResetToken(rawToken),
-    ]);
-
-    expect([first, second].filter(Boolean)).toHaveLength(1);
-  });
-
   it('accepts only active OTPs and excludes them after consume or expiry', async () => {
     const otpModel = new InMemoryOtpModel();
     const otpService = new OtpService(otpModel as unknown as never);
@@ -256,6 +267,223 @@ describe('Auth security flows (integration)', () => {
 
     await otpService.createOtp('expired@example.com', '654321', -1);
     await expect(otpService.verifyOtp('expired@example.com', '654321')).rejects.toThrow();
+  });
+
+  it('consumes OTP during verification and issues a one-time reset grant', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const usersService = {
+      findByEmail: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        password: hashedPassword,
+      }),
+      updatePassword: jest.fn().mockResolvedValue({ success: true }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      {} as VerifyService,
+    );
+
+    await otpService.createOtp('user@example.com', '123456', 60_000);
+    const grant = await passwordResetService.verifyOtpAndIssueGrant({
+      email: 'user@example.com',
+      otp: '123456',
+    });
+
+    expect(grant.resetGrant).toBeDefined();
+    expect(await otpService.getLatestActiveOtp('user@example.com')).toBeNull();
+    await expect(
+      passwordResetService.verifyOtpAndIssueGrant({
+        email: 'user@example.com',
+        otp: '123456',
+      }),
+    ).rejects.toThrow();
+
+    await passwordResetService.resetPasswordWithGrant({
+      resetGrant: grant.resetGrant,
+      newPassword: 'NewPassword1!',
+    });
+    await expect(
+      passwordResetService.resetPasswordWithGrant({
+        resetGrant: grant.resetGrant,
+        newPassword: 'AnotherPassword1!',
+      }),
+    ).rejects.toThrow();
+    expect(usersService.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects invalid and expired reset grants', async () => {
+    await expect(tokenService.consumeResetGrant('invalid-grant')).rejects.toThrow();
+
+    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+    const record = tokenModel.records.find(
+      (item) => item.token === tokenService.hashToken(resetGrant),
+    );
+    if (!record) {
+      throw new Error('Expected reset grant record');
+    }
+    record.expiresAt = new Date(Date.now() - 1000);
+
+    await expect(tokenService.consumeResetGrant(resetGrant)).rejects.toThrow();
+  });
+
+  it('invalidates existing sessions after successful grant reset', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const usersService = {
+      findByEmail: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        password: hashedPassword,
+      }),
+      updatePassword: jest.fn().mockResolvedValue({ success: true }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      {} as VerifyService,
+    );
+
+    await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
+    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+
+    await passwordResetService.resetPasswordWithGrant({
+      resetGrant,
+      newPassword: 'NewPassword1!',
+    });
+
+    expect(tokenModel.records.every((record) => record.status === false)).toBe(true);
+  });
+
+  it('does not consume reset grant when new password matches current password', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const usersService = {
+      findByEmail: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        password: hashedPassword,
+      }),
+      updatePassword: jest.fn().mockResolvedValue({ success: true }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      {} as VerifyService,
+    );
+
+    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+
+    await expect(
+      passwordResetService.resetPasswordWithGrant({
+        resetGrant,
+        newPassword: 'OldPassword1!',
+      }),
+    ).rejects.toThrow();
+
+    const grantRecord = tokenModel.records.find(
+      (record) => record.token === tokenService.hashToken(resetGrant),
+    );
+    expect(grantRecord?.status).toBe(true);
+    expect(usersService.updatePassword).not.toHaveBeenCalled();
+
+    await passwordResetService.resetPasswordWithGrant({
+      resetGrant,
+      newPassword: 'NewPassword1!',
+    });
+
+    expect(grantRecord?.status).toBe(false);
+    expect(usersService.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves generic password reset responses to avoid user enumeration', async () => {
+    const otpModel = new InMemoryOtpModel();
+    const otpService = new OtpService(otpModel as unknown as never);
+    const verifyService = {
+      sendPasswordResetEmail: jest.fn(),
+    } as unknown as VerifyService;
+    const usersService = {
+      findByEmail: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          _id: { toString: () => userId },
+          email: 'user@example.com',
+        }),
+    } as unknown as UsersService;
+    const passwordResetService = new PasswordResetService(
+      usersService,
+      tokenService,
+      otpService,
+      new PasswordService(),
+      verifyService,
+    );
+
+    const unknown = await passwordResetService.requestPasswordReset({
+      email: 'unknown@example.com',
+    });
+    const known = await passwordResetService.requestPasswordReset({
+      email: 'user@example.com',
+    });
+
+    expect(known).toEqual(unknown);
+    expect(verifyService.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates registrations as pending verification and activates them after email verification', async () => {
+    const createdUser = {
+      _id: { toString: () => userId },
+      email: 'new-user@example.com',
+      role: GLOBAL_ROLES.USER,
+      status: USER_STATUSES.PENDING_VERIFICATION,
+    };
+    const usersService = {
+      findByEmail: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(createdUser),
+      createUser: jest.fn().mockResolvedValue(createdUser),
+      updateUser: jest.fn().mockResolvedValue({ ...createdUser, status: USER_STATUSES.ACTIVE }),
+    } as unknown as UsersService;
+    const verifyService = {
+      sendVerificationEmail: jest.fn(),
+      verifyCode: jest.fn(),
+    } as unknown as VerifyService;
+    const authenticationService = new AuthenticationService(
+      usersService,
+      new PasswordService(),
+      tokenService,
+      verifyService,
+      {
+        processPostRegisterInvites: jest.fn().mockResolvedValue(undefined),
+      } as unknown as InviteService,
+    );
+
+    await authenticationService.register({
+      email: 'new-user@example.com',
+      password: 'StrongPassword1!',
+    });
+    await authenticationService.verifyRegistrationEmail('new-user@example.com', '123456');
+
+    expect(usersService.createUser).toHaveBeenCalledWith({
+      email: 'new-user@example.com',
+      password: 'StrongPassword1!',
+      role: GLOBAL_ROLES.USER,
+      status: USER_STATUSES.PENDING_VERIFICATION,
+    });
+    expect(verifyService.sendVerificationEmail).toHaveBeenCalledWith('new-user@example.com');
+    expect(usersService.updateUser).toHaveBeenCalledWith(userId, { status: USER_STATUSES.ACTIVE });
   });
 });
 

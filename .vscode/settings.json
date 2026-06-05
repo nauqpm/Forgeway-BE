@@ -1,3 +1,5 @@
 {
-    "js/ts.tsdk.path": "node_modules\\typescript\\lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.encoding": "utf8",
+  "files.autoGuessEncoding": false
 }

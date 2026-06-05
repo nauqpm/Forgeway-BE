@@ -1,96 +1,202 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Notification, NotificationDocument } from '../schemas/notification.schema';
-import { CreateNotificationDto } from '../dtos/create-notification.dto';
+import { Types } from 'mongoose';
+import {
+  NotificationDto,
+  NotificationListDto,
+} from '../dtos/notification.dto';
+import {
+  CommentNotificationInput,
+  CreateNotificationInput,
+  TaskNotificationInput,
+  WorkspaceInviteNotificationInput,
+} from '../interfaces/create-notification-input.interface';
+import { NotificationMapper } from '../mappers/notification.mapper';
+import { NotificationsRepository } from '../repositories/notifications.repository';
+import { NotificationDomainEventPublisher } from './notification-domain-event.publisher';
+import { NotificationFactoryService } from './notification-factory.service';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
-    @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
+    private readonly notificationsRepository: NotificationsRepository,
+    private readonly notificationMapper: NotificationMapper,
+    private readonly notificationFactory: NotificationFactoryService,
+    private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
   ) {}
 
-  async create(dto: CreateNotificationDto): Promise<NotificationDocument> {
-    this.logger.log(`Creating notification for user: ${dto.userId}`);
-    const notification = new this.notificationModel({
-      ...dto,
-      userId: new Types.ObjectId(dto.userId),
-    });
-    return notification.save();
-  }
-
-  async createBulk(userIds: string[], dto: Omit<CreateNotificationDto, 'userId'>): Promise<NotificationDocument[]> {
-    this.logger.log(`Creating bulk notifications for ${userIds.length} users`);
-    const notifications = userIds.map(userId => ({
-      ...dto,
-      userId: new Types.ObjectId(userId),
-    }));
-    return this.notificationModel.insertMany(notifications);
-  }
-
-  async findById(id: string): Promise<NotificationDocument> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException(`Notification with ID ${id} not found`);
+  async create(input: CreateNotificationInput): Promise<NotificationDto | null> {
+    if (!this.isValidRecipient(input.recipientId)) {
+      this.logger.warn(`Skip notification with invalid recipient ${input.recipientId}`);
+      return null;
     }
-    const notification = await this.notificationModel.findById(id).exec();
+
+    const notification = await this.notificationsRepository.create(input);
+    const notificationDto = this.notificationMapper.mapToDto(notification);
+    this.notificationDomainEventPublisher.publishCreated(notificationDto);
+
+    return notificationDto;
+  }
+
+  async createMany(
+    inputs: CreateNotificationInput[],
+  ): Promise<NotificationDto[]> {
+    const validInputs = inputs.filter((input) =>
+      this.isValidRecipient(input.recipientId),
+    );
+    if (!validInputs.length) {
+      return [];
+    }
+
+    const notifications =
+      await this.notificationsRepository.createMany(validInputs);
+    const notificationDtos = notifications.map((notification) =>
+      this.notificationMapper.mapToDto(notification),
+    );
+    this.notificationDomainEventPublisher.publishManyCreated(notificationDtos);
+
+    return notificationDtos;
+  }
+
+  async notifyTaskAssigned(input: TaskNotificationInput): Promise<void> {
+    const recipientIds = this.getRecipients([input.recipientId], input.actorId);
+    if (!recipientIds.length) {
+      return;
+    }
+
+    await this.create(
+      this.notificationFactory.buildTaskAssigned({
+        ...input,
+        recipientId: recipientIds[0],
+      }),
+    );
+  }
+
+  async notifyCommentMentioned(input: CommentNotificationInput): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map((recipientId) =>
+        this.notificationFactory.buildCommentMentioned({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
+  async notifyTaskCommentCreated(
+    input: CommentNotificationInput,
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map((recipientId) =>
+        this.notificationFactory.buildTaskCommentCreated({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
+  async notifyWorkspaceInvited(
+    input: WorkspaceInviteNotificationInput,
+  ): Promise<void> {
+    const recipientIds = this.getRecipients([input.recipientId], input.actorId);
+    if (!recipientIds.length) {
+      return;
+    }
+
+    await this.create(
+      this.notificationFactory.buildWorkspaceInvited({
+        ...input,
+        recipientId: recipientIds[0],
+      }),
+    );
+  }
+
+  async listForUser(
+    userId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<NotificationListDto> {
+    const result = await this.notificationsRepository.findByRecipient(
+      userId,
+      page,
+      limit,
+    );
+
+    return this.notificationMapper.mapToListDto(result);
+  }
+
+  async getUnreadCount(userId: string): Promise<{ count: number }> {
+    const count = await this.notificationsRepository.countUnread(userId);
+    return { count };
+  }
+
+  async markAsRead(
+    userId: string,
+    notificationId: string,
+  ): Promise<NotificationDto> {
+    const notification =
+      await this.notificationsRepository.markAsReadForRecipient(
+        notificationId,
+        userId,
+      );
     if (!notification) {
-      throw new NotFoundException(`Notification with ID ${id} not found`);
+      throw new NotFoundException('Notification not found');
     }
-    return notification;
-  }
 
-  async findByUser(userId: string, page = 1, limit = 20): Promise<{ notifications: NotificationDocument[]; total: number; page: number; limit: number }> {
-    this.logger.log(`Fetching notifications for user: ${userId}, page: ${page}, limit: ${limit}`);
-    
-    const skip = (page - 1) * limit;
-    const query = this.notificationModel.find({ userId: new Types.ObjectId(userId) });
+    const notificationDto = this.notificationMapper.mapToDto(notification);
+    this.notificationDomainEventPublisher.publishRead(notificationDto);
 
-    const [notifications, total] = await Promise.all([
-      query.sort({ isRead: 1, createdAt: -1 }).skip(skip).limit(limit).exec(),
-      this.notificationModel.countDocuments({ userId: new Types.ObjectId(userId) }).exec(),
-    ]);
-
-    return { notifications, total, page, limit };
-  }
-
-  async findUnread(userId: string): Promise<number> {
-    return this.notificationModel.countDocuments({
-      userId: new Types.ObjectId(userId),
-      isRead: false,
-    }).exec();
-  }
-
-  async markAsRead(id: string): Promise<NotificationDocument> {
-    this.logger.log(`Marking notification ${id} as read`);
-    const notification = await this.findById(id);
-    notification.isRead = true;
-    return notification.save();
+    return notificationDto;
   }
 
   async markAllAsRead(userId: string): Promise<{ modifiedCount: number }> {
-    this.logger.log(`Marking all notifications as read for user: ${userId}`);
-    const result = await this.notificationModel.updateMany(
-      { userId: new Types.ObjectId(userId), isRead: false },
-      { $set: { isRead: true } },
-    ).exec();
-    return { modifiedCount: result.modifiedCount };
+    const readAt = new Date();
+    const result = await this.notificationsRepository.markAllAsReadForRecipient(
+      userId,
+      readAt,
+    );
+    this.notificationDomainEventPublisher.publishReadAll(
+      userId,
+      readAt,
+      result.modifiedCount,
+    );
+
+    return result;
   }
 
-  async delete(id: string): Promise<void> {
-    this.logger.log(`Deleting notification: ${id}`);
-    const result = await this.notificationModel.findByIdAndDelete(id).exec();
-    if (!result) {
-      throw new NotFoundException(`Notification with ID ${id} not found`);
+  async findByIdForUser(
+    userId: string,
+    notificationId: string,
+  ): Promise<NotificationDto> {
+    const notification =
+      await this.notificationsRepository.findByIdForRecipient(
+        notificationId,
+        userId,
+      );
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
     }
+
+    return this.notificationMapper.mapToDto(notification);
   }
 
-  async deleteAll(userId: string): Promise<{ deletedCount: number }> {
-    this.logger.log(`Deleting all notifications for user: ${userId}`);
-    const result = await this.notificationModel.deleteMany({
-      userId: new Types.ObjectId(userId),
-    }).exec();
-    return { deletedCount: result.deletedCount };
+  private getRecipients(recipients: string[], actorId?: string): string[] {
+    const actor = actorId?.toString();
+    return Array.from(
+      new Set(
+        recipients
+          .filter((recipientId) => Types.ObjectId.isValid(recipientId))
+          .map((recipientId) => recipientId.toString())
+          .filter((recipientId) => recipientId !== actor),
+      ),
+    );
+  }
+
+  private isValidRecipient(recipientId: string): boolean {
+    return Types.ObjectId.isValid(recipientId);
   }
 }

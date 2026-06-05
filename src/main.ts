@@ -6,35 +6,61 @@ import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import { join } from 'path';
 import mongoose from 'mongoose';
+import { RedisService } from './infra/redis/redis.service';
+import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter';
+
+// 👇 thêm
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
-  console.log('?? �ang kh?i t?o ?ng d?ng NestJS...');
+  console.log('🚀 Đang khởi tạo ứng dụng NestJS...');
 
   try {
-    console.log('? �ang ch? k?t n?i MongoDB ho�n t?t...');
+    console.log('📦 Đang chờ kết nối MongoDB hoàn tất...');
     await mongoose.connection.asPromise();
-    console.log('? K?t n?i MongoDB d� s?n s�ng, kh?i d?ng ?ng d?ng...');
+    console.log('✅ Kết nối MongoDB đã sẵn sàng, khởi động ứng dụng...');
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    const redisService = app.get(RedisService);
+    const websocketAdapter = new RedisSocketIoAdapter(app, redisService);
+    await websocketAdapter.connectToRedis();
+    app.useWebSocketAdapter(websocketAdapter);
 
-    // Trust reverse proxy (Nginx) — cần thiết cho rate limiting theo IP thực
+    // Trust reverse proxy (Nginx)
     app.set('trust proxy', 1);
 
-    //  Hỗ trợ dữ liệu lớn
+    // Hỗ trợ dữ liệu lớn
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-    //  Hỗ trợ Cookie Parser (cho HttpOnly Cookie Auth)
+    // Cookie parser
     app.use(cookieParser());
 
-    //  Bật CORS cho frontend gửi API với credentials
+    // CORS - cho phép nhiều frontend origins
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      'http://localhost:5173',      // Vite dev server (Admin FE)
+      'http://localhost:5174',      // Vite alternative
+      'http://localhost:5175',
+      'http://localhost:3000',      // Next.js/React default
+      'http://localhost:3001',
+    ].filter(Boolean);
+
     app.enableCors({
-      origin: process.env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile, curl, etc.)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+        }
+      },
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      allowedHeaders: 'Content-Type, Authorization',
-      credentials: true, // ✅ Cho phép gửi cookies
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      credentials: true,
     });
 
+    // Validation
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -43,16 +69,50 @@ async function bootstrap() {
       }),
     );
 
-    app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-      prefix: '/uploads',
+    // Static assets
+   app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+    });
+
+    // ======================
+    // Swagger Config
+    // ======================
+    const config = new DocumentBuilder()
+      .setTitle('Your API')
+      .setDescription('API Documentation')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'Authorization',
+          in: 'header',
+        },
+        'access-token',
+      )
+      // Nếu dùng HttpOnly Cookie refresh token
+      .addCookieAuth('refreshToken')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+
+    SwaggerModule.setup('api-docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true, // giữ token khi refresh page
+      },
     });
 
     const PORT = process.env.PORT || 5512;
 
+    // await app.listen(PORT, '0.0.0.0'); // for LAN network deploy
     await app.listen(PORT);
-    console.log(`? Backend dang ch?y t?i: http://localhost:${PORT}`);
+
+    console.log(`🚀 Backend đang chạy tại: http://localhost:${PORT}`);
+
+    console.log(`📄 Swagger docs: http://localhost:${PORT}/api-docs`);
   } catch (error) {
-    console.error('? L?i kh?i d?ng ?ng d?ng:', error);
+    console.error('❌ Lỗi khởi động ứng dụng:', error);
     process.exit(1);
   }
 }

@@ -1,5 +1,6 @@
 import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsNotEmpty } from 'class-validator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
@@ -27,10 +28,10 @@ export class CreateUsersDto {
 
   @IsOptional()
   @IsString()
-  @IsEnum(['active', 'inactive', 'banned'], {
+  @IsEnum(Object.values(USER_STATUSES), {
     message: 'Trạng thái không hợp lệ',
   })
-  status?: string = 'active';
+  status?: string = USER_STATUSES.PENDING_VERIFICATION;
 
   @IsOptional()
   @IsString()

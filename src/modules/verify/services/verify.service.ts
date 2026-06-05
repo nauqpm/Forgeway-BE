@@ -1,26 +1,35 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MailerService } from '@nestjs-modules/mailer';
 import { Verify, VerifyDocument } from '../schemas/verify.schema';
 import { VerifyType } from '../dtos/verify.dto';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class VerifyService {
+  private readonly logger = new Logger(VerifyService.name);
+
   constructor(
     @InjectModel(Verify.name) private verifyModel: Model<VerifyDocument>,
     private readonly mailerService: MailerService,
   ) {}
 
   private generateCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1_000_000).toString();
   }
 
   async generateVerificationCode(email: string): Promise<string> {
     const code = this.generateCode();
+    this.logger.debug(`[DEBUG] Generated Verification Code for ${email}: ${code}`);
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await this.verifyModel.updateMany(
+      { email, type: VerifyType.VERIFICATION, isUsed: false },
+      { isUsed: true },
+    );
 
     await this.verifyModel.create({
       email,
@@ -38,6 +47,7 @@ export class VerifyService {
     code: string,
     type: VerifyType,
   ): Promise<{ valid: boolean; message: string }> {
+    this.logger.log(`Attempting to verify code for ${email} (Type: ${type})`);
     const verification = await this.verifyModel.findOne({
       email,
       code,
@@ -46,17 +56,20 @@ export class VerifyService {
     });
 
     if (!verification) {
+      this.logger.warn(`Verification failed for ${email}: Invalid or expired code`);
       throw new BadRequestException('Invalid or expired verification code');
     }
 
     const now = new Date();
     if (verification.expiresAt < now) {
+      this.logger.warn(`Verification failed for ${email}: Code expired at ${verification.expiresAt}`);
       throw new BadRequestException('Verification code has expired');
     }
 
     verification.isUsed = true;
     await verification.save();
 
+    this.logger.log(`Successfully verified code for ${email}`);
     return {
       valid: true,
       message: 'Verification successful',
@@ -65,21 +78,18 @@ export class VerifyService {
 
   async sendVerificationEmail(email: string): Promise<void> {
     const code = await this.generateVerificationCode(email);
+    this.logger.log(`Sending verification email to ${email}`);
 
     await this.mailerService.sendMail({
       to: email,
       subject: 'Xác thực email - Mã xác minh',
-      // MailerModule.template.dir already points to src/modules/verify/templates
       template: './verification',
       context: { code },
     });
   }
 
-  async sendPasswordResetEmail(
-    email: string,
-    resetToken: string,
-    otp: string,
-  ): Promise<void> {
+  async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
+    this.logger.debug(`[DEBUG] Password Reset OTP for ${email}: ${otp}`);
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
@@ -91,14 +101,13 @@ export class VerifyService {
       expiresAt,
     });
 
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
+    this.logger.log(`Sending password reset email to ${email}`);
 
     await this.mailerService.sendMail({
       to: email,
       subject: 'Đặt lại mật khẩu - OTP',
-      // MailerModule.template.dir already points to src/modules/verify/templates
       template: './password-reset',
-      context: { otp, resetLink },
+      context: { otp },
     });
   }
 
@@ -124,6 +133,7 @@ export class VerifyService {
     const result = await this.verifyModel.deleteMany({
       expiresAt: { $lt: new Date() },
     });
+    this.logger.log(`Cleaned up ${result.deletedCount} expired verification codes`);
     return result.deletedCount;
   }
 }

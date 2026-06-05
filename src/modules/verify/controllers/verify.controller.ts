@@ -30,9 +30,8 @@ export class VerifyController {
     if (type === 'verification') {
       await this.verifyService.sendVerificationEmail(email);
     } else if (type === 'password-reset') {
-      const resetToken = Buffer.from(`${email}-${Date.now()}`).toString('base64');
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      await this.verifyService.sendPasswordResetEmail(email, resetToken, otp);
+      await this.verifyService.sendPasswordResetEmail(email, otp);
     }
 
     return {
@@ -85,9 +84,8 @@ export class VerifyController {
     if (type === 'verification') {
       await this.verifyService.sendVerificationEmail(email);
     } else if (type === 'password-reset') {
-      const resetToken = Buffer.from(`${email}-${Date.now()}`).toString('base64');
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      await this.verifyService.sendPasswordResetEmail(email, resetToken, otp);
+      await this.verifyService.sendPasswordResetEmail(email, otp);
     }
 
     return {

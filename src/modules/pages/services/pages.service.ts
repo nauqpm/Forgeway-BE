@@ -1,10 +1,19 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Page, PageDocument } from '../schemas/page.schema';
 import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
 import { FilterPageDto } from '../dtos/filter-page.dto';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '@/modules/workspaces/schemas/workspace.schema';
 
 function normalizeForSearch(text: string): string {
   return text
@@ -15,23 +24,42 @@ function normalizeForSearch(text: string): string {
     .trim();
 }
 
+const MAX_DEPTH = 5;
+
 @Injectable()
 export class PagesService {
   private readonly logger = new Logger(PagesService.name);
 
   constructor(
     @InjectModel(Page.name) private readonly pageModel: Model<PageDocument>,
+    @InjectModel(Workspace.name)
+    private readonly workspaceModel: Model<WorkspaceDocument>,
   ) {}
 
   async create(dto: CreatePageDto, userId: string): Promise<PageDocument> {
-    this.logger.log(`Creating page "${dto.title}" by user ${userId}`);
+    this.logger.debug(`Creating page "${dto.title}" by user ${userId}`);
 
-    const slug = dto.slug || (await this.generateUniqueSlug(dto.title));
+    // ── Depth check: new page will be at parentDepth + 1 ───────
+    if (dto.parentId) {
+      const parentDepth = await this.getAncestorDepth(dto.parentId);
+      if (parentDepth + 1 >= MAX_DEPTH) {
+        throw new BadRequestException(
+          `Cannot create page: maximum nesting depth of ${MAX_DEPTH} levels exceeded`,
+        );
+      }
+    }
+
+    const title = dto.title.trim();
+    await this.ensureUniqueTitleInLocation(title, dto.workspaceId, dto.parentId);
+
+    const slug = dto.slug || (await this.generateUniqueSlug(title));
 
     const page = new this.pageModel({
-      title: dto.title,
+      title,
       content: dto.content || '',
-      spaceId: dto.spaceId ? new Types.ObjectId(dto.spaceId) : undefined,
+      workspaceId: dto.workspaceId
+        ? new Types.ObjectId(dto.workspaceId)
+        : undefined,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       slug,
       authorId: new Types.ObjectId(userId),
@@ -43,7 +71,7 @@ export class PagesService {
     });
 
     const savedPage = await page.save();
-    this.logger.log(`Page created with id: ${savedPage._id}`);
+    this.logger.debug(`Page created with id: ${savedPage._id}`);
     return savedPage;
   }
 
@@ -54,7 +82,10 @@ export class PagesService {
       throw new NotFoundException(`Page with id ${id} not found`);
     }
 
-    const page = await this.pageModel.findById(id).exec();
+    const page = await this.pageModel
+      .findById(id)
+      .populate('lastEditedBy', 'fullName')
+      .exec();
     if (!page) {
       throw new NotFoundException(`Page with id ${id} not found`);
     }
@@ -64,7 +95,10 @@ export class PagesService {
   async findBySlug(slug: string): Promise<PageDocument> {
     this.logger.debug(`Finding page by slug: ${slug}`);
 
-    const page = await this.pageModel.findOne({ slug }).exec();
+    const page = await this.pageModel
+      .findOne({ slug })
+      .populate('lastEditedBy', 'fullName')
+      .exec();
     if (!page) {
       throw new NotFoundException(`Page with slug "${slug}" not found`);
     }
@@ -86,8 +120,8 @@ export class PagesService {
 
     const query: Record<string, any> = {};
 
-    if (filter.spaceId) {
-      query.spaceId = new Types.ObjectId(filter.spaceId);
+    if (filter.workspaceId) {
+      query.workspaceId = new Types.ObjectId(filter.workspaceId);
     }
     if (filter.parentId) {
       query.parentId = new Types.ObjectId(filter.parentId);
@@ -109,7 +143,13 @@ export class PagesService {
     }
 
     const [data, total] = await Promise.all([
-      this.pageModel.find(query).skip(skip).limit(limit).sort({ updatedAt: -1 }).exec(),
+      this.pageModel
+        .find(query)
+        .populate('lastEditedBy', 'fullName')
+        .skip(skip)
+        .limit(limit)
+        .sort({ updatedAt: -1 })
+        .exec(),
       this.pageModel.countDocuments(query).exec(),
     ]);
 
@@ -122,31 +162,33 @@ export class PagesService {
     };
   }
 
-  async findBySpace(spaceId: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding pages for space: ${spaceId}`);
+  /**
+   * @deprecated
+   * use findByWorkspaceId instead
+   */
+  async findByWorkspaceKey(workspaceKey: string): Promise<PageDocument[]> {
+    return this.findByWorkspaceId(workspaceKey);
+  }
 
-    if (!Types.ObjectId.isValid(spaceId)) {
-      throw new NotFoundException(`Space with id ${spaceId} not found`);
-    }
+  async findByWorkspaceId(workspaceId: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding pages for workspace: ${workspaceId}`);
 
     return this.pageModel
-      .find({ spaceId: new Types.ObjectId(spaceId) })
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .populate('lastEditedBy', 'fullName')
       .sort({ title: 1 })
       .exec();
   }
 
-  async findRootPages(spaceId: string): Promise<PageDocument[]> {
-    this.logger.debug(`Finding root pages for space: ${spaceId}`);
-
-    if (!Types.ObjectId.isValid(spaceId)) {
-      throw new NotFoundException(`Space with id ${spaceId} not found`);
-    }
+  async findRootPages(workspaceId: string): Promise<PageDocument[]> {
+    this.logger.debug(`Finding root pages for workspace: ${workspaceId}`);
 
     return this.pageModel
       .find({
-        spaceId: new Types.ObjectId(spaceId),
+        workspaceId: new Types.ObjectId(workspaceId),
         parentId: { $exists: false },
       })
+      .populate('lastEditedBy', 'fullName')
       .sort({ title: 1 })
       .exec();
   }
@@ -160,6 +202,7 @@ export class PagesService {
 
     return this.pageModel
       .find({ parentId: new Types.ObjectId(parentId) })
+      .populate('lastEditedBy', 'fullName')
       .sort({ title: 1 })
       .exec();
   }
@@ -182,11 +225,20 @@ export class PagesService {
     dto: UpdatePageDto,
     userId: string,
   ): Promise<PageDocument> {
-    this.logger.log(`Updating page ${id} by user ${userId}`);
+    this.logger.debug(`Updating page ${id} by user ${userId}`);
 
     const page = await this.findById(id);
 
-    if (dto.title) page.title = dto.title;
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      await this.ensureUniqueTitleInLocation(
+        title,
+        page.workspaceId.toString(),
+        page.parentId?.toString(),
+        id,
+      );
+      page.title = title;
+    }
     if (dto.content !== undefined) page.content = dto.content;
     if (dto.status) page.status = dto.status;
     if (dto.labels) page.labels = dto.labels;
@@ -204,39 +256,80 @@ export class PagesService {
   }
 
   async delete(id: string): Promise<void> {
-    this.logger.log(`Deleting page ${id} and its children`);
-
     const page = await this.findById(id);
 
     await this.deleteChildrenRecursively(id);
 
     await this.pageModel.deleteOne({ _id: id }).exec();
-    this.logger.log(`Page ${id} deleted`);
+    this.logger.debug(`Page ${id} deleted`);
   }
 
   private async deleteChildrenRecursively(parentId: string): Promise<void> {
-    const children = await this.pageModel
-      .find({ parentId: new Types.ObjectId(parentId) })
-      .exec();
+    // pipeline: find parent node => get all children
+    const result = await this.pageModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(parentId),
+        },
+      },
+      {
+        $graphLookup: {
+          from: 'pages',
+          startWith: '$_id',
+          connectFromField: '_id',
+          connectToField: 'parentId',
+          as: 'descendants',
+        },
+      },
+    ]);
 
-    for (const child of children) {
-      await this.deleteChildrenRecursively(child._id.toString());
-      await this.pageModel.deleteOne({ _id: child._id }).exec();
+    const descendants = result[0]?.descendants ?? [];
+
+    const idsToDelete = descendants.map((x) => x._id);
+
+    if (idsToDelete.length > 0) {
+      await this.pageModel.deleteMany({
+        _id: { $in: idsToDelete },
+      });
     }
   }
 
-  async moveToParent(pageId: string, newParentId: string | null): Promise<PageDocument> {
-    this.logger.log(`Moving page ${pageId} to parent ${newParentId}`);
+  async moveToParent(
+    pageId: string,
+    newParentId: string | null,
+  ): Promise<PageDocument> {
+    this.logger.debug(`Moving page ${pageId} to parent ${newParentId}`);
 
     const page = await this.findById(pageId);
 
     if (newParentId) {
       if (!Types.ObjectId.isValid(newParentId)) {
-        throw new NotFoundException(`Parent page with id ${newParentId} not found`);
+        throw new NotFoundException(
+          `Parent page with id ${newParentId} not found`,
+        );
       }
 
       if (newParentId === pageId) {
-        throw new NotFoundException('A page cannot be its own parent');
+        throw new BadRequestException('A page cannot be its own parent');
+      }
+
+      // ── Circular-reference check: newParent must NOT be a descendant of page ──
+      const descendants = await this.getAllDescendantIds(pageId);
+      if (descendants.includes(newParentId)) {
+        throw new BadRequestException(
+          'Cannot move a page into its own descendant (circular reference)',
+        );
+      }
+
+      // ── Depth check: parentDepth + 1 (this page) + subtreeDepth ≤ MAX_DEPTH ──
+      const newParentDepth = await this.getAncestorDepth(newParentId);
+      const subtreeDepth = await this.getMaxDescendantDepth(pageId);
+      const totalDepth = newParentDepth + 1 + subtreeDepth;
+
+      if (totalDepth >= MAX_DEPTH) {
+        throw new BadRequestException(
+          `Cannot move page: maximum nesting depth of ${MAX_DEPTH} levels would be exceeded`,
+        );
       }
 
       const newParent = await this.findById(newParentId);
@@ -249,7 +342,7 @@ export class PagesService {
   }
 
   async publish(pageId: string): Promise<PageDocument> {
-    this.logger.log(`Publishing page ${pageId}`);
+    this.logger.debug(`Publishing page ${pageId}`);
 
     const page = await this.findById(pageId);
     page.status = 'published';
@@ -257,7 +350,7 @@ export class PagesService {
   }
 
   async unpublish(pageId: string): Promise<PageDocument> {
-    this.logger.log(`Unpublishing page ${pageId}`);
+    this.logger.debug(`Unpublishing page ${pageId}`);
 
     const page = await this.findById(pageId);
     page.status = 'draft';
@@ -279,7 +372,7 @@ export class PagesService {
   }
 
   async addLabel(pageId: string, label: string): Promise<PageDocument> {
-    this.logger.log(`Adding label "${label}" to page ${pageId}`);
+    this.logger.debug(`Adding label "${label}" to page ${pageId}`);
 
     const page = await this.findById(pageId);
 
@@ -291,12 +384,43 @@ export class PagesService {
   }
 
   async removeLabel(pageId: string, label: string): Promise<PageDocument> {
-    this.logger.log(`Removing label "${label}" from page ${pageId}`);
+    this.logger.debug(`Removing label "${label}" from page ${pageId}`);
 
     const page = await this.findById(pageId);
     page.labels = page.labels.filter((l) => l !== label);
 
     return page.save();
+  }
+
+  private async ensureUniqueTitleInLocation(
+    title: string,
+    workspaceId?: string,
+    parentId?: string,
+    excludeId?: string,
+  ): Promise<void> {
+    if (!workspaceId) return;
+
+    const query: Record<string, any> = {
+      workspaceId: new Types.ObjectId(workspaceId),
+      title: { $regex: `^${this.escapeRegex(title)}$`, $options: 'i' },
+    };
+
+    if (parentId) {
+      query.parentId = new Types.ObjectId(parentId);
+    } else {
+      query.parentId = { $exists: false };
+    }
+
+    if (excludeId) {
+      query._id = { $ne: new Types.ObjectId(excludeId) };
+    }
+
+    const existingPage = await this.pageModel.exists(query).exec();
+    if (existingPage) {
+      throw new BadRequestException(
+        'A document with this name already exists in this location',
+      );
+    }
   }
 
   async generateUniqueSlug(title: string): Promise<string> {
@@ -310,6 +434,10 @@ export class PagesService {
     }
 
     return slug;
+  }
+
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private slugify(text: string): string {
@@ -331,5 +459,79 @@ export class PagesService {
     if (dto.status) changes.push('status');
     if (dto.labels) changes.push('labels');
     return changes.join(', ');
+  }
+
+  // ── Depth helpers ──────────────────────────────────────────
+
+  /**
+   * Walk up the parent chain to compute how deep this page is.
+   * Root pages have depth 0.
+   */
+  private async getAncestorDepth(pageId: string): Promise<number> {
+    let depth = 0;
+    let currentId = pageId;
+
+    while (true) {
+      const page = await this.pageModel
+        .findById(currentId)
+        .select('parentId')
+        .lean()
+        .exec();
+
+      if (!page || !page.parentId) break;
+      depth++;
+      currentId = page.parentId.toString();
+
+      // Safety guard against corrupted data
+      if (depth > MAX_DEPTH + 10) break;
+    }
+
+    return depth;
+  }
+
+  /**
+   * Find the maximum depth among all descendants of a page.
+   * A leaf node returns 0.  A node with one direct child returns 1, etc.
+   */
+  private async getMaxDescendantDepth(pageId: string): Promise<number> {
+    const result = await this.pageModel.aggregate([
+      { $match: { _id: new Types.ObjectId(pageId) } },
+      {
+        $graphLookup: {
+          from: 'pages',
+          startWith: '$_id',
+          connectFromField: '_id',
+          connectToField: 'parentId',
+          as: 'descendants',
+          depthField: 'depth',
+        },
+      },
+      { $project: { maxDepth: { $max: '$descendants.depth' } } },
+    ]);
+
+    // maxDepth is 0-indexed from $graphLookup, so add 1 to get level count
+    const maxDepth = result[0]?.maxDepth;
+    return maxDepth != null ? maxDepth + 1 : 0;
+  }
+
+  /**
+   * Return all descendant IDs of a given page (for circular-reference checks).
+   */
+  private async getAllDescendantIds(pageId: string): Promise<string[]> {
+    const result = await this.pageModel.aggregate([
+      { $match: { _id: new Types.ObjectId(pageId) } },
+      {
+        $graphLookup: {
+          from: 'pages',
+          startWith: '$_id',
+          connectFromField: '_id',
+          connectToField: 'parentId',
+          as: 'descendants',
+        },
+      },
+      { $project: { ids: '$descendants._id' } },
+    ]);
+
+    return (result[0]?.ids ?? []).map((id: Types.ObjectId) => id.toString());
   }
 }

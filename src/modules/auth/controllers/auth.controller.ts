@@ -16,19 +16,25 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthenticationService } from '../services/authentication.service';
 import { TokenService } from '../services/token.service';
 import { UsersService } from '../../users/services/users.service';
-import { RegisterDto, LoginDto } from '../dtos/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
+} from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { AuditLogService } from '../services/audit-log.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
 import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
-import { SECURITY_EVENT_TYPES } from '../constants/audit.constants';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
 // Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends ExpressRequest {
@@ -46,6 +52,7 @@ interface AuthError extends Error {
 
 // Never put @SkipThrottle() at controller level; it can hide a global auth bypass.
 // Keep public auth routes explicitly throttled at method level.
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -61,6 +68,17 @@ export class AuthController {
   // Kiểm tra email trước khi submit
   // Public email probes must never reveal whether an account exists.
   // Keep this compatibility endpoint non-disclosing for older clients.
+  @ApiOperation({ summary: 'Kiểm tra email trước khi đăng ký' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email hợp lệ, có thể tiếp tục đăng ký',
+    schema: {
+      example: {
+        success: true,
+        message: 'Bạn có thể tiếp tục đăng ký.',
+      },
+    },
+  })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Get('check-email')
   async checkEmail(@Query('email') email: string) {
@@ -74,6 +92,18 @@ export class AuthController {
   }
 
   // 📥 Đăng ký người dùng — throttle: 10/min để chống spam account
+  @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
+  @ApiResponse({
+    status: 201,
+    description: 'Đăng ký thành công, gửi email xác thực',
+    schema: {
+      example: {
+        success: true,
+        message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực.',
+        user: { _id: '...', email: 'user@example.com', fullName: 'Nguyễn Văn A' },
+      },
+    },
+  })
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('register')
   async register(@Body() registerDto: RegisterDto, @Req() req: ExpressRequest) {
@@ -99,7 +129,97 @@ export class AuthController {
     }
   }
 
+  @ApiOperation({ summary: 'Xác thực email đăng ký' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xác thực email thành công',
+    schema: {
+      example: {
+        success: true,
+        message: 'Xác thực email thành công.',
+      },
+    },
+  })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-email')
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Req() req: ExpressRequest) {
+    try {
+      const result = await this.authenticationService.verifyRegistrationEmail(dto.email, dto.code);
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_SUCCESS,
+        severity: 'INFO',
+        email: dto.email,
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_FAILED,
+        severity: 'WARN',
+        email: dto.email,
+        metadata: { reason: (error as Error).message },
+      });
+      throw error;
+    }
+  }
+
+  @ApiOperation({ summary: 'Gửi lại email xác thực' })
+  @ApiResponse({
+    status: 200,
+    description: 'Gửi lại email xác thực thành công',
+    schema: {
+      example: {
+        success: true,
+        message: 'Đã gửi lại email xác thực.',
+      },
+    },
+  })
+  @Throttle({ default: { limit: 3, ttl: 15 * 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('resend-verification')
+  async resendVerification(@Body() dto: ResendVerificationDto, @Req() req: ExpressRequest) {
+    try {
+      const result = await this.authenticationService.resendRegistrationVerification(dto.email);
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_RESENT,
+        severity: 'INFO',
+        email: dto.email,
+      });
+      return result;
+    } catch (error) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_RESEND_FAILED,
+        severity: 'WARN',
+        email: dto.email,
+        metadata: { reason: (error as Error).message },
+      });
+      throw error;
+    }
+  }
+
   // 🔐 Đăng nhập — throttle: 5/min per IP (brute-force protection)
+  @ApiOperation({
+    summary: 'Đăng nhập',
+    description:
+      'Token được set vào HttpOnly Cookie (không trả trong response body). ' +
+      'Sử dụng cookie tự động cho các request tiếp theo.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đăng nhập thành công, token set qua HttpOnly Cookie',
+    schema: {
+      example: {
+        success: true,
+        message: 'Đăng nhập thành công',
+        user: {
+          _id: '...',
+          email: 'user@example.com',
+          fullName: 'Nguyễn Văn A',
+          role: 'user',
+        },
+      },
+    },
+  })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -141,6 +261,18 @@ export class AuthController {
   }
 
   // 🚪 Đăng xuất — không cần throttle (guard đã bảo vệ)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Đăng xuất' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đăng xuất thành công, xóa cookie và revoke token',
+    schema: {
+      example: {
+        success: true,
+        message: 'Đăng xuất thành công',
+      },
+    },
+  })
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
@@ -176,6 +308,23 @@ export class AuthController {
   }
 
   // 🔄 Refresh — throttle: 30/min (mobile-friendly, không block concurrent retry)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Làm mới access token',
+    description:
+      'Sử dụng refresh token từ HttpOnly Cookie để lấy access token mới. ' +
+      'Token mới được set lại vào cookie.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Làm mới token thành công',
+    schema: {
+      example: {
+        success: true,
+        message: 'Làm mới token thành công',
+      },
+    },
+  })
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
@@ -187,6 +336,11 @@ export class AuthController {
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH] ?? body?.refreshToken;
 
     if (!refreshToken) {
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.REFRESH_FAILED,
+        severity: 'WARN',
+        metadata: { reason: 'Refresh token missing' },
+      });
       throw new UnauthorizedException('Refresh token không tồn tại');
     }
 
@@ -195,15 +349,43 @@ export class AuthController {
 
       setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
 
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.REFRESH_SUCCESS,
+        severity: 'INFO',
+      });
+
       return { success: true, message: 'Làm mới token thành công' };
     } catch (error) {
       const err = error as AuthError;
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.REFRESH_FAILED,
+        severity: 'WARN',
+        metadata: { reason: err.message },
+      });
       this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
       throw error;
     }
   }
 
   // 👤 Lấy thông tin người dùng
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Lấy thông tin người dùng hiện tại',
+    description: 'Yêu cầu access token hợp lệ qua Bearer header hoặc HttpOnly Cookie.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin người dùng',
+    schema: {
+      example: {
+        _id: '...',
+        email: 'user@example.com',
+        fullName: 'Nguyễn Văn A',
+        role: 'user',
+        avatar: 'https://...',
+      },
+    },
+  })
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getProfile(@Request() req: RequestWithUser) {
