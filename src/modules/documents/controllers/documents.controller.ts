@@ -15,6 +15,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { DocumentsService } from '../services/documents.service';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
@@ -47,6 +50,14 @@ export class DocumentsController {
   @Get()
   listMine(@CurrentUser('userId') userId: string) {
     return this.documentsService.listMine(userId);
+  }
+
+  // Super admin: lấy tất cả documents
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  async listAllAdmin() {
+    return this.documentsService.listAll();
   }
 
   @Get(':id')

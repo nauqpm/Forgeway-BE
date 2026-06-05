@@ -7,12 +7,16 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
+import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
+import { DocumentDoc, DocumentEntity } from '../../documents/schemas/document.schema';
+import { Page, PageDocument } from '../../pages/schemas/page.schema';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceKeyService } from './workspace-key.service';
@@ -31,6 +35,13 @@ export class WorkspacesService {
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
     private readonly workspaceKeyService: WorkspaceKeyService,
+    @InjectModel(Task.name)
+    private readonly taskModel: Model<TaskDocument>,
+    @InjectModel(Page.name)
+    private readonly pageModel: Model<PageDocument>,
+    @InjectModel(DocumentEntity.name)
+    private readonly documentModel: Model<DocumentDoc>,
+  ) {}
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => ChannelsService))
@@ -102,6 +113,10 @@ export class WorkspacesService {
     return this.workspacesRepository.findAll();
   }
 
+  async findAllWithDeleted(): Promise<any[]> {
+    return this.workspacesRepository.findAllWithDeleted();
+  }
+
   async findById(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
@@ -123,7 +138,45 @@ export class WorkspacesService {
   }
 
   async findByUserId(userId: string): Promise<any[]> {
-    return this.workspacesRepository.findByUserId(userId);
+    const workspaces = await this.workspacesRepository.findByUserId(userId);
+    return this.withWorkspaceCounts(workspaces);
+  }
+
+  private async withWorkspaceCounts(workspaces: any[]): Promise<any[]> {
+    return Promise.all(
+      workspaces.map(async (workspace) => {
+        const workspaceId = workspace._id;
+        const [taskCount, pageCount, documentCount] = await Promise.all([
+          this.taskModel.countDocuments({
+            workspaceId,
+            isDeleted: { $ne: true },
+          }),
+          this.pageModel.countDocuments({ workspaceId }),
+          this.documentModel.countDocuments({
+            workspaceIds: workspaceId,
+            deletedAt: null,
+          }),
+        ]);
+        const docsCount = pageCount + documentCount;
+        const workspaceData = typeof workspace.toObject === 'function'
+          ? workspace.toObject()
+          : { ...workspace };
+
+        return {
+          ...workspaceData,
+          _count: {
+            ...(workspaceData._count ?? {}),
+            tasks: taskCount,
+            issues: taskCount,
+            docs: docsCount,
+            pages: pageCount,
+          },
+          taskCount,
+          tasksCount: taskCount,
+          docsCount,
+        };
+      }),
+    );
   }
 
   async update(id: string, dto: UpdateWorkspaceDto): Promise<any> {

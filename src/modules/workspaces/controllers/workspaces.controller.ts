@@ -43,6 +43,16 @@ export class WorkspacesController {
     return this.workspacesService.findByUserId(req.user.userId);
   }
 
+  // Super admin: xem tất cả workspaces
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Super admin: Lấy tất cả workspaces (bao gồm cả đã xóa)' })
+  @ApiResponse({ status: 200, description: 'Danh sách tất cả workspaces' })
+  async findAllAdmin() {
+    return this.workspacesService.findAllWithDeleted();
+  }
+
   @Get(':workspaceId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Lấy workspace theo ID' })
