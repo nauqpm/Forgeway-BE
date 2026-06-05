@@ -15,7 +15,7 @@ export class CloudinaryService {
     return new Promise((resolve, reject) => {
       const upload = cloudinary.uploader.upload_stream(
         {
-          folder: `al-task/${folder}`,
+          folder: `sdlc-platform/${folder}`,
           resource_type: 'auto',
         },
         (error, result) => {
