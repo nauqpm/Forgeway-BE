@@ -15,6 +15,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { DocumentsService } from '../services/documents.service';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
@@ -22,6 +25,7 @@ import { UpdateDocumentDto } from '../dtos/update-document.dto';
 import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dto';
 import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
 import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
+import { UpdateDocumentWorkspacesDto } from '../dtos/update-document-workspaces.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('documents')
@@ -46,6 +50,14 @@ export class DocumentsController {
   @Get()
   listMine(@CurrentUser('userId') userId: string) {
     return this.documentsService.listMine(userId);
+  }
+
+  // Super admin: lấy tất cả documents
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  async listAllAdmin() {
+    return this.documentsService.listAll();
   }
 
   @Get(':id')
@@ -97,6 +109,15 @@ export class DocumentsController {
     @Body() dto: DetachDocumentDto,
   ) {
     return this.documentsService.detach(userId, id, dto);
+  }
+
+  @Patch(':id/workspaces')
+  updateWorkspaces(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentWorkspacesDto,
+  ) {
+    return this.documentsService.updateWorkspaces(userId, id, dto);
   }
 
   @Get('workspace/:workspaceId')

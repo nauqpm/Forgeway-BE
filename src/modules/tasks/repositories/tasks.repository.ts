@@ -294,7 +294,7 @@ export class TasksRepository {
           _id: new Types.ObjectId(id),
           ...this.buildVisibilityFilter(),
         },
-        data,
+        this.buildVersionedSetUpdate(data),
         {
           new: true,
           runValidators: true,
@@ -319,7 +319,7 @@ export class TasksRepository {
           workspaceId: new Types.ObjectId(workspaceId),
           ...this.buildVisibilityFilter(),
         },
-        data,
+        this.buildVersionedSetUpdate(data),
         {
           new: true,
           runValidators: true,
@@ -359,6 +359,8 @@ export class TasksRepository {
         };
       }
     }
+
+    update.$inc = { ...update.$inc, version: 1 };
 
     return this.withRelations(
       this.taskModel.findOneAndUpdate(
@@ -428,6 +430,39 @@ export class TasksRepository {
     return this.moveTaskInWorkspace(id, workspaceId, data, session);
   }
 
+  async updateRanksInWorkspace(
+    workspaceId: string,
+    rankUpdates: Array<{ taskId: string; rank: string }>,
+    session?: ClientSession,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(workspaceId) || rankUpdates.length === 0) {
+      return;
+    }
+
+    const workspaceObjectId = new Types.ObjectId(workspaceId);
+    const operations = rankUpdates
+      .filter((update) => Types.ObjectId.isValid(update.taskId))
+      .map((update) => ({
+        updateOne: {
+          filter: {
+            _id: new Types.ObjectId(update.taskId),
+            workspaceId: workspaceObjectId,
+            ...this.buildVisibilityFilter(),
+          },
+          update: {
+            $set: { rank: update.rank },
+            $inc: { version: 1 },
+          },
+        },
+      }));
+
+    if (operations.length === 0) {
+      return;
+    }
+
+    await this.taskModel.bulkWrite(operations, { session });
+  }
+
   async archive(id: string, archivedBy: string): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
@@ -445,6 +480,7 @@ export class TasksRepository {
             archivedAt: new Date(),
             archivedBy: new Types.ObjectId(archivedBy),
           },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       ),
@@ -477,6 +513,7 @@ export class TasksRepository {
             archivedAt: new Date(),
             archivedBy: new Types.ObjectId(archivedBy),
           },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       ),
@@ -498,6 +535,7 @@ export class TasksRepository {
         {
           $set: { isArchived: false },
           $unset: { archivedAt: 1, archivedBy: 1 },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       ),
@@ -523,6 +561,7 @@ export class TasksRepository {
         {
           $set: { isArchived: false },
           $unset: { archivedAt: 1, archivedBy: 1 },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       ),
@@ -550,6 +589,7 @@ export class TasksRepository {
             deletedAt: new Date(),
             deletedBy: new Types.ObjectId(deletedBy),
           },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       ),
@@ -583,10 +623,18 @@ export class TasksRepository {
             deletedAt: new Date(),
             deletedBy: new Types.ObjectId(deletedBy),
           },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       ),
     ).exec();
+  }
+
+  private buildVersionedSetUpdate(data: Partial<Task>): Record<string, unknown> {
+    return {
+      $set: data,
+      $inc: { version: 1 },
+    };
   }
 
   private normalizePagination(options: TaskPaginationOptions): {
@@ -759,3 +807,4 @@ export class TasksRepository {
       .populate('labelIds', 'name');
   }
 }
+

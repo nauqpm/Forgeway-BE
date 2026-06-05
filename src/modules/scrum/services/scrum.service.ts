@@ -139,7 +139,7 @@ export class ScrumService {
 
     if (sprint.status === 'completed') {
       throw new BadRequestException(
-        'Sprint đã hoàn thành và không thể nhận thêm nhiệm vụ mới',
+        'Completed sprints cannot receive new tasks',
       );
     }
   }

@@ -25,6 +25,7 @@ import { TaskDependencyService } from './services/task-dependency.service';
 import { TaskCounterService } from './services/task-counter.service';
 import { TaskCreationValidationService } from './services/task-creation-validation.service';
 import { TaskDataTransformerService } from './services/task-data-transformer.service';
+import { TaskDomainEventPublisher } from './services/task-domain-event.publisher';
 import { TaskKeyService } from './services/task-key.service';
 import { TaskDetailService } from './services/task-detail.service';
 import { TaskMoveService } from './services/task-move.service';
@@ -65,6 +66,7 @@ import { TasksService } from './services/tasks.service';
     TaskSearchService,
     TaskNormalizerService,
     TaskDataTransformerService,
+    TaskDomainEventPublisher,
     TasksService,
     TaskDependencyService,
     WorkspaceRoleGuard,

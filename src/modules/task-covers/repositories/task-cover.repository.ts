@@ -53,6 +53,7 @@ export class TaskCoverRepository {
                 : undefined,
             },
           },
+          $inc: { version: 1 },
         },
         { new: true, runValidators: true },
       )
@@ -74,7 +75,10 @@ export class TaskCoverRepository {
           workspaceId: new Types.ObjectId(workspaceId),
           isDeleted: { $ne: true },
         },
-        { $unset: { cover: 1 } },
+        {
+          $unset: { cover: 1 },
+          $inc: { version: 1 },
+        },
         { new: true, runValidators: true },
       )
       .exec();

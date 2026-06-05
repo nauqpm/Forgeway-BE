@@ -11,6 +11,7 @@ import { TaskMapper } from '../mappers/task.mapper';
 import { TaskMovePolicy } from '../policies/task-move.policy';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
+import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 
 export interface TaskMoveAuditMetadata {
   taskId: string;
@@ -39,6 +40,7 @@ export class TaskMoveService {
     private readonly taskMovePolicy: TaskMovePolicy,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
+    private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
   ) {}
 
   async moveInWorkspaceId(
@@ -94,6 +96,7 @@ export class TaskMoveService {
     }
 
     await this.taskActivitiesService.recordTaskMoved(task, movedTask, userId);
+    this.taskDomainEventPublisher.publishMoved(task, movedTask, userId);
 
     return {
       task: this.taskMapper.mapToDto(movedTask),

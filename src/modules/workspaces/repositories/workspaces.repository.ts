@@ -87,6 +87,14 @@ export class WorkspacesRepository {
     return this.workspaceModel.find({ deletedAt: null }).exec();
   }
 
+  async findAllWithDeleted(): Promise<WorkspaceDocument[]> {
+    return this.workspaceModel
+      .find({})
+      .populate('ownerId', 'fullName email avatar')
+      .populate('members.userId', 'fullName email avatar')
+      .exec();
+  }
+
   async update(
     id: string,
     data: Partial<Workspace>,

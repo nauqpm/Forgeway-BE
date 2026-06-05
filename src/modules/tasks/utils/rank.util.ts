@@ -3,6 +3,8 @@ const RANK_ALPHABET =
 const MIN_DIGIT = 0;
 const MAX_DIGIT = RANK_ALPHABET.length - 1;
 const DEFAULT_RANK = RANK_ALPHABET[Math.floor(RANK_ALPHABET.length / 2)];
+const REBALANCE_STEP = 1000;
+const REBALANCE_PAD_LENGTH = 10;
 
 const toDigit = (rank: string, index: number, fallback: number): number => {
   if (index >= rank.length) {
@@ -17,16 +19,51 @@ const toDigit = (rank: string, index: number, fallback: number): number => {
   return digit;
 };
 
+export const compareRanks = (left?: string, right?: string): number => {
+  if (left && !right) return -1;
+  if (!left && right) return 1;
+  if (!left && !right) return 0;
+
+  const leftRank = left!;
+  const rightRank = right!;
+  const maxLength = Math.max(leftRank.length, rightRank.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const diff =
+      toDigit(leftRank, index, MIN_DIGIT) -
+      toDigit(rightRank, index, MIN_DIGIT);
+
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  return leftRank.length - rightRank.length;
+};
+
+export const generateRebalanceRank = (index: number): string => {
+  return String((index + 1) * REBALANCE_STEP).padStart(
+    REBALANCE_PAD_LENGTH,
+    '0',
+  );
+};
+
 /**
- * Generates a deterministic fractional rank.
+ * Generates a deterministic fractional rank between two existing ranks.
  *
- * beforeRank is the rank of the next task below this task.
- * afterRank is the rank of the previous task above this task.
+ * @param beforeRank rank of the task immediately below this task, the upper bound.
+ * @param afterRank rank of the task immediately above this task, the lower bound.
  */
 export const generateRankBetween = (
   beforeRank?: string,
   afterRank?: string,
 ): string => {
+  if (beforeRank && afterRank && beforeRank === afterRank) {
+    throw new Error(
+      `Cannot generate rank between identical ranks: "${beforeRank}"`,
+    );
+  }
+
   if (!beforeRank && !afterRank) {
     return DEFAULT_RANK;
   }

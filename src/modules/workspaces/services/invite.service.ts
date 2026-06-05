@@ -7,20 +7,29 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
 import { v4 as uuidv4 } from 'uuid';
 import { InviteRepository } from '../repositories/invite.repository';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateInviteDto } from '../dtos/create-invite.dto';
-import { Invite, INVITE_STATUS } from '../schemas/invite.schema';
+import { CreateInviteLinkDto } from '../dtos/create-invite-link.dto';
+import { Invite, INVITE_STATUS, INVITE_TYPES } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { UsersService } from '@/modules/users/services/users.service';
+import {
+  WorkspaceInviteCreatedEvent,
+  WorkspaceInviteSummaryPayload,
+  WorkspaceMemberJoinedEvent,
+  WorkspaceSummaryPayload,
+} from '@/shared/events/domain-events/workspace';
 
 @Injectable()
 export class InviteService {
   private readonly logger = new Logger(InviteService.name);
+  private readonly inviteLinkTtlMs = 10 * 60 * 1000;
 
   constructor(
     private readonly inviteRepository: InviteRepository,
@@ -29,6 +38,7 @@ export class InviteService {
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createInvite(
@@ -64,8 +74,18 @@ export class InviteService {
       invitedBy: invitedByUserId as any,
       role,
       token,
+      type: INVITE_TYPES.EMAIL,
       status: INVITE_STATUS.PENDING,
     });
+
+    this.publishWorkspaceInviteCreatedEvent(
+      workspace,
+      invite,
+      normalizedEmail,
+      role,
+      invitedByUserId,
+      existingUser?._id?.toString(),
+    );
 
     await this.notifyExistingUserInvited(
       existingUser,
@@ -97,6 +117,35 @@ export class InviteService {
     return invite;
   }
 
+  async createInviteLink(
+    workspaceId: string,
+    invitedByUserId: string,
+    dto: CreateInviteLinkDto,
+  ): Promise<Invite & { inviteUrl: string }> {
+    const workspace = await this.workspacesRepository.findById(workspaceId);
+    if (!workspace) throw new NotFoundException('Workspace not found');
+
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + this.inviteLinkTtlMs);
+
+    const invite = await this.inviteRepository.create({
+      workspaceId: (workspace as any)._id,
+      invitedEmail: null,
+      invitedBy: invitedByUserId as any,
+      role: dto.role,
+      token,
+      type: INVITE_TYPES.LINK,
+      status: INVITE_STATUS.PENDING,
+      expiresAt,
+      acceptedBy: [],
+    });
+
+    return {
+      ...(invite as any),
+      inviteUrl: this.buildAcceptUrl(token),
+    };
+  }
+
   async getInvites(workspaceId: string): Promise<Invite[]> {
     return this.inviteRepository.findPendingByWorkspace(workspaceId);
   }
@@ -120,7 +169,8 @@ export class InviteService {
       throw new GoneException('Invite has expired or already been used');
     }
 
-    if (invite.invitedEmail !== userEmail.toLowerCase()) {
+    const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
+    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== userEmail.toLowerCase()) {
       throw new ForbiddenException('This invite was sent to a different email address');
     }
 
@@ -131,16 +181,23 @@ export class InviteService {
     if (alreadyMember) throw new ConflictException('You are already a member of this workspace');
 
     await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
-    await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
+    if (inviteType === INVITE_TYPES.LINK) {
+      await this.inviteRepository.addAcceptedBy((invite as any)._id.toString(), userId);
+    } else {
+      await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
+    }
+
+    this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
   }
 
   async getInviteByToken(token: string): Promise<{
     workspaceId: string;
     workspaceName: string;
     workspaceKey: string;
-    invitedEmail: string;
+    invitedEmail: string | null;
     invitedBy: any;
     role: string;
+    type: string;
     status: string;
     expiresAt: Date | null;
   }> {
@@ -153,9 +210,10 @@ export class InviteService {
       workspaceId: invite.workspaceId.toString(),
       workspaceName: workspace?.name ?? '',
       workspaceKey: (workspace as any)?.key ?? '',
-      invitedEmail: invite.invitedEmail,
+      invitedEmail: invite.invitedEmail ?? null,
       invitedBy: (invite as any).invitedBy,
       role: invite.role,
+      type: (invite as any).type ?? INVITE_TYPES.EMAIL,
       status: invite.status,
       expiresAt: invite.expiresAt ?? null,
     };
@@ -165,6 +223,9 @@ export class InviteService {
     const pendingInvites = await this.inviteRepository.findPendingValidByEmail(email);
     await Promise.all(
       pendingInvites.map(async (invite) => {
+        const workspace = await this.workspacesRepository.findById(
+          invite.workspaceId.toString(),
+        );
         await this.workspacesRepository.addMember(
           invite.workspaceId.toString(),
           userId,
@@ -174,9 +235,88 @@ export class InviteService {
           (invite as any)._id.toString(),
           INVITE_STATUS.ACCEPTED,
         );
+        if (workspace) {
+          this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
+        }
       }),
     );
   }
+
+  private publishWorkspaceInviteCreatedEvent(
+    workspace: any,
+    invite: Invite,
+    recipientEmail: string,
+    role: string,
+    actorId: string,
+    recipientId?: string,
+  ): void {
+    const event = new WorkspaceInviteCreatedEvent({
+      workspaceId: workspace._id.toString(),
+      actorId,
+      inviteId: (invite as any)._id.toString(),
+      recipientEmail,
+      recipientId,
+      role,
+      workspace: this.toWorkspaceSummary(workspace),
+      invite: this.toInviteSummary(invite),
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private publishWorkspaceMemberJoinedEvent(
+    workspace: any,
+    userId: string,
+    role: string,
+    actorId?: string,
+  ): void {
+    const event = new WorkspaceMemberJoinedEvent({
+      workspaceId: workspace._id.toString(),
+      actorId,
+      userId,
+      role,
+      workspace: this.toWorkspaceSummary(workspace),
+      member: { userId, role },
+    });
+
+    this.eventEmitter.emit(event.type, event);
+  }
+
+  private toWorkspaceSummary(workspace: any): WorkspaceSummaryPayload {
+    return {
+      id: workspace._id.toString(),
+      key: workspace.key,
+      name: workspace.name,
+      slug: workspace.slug,
+      type: workspace.type,
+      status: workspace.status,
+      access: workspace.access,
+    };
+  }
+
+  private buildAcceptUrl(token: string): string {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '');
+    if (!frontendUrl) {
+      throw new BadRequestException('FRONTEND_URL is not configured');
+    }
+
+    return frontendUrl + '/invites/accept/' + token;
+  }
+
+  private toInviteSummary(invite: Invite): WorkspaceInviteSummaryPayload {
+    return {
+      id: (invite as any)._id.toString(),
+      workspaceId: invite.workspaceId.toString(),
+      invitedEmail: invite.invitedEmail ?? null,
+      invitedBy: invite.invitedBy.toString(),
+      role: invite.role,
+      status: invite.status,
+      expiresAt: invite.expiresAt ?? null,
+      createdAt: (invite as any).createdAt,
+      updatedAt: (invite as any).updatedAt,
+    };
+  }
+
   private async notifyExistingUserInvited(
     invitedUser: any,
     workspace: any,
@@ -203,3 +343,4 @@ export class InviteService {
     }
   }
 }
+

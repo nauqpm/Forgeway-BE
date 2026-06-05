@@ -61,4 +61,15 @@ export class InviteRepository {
       .lean()
       .exec();
   }
+
+  async addAcceptedBy(inviteId: string, userId: string): Promise<Invite | null> {
+    return this.inviteModel
+      .findByIdAndUpdate(
+        inviteId,
+        { $addToSet: { acceptedBy: new Types.ObjectId(userId) } },
+        { new: true },
+      )
+      .lean()
+      .exec();
+  }
 }

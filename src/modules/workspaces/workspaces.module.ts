@@ -15,14 +15,22 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { Invite, InviteSchema } from './schemas/invite.schema';
 import { InviteRepository } from './repositories/invite.repository';
 import { InviteService } from './services/invite.service';
+import { WorkspaceKeyService } from './services/workspace-key.service';
+import { WorkspaceMemberService } from './services/workspace-member.service';
 import { InviteController } from './controllers/invite.controller';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
+import { Task, TaskSchema } from '../tasks/schemas/task.schema';
+import { DocumentEntity, DocumentSchema } from '../documents/schemas/document.schema';
+import { Page, PageSchema } from '../pages/schemas/page.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Workspace.name, schema: WorkspaceSchema },
       { name: Invite.name, schema: InviteSchema },
+      { name: Task.name, schema: TaskSchema },
+      { name: Page.name, schema: PageSchema },
+      { name: DocumentEntity.name, schema: DocumentSchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkflowsModule),
@@ -35,11 +43,13 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
   providers: [
     WorkspacesRepository,
     WorkspacesService,
+    WorkspaceKeyService,
+    WorkspaceMemberService,
     ForYouService,
     InviteRepository,
     InviteService,
     WorkspaceRoleGuard,
   ],
-  exports: [WorkspacesService, ForYouService, InviteService],
+  exports: [WorkspacesService, WorkspaceMemberService, ForYouService, InviteService],
 })
 export class WorkspacesModule { }

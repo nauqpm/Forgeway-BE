@@ -11,7 +11,7 @@ import { promises as fs } from 'fs';
 import { randomUUID } from 'crypto';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-import JSZip from 'jszip';
+import * as JSZip from 'jszip';
 import sanitizeHtml = require('sanitize-html');
 import { DocumentDoc, DocumentEntity } from '../schemas/document.schema';
 import { Workspace, WorkspaceDocument } from '../../workspaces/schemas/workspace.schema';
@@ -20,6 +20,7 @@ import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dt
 import { UpdateDocumentDto } from '../dtos/update-document.dto';
 import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
 import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
+import { UpdateDocumentWorkspacesDto } from '../dtos/update-document-workspaces.dto';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.webp',
@@ -32,7 +33,7 @@ export class DocumentsService {
     private readonly documentModel: Model<DocumentDoc>,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
-  ) {}
+  ) { }
 
   private ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -163,6 +164,10 @@ export class DocumentsService {
     }).sort({ createdAt: -1 });
   }
 
+  async listAll() {
+    return this.documentModel.find({ deletedAt: null }).sort({ createdAt: -1 });
+  }
+
   async getMineById(userId: string, id: string) {
     const doc = await this.documentModel.findOne({
       _id: new Types.ObjectId(id),
@@ -192,7 +197,7 @@ export class DocumentsService {
     await this.documentModel.updateOne({ _id: doc._id }, { $set: { deletedAt: new Date() } });
     try {
       await fs.unlink(doc.storagePath);
-    } catch {}
+    } catch { }
     return { success: true };
   }
 
@@ -213,6 +218,19 @@ export class DocumentsService {
     await this.documentModel.updateOne(
       { _id: new Types.ObjectId(id), uploadedBy: new Types.ObjectId(userId), deletedAt: null },
       { $pull: { workspaceIds: new Types.ObjectId(dto.workspaceId) } },
+    );
+    return this.getMineById(userId, id);
+  }
+
+  async updateWorkspaces(userId: string, id: string, dto: UpdateDocumentWorkspacesDto) {
+    await this.getMineById(userId, id);
+    const objectIds = dto.workspaceIds.map((wsId) => new Types.ObjectId(wsId));
+    for (const wsId of objectIds) {
+      await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
+    }
+    await this.documentModel.updateOne(
+      { _id: new Types.ObjectId(id), uploadedBy: new Types.ObjectId(userId), deletedAt: null },
+      { $set: { workspaceIds: objectIds } },
     );
     return this.getMineById(userId, id);
   }
