@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ApiBearerAuth,
@@ -66,7 +67,24 @@ export class AttachmentsController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads',
+        destination: (req, file, cb) => {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          
+          // Get module from body or query
+          const targetType = req.body?.targetType || req.query?.targetType || 'others';
+          const moduleFolder = targetType === 'task' ? 'tasks' : targetType === 'page' ? 'pages' : 'others';
+          
+          const uploadPath = join('uploads', moduleFolder, String(year), month, day);
+          
+          if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+          }
+          
+          cb(null, uploadPath);
+        },
         filename: (req, file, callback) => {
           const ext = extname(file.originalname);
           callback(null, `${Date.now()}-${uuidv4()}${ext}`);

@@ -14,12 +14,14 @@ import {
   Request,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { diskStorage, memoryStorage } from 'multer';
+import { extname, join } from 'path';
+import * as fs from 'fs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
+import { CloudinaryService } from '../services/cloudinary.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { CreateImageDto } from '../dtos/create-image.dto';
+import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
 
 const imageFileFilter = (req: any, file: Express.Multer.File, callback: Function) => {
   if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
@@ -29,7 +31,24 @@ const imageFileFilter = (req: any, file: Express.Multer.File, callback: Function
 };
 
 const storage = diskStorage({
-  destination: './uploads',
+  destination: (req: any, file, cb) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    
+    // Lấy module type từ body hoặc mặc định là 'others'
+    const moduleType = req.body.type || 'others';
+    
+    const uploadPath = join('uploads', moduleType, String(year), month, day);
+    
+    // Tạo folder nếu chưa tồn tại
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = extname(file.originalname);
@@ -42,7 +61,10 @@ const storage = diskStorage({
 @ApiTags('Images')
 @Controller('imagesapi')
 export class ImagesController {
-  constructor(private readonly imagesService: ImagesService) {}
+  constructor(
+    private readonly imagesService: ImagesService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Post('upload')
   @UseGuards(JwtAuthGuard)
@@ -54,7 +76,7 @@ export class ImagesController {
     }),
   )
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Upload single image' })
+  @ApiOperation({ summary: 'Upload single image (Local Storage with Date Structure)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -63,19 +85,24 @@ export class ImagesController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'File ảnh cần upload (jpg, jpeg, png, gif, webp)',
+          description: 'Image file to upload (jpg, jpeg, png, gif, webp)',
+        },
+        type: {
+          type: 'string',
+          enum: ['post', 'property', 'task', 'other'],
+          description: 'Module type for folder classification',
         },
       },
     },
   })
   @ApiResponse({
     status: 201,
-    description: 'Upload ảnh thành công',
+    description: 'Image uploaded successfully',
     schema: {
       example: {
         success: true,
         message: 'Image uploaded successfully',
-        data: { _id: '...', url: '/uploads/image-123.jpg', targetType: 'task', targetId: '...' },
+        data: { _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task', targetId: '...' },
       },
     },
   })
@@ -93,6 +120,57 @@ export class ImagesController {
     };
   }
 
+  @Post('upload/avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: imageFileFilter,
+    }),
+  )
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Upload avatar to Cloudinary' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Avatar image file (jpg, jpeg, png, gif, webp)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Avatar uploaded successfully',
+  })
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+    const userId = req.user.userId;
+    const result = await this.cloudinaryService.uploadImage(file, 'avatars');
+
+    // Create image record in DB for management
+    const image = await this.imagesService.create(
+      { type: ImageType.AVATAR, targetId: userId },
+      { ...file, filename: result.public_id } as any, // Use public_id as filename
+      userId,
+    );
+
+    // Overwrite local URL with Cloudinary URL
+    image.url = result.secure_url;
+    await image.save();
+
+    return {
+      success: true,
+      message: 'Avatar uploaded to Cloudinary successfully',
+      url: result.secure_url,
+      data: image,
+    };
+  }
+
   @Post('upload/multiple')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
@@ -103,7 +181,7 @@ export class ImagesController {
     }),
   )
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Upload nhiều ảnh cùng lúc (tối đa 10)' })
+  @ApiOperation({ summary: 'Upload multiple images at once (max 10)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -112,19 +190,19 @@ export class ImagesController {
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
-          description: 'Danh sách file ảnh cần upload',
+          description: 'List of image files to upload',
         },
       },
     },
   })
   @ApiResponse({
     status: 201,
-    description: 'Upload nhiều ảnh thành công',
+    description: 'Multiple images uploaded successfully',
     schema: {
       example: {
         success: true,
         message: '3 images uploaded successfully',
-        data: [{ _id: '...', url: '/uploads/image-123.jpg' }],
+        data: [{ _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg' }],
       },
     },
   })
@@ -143,14 +221,14 @@ export class ImagesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lấy danh sách ảnh theo bộ lọc' })
+  @ApiOperation({ summary: 'Get list of images by filter' })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách ảnh',
+    description: 'List of images',
     schema: {
       example: {
         success: true,
-        data: [{ _id: '...', url: '/uploads/image-123.jpg', targetType: 'task' }],
+        data: [{ _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task' }],
         pagination: { page: 1, limit: 20, total: 50 },
       },
     },
@@ -176,14 +254,14 @@ export class ImagesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lấy thông tin ảnh theo ID' })
+  @ApiOperation({ summary: 'Get image info by ID' })
   @ApiResponse({
     status: 200,
-    description: 'Thông tin ảnh',
+    description: 'Image info',
     schema: {
       example: {
         success: true,
-        data: { _id: '...', url: '/uploads/image-123.jpg', targetType: 'task', downloadCount: 5 },
+        data: { _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task', downloadCount: 5 },
       },
     },
   })
@@ -198,10 +276,10 @@ export class ImagesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Xóa ảnh theo ID' })
+  @ApiOperation({ summary: 'Delete image by ID' })
   @ApiResponse({
     status: 200,
-    description: 'Xóa ảnh thành công',
+    description: 'Image deleted successfully',
     schema: {
       example: {
         success: true,
@@ -218,10 +296,10 @@ export class ImagesController {
   }
 
   @Put(':id/view')
-  @ApiOperation({ summary: 'Tăng số lượt xem/download ảnh' })
+  @ApiOperation({ summary: 'Increment image view/download count' })
   @ApiResponse({
     status: 200,
-    description: 'Đã tăng số lượt xem',
+    description: 'Download count incremented',
     schema: {
       example: {
         success: true,

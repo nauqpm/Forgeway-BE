@@ -3,6 +3,7 @@ export interface AttachmentFile {
   originalname: string;
   mimetype: string;
   size: number;
+  destination?: string;
 }
 
 export interface CreateAttachmentInput {

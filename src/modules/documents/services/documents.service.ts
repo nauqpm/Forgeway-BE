@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { extname, resolve } from 'path';
+import { extname, resolve, join } from 'path';
 import { promises as fs } from 'fs';
+import * as fsSync from 'fs';
 import { randomUUID } from 'crypto';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
@@ -34,6 +35,21 @@ export class DocumentsService {
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
   ) { }
+
+  private getDynamicPath(subfolder: string = 'documents'): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return join('uploads', subfolder, String(year), month, day);
+  }
+
+  private ensureDirExists(path: string) {
+    const fullPath = resolve(process.cwd(), path);
+    if (!fsSync.existsSync(fullPath)) {
+      fsSync.mkdirSync(fullPath, { recursive: true });
+    }
+  }
 
   private ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -100,9 +116,11 @@ export class DocumentsService {
     if (file.size > 20 * 1024 * 1024) throw new BadRequestException('File size exceeds limit');
     const extension = this.ensureAllowedType(file);
 
+    const relativePath = this.getDynamicPath('documents');
+    this.ensureDirExists(relativePath);
+
     const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), 'uploads', filename);
-    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
+    const storagePath = resolve(process.cwd(), relativePath, filename);
     await fs.writeFile(storagePath, file.buffer);
 
     const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
@@ -136,10 +154,12 @@ export class DocumentsService {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
 
+    const relativePath = this.getDynamicPath('documents');
+    this.ensureDirExists(relativePath);
+
     const extension = '.html';
     const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), 'uploads', filename);
-    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
+    const storagePath = resolve(process.cwd(), relativePath, filename);
     await fs.writeFile(storagePath, sanitizedContent, 'utf8');
 
     return this.documentModel.create({

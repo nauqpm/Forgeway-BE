@@ -17,13 +17,16 @@ export class ImagesService {
       throw new BadRequestException('File is required');
     }
 
+    const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
+    const url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
+
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
       filename: file.filename,
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      url: `/uploads/${file.filename}`,
+      url: url,
       thumbnailUrl: dto.thumbnailUrl,
       type: dto.type || 'other',
       targetId: dto.targetId,
@@ -44,13 +47,16 @@ export class ImagesService {
 
     const images = files.map((file, index) => {
       const dto = dtos[index] || {};
+      const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
+      const url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
+
       return new this.imageModel({
         uploadedBy: new Types.ObjectId(userId),
         filename: file.filename,
         originalName: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        url: `/uploads/${file.filename}`,
+        url: url,
         thumbnailUrl: dto.thumbnailUrl,
         type: dto.type || 'other',
         targetId: dto.targetId,
