@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lời mời tham gia workspace</title>
+  <title>Workspace Invitation</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f5f7; margin: 0; padding: 20px; }
     .container { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -16,15 +16,16 @@
 </head>
 <body>
   <div class="container">
-    <div class="title">Lời mời tham gia Workspace</div>
+    <div class="title">Workspace Invitation</div>
     <div class="body">
-      Bạn được mời tham gia workspace <strong>{{workspaceName}}</strong>
-      với vai trò <span class="badge">{{role}}</span>.<br><br>
-      Nhấn nút bên dưới để chấp nhận lời mời. Bạn cần đăng nhập (hoặc đăng ký nếu chưa có tài khoản) để tiếp tục.
+      You have been invited to join the workspace <strong>{{workspaceName}}</strong>
+      as <span class="badge">{{role}}</span>.<br><br>
+      Click the button below to accept the invitation. You need to sign in
+      (or create an account if you don’t have one yet) to continue.
     </div>
-    <a href="{{acceptUrl}}" class="btn">Chấp nhận lời mời</a>
+    <a href="{{acceptUrl}}" class="btn">Accept Invitation</a>
     <div class="expire">
-      Nếu bạn không mong muốn tham gia, hãy bỏ qua email này.
+      If you do not wish to join, you can safely ignore this email.
     </div>
   </div>
 </body>
