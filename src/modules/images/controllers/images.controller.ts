@@ -37,8 +37,8 @@ const storage = diskStorage({
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     
-    // Lấy module type từ body hoặc mặc định là 'others'
-    const moduleType = req.body.type || 'others';
+    // Lấy module type từ body hoặc query hoặc mặc định là 'others'
+    const moduleType = req.body?.type || req.query?.type || req.body?.targetType || req.query?.targetType || 'others';
     
     const uploadPath = join('uploads', moduleType, String(year), month, day);
     
@@ -89,7 +89,7 @@ export class ImagesController {
         },
         type: {
           type: 'string',
-          enum: ['post', 'property', 'task', 'other'],
+          enum: ['post', 'property', 'task', 'other', 'avatar'],
           description: 'Module type for folder classification',
         },
       },
@@ -108,14 +108,19 @@ export class ImagesController {
   })
   async uploadSingle(
     @UploadedFile() file: Express.Multer.File,
-    @Body() dto: CreateImageDto,
+    @Body() body: CreateImageDto,
+    @Query() query: any,
     @Request() req: any,
   ) {
     const userId = req.user.userId;
+    // Merge body and query to handle cases where UI sends type in URL
+    const dto: CreateImageDto = { ...body, ...query };
     const image = await this.imagesService.create(dto, file, userId);
     return {
       success: true,
-      message: 'Image uploaded successfully',
+      message: image.url.includes('cloudinary') 
+        ? 'Avatar uploaded to Cloudinary successfully' 
+        : 'Image uploaded successfully',
       data: image,
     };
   }
@@ -150,26 +155,22 @@ export class ImagesController {
   })
   async uploadAvatar(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
     const userId = req.user.userId;
-    const result = await this.cloudinaryService.uploadImage(file, 'avatars');
 
-    // Create image record in DB for management
+    // The service now handles Cloudinary upload automatically if type is AVATAR
     const image = await this.imagesService.create(
       { type: ImageType.AVATAR, targetId: userId },
-      { ...file, filename: result.public_id } as any, // Use public_id as filename
+      file,
       userId,
     );
-
-    // Overwrite local URL with Cloudinary URL
-    image.url = result.secure_url;
-    await image.save();
 
     return {
       success: true,
       message: 'Avatar uploaded to Cloudinary successfully',
-      url: result.secure_url,
+      url: image.url,
       data: image,
     };
   }
+
 
   @Post('upload/multiple')
   @UseGuards(JwtAuthGuard)
@@ -208,11 +209,15 @@ export class ImagesController {
   })
   async uploadMultiple(
     @UploadedFiles() files: Express.Multer.File[],
-    @Body() dto: CreateImageDto,
+    @Body() body: CreateImageDto,
+    @Query() query: any,
     @Request() req: any,
   ) {
     const userId = req.user.userId;
-    const images = await this.imagesService.createMultiple(files as any, files, userId);
+    const dto: CreateImageDto = { ...body, ...query };
+    // Pass the same dto for all files if only one dto is provided in body
+    const dtos = files.map(() => dto);
+    const images = await this.imagesService.createMultiple(dtos, files, userId);
     return {
       success: true,
       message: `${images.length} images uploaded successfully`,
