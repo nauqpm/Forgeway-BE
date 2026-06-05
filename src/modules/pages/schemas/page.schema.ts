@@ -8,7 +8,7 @@ export class Page {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true })
   workspaceId!: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ type: String, default: '' })
   title!: string;
 
   @Prop({ type: String, default: '' })
