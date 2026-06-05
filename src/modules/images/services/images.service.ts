@@ -4,12 +4,14 @@ import { Model, Types } from 'mongoose';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { Image, ImageDocument } from '../schemas/image.schema';
-import { CreateImageDto } from '../dtos/create-image.dto';
+import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
+import { CloudinaryService } from './cloudinary.service';
 
 @Injectable()
 export class ImagesService {
   constructor(
     @InjectModel(Image.name) private imageModel: Model<ImageDocument>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async create(dto: CreateImageDto, file: Express.Multer.File, userId: string): Promise<ImageDocument> {
@@ -17,8 +19,28 @@ export class ImagesService {
       throw new BadRequestException('File is required');
     }
 
-    const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
-    const url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
+    let url = '';
+    
+    // Nếu là avatar, tự động đẩy lên Cloudinary (ngay cả khi upload qua API local)
+    if (dto.type === ImageType.AVATAR && file.path) {
+      const result = await this.cloudinaryService.uploadImageFromPath(file.path, 'avatars');
+      url = result.secure_url;
+      
+      // Xóa file local sau khi đã lên mây
+      try {
+        await fs.unlink(file.path);
+      } catch (err) {
+        console.error('Failed to delete local temp file:', err);
+      }
+    } else if (file.buffer) {
+      // Trường hợp upload trực tiếp từ RAM (qua API upload/avatar chuyên dụng)
+      // url đã được controller xử lý hoặc xử lý tại đây nếu cần
+      url = '/uploads/temp-to-be-overwritten'; 
+    } else {
+      // Trường hợp lưu local bình thường
+      const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
+      url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
+    }
 
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
