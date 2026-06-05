@@ -70,3 +70,7 @@ superpowers
 
 # CodeGraph
 .codegraph/
+
+# Headroom local-only artifacts
+.headroom/
+node_modules/headroom-ai/

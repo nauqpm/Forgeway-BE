@@ -95,6 +95,7 @@ export class TaskReorderService {
       workspaceId,
       targetColumnId,
       targetSprintId,
+      dto.rankScope,
     );
 
     const [beforeTask, afterTask] = await Promise.all([
@@ -237,9 +238,10 @@ export class TaskReorderService {
     if (
       beforeTask?.rank &&
       afterTask?.rank &&
-      beforeTask.rank === afterTask.rank
+      beforeTask.rank === afterTask.rank &&
+      task.rank
     ) {
-      return task.rank ?? '';
+      return task.rank;
     }
 
     return generateRankBetween(beforeTask?.rank, afterTask?.rank);
@@ -370,15 +372,19 @@ export class TaskReorderService {
     workspaceId: string,
     columnId: string | undefined,
     sprintId: string | null,
+    rankScope: 'board' | 'sprint' = 'board',
   ): TaskReorderScope {
+    const isScrumSprintList = workspaceType === 'scrum' && rankScope === 'sprint';
     const isScrumBacklog = workspaceType === 'scrum' && sprintId === null;
-    if (!isScrumBacklog && !columnId) {
+    const shouldScopeByColumn = !isScrumSprintList && !isScrumBacklog;
+
+    if (shouldScopeByColumn && !columnId) {
       throw new BadRequestException('columnId is required for board reorder');
     }
 
     return {
       workspaceId,
-      ...(isScrumBacklog ? {} : { columnId }),
+      ...(shouldScopeByColumn ? { columnId } : {}),
       ...(workspaceType === 'scrum' ? { sprintId } : {}),
     };
   }
