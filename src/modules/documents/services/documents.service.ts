@@ -115,17 +115,7 @@ export class DocumentsService {
     if (!file) throw new BadRequestException('File is required');
     if (file.size > 20 * 1024 * 1024) throw new BadRequestException('File size exceeds limit');
     const extension = this.ensureAllowedType(file);
-<<<<<<< Updated upstream
-
-    const relativePath = this.getDynamicPath('documents');
-    this.ensureDirExists(relativePath);
-
-    const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), relativePath, filename);
-    await fs.writeFile(storagePath, file.buffer);
-=======
     const name = dto.name?.trim() || file.originalname;
->>>>>>> Stashed changes
 
     const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
     for (const wsId of workspaceIds) {
@@ -134,9 +124,11 @@ export class DocumentsService {
 
     await this.ensureUniqueNameForUser(userId, name);
 
+    const relativePath = this.getDynamicPath('documents');
+    this.ensureDirExists(relativePath);
+
     const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), 'uploads', filename);
-    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
+    const storagePath = resolve(process.cwd(), relativePath, filename);
     await fs.writeFile(storagePath, file.buffer);
 
     const created = await this.documentModel.create({
@@ -166,12 +158,9 @@ export class DocumentsService {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
 
-<<<<<<< Updated upstream
     const relativePath = this.getDynamicPath('documents');
     this.ensureDirExists(relativePath);
-=======
     await this.ensureUniqueNameForUser(userId, name);
->>>>>>> Stashed changes
 
     const extension = '.html';
     const filename = `${randomUUID()}${extension}`;
