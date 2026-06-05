@@ -1,7 +1,7 @@
 // 📁 src/modules/auth/controllers/user-management.controller.ts
 //
-// NOTE: Các endpoint quản lý user này hiện đặt tạm trong AuthModule vì lý do tiện lợi.
-// Về lâu dài, nên migrate sang UserModule độc lập (chưa thực hiện trong refactor này).
+// NOTE: These user management endpoints are currently placed in AuthModule for convenience.
+// In the long term, they should be migrated to an independent UserModule.
 
 import {
   Controller,
@@ -46,7 +46,7 @@ export class UserManagementController {
     private readonly userService: UsersService,
   ) {}
 
-  // 📋 Lấy danh sách tất cả người dùng
+  // 📋 List all users
   @Get('users')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
@@ -54,7 +54,7 @@ export class UserManagementController {
   @ApiOperation({ summary: 'Super admin only: list sanitized users' })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách người dùng (phân trang)',
+    description: 'List of users (paginated)',
     schema: {
       example: {
         data: [
@@ -63,7 +63,7 @@ export class UserManagementController {
             email: 'user@example.com',
             role: 'user',
             status: 'active',
-            fullName: 'Nguyễn Văn A',
+            fullName: 'John Doe',
             avatar: 'https://...',
             createdAt: '2026-01-01T00:00:00Z',
             updatedAt: '2026-01-01T00:00:00Z',
@@ -94,22 +94,22 @@ export class UserManagementController {
       };
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(`❌ Lỗi khi lấy danh sách người dùng: ${err.message}`, err.stack);
+      this.logger.error(`❌ Error fetching users: ${err.message}`, err.stack);
       throw error;
     }
   }
 
-  // ✏️ Cập nhật thông tin người dùng
+  // ✏️ Update user information
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Cập nhật thông tin người dùng hiện tại' })
+  @ApiOperation({ summary: 'Update current user profile' })
   @ApiResponse({
     status: 200,
-    description: 'Cập nhật thông tin thành công',
+    description: 'Profile updated successfully',
     schema: {
       example: {
         _id: '...',
         email: 'user@example.com',
-        fullName: 'Nguyễn Văn A',
+        fullName: 'John Doe',
         avatar: 'https://...',
       },
     },
@@ -125,18 +125,18 @@ export class UserManagementController {
       return await this.userService.updateUser(userId, updateUserDto);
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(`❌ Lỗi khi cập nhật thông tin người dùng: ${err.message}`, err.stack);
+      this.logger.error(`❌ Error updating user: ${err.message}`, err.stack);
       throw error;
     }
   }
 
-  // 🔑 Super admin: Cập nhật role của user
+  // 🔑 Super admin: Update user role
   @Put('users/:userId/role')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Super admin: Cập nhật role của user' })
-  @ApiResponse({ status: 200, description: 'Cập nhật role thành công' })
+  @ApiOperation({ summary: 'Super admin: Update user role' })
+  @ApiResponse({ status: 200, description: 'Role updated successfully' })
   async updateUserRole(
     @Param('userId') userId: string,
     @Body() body: { role: string },
@@ -144,23 +144,23 @@ export class UserManagementController {
     try {
       const validRoles = ['user', 'super_admin'];
       if (!validRoles.includes(body.role)) {
-        throw new BadRequestException(`Role phải là một trong: ${validRoles.join(', ')}`);
+        throw new BadRequestException(`Role must be one of: ${validRoles.join(', ')}`);
       }
       return await this.userService.updateUserRole(userId, body.role);
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(`❌ Lỗi khi cập nhật role: ${err.message}`, err.stack);
+      this.logger.error(`❌ Error updating role: ${err.message}`, err.stack);
       throw error;
     }
   }
 
-  // 🔑 Super admin: Cập nhật status của user
+  // 🔑 Super admin: Update user status
   @Put('users/:userId/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Super admin: Cập nhật status của user' })
-  @ApiResponse({ status: 200, description: 'Cập nhật status thành công' })
+  @ApiOperation({ summary: 'Super admin: Update user status' })
+  @ApiResponse({ status: 200, description: 'Status updated successfully' })
   async updateUserStatus(
     @Param('userId') userId: string,
     @Body() body: { status: string },
@@ -168,12 +168,12 @@ export class UserManagementController {
     try {
       const validStatuses = ['active', 'inactive', 'pending_verification', 'suspended'];
       if (!validStatuses.includes(body.status)) {
-        throw new BadRequestException(`Status phải là một trong: ${validStatuses.join(', ')}`);
+        throw new BadRequestException(`Status must be one of: ${validStatuses.join(', ')}`);
       }
       return await this.userService.updateUserStatus(userId, body.status);
     } catch (error) {
       const err = error as AuthError;
-      this.logger.error(`❌ Lỗi khi cập nhật status: ${err.message}`, err.stack);
+      this.logger.error(`❌ Error updating status: ${err.message}`, err.stack);
       throw error;
     }
   }

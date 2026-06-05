@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { extname, resolve } from 'path';
+import { extname, resolve, join } from 'path';
 import { promises as fs } from 'fs';
+import * as fsSync from 'fs';
 import { randomUUID } from 'crypto';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
@@ -34,6 +35,21 @@ export class DocumentsService {
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
   ) { }
+
+  private getDynamicPath(subfolder: string = 'documents'): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return join('uploads', subfolder, String(year), month, day);
+  }
+
+  private ensureDirExists(path: string) {
+    const fullPath = resolve(process.cwd(), path);
+    if (!fsSync.existsSync(fullPath)) {
+      fsSync.mkdirSync(fullPath, { recursive: true });
+    }
+  }
 
   private ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -99,20 +115,25 @@ export class DocumentsService {
     if (!file) throw new BadRequestException('File is required');
     if (file.size > 20 * 1024 * 1024) throw new BadRequestException('File size exceeds limit');
     const extension = this.ensureAllowedType(file);
-
-    const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), 'uploads', filename);
-    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
-    await fs.writeFile(storagePath, file.buffer);
+    const name = dto.name?.trim() || file.originalname;
 
     const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
     for (const wsId of workspaceIds) {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
 
+    await this.ensureUniqueNameForUser(userId, name);
+
+    const relativePath = this.getDynamicPath('documents');
+    this.ensureDirExists(relativePath);
+
+    const filename = `${randomUUID()}${extension}`;
+    const storagePath = resolve(process.cwd(), relativePath, filename);
+    await fs.writeFile(storagePath, file.buffer);
+
     const created = await this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
-      name: dto.name?.trim() || file.originalname,
+      name,
       originalName: file.originalname,
       filename,
       storagePath,
@@ -127,6 +148,7 @@ export class DocumentsService {
   }
 
   async createOnline(userId: string, dto: CreateOnlineDocumentDto) {
+    const name = dto.name.trim();
     const rawContent = dto.content ?? '';
     const sanitizedContent = this.sanitizeContent(rawContent);
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
@@ -136,16 +158,19 @@ export class DocumentsService {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
 
+    const relativePath = this.getDynamicPath('documents');
+    this.ensureDirExists(relativePath);
+    await this.ensureUniqueNameForUser(userId, name);
+
     const extension = '.html';
     const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), 'uploads', filename);
-    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
+    const storagePath = resolve(process.cwd(), relativePath, filename);
     await fs.writeFile(storagePath, sanitizedContent, 'utf8');
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
-      name: dto.name.trim(),
-      originalName: `${dto.name.trim()}${extension}`,
+      name,
+      originalName: `${name}${extension}`,
       filename,
       storagePath,
       mimeType: 'text/html',
@@ -179,12 +204,15 @@ export class DocumentsService {
   }
 
   async updateMine(userId: string, id: string, dto: UpdateDocumentDto) {
+    const name = dto.name.trim();
+    await this.ensureUniqueNameForUser(userId, name, id);
+
     const doc = await this.documentModel.findOneAndUpdate({
       _id: new Types.ObjectId(id),
       uploadedBy: new Types.ObjectId(userId),
       deletedAt: null,
     }, {
-      $set: { name: dto.name.trim() },
+      $set: { name },
     }, {
       new: true,
     });
@@ -299,6 +327,33 @@ export class DocumentsService {
     );
 
     return updated;
+  }
+
+  private async ensureUniqueNameForUser(
+    userId: string,
+    name: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const query: Record<string, any> = {
+      uploadedBy: new Types.ObjectId(userId),
+      deletedAt: null,
+      name: { $regex: `^${this.escapeRegex(name)}$`, $options: 'i' },
+    };
+
+    if (excludeId) {
+      query._id = { $ne: new Types.ObjectId(excludeId) };
+    }
+
+    const existingDocument = await this.documentModel.exists(query).exec();
+    if (existingDocument) {
+      throw new BadRequestException(
+        'A document with this name already exists in your library',
+      );
+    }
+  }
+
+  private escapeRegex(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private escapeHtml(input: string): string {

@@ -49,10 +49,13 @@ export class PagesService {
       }
     }
 
-    const slug = dto.slug || (await this.generateUniqueSlug(dto.title));
+    const title = dto.title.trim();
+    await this.ensureUniqueTitleInLocation(title, dto.workspaceId, dto.parentId);
+
+    const slug = dto.slug || (await this.generateUniqueSlug(title));
 
     const page = new this.pageModel({
-      title: dto.title,
+      title,
       content: dto.content || '',
       workspaceId: dto.workspaceId
         ? new Types.ObjectId(dto.workspaceId)
@@ -226,7 +229,16 @@ export class PagesService {
 
     const page = await this.findById(id);
 
-    if (dto.title) page.title = dto.title;
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      await this.ensureUniqueTitleInLocation(
+        title,
+        page.workspaceId.toString(),
+        page.parentId?.toString(),
+        id,
+      );
+      page.title = title;
+    }
     if (dto.content !== undefined) page.content = dto.content;
     if (dto.status) page.status = dto.status;
     if (dto.labels) page.labels = dto.labels;
@@ -380,6 +392,37 @@ export class PagesService {
     return page.save();
   }
 
+  private async ensureUniqueTitleInLocation(
+    title: string,
+    workspaceId?: string,
+    parentId?: string,
+    excludeId?: string,
+  ): Promise<void> {
+    if (!workspaceId) return;
+
+    const query: Record<string, any> = {
+      workspaceId: new Types.ObjectId(workspaceId),
+      title: { $regex: `^${this.escapeRegex(title)}$`, $options: 'i' },
+    };
+
+    if (parentId) {
+      query.parentId = new Types.ObjectId(parentId);
+    } else {
+      query.parentId = { $exists: false };
+    }
+
+    if (excludeId) {
+      query._id = { $ne: new Types.ObjectId(excludeId) };
+    }
+
+    const existingPage = await this.pageModel.exists(query).exec();
+    if (existingPage) {
+      throw new BadRequestException(
+        'A document with this name already exists in this location',
+      );
+    }
+  }
+
   async generateUniqueSlug(title: string): Promise<string> {
     const baseSlug = this.slugify(title);
     let slug = baseSlug;
@@ -391,6 +434,10 @@ export class PagesService {
     }
 
     return slug;
+  }
+
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private slugify(text: string): string {

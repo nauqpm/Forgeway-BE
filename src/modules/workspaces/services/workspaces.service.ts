@@ -227,4 +227,14 @@ export class WorkspacesService {
 
     return workspace;
   }
+
+  async archive(id: string): Promise<any> {
+    const workspace = await this.workspacesRepository.findById(id);
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+    }
+
+    workspace.status = 'archived';
+    return this.workspacesRepository.update(id, workspace);
+  }
 }

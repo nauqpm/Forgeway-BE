@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsMongoId, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsIn, IsMongoId, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 const emptyStringToNull = (value: unknown): unknown => {
   if (value === '') {
@@ -29,6 +29,15 @@ export class ReorderTaskDto {
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsMongoId()
   sprintId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Rank scope used for ordering. Board reorder is scoped by column; sprint reorder is scoped by sprint/backlog list.',
+    enum: ['board', 'sprint'],
+    default: 'board',
+  })
+  @IsOptional()
+  @IsIn(['board', 'sprint'])
+  rankScope?: 'board' | 'sprint';
 
   @ApiPropertyOptional({
     description: 'Task ID currently below the reordered task.',
