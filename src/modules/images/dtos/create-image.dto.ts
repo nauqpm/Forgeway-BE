@@ -14,6 +14,10 @@ export class CreateImageDto {
 
   @IsOptional()
   @IsString()
+  targetType?: string;
+
+  @IsOptional()
+  @IsString()
   targetId?: string;
 
   @IsOptional()
