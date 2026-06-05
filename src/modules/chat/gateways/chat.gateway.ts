@@ -7,8 +7,9 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
-import { Logger } from '@nestjs/common';
+import { Logger, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { Server, Socket } from 'socket.io';
 import { parse } from 'cookie';
 import { Types } from 'mongoose';
@@ -20,6 +21,7 @@ import { MeetingDocument } from '../schemas/meeting.schema';
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RealtimeEnvelope } from '../../realtime/contracts/realtime-envelope.interface';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
+import { SocketThrottlerGuard } from '../../../common/guards/socket-throttler.guard';
 
 type AuthenticatedSocket = Socket & {
   data: {
@@ -31,6 +33,7 @@ type AuthenticatedSocket = Socket & {
   };
 };
 
+@UseGuards(SocketThrottlerGuard)
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
@@ -73,6 +76,7 @@ export class ChatGateway implements OnGatewayConnection {
   }
 
   // 5.1 Room Management
+  @Throttle({ chat_room: { limit: 10, ttl: 60000 } })
   @SubscribeMessage('chat.join')
   async handleJoin(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -89,6 +93,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
+  @Throttle({ chat_room: { limit: 10, ttl: 60000 } })
   @SubscribeMessage('chat.leave')
   async handleLeave(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -99,6 +104,7 @@ export class ChatGateway implements OnGatewayConnection {
   }
 
   // 5.2 Text Chat Events
+  @Throttle({ chat_send: { limit: 5, ttl: 10000 } })
   @SubscribeMessage('chat.send')
   async handleSend(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -121,6 +127,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
+  @Throttle({ chat_action: { limit: 5, ttl: 30000 } })
   @SubscribeMessage('chat.edit')
   async handleEdit(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -143,6 +150,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
+  @Throttle({ chat_action: { limit: 5, ttl: 30000 } })
   @SubscribeMessage('chat.delete')
   async handleDelete(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -165,6 +173,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
+  @Throttle({ chat_typing: { limit: 1, ttl: 2000 } })
   @SubscribeMessage('chat.typing')
   async handleTyping(
     @ConnectedSocket() client: AuthenticatedSocket,

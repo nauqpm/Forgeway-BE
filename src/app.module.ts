@@ -72,6 +72,26 @@ import { ChatModule } from './modules/chat/chat.module';
             ttl: cfg.get<number>('THROTTLE_DEFAULT_TTL_MS') ?? 60_000,
             limit: cfg.get<number>('THROTTLE_DEFAULT_LIMIT') ?? 120,
           },
+          {
+            name: 'chat_send',
+            ttl: 10_000,
+            limit: 5,
+          },
+          {
+            name: 'chat_typing',
+            ttl: 2_000,
+            limit: 1,
+          },
+          {
+            name: 'chat_action',
+            ttl: 30_000,
+            limit: 5,
+          },
+          {
+            name: 'chat_room',
+            ttl: 60_000,
+            limit: 10,
+          },
         ],
       }),
     }),
