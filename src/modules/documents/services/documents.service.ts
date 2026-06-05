@@ -115,6 +115,14 @@ export class DocumentsService {
     if (!file) throw new BadRequestException('File is required');
     if (file.size > 20 * 1024 * 1024) throw new BadRequestException('File size exceeds limit');
     const extension = this.ensureAllowedType(file);
+    const name = dto.name?.trim() || file.originalname;
+
+    const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
+    for (const wsId of workspaceIds) {
+      await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
+    }
+
+    await this.ensureUniqueNameForUser(userId, name);
 
     const relativePath = this.getDynamicPath('documents');
     this.ensureDirExists(relativePath);
@@ -123,14 +131,9 @@ export class DocumentsService {
     const storagePath = resolve(process.cwd(), relativePath, filename);
     await fs.writeFile(storagePath, file.buffer);
 
-    const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
-    for (const wsId of workspaceIds) {
-      await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
-    }
-
     const created = await this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
-      name: dto.name?.trim() || file.originalname,
+      name,
       originalName: file.originalname,
       filename,
       storagePath,
@@ -145,6 +148,7 @@ export class DocumentsService {
   }
 
   async createOnline(userId: string, dto: CreateOnlineDocumentDto) {
+    const name = dto.name.trim();
     const rawContent = dto.content ?? '';
     const sanitizedContent = this.sanitizeContent(rawContent);
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
@@ -156,6 +160,7 @@ export class DocumentsService {
 
     const relativePath = this.getDynamicPath('documents');
     this.ensureDirExists(relativePath);
+    await this.ensureUniqueNameForUser(userId, name);
 
     const extension = '.html';
     const filename = `${randomUUID()}${extension}`;
@@ -164,8 +169,8 @@ export class DocumentsService {
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
-      name: dto.name.trim(),
-      originalName: `${dto.name.trim()}${extension}`,
+      name,
+      originalName: `${name}${extension}`,
       filename,
       storagePath,
       mimeType: 'text/html',
@@ -199,12 +204,15 @@ export class DocumentsService {
   }
 
   async updateMine(userId: string, id: string, dto: UpdateDocumentDto) {
+    const name = dto.name.trim();
+    await this.ensureUniqueNameForUser(userId, name, id);
+
     const doc = await this.documentModel.findOneAndUpdate({
       _id: new Types.ObjectId(id),
       uploadedBy: new Types.ObjectId(userId),
       deletedAt: null,
     }, {
-      $set: { name: dto.name.trim() },
+      $set: { name },
     }, {
       new: true,
     });
@@ -319,6 +327,33 @@ export class DocumentsService {
     );
 
     return updated;
+  }
+
+  private async ensureUniqueNameForUser(
+    userId: string,
+    name: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const query: Record<string, any> = {
+      uploadedBy: new Types.ObjectId(userId),
+      deletedAt: null,
+      name: { $regex: `^${this.escapeRegex(name)}$`, $options: 'i' },
+    };
+
+    if (excludeId) {
+      query._id = { $ne: new Types.ObjectId(excludeId) };
+    }
+
+    const existingDocument = await this.documentModel.exists(query).exec();
+    if (existingDocument) {
+      throw new BadRequestException(
+        'A document with this name already exists in your library',
+      );
+    }
+  }
+
+  private escapeRegex(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private escapeHtml(input: string): string {
