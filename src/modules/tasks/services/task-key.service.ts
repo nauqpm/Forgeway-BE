@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class TaskKeyService {
   private readonly fallbackPrefix = 'TASK';
-  private readonly maxPrefixLength = 5;
-  private readonly minPrefixLength = 3;
+  private readonly maxPrefixLength = 10;
+  private readonly minPrefixLength = 1;
 
   create(workspaceName: string | undefined, sequence: number): string {
     const prefix = this.createPrefix(workspaceName);
@@ -62,7 +62,7 @@ export class TaskKeyService {
     return value
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[đĐ]/g, 'd')
+      .replace(/\u0111|\u0110/g, 'd')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
       .replace(/[^a-zA-Z0-9]+/g, ' ')
       .trim()
