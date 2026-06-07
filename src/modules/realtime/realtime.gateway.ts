@@ -191,10 +191,6 @@ export class RealtimeGateway
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: PageYjsUpdateDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client)) {
-      return { ok: false };
-    }
-
     const user = client.data.user!;
     const updateArray = new Uint8Array(body.update);
 

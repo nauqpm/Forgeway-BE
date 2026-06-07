@@ -102,23 +102,6 @@ export class PageCollabService {
 
     // Apply the incremental update to in-memory doc
     Y.applyUpdate(ydoc, update);
-
-    // Derive content and title from the updated Y.Doc
-    const yTitle = ydoc.getText('title');
-    const title = yTitle.toString();
-
-    // Persist updated state to MongoDB
-    const fullState = Y.encodeStateAsUpdate(ydoc);
-
-    await this.pageDraftModel.findOneAndUpdate(
-      { pageId: new Types.ObjectId(pageId) },
-      {
-        yjsState: Buffer.from(fullState),
-        title,
-        lastEditedBy: new Types.ObjectId(userId),
-      },
-      { upsert: true, new: true },
-    );
   }
 
   // ─── Flush draft to main page (called by Update button) ───────
@@ -165,18 +148,38 @@ export class PageCollabService {
     content: string,
     title: string,
   ): Promise<void> {
+    const updatePayload: any = { content, title };
+    const ydoc = this.docs.get(pageId);
+    if (ydoc) {
+      const fullState = Y.encodeStateAsUpdate(ydoc);
+      updatePayload.yjsState = Buffer.from(fullState);
+    }
+
     await this.pageDraftModel.findOneAndUpdate(
       { pageId: new Types.ObjectId(pageId) },
-      { content, title },
+      updatePayload,
       { upsert: true, new: true },
     );
   }
 
   // ─── Cleanup when room empties ────────────────────────────────
 
-  cleanupDoc(pageId: string): void {
+  async cleanupDoc(pageId: string): Promise<void> {
     const ydoc = this.docs.get(pageId);
     if (ydoc) {
+      // Persist final state before destroying
+      try {
+        const fullState = Y.encodeStateAsUpdate(ydoc);
+        const title = ydoc.getText('title').toString();
+        await this.pageDraftModel.findOneAndUpdate(
+          { pageId: new Types.ObjectId(pageId) },
+          { yjsState: Buffer.from(fullState), title },
+          { upsert: true },
+        );
+      } catch (error) {
+        this.logger.error(`Failed to save Yjs state during cleanup for ${pageId}`, error);
+      }
+
       ydoc.destroy();
       this.docs.delete(pageId);
       this.logger.debug(`Cleaned up in-memory Y.Doc for page ${pageId}`);
