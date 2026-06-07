@@ -26,6 +26,7 @@ export const REALTIME_EVENT_TYPES = {
   TASK_ACTIVITY_CREATED: 'task.activity.created',
 
   PAGE_UPDATED: 'page.updated',
+  PAGE_YJS_UPDATE: 'page.yjs-update',
 } as const;
 
 export type RealtimeEventType =

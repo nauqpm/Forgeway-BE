@@ -20,7 +20,7 @@ import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
 import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
-import { PageUpdateDto } from './dto/page-update.dto';
+import { PageYjsUpdateDto } from './dto/page-yjs-update.dto';
 import { PageCollabService } from './services/page-collab.service';
 import { LeaveWorkspaceRoomDto } from './dto/leave-workspace-room.dto';
 import { PresenceHeartbeatDto } from './dto/presence-heartbeat.dto';
@@ -138,14 +138,14 @@ export class RealtimeGateway
     return this.roomManagerService.leaveTask(client, body);
   }
 
-  // ── Page collaboration events ─────────────────────────────
+  // ── Page collaboration events (Yjs CRDT) ───────────────────
 
   @SubscribeMessage('page:join')
   @UsePipes(socketValidationPipe)
   async joinPage(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: JoinPageRoomDto,
-  ): Promise<{ ok: boolean; draft?: string }> {
+  ): Promise<{ ok: boolean; yjsState?: number[]; content?: string; title?: string }> {
     if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
@@ -153,8 +153,14 @@ export class RealtimeGateway
     const pageRoom = RoomBuilder.page(body.pageId);
     await client.join(pageRoom);
 
-    const draft = await this.pageCollabService.getDraft(body.pageId);
-    return { ok: true, draft };
+    // Return full Yjs state + HTML fallback for the client to initialize
+    const state = await this.pageCollabService.getYjsState(body.pageId);
+    return {
+      ok: true,
+      yjsState: state.yjsState,
+      content: state.content,
+      title: state.title,
+    };
   }
 
   @SubscribeMessage('page:leave')
@@ -170,40 +176,63 @@ export class RealtimeGateway
     const pageRoom = RoomBuilder.page(body.pageId);
     await client.leave(pageRoom);
 
-    // Check if room is now empty and flush if so
+    // Cleanup in-memory Y.Doc if room is now empty
     const roomSockets = await this.server.in(pageRoom).fetchSockets();
-    await this.pageCollabService.flushDraftIfRoomEmpty(
-      body.pageId,
-      roomSockets.length,
-    );
+    if (roomSockets.length === 0) {
+      this.pageCollabService.cleanupDoc(body.pageId);
+    }
 
     return { ok: true };
   }
 
-  @SubscribeMessage('page:update')
+  @SubscribeMessage('page:yjs-update')
   @UsePipes(socketValidationPipe)
-  async updatePage(
+  async handleYjsUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: PageUpdateDto,
+    @MessageBody() body: PageYjsUpdateDto,
   ): Promise<{ ok: boolean }> {
     if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
 
     const user = client.data.user!;
-    await this.pageCollabService.handleUpdate(
+    const updateArray = new Uint8Array(body.update);
+
+    // Apply update to server-side Y.Doc and persist
+    await this.pageCollabService.applyYjsUpdate(
       user.userId,
       body.pageId,
-      body.content,
+      updateArray,
     );
 
-    // Broadcast to all OTHER clients in the page room (not the sender)
+    // Relay raw update to all OTHER clients in the page room
     const pageRoom = RoomBuilder.page(body.pageId);
-    client.to(pageRoom).emit(REALTIME_EVENT_TYPES.PAGE_UPDATED, {
+    client.to(pageRoom).emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
       pageId: body.pageId,
-      content: body.content,
-      editedBy: user.userId,
+      update: body.update,
     });
+
+    return { ok: true };
+  }
+
+  // ── Page draft content update (HTML derived from Yjs) ──────
+
+  @SubscribeMessage('page:draft-content')
+  @UsePipes(socketValidationPipe)
+  async handleDraftContent(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: { pageId: string; content: string; title: string },
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    // Store derived HTML content and title for search/fallback
+    await this.pageCollabService.updateDraftContent(
+      body.pageId,
+      body.content,
+      body.title,
+    );
 
     return { ok: true };
   }
