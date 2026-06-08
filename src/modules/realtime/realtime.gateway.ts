@@ -145,7 +145,7 @@ export class RealtimeGateway
   async joinPage(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: JoinPageRoomDto,
-  ): Promise<{ ok: boolean; yjsState?: number[]; content?: string; title?: string }> {
+  ): Promise<{ ok: boolean; yjsState?: number[]; stateVector?: number[]; content?: string; title?: string }> {
     if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
@@ -158,6 +158,7 @@ export class RealtimeGateway
     return {
       ok: true,
       yjsState: state.yjsState,
+      stateVector: state.stateVector,
       content: state.content,
       title: state.title,
     };
@@ -186,20 +187,37 @@ export class RealtimeGateway
   }
 
   @SubscribeMessage('page:yjs-update')
-  @UsePipes(socketValidationPipe)
   async handleYjsUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: PageYjsUpdateDto,
   ): Promise<{ ok: boolean }> {
     const user = client.data.user!;
+
+    // Validate that the update array is non-empty
+    if (!body.update || body.update.length === 0) {
+      this.logger.warn(
+        `Received empty Yjs update from user ${user.userId} for page ${body.pageId}`,
+      );
+      return { ok: false };
+    }
+
     const updateArray = new Uint8Array(body.update);
 
-    // Apply update to server-side Y.Doc and persist
-    await this.pageCollabService.applyYjsUpdate(
-      user.userId,
-      body.pageId,
-      updateArray,
-    );
+    try {
+      // Apply update to server-side Y.Doc and persist
+      await this.pageCollabService.applyYjsUpdate(
+        user.userId,
+        body.pageId,
+        updateArray,
+      );
+    } catch (error) {
+      // If the update is corrupted, log and return failure.
+      // Do NOT relay corrupted updates to other clients.
+      this.logger.warn(
+        `Rejected corrupted Yjs update from user ${user.userId} for page ${body.pageId}: ${(error as Error).message}`,
+      );
+      return { ok: false };
+    }
 
     // Relay raw update to all OTHER clients in the page room
     const pageRoom = RoomBuilder.page(body.pageId);

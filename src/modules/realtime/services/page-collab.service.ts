@@ -25,58 +25,91 @@ export class PageCollabService {
     private readonly pagesService: PagesService,
   ) {}
 
+  /**
+   * Pending initialization promises to prevent race conditions during concurrent accesses.
+   */
+  private readonly initPromises = new Map<string, Promise<Y.Doc>>();
+
   // ─── Get or create an in-memory Y.Doc for a page ──────────────
 
   private async getOrCreateDoc(pageId: string): Promise<Y.Doc> {
     const existing = this.docs.get(pageId);
     if (existing) return existing;
 
-    const ydoc = new Y.Doc();
+    let initPromise = this.initPromises.get(pageId);
+    if (initPromise) return initPromise;
 
-    // Try to restore from persisted draft
-    const draft = await this.pageDraftModel
-      .findOne({ pageId: new Types.ObjectId(pageId) })
-      .lean()
-      .exec();
+    initPromise = (async () => {
+      const ydoc = new Y.Doc();
 
-    if (draft?.yjsState) {
-      const stateArray = new Uint8Array(draft.yjsState);
-      Y.applyUpdate(ydoc, stateArray);
-    } else {
-      // No Yjs state yet — initialize from persisted Page content
-      const page = await this.pagesService.findById(pageId);
+      // Try to restore from persisted draft
+      const draft = await this.pageDraftModel
+        .findOne({ pageId: new Types.ObjectId(pageId) })
+        .lean()
+        .exec();
 
-      // Set title in Y.Text
-      const yTitle = ydoc.getText('title');
-      if (page.title) {
-        yTitle.insert(0, page.title);
+      let restoredFromDraft = false;
+
+      if (draft?.yjsState) {
+        try {
+          const stateArray = new Uint8Array(draft.yjsState);
+          Y.applyUpdate(ydoc, stateArray);
+          restoredFromDraft = true;
+        } catch (error) {
+          this.logger.warn(
+            `Corrupted Yjs state in draft for page ${pageId}, starting fresh: ${(error as Error).message}`,
+          );
+        }
       }
 
-      // Content will be initialized by the first client that joins
-      // (TipTap Collaboration extension handles initial content injection)
-    }
+      if (!restoredFromDraft) {
+        // No Yjs state yet (or corrupted) — initialize from persisted Page content
+        const page = await this.pagesService.findById(pageId);
 
-    this.docs.set(pageId, ydoc);
-    return ydoc;
+        // Set title in Y.Text
+        const yTitle = ydoc.getText('title');
+        if (page.title) {
+          yTitle.insert(0, page.title);
+        }
+
+        // Content will be initialized by the first client that joins
+        // (TipTap Collaboration extension handles initial content injection)
+      }
+
+      this.docs.set(pageId, ydoc);
+      return ydoc;
+    })();
+
+    this.initPromises.set(pageId, initPromise);
+
+    try {
+      return await initPromise;
+    } finally {
+      this.initPromises.delete(pageId);
+    }
   }
 
   // ─── Get full Yjs state + fallback content for page:join ──────
 
-  async getYjsState(
-    pageId: string,
-  ): Promise<{ yjsState: number[]; content: string; title: string }> {
-    const ydoc = await this.getOrCreateDoc(pageId);
+  async getYjsState(pageId: string): Promise<{
+    yjsState: number[];
+    stateVector: number[];
+    content: string;
+    title: string;
+  }> {
+    // getOrCreateDoc already queries the draft; fetch it in parallel to avoid a
+    // second round-trip for the content fallback below.
+    const [ydoc, draft] = await Promise.all([
+      this.getOrCreateDoc(pageId),
+      this.pageDraftModel
+        .findOne({ pageId: new Types.ObjectId(pageId) })
+        .lean()
+        .exec(),
+    ]);
+
     const stateUpdate = Y.encodeStateAsUpdate(ydoc);
-
-    // Derive title from Y.Text
-    const yTitle = ydoc.getText('title');
-    const title = yTitle.toString();
-
-    // Get HTML content fallback from draft or main page
-    const draft = await this.pageDraftModel
-      .findOne({ pageId: new Types.ObjectId(pageId) })
-      .lean()
-      .exec();
+    const stateVector = Y.encodeStateVector(ydoc);
+    const title = ydoc.getText('title').toString();
 
     let content = draft?.content || '';
     if (!content) {
@@ -86,6 +119,7 @@ export class PageCollabService {
 
     return {
       yjsState: Array.from(stateUpdate),
+      stateVector: Array.from(stateVector),
       content,
       title: title || (draft?.title ?? ''),
     };
@@ -98,15 +132,37 @@ export class PageCollabService {
     pageId: string,
     update: Uint8Array,
   ): Promise<void> {
+    // Validate that the update is non-empty
+    if (!update || update.length === 0) {
+      this.logger.warn(
+        `Received empty Yjs update for page ${pageId} from user ${userId}`,
+      );
+      return;
+    }
+
     const ydoc = await this.getOrCreateDoc(pageId);
 
-    // Apply the incremental update to in-memory doc
-    Y.applyUpdate(ydoc, update);
+    try {
+      // Apply the incremental update to in-memory doc
+      Y.applyUpdate(ydoc, update);
+    } catch (error) {
+      this.logger.error(
+        `Failed to apply Yjs update for page ${pageId} from user ${userId}: ${(error as Error).message}`,
+      );
+      // Re-throw so the gateway can return { ok: false } and skip relaying the
+      // corrupted update to other clients. A single bad update should not crash
+      // the room — the gateway handles this gracefully.
+      throw error;
+    }
   }
 
   // ─── Flush draft to main page (called by Update button) ───────
 
   async flushDraft(pageId: string): Promise<void> {
+    // Prefer the live in-memory Yjs state to avoid a stale DB snapshot.
+    // Fall back to the persisted draft if the room has already been cleaned up.
+    const liveTitleFromYjs = this.docs.get(pageId)?.getText('title').toString();
+
     const draft = await this.pageDraftModel
       .findOne({ pageId: new Types.ObjectId(pageId) })
       .lean()
@@ -120,14 +176,13 @@ export class PageCollabService {
     try {
       const editorId = draft.lastEditedBy?.toString() ?? '';
 
-      // Build update payload from draft
       const updatePayload: { content?: string; title?: string } = {};
-      if (draft.content) {
-        updatePayload.content = draft.content;
-      }
-      if (draft.title) {
-        updatePayload.title = draft.title;
-      }
+      if (draft.content) updatePayload.content = draft.content;
+
+      // Use the live Yjs title when available — it's always more recent than
+      // the periodically-persisted draft.title.
+      const title = liveTitleFromYjs ?? draft.title;
+      if (title) updatePayload.title = title;
 
       if (Object.keys(updatePayload).length > 0) {
         await this.pagesService.update(pageId, updatePayload, editorId);
@@ -148,11 +203,14 @@ export class PageCollabService {
     content: string,
     title: string,
   ): Promise<void> {
-    const updatePayload: any = { content, title };
     const ydoc = this.docs.get(pageId);
+    const updatePayload: { content: string; title: string; yjsState?: Buffer } =
+      {
+        content,
+        title,
+      };
     if (ydoc) {
-      const fullState = Y.encodeStateAsUpdate(ydoc);
-      updatePayload.yjsState = Buffer.from(fullState);
+      updatePayload.yjsState = Buffer.from(Y.encodeStateAsUpdate(ydoc));
     }
 
     await this.pageDraftModel.findOneAndUpdate(
@@ -177,7 +235,10 @@ export class PageCollabService {
           { upsert: true },
         );
       } catch (error) {
-        this.logger.error(`Failed to save Yjs state during cleanup for ${pageId}`, error);
+        this.logger.error(
+          `Failed to save Yjs state during cleanup for ${pageId}`,
+          error,
+        );
       }
 
       ydoc.destroy();
