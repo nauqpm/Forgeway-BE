@@ -8,6 +8,10 @@ export const REALTIME_EVENT_TYPES = {
   TASK_DELETED: 'task.deleted',
 
   SPRINT_CREATED: 'sprint.created',
+  SPRINT_UPDATED: 'sprint.updated',
+  SPRINT_DELETED: 'sprint.deleted',
+  SPRINT_STARTED: 'sprint.started',
+  SPRINT_COMPLETED: 'sprint.completed',
 
   NOTIFICATION_CREATED: 'notification.created',
   NOTIFICATION_READ: 'notification.read',

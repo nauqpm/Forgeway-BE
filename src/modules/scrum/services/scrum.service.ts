@@ -39,28 +39,31 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
     dto: UpdateSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
-    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
+    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto, actorId);
   }
 
-  deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
-    return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
+  deleteSprint(workspaceId: string, sprintId: string, actorId?: string): Promise<void> {
+    return this.sprintCommandService.deleteSprint(workspaceId, sprintId, actorId);
   }
 
   startSprint(
     workspaceId: string,
     sprintId: string,
     dto: StartSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
-    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
+    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto, actorId);
   }
 
   completeSprint(
     workspaceId: string,
     sprintId: string,
     dto: CompleteSprintDto,
+    actorId?: string,
   ): Promise<unknown> {
-    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
+    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto, actorId);
   }
 
   getBacklog(workspaceId: string, grouped = false): Promise<unknown> {
