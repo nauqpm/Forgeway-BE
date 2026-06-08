@@ -42,6 +42,22 @@ export interface WorkspaceInviteCreatedEventData extends WorkspaceEventContext {
   invite?: WorkspaceInviteSummaryPayload;
 }
 
+export interface WorkspaceUpdatedEventData extends WorkspaceEventContext {
+  workspace: WorkspaceSummaryPayload;
+}
+
+export interface WorkspaceArchivedEventData extends WorkspaceEventContext {
+  workspace: WorkspaceSummaryPayload;
+}
+
+export interface WorkspaceRestoredEventData extends WorkspaceEventContext {
+  workspace: WorkspaceSummaryPayload;
+}
+
+export interface WorkspaceDeletedEventData extends WorkspaceEventContext {
+  workspace?: WorkspaceSummaryPayload;
+}
+
 export interface WorkspaceMemberJoinedEventData extends WorkspaceEventContext {
   userId: string;
   role: string;
