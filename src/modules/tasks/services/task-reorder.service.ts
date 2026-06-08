@@ -156,6 +156,7 @@ export class TaskReorderService {
       targetStatus,
       targetSprintId,
       nextRank,
+      rankUpdates.length,
     );
 
     if (rankUpdates.length > 0) {
@@ -413,14 +414,22 @@ export class TaskReorderService {
     targetStatus: string | undefined,
     targetSprintId: string | null,
     nextRank: string,
+    rankUpdateCount: number,
   ): void {
     const currentSprintId = this.toOptionalId(task.sprintId) ?? null;
     const isSameColumn = task.columnId === targetColumnId;
     const isSameStatus = task.status === targetStatus;
     const isSameSprint = currentSprintId === targetSprintId;
     const isSameRank = task.rank === nextRank;
+    const hasRebalancedNeighbors = rankUpdateCount > 0;
 
-    if (isSameColumn && isSameStatus && isSameSprint && isSameRank) {
+    if (
+      isSameColumn &&
+      isSameStatus &&
+      isSameSprint &&
+      isSameRank &&
+      !hasRebalancedNeighbors
+    ) {
       throw new BadRequestException(
         'Reorder did not change task position. Check beforeTaskId and afterTaskId.',
       );
