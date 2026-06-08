@@ -126,7 +126,16 @@ export class TaskReorderService {
       currentSprint,
     );
 
-    let nextRank = this.generateInitialRank(task, beforeTask, afterTask);
+    const boundaryScopeTasks =
+      !beforeTask || !afterTask
+        ? await this.tasksRepository.findTasksInRankScope(scope, session)
+        : undefined;
+    let nextRank = this.generateInitialRank(
+      task,
+      beforeTask,
+      afterTask,
+      boundaryScopeTasks,
+    );
     let rankUpdates: RankUpdate[] = [];
 
     if (this.shouldRebalanceRanks(task, beforeTask, afterTask, nextRank)) {
@@ -234,6 +243,7 @@ export class TaskReorderService {
     task: TaskDocument,
     beforeTask: TaskDocument | null,
     afterTask: TaskDocument | null,
+    scopeTasks?: TaskDocument[],
   ): string {
     if (
       beforeTask?.rank &&
@@ -244,7 +254,57 @@ export class TaskReorderService {
       return task.rank;
     }
 
-    return generateRankBetween(beforeTask?.rank, afterTask?.rank);
+    const boundaryRanks = this.resolveBoundaryRanks(
+      task,
+      beforeTask,
+      afterTask,
+      scopeTasks,
+    );
+
+    return generateRankBetween(boundaryRanks.beforeRank, boundaryRanks.afterRank);
+  }
+
+  private resolveBoundaryRanks(
+    task: TaskDocument,
+    beforeTask: TaskDocument | null,
+    afterTask: TaskDocument | null,
+    scopeTasks?: TaskDocument[],
+  ): { beforeRank?: string; afterRank?: string } {
+    const beforeRank = beforeTask?.rank;
+    const afterRank = afterTask?.rank;
+
+    if (!scopeTasks?.length) {
+      return { beforeRank, afterRank };
+    }
+
+    const taskId = task._id.toString();
+    const rankedScopeTasks = scopeTasks
+      .filter(
+        (scopeTask) =>
+          scopeTask._id.toString() !== taskId && Boolean(scopeTask.rank),
+      )
+      .sort((left, right) => this.compareTaskOrder(left, right));
+
+    if (rankedScopeTasks.length === 0) {
+      return { beforeRank, afterRank };
+    }
+
+    if (!beforeTask && afterTask) {
+      return {
+        beforeRank: undefined,
+        afterRank:
+          rankedScopeTasks[rankedScopeTasks.length - 1].rank ?? afterRank,
+      };
+    }
+
+    if (beforeTask && !afterTask) {
+      return {
+        beforeRank: rankedScopeTasks[0].rank ?? beforeRank,
+        afterRank: undefined,
+      };
+    }
+
+    return { beforeRank, afterRank };
   }
 
   private shouldRebalanceRanks(
