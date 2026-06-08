@@ -17,7 +17,6 @@ import { TaskDocument } from '../schemas/task.schema';
 import {
   compareRanks,
   generateRankBetween,
-  generateRebalanceRank,
 } from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
@@ -353,17 +352,23 @@ export class TaskReorderService {
       rank: task.rank,
     });
 
-    const withNewRanks = orderedTaskIds.map((item, index) => ({
-      ...item,
-      newRank: generateRebalanceRank(index),
-    }));
+    let previousRank: string | undefined;
+    const withNewRanks = orderedTaskIds.map((item) => {
+      const newRank = generateRankBetween(undefined, previousRank);
+      previousRank = newRank;
+
+      return {
+        ...item,
+        newRank,
+      };
+    });
     const movedIndex = withNewRanks.findIndex((item) => item.taskId === taskId);
     const rankUpdates = withNewRanks
       .filter((item) => item.taskId !== taskId && item.newRank !== item.rank)
       .map(({ taskId: id, newRank }) => ({ taskId: id, rank: newRank }));
 
     return {
-      nextRank: generateRebalanceRank(movedIndex),
+      nextRank: withNewRanks[movedIndex]?.newRank ?? task.rank ?? generateRankBetween(),
       rankUpdates,
     };
   }

@@ -23,6 +23,7 @@ import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
+import { compareRanks, generateRankBetween } from '../utils/rank.util';
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
@@ -61,6 +62,11 @@ export class TasksService {
       workspaceId,
       userId,
       key,
+    );
+    taskData.rank = await this.createInitialRankForTask(
+      workspace.type,
+      workspaceId,
+      normalizedDto,
     );
 
     const task = await this.tasksRepository.create(taskData);
@@ -930,6 +936,28 @@ export class TasksService {
     );
   }
 
+  private async createInitialRankForTask(
+    workspaceType: string | undefined,
+    workspaceId: string,
+    dto: CreateTaskDto,
+  ): Promise<string> {
+    const scope =
+      workspaceType === 'scrum'
+        ? { workspaceId, sprintId: dto.sprintId ?? null }
+        : { workspaceId, columnId: dto.columnId };
+    const tasks = await this.tasksRepository.findTasksInRankScope(scope);
+    const lastTask = tasks
+      .filter((task) => Boolean(task.rank))
+      .sort((left, right) => {
+        const rankDiff = compareRanks(left.rank, right.rank);
+        if (rankDiff !== 0) return rankDiff;
+        return this.toTimestamp(left.createdAt) - this.toTimestamp(right.createdAt);
+      })
+      .at(-1);
+
+    return generateRankBetween(undefined, lastTask?.rank);
+  }
+
   private getRequiredWorkspaceId(dto: CreateTaskDto): string {
     if (!dto.workspaceId) {
       throw new BadRequestException('workspaceId is required');
@@ -940,6 +968,11 @@ export class TasksService {
 
   private toId(value: any): string {
     return value?._id?.toString?.() ?? value?.toString?.() ?? '';
+  }
+
+  private toTimestamp(value: unknown): number {
+    const timestamp = new Date(value as string | Date).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
   }
 
   private async getWorkspaceContext(
