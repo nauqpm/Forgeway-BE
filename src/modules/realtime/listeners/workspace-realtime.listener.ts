@@ -8,6 +8,7 @@ import {
 import {
   BaseWorkspaceEvent,
   WorkspaceArchivedEventData,
+  WorkspaceCreatedEventData,
   WorkspaceDeletedEventData,
   WorkspaceEventContext,
   WorkspaceInviteCreatedEventData,
@@ -26,6 +27,7 @@ import {
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type WorkspaceRealtimeEventData =
+  | WorkspaceCreatedEventData
   | WorkspaceInviteCreatedEventData
   | WorkspaceUpdatedEventData
   | WorkspaceArchivedEventData
@@ -52,6 +54,15 @@ export class WorkspaceRealtimeListener {
       REALTIME_EVENT_TYPES.WORKSPACE_INVITE_CREATED,
       event,
     );
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_CREATED, { async: true })
+  handleWorkspaceCreated(event: WorkspaceRealtimeDomainEvent): void {
+    const actorId = event.data.actorId;
+    if (actorId) {
+      // Emit strictly to the creator, because they are not yet in the workspace room
+      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_CREATED, event, RoomBuilder.user(actorId));
+    }
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_UPDATED, { async: true })

@@ -90,6 +90,8 @@ export class WorkspacesService {
         }
       }
 
+      this.workspaceDomainEventPublisher.publishCreated(workspace, userId);
+
       return workspace;
     } catch (error) {
       this.logger.error(`Failed to create workspace "${dto.name}"`, error);

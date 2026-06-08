@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import {
   WorkspaceArchivedEvent,
+  WorkspaceCreatedEvent,
   WorkspaceDeletedEvent,
   WorkspaceRestoredEvent,
   WorkspaceSummaryPayload,
@@ -14,6 +15,17 @@ export class WorkspaceDomainEventPublisher {
   private readonly logger = new Logger(WorkspaceDomainEventPublisher.name);
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
+
+  publishCreated(workspace: any, actorId?: string): void {
+    this.emit(
+      new WorkspaceCreatedEvent({
+        workspaceId: this.toId(workspace._id ?? workspace.id),
+        actorId,
+        version: this.toVersion(workspace.version ?? workspace.__v),
+        workspace: this.toWorkspaceSummary(workspace),
+      }),
+    );
+  }
 
   publishUpdated(workspace: any, actorId?: string): void {
     this.emit(

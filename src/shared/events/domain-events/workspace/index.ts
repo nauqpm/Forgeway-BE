@@ -1,6 +1,7 @@
 export * from './base-workspace.event';
 export * from './workspace-event-payloads';
 export * from './workspace-archived.event';
+export * from './workspace-created.event';
 export * from './workspace-deleted.event';
 export * from './workspace-invite-created.event';
 export * from './workspace-member-joined.event';
