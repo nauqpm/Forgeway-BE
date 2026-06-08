@@ -26,8 +26,9 @@ export class ScrumService {
   createSprint(
     workspaceId: string,
     dto: CreateSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
-    return this.sprintCommandService.createSprint(workspaceId, dto);
+    return this.sprintCommandService.createSprint(workspaceId, dto, actorId);
   }
 
   findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {

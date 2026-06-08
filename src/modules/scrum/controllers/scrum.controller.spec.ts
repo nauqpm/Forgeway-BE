@@ -108,11 +108,20 @@ describe('ScrumController', () => {
         goal: 'Initial goal',
       } as any;
       const expectedResult = { _id: 'sprint1', ...dto };
+      const user = { userId: 'u1', role: 'member' };
       scrumService.createSprint.mockResolvedValue(expectedResult as any);
 
-      const result = await controller.createSprint(workspaceId, dto);
+      const result = await controller.createSprint(
+        workspaceId,
+        dto,
+        user as any,
+      );
 
-      expect(scrumService.createSprint).toHaveBeenCalledWith(workspaceId, dto);
+      expect(scrumService.createSprint).toHaveBeenCalledWith(
+        workspaceId,
+        dto,
+        user.userId,
+      );
       expect(result).toEqual(expectedResult);
     });
   });
