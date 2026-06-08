@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as Y from 'yjs';
 
 import {
   PageDraft,
@@ -12,11 +13,11 @@ import { PagesService } from '@/modules/pages/services/pages.service';
 export class PageCollabService {
   private readonly logger = new Logger(PageCollabService.name);
 
-  /** Debounce timers keyed by pageId string */
-  private readonly flushTimers = new Map<string, NodeJS.Timeout>();
-
-  /** Debounce duration in milliseconds */
-  private readonly FLUSH_DELAY_MS = 10_000;
+  /**
+   * In-memory Y.Doc instances keyed by pageId.
+   * Loaded from DB on first access, kept in memory while the room is active.
+   */
+  private readonly docs = new Map<string, Y.Doc>();
 
   constructor(
     @InjectModel(PageDraft.name)
@@ -25,51 +26,143 @@ export class PageCollabService {
   ) {}
 
   /**
-   * Get the current draft content for a page.
-   * Falls back to the persisted Page content if no draft exists.
+   * Pending initialization promises to prevent race conditions during concurrent accesses.
    */
-  async getDraft(pageId: string): Promise<string> {
-    const draft = await this.pageDraftModel
-      .findOne({ pageId: new Types.ObjectId(pageId) })
-      .lean()
-      .exec();
+  private readonly initPromises = new Map<string, Promise<Y.Doc>>();
 
-    if (draft) {
-      return draft.content;
+  // ─── Get or create an in-memory Y.Doc for a page ──────────────
+
+  private async getOrCreateDoc(pageId: string): Promise<Y.Doc> {
+    const existing = this.docs.get(pageId);
+    if (existing) return existing;
+
+    let initPromise = this.initPromises.get(pageId);
+    if (initPromise) return initPromise;
+
+    initPromise = (async () => {
+      const ydoc = new Y.Doc();
+
+      // Try to restore from persisted draft
+      const draft = await this.pageDraftModel
+        .findOne({ pageId: new Types.ObjectId(pageId) })
+        .lean()
+        .exec();
+
+      let restoredFromDraft = false;
+
+      if (draft?.yjsState) {
+        try {
+          const stateArray = new Uint8Array(draft.yjsState);
+          Y.applyUpdate(ydoc, stateArray);
+          restoredFromDraft = true;
+        } catch (error) {
+          this.logger.warn(
+            `Corrupted Yjs state in draft for page ${pageId}, starting fresh: ${(error as Error).message}`,
+          );
+        }
+      }
+
+      if (!restoredFromDraft) {
+        // No Yjs state yet (or corrupted) — initialize from persisted Page content
+        const page = await this.pagesService.findById(pageId);
+
+        // Set title in Y.Text
+        const yTitle = ydoc.getText('title');
+        if (page.title) {
+          yTitle.insert(0, page.title);
+        }
+
+        // Content will be initialized by the first client that joins
+        // (TipTap Collaboration extension handles initial content injection)
+      }
+
+      this.docs.set(pageId, ydoc);
+      return ydoc;
+    })();
+
+    this.initPromises.set(pageId, initPromise);
+
+    try {
+      return await initPromise;
+    } finally {
+      this.initPromises.delete(pageId);
+    }
+  }
+
+  // ─── Get full Yjs state + fallback content for page:join ──────
+
+  async getYjsState(pageId: string): Promise<{
+    yjsState: number[];
+    stateVector: number[];
+    content: string;
+    title: string;
+  }> {
+    // getOrCreateDoc already queries the draft; fetch it in parallel to avoid a
+    // second round-trip for the content fallback below.
+    const [ydoc, draft] = await Promise.all([
+      this.getOrCreateDoc(pageId),
+      this.pageDraftModel
+        .findOne({ pageId: new Types.ObjectId(pageId) })
+        .lean()
+        .exec(),
+    ]);
+
+    const stateUpdate = Y.encodeStateAsUpdate(ydoc);
+    const stateVector = Y.encodeStateVector(ydoc);
+    const title = ydoc.getText('title').toString();
+
+    let content = draft?.content || '';
+    if (!content) {
+      const page = await this.pagesService.findById(pageId);
+      content = page.content;
     }
 
-    // No draft yet — return persisted Page content
-    const page = await this.pagesService.findById(pageId);
-    return page.content;
+    return {
+      yjsState: Array.from(stateUpdate),
+      stateVector: Array.from(stateVector),
+      content,
+      title: title || (draft?.title ?? ''),
+    };
   }
 
-  /**
-   * Handle an incoming content update from a client.
-   * Upserts the draft and resets the debounce flush timer.
-   */
-  async handleUpdate(
+  // ─── Apply an incremental Yjs update from a client ────────────
+
+  async applyYjsUpdate(
     userId: string,
     pageId: string,
-    content: string,
+    update: Uint8Array,
   ): Promise<void> {
-    // Upsert the draft document
-    await this.pageDraftModel.findOneAndUpdate(
-      { pageId: new Types.ObjectId(pageId) },
-      {
-        content,
-        lastEditedBy: new Types.ObjectId(userId),
-      },
-      { upsert: true, new: true },
-    );
+    // Validate that the update is non-empty
+    if (!update || update.length === 0) {
+      this.logger.warn(
+        `Received empty Yjs update for page ${pageId} from user ${userId}`,
+      );
+      return;
+    }
 
-    // Reset debounce timer
-    this.resetFlushTimer(pageId);
+    const ydoc = await this.getOrCreateDoc(pageId);
+
+    try {
+      // Apply the incremental update to in-memory doc
+      Y.applyUpdate(ydoc, update);
+    } catch (error) {
+      this.logger.error(
+        `Failed to apply Yjs update for page ${pageId} from user ${userId}: ${(error as Error).message}`,
+      );
+      // Re-throw so the gateway can return { ok: false } and skip relaying the
+      // corrupted update to other clients. A single bad update should not crash
+      // the room — the gateway handles this gracefully.
+      throw error;
+    }
   }
 
-  /**
-   * Flush draft content into the main Page collection.
-   */
+  // ─── Flush draft to main page (called by Update button) ───────
+
   async flushDraft(pageId: string): Promise<void> {
+    // Prefer the live in-memory Yjs state to avoid a stale DB snapshot.
+    // Fall back to the persisted draft if the room has already been cleaned up.
+    const liveTitleFromYjs = this.docs.get(pageId)?.getText('title').toString();
+
     const draft = await this.pageDraftModel
       .findOne({ pageId: new Types.ObjectId(pageId) })
       .lean()
@@ -82,11 +175,19 @@ export class PageCollabService {
 
     try {
       const editorId = draft.lastEditedBy?.toString() ?? '';
-      await this.pagesService.update(
-        pageId,
-        { content: draft.content },
-        editorId,
-      );
+
+      const updatePayload: { content?: string; title?: string } = {};
+      if (draft.content) updatePayload.content = draft.content;
+
+      // Use the live Yjs title when available — it's always more recent than
+      // the periodically-persisted draft.title.
+      const title = liveTitleFromYjs ?? draft.title;
+      if (title) updatePayload.title = title;
+
+      if (Object.keys(updatePayload).length > 0) {
+        await this.pagesService.update(pageId, updatePayload, editorId);
+      }
+
       this.logger.debug(`Flushed draft to Page ${pageId}`);
     } catch (error) {
       this.logger.error(
@@ -95,45 +196,54 @@ export class PageCollabService {
     }
   }
 
-  /**
-   * Flush draft immediately if no clients remain in the page room.
-   */
-  async flushDraftIfRoomEmpty(
+  // ─── Update derived HTML content in draft (from FE) ───────────
+
+  async updateDraftContent(
     pageId: string,
-    roomClientCount: number,
+    content: string,
+    title: string,
   ): Promise<void> {
-    if (roomClientCount === 0) {
-      this.clearFlushTimer(pageId);
-      await this.flushDraft(pageId);
-      this.logger.debug(
-        `Room empty — flushed draft for page ${pageId}`,
-      );
+    const ydoc = this.docs.get(pageId);
+    const updatePayload: { content: string; title: string; yjsState?: Buffer } =
+      {
+        content,
+        title,
+      };
+    if (ydoc) {
+      updatePayload.yjsState = Buffer.from(Y.encodeStateAsUpdate(ydoc));
     }
+
+    await this.pageDraftModel.findOneAndUpdate(
+      { pageId: new Types.ObjectId(pageId) },
+      updatePayload,
+      { upsert: true, new: true },
+    );
   }
 
-  /**
-   * Clear any pending flush timer for a page.
-   */
-  private clearFlushTimer(pageId: string): void {
-    const existing = this.flushTimers.get(pageId);
-    if (existing) {
-      clearTimeout(existing);
-      this.flushTimers.delete(pageId);
+  // ─── Cleanup when room empties ────────────────────────────────
+
+  async cleanupDoc(pageId: string): Promise<void> {
+    const ydoc = this.docs.get(pageId);
+    if (ydoc) {
+      // Persist final state before destroying
+      try {
+        const fullState = Y.encodeStateAsUpdate(ydoc);
+        const title = ydoc.getText('title').toString();
+        await this.pageDraftModel.findOneAndUpdate(
+          { pageId: new Types.ObjectId(pageId) },
+          { yjsState: Buffer.from(fullState), title },
+          { upsert: true },
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to save Yjs state during cleanup for ${pageId}`,
+          error,
+        );
+      }
+
+      ydoc.destroy();
+      this.docs.delete(pageId);
+      this.logger.debug(`Cleaned up in-memory Y.Doc for page ${pageId}`);
     }
-  }
-
-  /**
-   * Reset the debounce flush timer for a page.
-   * After FLUSH_DELAY_MS of inactivity, flushDraft is called.
-   */
-  private resetFlushTimer(pageId: string): void {
-    this.clearFlushTimer(pageId);
-
-    const timer = setTimeout(async () => {
-      this.flushTimers.delete(pageId);
-      await this.flushDraft(pageId);
-    }, this.FLUSH_DELAY_MS);
-
-    this.flushTimers.set(pageId, timer);
   }
 }
