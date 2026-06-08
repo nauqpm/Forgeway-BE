@@ -15,6 +15,7 @@ import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { CreateSprintDto, UpdateSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { MongoTransactionService } from './mongo-transaction.service';
+import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 
 @Injectable()
 export class SprintCommandService {
@@ -24,11 +25,13 @@ export class SprintCommandService {
     private readonly mongoTransactionService: MongoTransactionService,
     @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    private readonly sprintDomainEventPublisher: SprintDomainEventPublisher,
   ) {}
 
   async createSprint(
     workspaceId: string,
     dto: CreateSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
     this.logger.log(`Creating Sprint for Workspace: ${workspaceId}`);
 
@@ -47,7 +50,10 @@ export class SprintCommandService {
       status: 'planning',
     });
 
-    return sprint.save();
+    const createdSprint = await sprint.save();
+    this.sprintDomainEventPublisher.publishCreated(createdSprint, actorId);
+
+    return createdSprint;
   }
 
   async updateSprint(

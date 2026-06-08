@@ -14,6 +14,7 @@ export const DOMAIN_EVENT_TYPES = {
   TASK_LABELS_UPDATED: 'task.labels.updated',
   TASK_COVER_UPDATED: 'task.cover.updated',
   TASK_ACTIVITY_CREATED: 'task.activity.created',
+  SPRINT_CREATED: 'sprint.created',
   NOTIFICATION_CREATED: 'notification.created',
   NOTIFICATION_READ: 'notification.read',
   NOTIFICATION_READ_ALL: 'notification.read_all',

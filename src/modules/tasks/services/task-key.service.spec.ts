@@ -18,4 +18,12 @@ describe('TaskKeyService', () => {
   it('should fallback when workspace name is missing', () => {
     expect(service.create(undefined, 1)).toBe('TASK-1');
   });
+
+  it('should keep a normalized numeric workspace key prefix with a leading letter', () => {
+    expect(service.create('W123123123', 4)).toBe('W123123123-4');
+  });
+
+  it('should allow short normalized workspace key prefixes', () => {
+    expect(service.create('W0', 1)).toBe('W0-1');
+  });
 });

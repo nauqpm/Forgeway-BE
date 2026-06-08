@@ -5,6 +5,10 @@ import { WorkspacesRepository } from '../repositories/workspaces.repository';
 
 @Injectable()
 export class WorkspaceKeyService {
+  private readonly maxKeyLength = 10;
+  private readonly fallbackKey = 'WORKSPACE';
+  private readonly numericKeyPrefix = 'W';
+
   constructor(private readonly workspacesRepository: WorkspacesRepository) {}
 
   async generateUniqueSlug(name: string): Promise<string> {
@@ -24,11 +28,7 @@ export class WorkspaceKeyService {
     source: string,
     currentWorkspaceId?: string,
   ): Promise<string> {
-    const baseKey =
-      source
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '')
-        .substring(0, 10) || 'SPACE';
+    const baseKey = this.normalizeWorkspaceKey(source);
 
     let key = baseKey;
     let counter = 1;
@@ -40,12 +40,23 @@ export class WorkspaceKeyService {
       }
 
       const suffix = counter.toString();
-      key = `${baseKey.substring(0, Math.max(1, 10 - suffix.length))}${suffix}`;
+      key = `${baseKey.substring(0, Math.max(1, this.maxKeyLength - suffix.length))}${suffix}`;
       counter += 1;
 
       if (counter > 999) {
         throw new ConflictException('Unable to generate unique workspace key');
       }
     }
+  }
+
+  private normalizeWorkspaceKey(source: string): string {
+    const normalized = source
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .substring(0, this.maxKeyLength);
+
+    const base = normalized || this.fallbackKey;
+
+    return /^[A-Z]/.test(base) ? base : `${this.numericKeyPrefix}${base}`;
   }
 }

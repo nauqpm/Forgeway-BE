@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -52,8 +52,9 @@ export class ScrumController {
   async createSprint(
     @Param('workspaceId') workspaceId: string,
     @Body() dto: CreateSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.createSprint(workspaceId, dto);
+    return this.scrumService.createSprint(workspaceId, dto, user.userId);
   }
 
   @Get('sprints')
