@@ -5,5 +5,5 @@ export class PageUpdateDto {
   pageId!: string;
 
   @IsString()
-  content!: string;
+  update!: string;
 }
