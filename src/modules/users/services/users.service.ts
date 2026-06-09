@@ -11,6 +11,7 @@ import { User } from '../schemas/users.schema';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
+import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 @Injectable()
 export class UsersService {
@@ -96,6 +97,10 @@ export class UsersService {
 
     if (!updateData.currentPassword) {
       throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    if (!PASSWORD_POLICY.noWhitespacePattern.test(updateData.password!)) {
+      throw new BadRequestException(PASSWORD_POLICY.noWhitespaceMessage);
     }
 
     // THAY VÌ LÀM NHƯ SAU THÌ RESET PASSWORK

@@ -12,6 +12,9 @@ export class CreateUsersDto {
 
   @IsNotEmpty()
   @IsString()
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password!: string;
 

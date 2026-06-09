@@ -24,6 +24,9 @@ export class RegisterDto {
     example: 'Password123!',
   })
   @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password!: string;
 }
@@ -66,6 +69,9 @@ export class UpdateProfileDto {
     example: 'NewPassword123!',
   })
   @IsOptional()
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password?: string;
 

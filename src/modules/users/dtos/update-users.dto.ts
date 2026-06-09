@@ -37,6 +37,9 @@ export class UpdateUsersDto {
   @IsOptional()
   @IsString()
   @Length(8, 100)
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, {
     message: PASSWORD_POLICY.message,
   })
