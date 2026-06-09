@@ -5,6 +5,7 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 export class RequestPasswordResetDto {
@@ -13,6 +14,9 @@ export class RequestPasswordResetDto {
     example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Invalid email address.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   @IsNotEmpty({ message: 'Email must not be empty.' })
   email!: string;
 }
@@ -45,6 +49,9 @@ export class VerifyOtpDto {
     example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Invalid email address.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   @IsNotEmpty({ message: 'Email must not be empty.' })
   email!: string;
 
