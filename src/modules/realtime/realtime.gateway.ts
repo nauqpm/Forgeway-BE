@@ -70,8 +70,9 @@ export class RealtimeGateway
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
+      const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
       this.logger.debug(
-        `Realtime client connected: ${client.id}, userId: ${user.userId}`,
+        `Realtime client connected: ${client.id} | User: ${userIdentifier}`,
       );
     } catch (error) {
       this.logger.warn(

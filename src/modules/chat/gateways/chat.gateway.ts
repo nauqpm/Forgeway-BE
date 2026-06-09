@@ -6,32 +6,19 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { JwtService } from '@nestjs/jwt';
 import { Logger, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import { Server, Socket } from 'socket.io';
-import { parse } from 'cookie';
+import { Server } from 'socket.io';
 import { Types } from 'mongoose';
-import { COOKIE_NAMES } from '../../auth/constants/cookie.constants';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
 import { MeetingService } from '../services/meeting.service';
-import { MeetingDocument } from '../schemas/meeting.schema';
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RealtimeEnvelope } from '../../realtime/contracts/realtime-envelope.interface';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { SocketThrottlerGuard } from '../../../common/guards/socket-throttler.guard';
-
-type AuthenticatedSocket = Socket & {
-  data: {
-    user?: {
-      userId: string;
-      email?: string;
-      role?: string;
-    };
-  };
-};
+import { SocketAuthService } from '../../realtime/services/socket-auth.service';
+import { AuthenticatedSocket } from '../../realtime/contracts/authenticated-socket.interface';
 
 @UseGuards(SocketThrottlerGuard)
 @WebSocketGateway({
@@ -48,8 +35,7 @@ export class ChatGateway implements OnGatewayConnection {
   private readonly logger = new Logger(ChatGateway.name);
 
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly socketAuthService: SocketAuthService,
     private readonly channelsService: ChannelsService,
     private readonly messagesService: MessagesService,
     private readonly meetingService: MeetingService,
@@ -57,18 +43,9 @@ export class ChatGateway implements OnGatewayConnection {
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
-      const token = this.extractToken(client);
-      if (!token) {
-        client.disconnect(true);
-        return;
-      }
-
-      const decoded = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
-      client.data.user = decoded;
-      
-      this.logger.debug(`Chat client connected: ${client.id} (User: ${decoded.userId})`);
+      const user = await this.socketAuthService.authenticate(client);
+      const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
+      this.logger.debug(`Chat client connected: ${client.id} | User: ${userIdentifier}`);
     } catch (error) {
       this.logger.warn(`Rejected chat connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
@@ -170,6 +147,25 @@ export class ChatGateway implements OnGatewayConnection {
     };
 
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED, envelope);
+    return { ok: true };
+  }
+
+  @SubscribeMessage('chat.reaction')
+  async handleReaction(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: { messageId: string; emoji: string; channelId: string },
+  ) {
+    const userId = client.data.user?.userId;
+    if (!userId || !payload.messageId || !payload.emoji) return { ok: false };
+
+    const room = RoomBuilder.channel(payload.channelId);
+    this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_REACTION_UPDATED, {
+      messageId: payload.messageId,
+      userId,
+      emoji: payload.emoji,
+      channelId: payload.channelId,
+    });
+
     return { ok: true };
   }
 
@@ -320,20 +316,5 @@ export class ChatGateway implements OnGatewayConnection {
       ...payload,
       senderId,
     });
-  }
-
-  private extractToken(client: Socket): string | undefined {
-    const authToken = client.handshake.auth?.token;
-    if (typeof authToken === 'string' && authToken.length > 0) {
-      return authToken;
-    }
-
-    const header = client.handshake.headers.authorization;
-    if (header?.startsWith('Bearer ')) {
-      return header.slice(7);
-    }
-
-    const cookies = parse(client.handshake.headers.cookie ?? '');
-    return cookies[COOKIE_NAMES.ACCESS];
   }
 }
