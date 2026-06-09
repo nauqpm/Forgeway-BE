@@ -7,11 +7,15 @@ import {
 } from '../../../shared/events/domain-events';
 import {
   BaseWorkspaceEvent,
+  WorkspaceArchivedEventData,
+  WorkspaceDeletedEventData,
   WorkspaceEventContext,
   WorkspaceInviteCreatedEventData,
   WorkspaceMemberJoinedEventData,
   WorkspaceMemberRemovedEventData,
   WorkspaceMemberRoleUpdatedEventData,
+  WorkspaceRestoredEventData,
+  WorkspaceUpdatedEventData,
 } from '../../../shared/events/domain-events/workspace';
 import {
   REALTIME_EVENT_TYPES,
@@ -23,6 +27,10 @@ import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type WorkspaceRealtimeEventData =
   | WorkspaceInviteCreatedEventData
+  | WorkspaceUpdatedEventData
+  | WorkspaceArchivedEventData
+  | WorkspaceRestoredEventData
+  | WorkspaceDeletedEventData
   | WorkspaceMemberJoinedEventData
   | WorkspaceMemberRemovedEventData
   | WorkspaceMemberRoleUpdatedEventData;
@@ -46,9 +54,29 @@ export class WorkspaceRealtimeListener {
     );
   }
 
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_UPDATED, { async: true })
+  handleWorkspaceUpdated(event: WorkspaceRealtimeDomainEvent): void {
+    this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_UPDATED, event);
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_ARCHIVED, { async: true })
+  handleWorkspaceArchived(event: WorkspaceRealtimeDomainEvent): void {
+    this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_ARCHIVED, event);
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_RESTORED, { async: true })
+  handleWorkspaceRestored(event: WorkspaceRealtimeDomainEvent): void {
+    this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_RESTORED, event);
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_DELETED, { async: true })
+  handleWorkspaceDeleted(event: WorkspaceRealtimeDomainEvent): void {
+    this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event);
+  }
+
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_JOINED, { async: true })
   handleWorkspaceMemberJoined(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceEvent(
+    this.publishWorkspaceMemberEvent(
       REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_JOINED,
       event,
     );
@@ -56,7 +84,7 @@ export class WorkspaceRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_REMOVED, { async: true })
   handleWorkspaceMemberRemoved(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceEvent(
+    this.publishWorkspaceMemberEvent(
       REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_REMOVED,
       event,
     );
@@ -91,6 +119,20 @@ export class WorkspaceRealtimeListener {
     event: WorkspaceRealtimeDomainEvent,
   ): void {
     this.publishToRoom(type, event, RoomBuilder.workspace(event.data.workspaceId));
+  }
+
+  private publishWorkspaceMemberEvent(
+    type: RealtimeEventType,
+    event: WorkspaceRealtimeDomainEvent,
+  ): void {
+    const userId = (event.data as WorkspaceMemberRemovedEventData).userId;
+
+    if (!userId) {
+      this.publishWorkspaceEvent(type, event);
+      return;
+    }
+
+    this.publishToRoom(type, event, RoomBuilder.user(userId));
   }
 
   private publishToRoom(

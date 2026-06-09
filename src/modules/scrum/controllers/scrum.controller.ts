@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -52,8 +52,9 @@ export class ScrumController {
   async createSprint(
     @Param('workspaceId') workspaceId: string,
     @Body() dto: CreateSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.createSprint(workspaceId, dto);
+    return this.scrumService.createSprint(workspaceId, dto, user.userId);
   }
 
   @Get('sprints')
@@ -74,8 +75,9 @@ export class ScrumController {
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: UpdateSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.updateSprint(workspaceId, sprintId, dto);
+    return this.scrumService.updateSprint(workspaceId, sprintId, dto, user.userId);
   }
 
   @Delete('sprints/:sprintId')
@@ -88,8 +90,9 @@ export class ScrumController {
   async deleteSprint(
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
+    @CurrentUser() user: JwtPayload,
   ) {
-    await this.scrumService.deleteSprint(workspaceId, sprintId);
+    await this.scrumService.deleteSprint(workspaceId, sprintId, user.userId);
   }
 
   @Post('sprints/:sprintId/start')
@@ -103,8 +106,9 @@ export class ScrumController {
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: StartSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.startSprint(workspaceId, sprintId, dto);
+    return this.scrumService.startSprint(workspaceId, sprintId, dto, user.userId);
   }
 
   @Post('sprints/:sprintId/complete')
@@ -118,8 +122,9 @@ export class ScrumController {
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: CompleteSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.completeSprint(workspaceId, sprintId, dto);
+    return this.scrumService.completeSprint(workspaceId, sprintId, dto, user.userId);
   }
 
   @Get('backlog')

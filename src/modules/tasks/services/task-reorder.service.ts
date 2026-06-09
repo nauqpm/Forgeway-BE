@@ -17,7 +17,6 @@ import { TaskDocument } from '../schemas/task.schema';
 import {
   compareRanks,
   generateRankBetween,
-  generateRebalanceRank,
 } from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
@@ -126,7 +125,16 @@ export class TaskReorderService {
       currentSprint,
     );
 
-    let nextRank = this.generateInitialRank(task, beforeTask, afterTask);
+    const boundaryScopeTasks =
+      !beforeTask || !afterTask
+        ? await this.tasksRepository.findTasksInRankScope(scope, session)
+        : undefined;
+    let nextRank = this.generateInitialRank(
+      task,
+      beforeTask,
+      afterTask,
+      boundaryScopeTasks,
+    );
     let rankUpdates: RankUpdate[] = [];
 
     if (this.shouldRebalanceRanks(task, beforeTask, afterTask, nextRank)) {
@@ -147,6 +155,7 @@ export class TaskReorderService {
       targetStatus,
       targetSprintId,
       nextRank,
+      rankUpdates.length,
     );
 
     if (rankUpdates.length > 0) {
@@ -234,6 +243,7 @@ export class TaskReorderService {
     task: TaskDocument,
     beforeTask: TaskDocument | null,
     afterTask: TaskDocument | null,
+    scopeTasks?: TaskDocument[],
   ): string {
     if (
       beforeTask?.rank &&
@@ -244,7 +254,57 @@ export class TaskReorderService {
       return task.rank;
     }
 
-    return generateRankBetween(beforeTask?.rank, afterTask?.rank);
+    const boundaryRanks = this.resolveBoundaryRanks(
+      task,
+      beforeTask,
+      afterTask,
+      scopeTasks,
+    );
+
+    return generateRankBetween(boundaryRanks.beforeRank, boundaryRanks.afterRank);
+  }
+
+  private resolveBoundaryRanks(
+    task: TaskDocument,
+    beforeTask: TaskDocument | null,
+    afterTask: TaskDocument | null,
+    scopeTasks?: TaskDocument[],
+  ): { beforeRank?: string; afterRank?: string } {
+    const beforeRank = beforeTask?.rank;
+    const afterRank = afterTask?.rank;
+
+    if (!scopeTasks?.length) {
+      return { beforeRank, afterRank };
+    }
+
+    const taskId = task._id.toString();
+    const rankedScopeTasks = scopeTasks
+      .filter(
+        (scopeTask) =>
+          scopeTask._id.toString() !== taskId && Boolean(scopeTask.rank),
+      )
+      .sort((left, right) => this.compareTaskOrder(left, right));
+
+    if (rankedScopeTasks.length === 0) {
+      return { beforeRank, afterRank };
+    }
+
+    if (!beforeTask && afterTask) {
+      return {
+        beforeRank: undefined,
+        afterRank:
+          rankedScopeTasks[rankedScopeTasks.length - 1].rank ?? afterRank,
+      };
+    }
+
+    if (beforeTask && !afterTask) {
+      return {
+        beforeRank: rankedScopeTasks[0].rank ?? beforeRank,
+        afterRank: undefined,
+      };
+    }
+
+    return { beforeRank, afterRank };
   }
 
   private shouldRebalanceRanks(
@@ -292,17 +352,23 @@ export class TaskReorderService {
       rank: task.rank,
     });
 
-    const withNewRanks = orderedTaskIds.map((item, index) => ({
-      ...item,
-      newRank: generateRebalanceRank(index),
-    }));
+    let previousRank: string | undefined;
+    const withNewRanks = orderedTaskIds.map((item) => {
+      const newRank = generateRankBetween(undefined, previousRank);
+      previousRank = newRank;
+
+      return {
+        ...item,
+        newRank,
+      };
+    });
     const movedIndex = withNewRanks.findIndex((item) => item.taskId === taskId);
     const rankUpdates = withNewRanks
       .filter((item) => item.taskId !== taskId && item.newRank !== item.rank)
       .map(({ taskId: id, newRank }) => ({ taskId: id, rank: newRank }));
 
     return {
-      nextRank: generateRebalanceRank(movedIndex),
+      nextRank: withNewRanks[movedIndex]?.newRank ?? task.rank ?? generateRankBetween(),
       rankUpdates,
     };
   }
@@ -353,14 +419,22 @@ export class TaskReorderService {
     targetStatus: string | undefined,
     targetSprintId: string | null,
     nextRank: string,
+    rankUpdateCount: number,
   ): void {
     const currentSprintId = this.toOptionalId(task.sprintId) ?? null;
     const isSameColumn = task.columnId === targetColumnId;
     const isSameStatus = task.status === targetStatus;
     const isSameSprint = currentSprintId === targetSprintId;
     const isSameRank = task.rank === nextRank;
+    const hasRebalancedNeighbors = rankUpdateCount > 0;
 
-    if (isSameColumn && isSameStatus && isSameSprint && isSameRank) {
+    if (
+      isSameColumn &&
+      isSameStatus &&
+      isSameSprint &&
+      isSameRank &&
+      !hasRebalancedNeighbors
+    ) {
       throw new BadRequestException(
         'Reorder did not change task position. Check beforeTaskId and afterTaskId.',
       );

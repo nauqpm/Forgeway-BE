@@ -13,6 +13,7 @@ import {
 } from '../workspaces/schemas/workspace.schema';
 import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
 import { TaskDetailRealtimeListener } from './listeners/task-detail-realtime.listener';
+import { SprintRealtimeListener } from './listeners/sprint-realtime.listener';
 import { TaskRealtimeListener } from './listeners/task-realtime.listener';
 import { WorkspaceRealtimeListener } from './listeners/workspace-realtime.listener';
 import { RealtimePublisher } from './publishers/realtime.publisher';
@@ -51,6 +52,7 @@ import { SocketAuthService } from './services/socket-auth.service';
     RealtimePublisher,
     PageCollabService,
     TaskRealtimeListener,
+    SprintRealtimeListener,
     TaskDetailRealtimeListener,
     NotificationRealtimeListener,
     WorkspaceRealtimeListener,

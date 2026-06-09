@@ -301,10 +301,9 @@ export class TaskAttachmentService {
     attachment: AttachmentDocument,
     mimeType?: string,
   ): TaskAttachmentFileStream {
-    const filePath = resolve(this.uploadsDir, attachment.storageKey);
-    const storageRoot = `${this.uploadsDir}${sep}`;
+    const filePath = this.resolveStoredFilePath(attachment);
 
-    if (!filePath.startsWith(storageRoot) || !existsSync(filePath)) {
+    if (!filePath) {
       throw new NotFoundException('Attachment file not found in storage');
     }
 
@@ -319,6 +318,31 @@ export class TaskAttachmentService {
       originalName: attachment.originalName,
       size: attachment.size,
     };
+  }
+
+  private resolveStoredFilePath(attachment: AttachmentDocument): string | null {
+    const storageRoot = `${this.uploadsDir}${sep}`;
+    const candidates = [
+      attachment.storageKey,
+      this.storageKeyFromUrl(attachment.url),
+    ].filter((value): value is string => Boolean(value));
+
+    for (const candidate of [...new Set(candidates)]) {
+      const filePath = resolve(this.uploadsDir, candidate);
+      if (filePath.startsWith(storageRoot) && existsSync(filePath)) {
+        return filePath;
+      }
+    }
+
+    return null;
+  }
+
+  private storageKeyFromUrl(url?: string): string | null {
+    if (!url) return null;
+    const normalizedUrl = url.replace(/\\/g, '/').replace(/^\/+/, '');
+    return normalizedUrl.startsWith('uploads/')
+      ? normalizedUrl.slice('uploads/'.length)
+      : normalizedUrl;
   }
 
   private resolveMimeType(mimeType?: string, fileName?: string): string {

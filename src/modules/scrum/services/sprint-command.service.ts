@@ -15,6 +15,7 @@ import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { CreateSprintDto, UpdateSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { MongoTransactionService } from './mongo-transaction.service';
+import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 
 @Injectable()
 export class SprintCommandService {
@@ -24,11 +25,13 @@ export class SprintCommandService {
     private readonly mongoTransactionService: MongoTransactionService,
     @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    private readonly sprintDomainEventPublisher: SprintDomainEventPublisher,
   ) {}
 
   async createSprint(
     workspaceId: string,
     dto: CreateSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
     this.logger.log(`Creating Sprint for Workspace: ${workspaceId}`);
 
@@ -47,13 +50,17 @@ export class SprintCommandService {
       status: 'planning',
     });
 
-    return sprint.save();
+    const createdSprint = await sprint.save();
+    this.sprintDomainEventPublisher.publishCreated(createdSprint, actorId);
+
+    return createdSprint;
   }
 
   async updateSprint(
     workspaceId: string,
     sprintId: string,
     dto: UpdateSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
     const timestamp = new Date().toISOString();
 
@@ -147,6 +154,7 @@ export class SprintCommandService {
           `=============================================\n`,
       );
 
+      this.sprintDomainEventPublisher.publishUpdated(updatedSprint, actorId);
       return updatedSprint;
     } catch (error) {
       if (
@@ -161,7 +169,13 @@ export class SprintCommandService {
     }
   }
 
-  async deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
+  async deleteSprint(
+    workspaceId: string,
+    sprintId: string,
+    actorId?: string,
+  ): Promise<void> {
+    let deletedSprint: SprintDocument | null = null;
+
     await this.mongoTransactionService.withTransaction(async (session) => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
@@ -185,6 +199,8 @@ export class SprintCommandService {
         throw new BadRequestException('Only planning sprints can be deleted');
       }
 
+      deletedSprint = sprint;
+
       await this.taskModel
         .updateMany(
           {
@@ -206,6 +222,10 @@ export class SprintCommandService {
         .deleteOne({ _id: sprint._id }, { session: session ?? undefined })
         .exec();
     });
+
+    if (deletedSprint) {
+      this.sprintDomainEventPublisher.publishDeleted(deletedSprint, actorId);
+    }
   }
 
   async deleteByWorkspace(workspaceId: string): Promise<void> {

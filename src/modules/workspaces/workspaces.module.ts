@@ -18,6 +18,7 @@ import { InviteRepository } from './repositories/invite.repository';
 import { InviteService } from './services/invite.service';
 import { WorkspaceKeyService } from './services/workspace-key.service';
 import { WorkspaceMemberService } from './services/workspace-member.service';
+import { WorkspaceDomainEventPublisher } from './services/workspace-domain-event.publisher';
 import { InviteController } from './controllers/invite.controller';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
@@ -47,6 +48,7 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
     WorkspacesService,
     WorkspaceKeyService,
     WorkspaceMemberService,
+    WorkspaceDomainEventPublisher,
     ForYouService,
     InviteRepository,
     InviteService,

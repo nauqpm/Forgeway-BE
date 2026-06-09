@@ -1,4 +1,4 @@
-﻿import { Module, forwardRef } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { Board, BoardSchema } from '../kanban/schemas/kanban-board.schema';
@@ -14,6 +14,7 @@ import { BoardStatusService } from './services/board-status.service';
 import { MongoTransactionService } from './services/mongo-transaction.service';
 import { ScrumService } from './services/scrum.service';
 import { SprintCommandService } from './services/sprint-command.service';
+import { SprintDomainEventPublisher } from './services/sprint-domain-event.publisher';
 import { SprintLifecycleService } from './services/sprint-lifecycle.service';
 import { SprintQueryService } from './services/sprint-query.service';
 import { SprintTaskMovementService } from './services/sprint-task-movement.service';
@@ -35,6 +36,7 @@ import { SprintTaskMovementService } from './services/sprint-task-movement.servi
   providers: [
     ScrumService,
     SprintCommandService,
+    SprintDomainEventPublisher,
     SprintQueryService,
     SprintLifecycleService,
     SprintTaskMovementService,

@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SprintCommandService } from './sprint-command.service';
 import { MongoTransactionService } from './mongo-transaction.service';
+import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 import { Sprint } from '../schemas/sprint.schema';
 import { Task } from '../../tasks/schemas/task.schema';
 
@@ -11,6 +12,7 @@ describe('SprintCommandService', () => {
   let service: SprintCommandService;
   let sprintModel: any;
   let taskModel: any;
+  let sprintDomainEventPublisher: { publishCreated: jest.Mock };
 
   const mockSession = {};
 
@@ -49,8 +51,18 @@ describe('SprintCommandService', () => {
             updateMany: jest.fn(),
           },
         },
+        {
+          provide: SprintDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+          },
+        },
       ],
     }).compile();
+
+    sprintDomainEventPublisher = {
+      publishCreated: jest.fn(),
+    };
 
     // Mock constructor behavior for model creation
     sprintModel = module.get(getModelToken(Sprint.name));
@@ -70,6 +82,7 @@ describe('SprintCommandService', () => {
       module.get(MongoTransactionService),
       mockSprintInstance as any,
       module.get(getModelToken(Task.name)),
+      sprintDomainEventPublisher as any,
     );
     
     // Save reference to mock constructor for test validation
@@ -91,13 +104,22 @@ describe('SprintCommandService', () => {
       expect(result.name).toBe('Sprint 3'); // 2 existing + 1
       expect(result.status).toBe('planning');
       expect(result.workspaceId).toEqual(new Types.ObjectId(workspaceId));
+      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
+        result,
+        undefined,
+      );
     });
 
     it('creates sprint with specified name', async () => {
       const dto = { name: 'Custom Sprint Name', goal: 'Test goals' };
-      const result = await service.createSprint(workspaceId, dto);
+      const actorId = new Types.ObjectId().toString();
+      const result = await service.createSprint(workspaceId, dto, actorId);
       
       expect(result.name).toBe('Custom Sprint Name');
+      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
+        result,
+        actorId,
+      );
     });
   });
 
