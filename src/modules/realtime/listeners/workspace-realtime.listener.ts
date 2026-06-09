@@ -8,6 +8,7 @@ import {
 import {
   BaseWorkspaceEvent,
   WorkspaceArchivedEventData,
+  WorkspaceCreatedEventData,
   WorkspaceDeletedEventData,
   WorkspaceEventContext,
   WorkspaceInviteCreatedEventData,
@@ -26,6 +27,7 @@ import {
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type WorkspaceRealtimeEventData =
+  | WorkspaceCreatedEventData
   | WorkspaceInviteCreatedEventData
   | WorkspaceUpdatedEventData
   | WorkspaceArchivedEventData
@@ -54,6 +56,15 @@ export class WorkspaceRealtimeListener {
     );
   }
 
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_CREATED, { async: true })
+  handleWorkspaceCreated(event: WorkspaceRealtimeDomainEvent): void {
+    const actorId = event.data.actorId;
+    if (actorId) {
+      // Emit strictly to the creator, because they are not yet in the workspace room
+      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_CREATED, event, RoomBuilder.user(actorId));
+    }
+  }
+
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_UPDATED, { async: true })
   handleWorkspaceUpdated(event: WorkspaceRealtimeDomainEvent): void {
     this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_UPDATED, event);
@@ -72,6 +83,11 @@ export class WorkspaceRealtimeListener {
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_DELETED, { async: true })
   handleWorkspaceDeleted(event: WorkspaceRealtimeDomainEvent): void {
     this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event);
+    // Also emit to the actor's personal room so /workspaces page updates in realtime
+    const actorId = event.data.actorId;
+    if (actorId) {
+      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event, RoomBuilder.user(actorId));
+    }
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_JOINED, { async: true })

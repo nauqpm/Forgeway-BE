@@ -37,6 +37,7 @@ export const REALTIME_EVENT_TYPES = {
   NOTIFICATION_READ: 'notification.read',
   NOTIFICATION_READ_ALL: 'notification.read_all',
 
+  WORKSPACE_CREATED: 'workspace.created',
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
   WORKSPACE_UPDATED: 'workspace.updated',
   WORKSPACE_ARCHIVED: 'workspace.archived',

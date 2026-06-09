@@ -22,6 +22,7 @@ export const DOMAIN_EVENT_TYPES = {
   NOTIFICATION_CREATED: 'notification.created',
   NOTIFICATION_READ: 'notification.read',
   NOTIFICATION_READ_ALL: 'notification.read_all',
+  WORKSPACE_CREATED: 'workspace.created',
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
   WORKSPACE_UPDATED: 'workspace.updated',
   WORKSPACE_ARCHIVED: 'workspace.archived',

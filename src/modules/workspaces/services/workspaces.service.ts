@@ -96,12 +96,6 @@ export class WorkspacesService {
         }
       }
 
-      // Create workspace channel
-      await this.channelsService.createWorkspaceChannel(
-        workspace._id.toString(),
-        userId
-      );
-
       return workspace;
     } catch (error) {
       this.logger.error(`Failed to create workspace "${dto.name}"`, error);
