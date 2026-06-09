@@ -9,7 +9,7 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
     const { context, limit, ttl, throttler, generateKey } = requestProps;
     const client = context.switchToWs().getClient();
     
-    // 1. Core Throttler Logic (using storage, e.g. Redis/Memory)
+    // 1. Core Throttler Logic (using default in-memory storage)
     const ip = client.conn.remoteAddress || 'unknown';
     const key = generateKey(context, ip, throttler.name);
     
