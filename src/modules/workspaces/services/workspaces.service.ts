@@ -96,6 +96,15 @@ export class WorkspacesService {
         }
       }
 
+      // Publish domain event
+      this.workspaceDomainEventPublisher.publishCreated(workspace, userId);
+
+      // Create workspace channel
+      await this.channelsService.createWorkspaceChannel(
+        workspace._id.toString(),
+        userId,
+      );
+
       return workspace;
     } catch (error) {
       this.logger.error(`Failed to create workspace "${dto.name}"`, error);
