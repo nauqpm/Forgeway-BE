@@ -4,6 +4,7 @@ export const REALTIME_EVENT_TYPES = {
   CHAT_MESSAGE_EDITED: 'chat.message.edited',
   CHAT_MESSAGE_DELETED: 'chat.message.deleted',
   CHAT_USER_TYPING: 'chat.user.typing',
+  CHAT_REACTION_UPDATED: 'chat.reaction.updated',
 
   // Meeting events
   MEETING_USER_JOINED: 'meeting.user.joined',
@@ -44,7 +45,6 @@ export const REALTIME_EVENT_TYPES = {
   WORKSPACE_MEMBER_JOINED: 'workspace.member.joined',
   WORKSPACE_MEMBER_REMOVED: 'workspace.member.removed',
   WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
-  WORKSPACE_UPDATED: 'workspace.updated',
 
   TASK_COMMENT_CREATED: 'task.comment.created',
   TASK_COMMENT_UPDATED: 'task.comment.updated',

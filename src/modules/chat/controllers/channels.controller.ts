@@ -69,6 +69,16 @@ export class ChannelsController {
     return this.messagesService.softDelete(id, userId);
   }
 
+  @Post('messages/:id/reactions')
+  async toggleReaction(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: { emoji: string },
+  ) {
+    // This method needs to be implemented in MessagesService
+    return this.messagesService.toggleReaction(id, userId, body.emoji);
+  }
+
   @Post('channels/:id/meeting')
   async createMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.meetingService.create(id, userId);
