@@ -83,6 +83,11 @@ export class WorkspaceRealtimeListener {
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_DELETED, { async: true })
   handleWorkspaceDeleted(event: WorkspaceRealtimeDomainEvent): void {
     this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event);
+    // Also emit to the actor's personal room so /workspaces page updates in realtime
+    const actorId = event.data.actorId;
+    if (actorId) {
+      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event, RoomBuilder.user(actorId));
+    }
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_JOINED, { async: true })
