@@ -154,6 +154,13 @@ export class WorkspaceMemberService {
     return workspace.members.some((member) => member.userId.toString() === userId);
   }
 
+  async getMemberRole(workspaceId: string, userId: string): Promise<string | null> {
+    const workspace = await this.workspacesRepository.findById(workspaceId);
+    if (!workspace) return null;
+    const member = workspace.members.find((m) => m.userId.toString() === userId);
+    return member ? member.role : null;
+  }
+
   private ensureNotLastAdmin(workspace: any, userId: string): void {
     const adminCount = workspace.members.filter(
       (member: any) => member.role === SPACE_ROLES.WORKSPACE_ADMIN,

@@ -16,30 +16,32 @@ export class ChannelsService {
     private readonly workspaceMemberService: WorkspaceMemberService,
   ) {}
 
-  async createGeneralChannel(): Promise<ChannelDocument> {
-    const existing = await this.channelModel.findOne({ type: 'general', name: 'general' });
-    if (existing) {
-      return existing;
+  async createGeneralChannel(): Promise<void> {
+    const systemId = new Types.ObjectId('000000000000000000000000');
+
+    // #general
+    const general = await this.channelModel.findOne({ type: 'general' });
+    if (!general) {
+      this.logger.log('Initializing #general channel');
+      await this.channelModel.create({
+        name: 'general',
+        type: 'general',
+        isPrivate: false,
+        createdBy: systemId,
+      });
     }
 
-    this.logger.log('Creating general channel');
-    // For general channel, we'll use a system user or the first admin if needed, 
-    // but the prompt says createdBy is required. 
-    // I'll use a placeholder or wait for the first user to be created?
-    // Actually, I'll use a fixed ObjectId for system-created channels if possible, 
-    // or just allow it to be created by the first admin.
-    // For now, I'll assume we can pass a system userId or it will be created on init.
-    // Wait, the prompt says "createdBy!: Types.ObjectId;" is required.
-    // I'll find the first admin user or just use a dummy id if none exists.
-    const dummyId = new Types.ObjectId('000000000000000000000000'); 
-    
-    return this.channelModel.create({
-      name: 'general',
-      type: 'general',
-      workspaceId: null,
-      isPrivate: false,
-      createdBy: dummyId,
-    });
+    // #announcements
+    const announcements = await this.channelModel.findOne({ type: 'announcement' });
+    if (!announcements) {
+      this.logger.log('Initializing #announcements channel');
+      await this.channelModel.create({
+        name: 'announcements',
+        type: 'announcement',
+        isPrivate: false,
+        createdBy: systemId,
+      });
+    }
   }
 
   async createWorkspaceChannel(workspaceId: string, createdBy: string): Promise<ChannelDocument> {
@@ -86,6 +88,7 @@ export class ChannelsService {
     return this.channelModel.find({
       $or: [
         { type: 'general' },
+        { type: 'announcement' },
         { workspaceId: { $in: userWorkspaceIds } },
       ]
     }).exec();
@@ -106,7 +109,7 @@ export class ChannelsService {
     }
     
     const channel = await this.findById(channelId);
-    if (channel.type === 'general') {
+    if (channel.type === 'general' || channel.type === 'announcement') {
       return true;
     }
 

@@ -5,8 +5,8 @@ export type ChannelDocument = Channel & Document;
 
 @Schema({ timestamps: true })
 export class Channel {
-  @Prop({ type: String, enum: ['general', 'workspace', 'dm'], required: true })
-  type!: 'general' | 'workspace' | 'dm';
+  @Prop({ type: String, enum: ['general', 'workspace', 'announcement', 'dm'], required: true })
+  type!: 'general' | 'workspace' | 'announcement' | 'dm';
 
   @Prop({ required: true })
   name!: string;
