@@ -28,6 +28,10 @@ import { RealtimeService } from './realtime.service';
 import { PresenceService } from './services/presence.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
+import { PageDraft } from '../pages/schemas/page-draft.schema';
+import { Page } from '../pages/schemas/page.schema';
+import { PagePublishDto } from './dto/page-publish.dto';
+import { LeavePageRoomDto } from './dto/leave-page-room.dto';
 
 const socketValidationPipe = new ValidationPipe({
   transform: true,
@@ -138,118 +142,132 @@ export class RealtimeGateway
     return this.roomManagerService.leaveTask(client, body);
   }
 
-  // ── Page collaboration events (Yjs CRDT) ───────────────────
+  // page-collab
+  // ── Page collaboration (Yjs CRDT) ──────────────────────────────
 
+  /**
+   * page:join — client enters edit mode for a page.
+   * Returns full Yjs state so the client can bootstrap its Y.Doc.
+   */
   @SubscribeMessage('page:join')
   @UsePipes(socketValidationPipe)
   async joinPage(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: JoinPageRoomDto,
-  ): Promise<{ ok: boolean; yjsState?: number[]; stateVector?: number[]; content?: string; title?: string }> {
-    if (!this.consumeClientEvent(client)) {
-      return { ok: false };
-    }
+  ): Promise<{
+    ok: boolean;
+    yjsState?: number[];
+    stateVector?: number[];
+    title?: string;
+  }> {
+    if (!this.consumeClientEvent(client)) return { ok: false };
 
     const pageRoom = RoomBuilder.page(body.pageId);
     await client.join(pageRoom);
 
-    // Return full Yjs state + HTML fallback for the client to initialize
     const state = await this.pageCollabService.getYjsState(body.pageId);
-    return {
-      ok: true,
-      yjsState: state.yjsState,
-      stateVector: state.stateVector,
-      content: state.content,
-      title: state.title,
-    };
+    return { ok: true, ...state };
   }
 
+  /**
+   * page:leave — client exits edit mode.
+   * Schedules memory eviction when the room becomes empty.
+   */
   @SubscribeMessage('page:leave')
   @UsePipes(socketValidationPipe)
   async leavePage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: JoinPageRoomDto,
+    @MessageBody() body: LeavePageRoomDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client)) {
-      return { ok: false };
-    }
+    if (!this.consumeClientEvent(client)) return { ok: false };
 
     const pageRoom = RoomBuilder.page(body.pageId);
     await client.leave(pageRoom);
 
-    // Cleanup in-memory Y.Doc if room is now empty
-    const roomSockets = await this.server.in(pageRoom).fetchSockets();
-    if (roomSockets.length === 0) {
-      this.pageCollabService.cleanupDoc(body.pageId);
+    const remaining = await this.server.in(pageRoom).fetchSockets();
+    if (remaining.length === 0) {
+      // Room is empty — schedule timed eviction (not immediate, to handle
+      // fast page-reloads gracefully)
+      this.pageCollabService.scheduleRoomEmpty(body.pageId);
     }
 
     return { ok: true };
   }
 
+  /**
+   * page:yjs-update — incremental Yjs update from one client.
+   * Applies to server Y.Doc then relays to all other room members.
+   *
+   * NOTE: @UsePipes is intentionally omitted here.
+   * The update field is a raw number[] that cannot be validated by
+   * class-validator without custom logic. We validate size manually
+   * inside PageCollabService.applyUpdate().
+   */
   @SubscribeMessage('page:yjs-update')
   async handleYjsUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: PageYjsUpdateDto,
   ): Promise<{ ok: boolean }> {
-    const user = client.data.user!;
+    const user = client.data.user;
+    if (!user) return { ok: false };
 
-    // Validate that the update array is non-empty
-    if (!body.update || body.update.length === 0) {
+    if (!body.update?.length) {
       this.logger.warn(
-        `Received empty Yjs update from user ${user.userId} for page ${body.pageId}`,
+        `Empty yjs-update from ${user.userId} for page ${body.pageId}`,
       );
       return { ok: false };
     }
-
-    const updateArray = new Uint8Array(body.update);
 
     try {
-      // Apply update to server-side Y.Doc and persist
-      await this.pageCollabService.applyYjsUpdate(
-        user.userId,
+      await this.pageCollabService.applyUpdate(
         body.pageId,
-        updateArray,
+        new Uint8Array(body.update),
+        user.userId,
       );
-    } catch (error) {
-      // If the update is corrupted, log and return failure.
-      // Do NOT relay corrupted updates to other clients.
-      this.logger.warn(
-        `Rejected corrupted Yjs update from user ${user.userId} for page ${body.pageId}: ${(error as Error).message}`,
-      );
+    } catch {
+      // applyUpdate already logs the error; do NOT relay corrupted bytes
       return { ok: false };
     }
 
-    // Relay raw update to all OTHER clients in the page room
-    const pageRoom = RoomBuilder.page(body.pageId);
-    client.to(pageRoom).emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
-      pageId: body.pageId,
-      update: body.update,
-    });
+    // Relay raw bytes to all OTHER clients in the page room
+    client
+      .to(RoomBuilder.page(body.pageId))
+      .emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
+        pageId: body.pageId,
+        update: body.update,
+      });
 
     return { ok: true };
   }
 
-  // ── Page draft content update (HTML derived from Yjs) ──────
-
-  @SubscribeMessage('page:draft-content')
+  /**
+   * page:publish — flush current draft to the main Page document.
+   * Called when the user clicks the "Cập nhật" button.
+   */
+  @SubscribeMessage('page:publish')
   @UsePipes(socketValidationPipe)
-  async handleDraftContent(
+  async publishPage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { pageId: string; content: string; title: string },
+    @MessageBody() body: PagePublishDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client)) {
+    if (!this.consumeClientEvent(client)) return { ok: false };
+
+    const user = client.data.user;
+    if (!user) return { ok: false };
+
+    try {
+      await this.pageCollabService.publishToPage(body.pageId, user.userId);
+    } catch (err) {
+      this.logger.error(
+        `publishPage failed for ${body.pageId}: ${(err as Error).message}`,
+      );
       return { ok: false };
     }
 
-    // Store derived HTML content and title for search/fallback
-    await this.pageCollabService.updateDraftContent(
-      body.pageId,
-      body.content,
-      body.title,
-    );
-
     return { ok: true };
   }
+
+  // end-page-colab
 
   private consumeClientEvent(client: AuthenticatedSocket): boolean {
     if (!client.data.user) {
