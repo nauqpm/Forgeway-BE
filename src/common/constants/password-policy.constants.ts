@@ -5,5 +5,5 @@ export const PASSWORD_POLICY = {
   message:
     'Passwords must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.',
   maxFailedAttempts: 5,
-  lockoutDurationMs: 15 * 60 * 1000,
+  lockoutDurationMs: 10 * 60 * 1000,
 } as const;

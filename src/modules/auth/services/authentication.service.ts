@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -15,7 +14,7 @@ import { UsersService } from '../../users/services/users.service';
 import { VerifyType } from '../../verify/dtos/verify.dto';
 import { VerifyService } from '../../verify/services/verify.service';
 import { LoginDto, RegisterDto } from '../dtos/auth.dto';
-import { AUTH_ERROR_CODES } from '../constants/auth-error.constants';
+import { AuthErrorFactory } from '../utils/auth-error.factory';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
@@ -37,9 +36,10 @@ export class AuthenticationService {
     try {
       const existingUser = await this.usersService.findByEmail(registerDto.email);
       if (existingUser && existingUser.status === USER_STATUSES.PENDING_VERIFICATION) {
-        throw new ForbiddenException({
+        // Use BadRequestException for validation errors, not ForbiddenException
+        throw new BadRequestException({
           message: 'Please verify your email before registering.',
-          code: AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED,
+          code: AuthErrorFactory.emailNotVerified().code,
         });
       } else if (existingUser) {
         this.logger.warn(`Registration failed: Email ${registerDto.email} already exists.`);
@@ -69,11 +69,12 @@ export class AuthenticationService {
         email: registerDto.email,
       };
     } catch (error: unknown) {
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
       if (!(error instanceof ConflictException)) {
         this.logger.error(
-          `Unexpected error during registration (${registerDto.email}): ${err.message}`,
-          err.stack,
+          `Unexpected error during registration (${registerDto.email}): ${message}`,
+          stack,
         );
       }
       throw error;
@@ -89,103 +90,87 @@ export class AuthenticationService {
       }
 
       const user = await this.usersService.findByEmail(loginDto.email);
+
+      // === Handle non-existent user ===
+      // Return same response shape as a real wrong password to prevent user enumeration.
       if (!user) {
         this.logger.warn(`Login failed: Email ${loginDto.email} was not found.`);
-        throw new UnauthorizedException({
-          message: 'Email or password is incorrect.',
-          code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
-          details: {
-            remainingAttempts: 0,
-            maxAttempts: PASSWORD_POLICY.maxFailedAttempts,
-          },
-        });
-      }
-
-      if (!user.password) {
-        this.logger.warn(`Login failed: Account ${loginDto.email} uses Google OAuth.`);
+        const fakeRemaining = PASSWORD_POLICY.maxFailedAttempts - 1;
         throw new UnauthorizedException(
-          'This account was registered with Google. Please sign in with Google.',
+          AuthErrorFactory.invalidCredentials(fakeRemaining),
         );
       }
 
+      // === Handle OAuth (no password) user ===
+      // Return generic invalid credentials to prevent OAuth account enumeration.
+      if (!user.password) {
+        this.logger.warn(`Login failed: Account ${loginDto.email} has no password (OAuth).`);
+        const fakeRemaining = PASSWORD_POLICY.maxFailedAttempts - 1;
+        throw new UnauthorizedException(
+          AuthErrorFactory.invalidCredentials(fakeRemaining),
+        );
+      }
+
+      // === Handle locked account ===
       const now = new Date();
       if (user.lockoutUntil && user.lockoutUntil.getTime() > now.getTime()) {
         this.logger.warn(`Login temporarily locked for email ${loginDto.email}.`);
-        throw new UnauthorizedException({
-          message:
-            'Account has been temporarily locked due to too many failed password attempts.',
-          code: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
-          details: {
-            lockedUntil: user.lockoutUntil.toISOString(),
-            remainingAttempts: 0,
-            maxAttempts: PASSWORD_POLICY.maxFailedAttempts,
-          },
-        });
+        throw new UnauthorizedException(
+          AuthErrorFactory.accountLocked(user.lockoutUntil.toISOString()),
+        );
       }
 
+      // === Reset expired lockout ===
       if (user.lockoutUntil && user.lockoutUntil.getTime() <= now.getTime()) {
         await this.usersService.resetLoginFailures(user._id.toString());
-        user.failedLoginAttempts = 0;
-        user.lockoutUntil = undefined;
       }
 
+      // === Verify password ===
       const isPasswordValid = await this.passwordService.verifyPassword(
         loginDto.password,
         user.password,
       );
+
       if (!isPasswordValid) {
         this.logger.warn(`Login failed: Incorrect password for email ${loginDto.email}.`);
-        const failureState = await this.usersService.registerFailedLoginAttempt(user);
+        const failureState = await this.usersService.registerFailedLoginAttempt(
+          user._id.toString(),
+        );
 
         if (failureState.isLocked) {
-          throw new UnauthorizedException({
-            message:
-              'Account has been temporarily locked due to too many failed password attempts.',
-            code: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
-            details: {
-              lockedUntil: failureState.lockedUntil,
-              remainingAttempts: failureState.remainingAttempts,
-              maxAttempts: failureState.maxAttempts,
-            },
-          });
+          throw new UnauthorizedException(
+            AuthErrorFactory.accountLocked(failureState.lockedUntil!),
+          );
         }
 
-        throw new UnauthorizedException({
-          message: 'Email or password is incorrect.',
-          code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
-          details: {
-            remainingAttempts: failureState.remainingAttempts,
-            maxAttempts: failureState.maxAttempts,
-          },
-        });
+        throw new UnauthorizedException(
+          AuthErrorFactory.invalidCredentials(failureState.remainingAttempts),
+        );
       }
 
+      // === Handle non-active status ===
       if (user.status !== USER_STATUSES.ACTIVE) {
         this.logger.warn(
-          `Login failed: Account ${loginDto.email} is not active yet (status: ${user.status}).`,
+          `Login failed: Account ${loginDto.email} is not active (status: ${user.status}).`,
         );
 
         if (user.status === USER_STATUSES.PENDING_VERIFICATION) {
-          throw new UnauthorizedException({
-            message: 'Please verify your email before signing in.',
-            code: AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED,
-          });
+          throw new UnauthorizedException(AuthErrorFactory.emailNotVerified());
         }
 
-        const code =
+        throw new UnauthorizedException(
           user.status === USER_STATUSES.BANNED
-            ? AUTH_ERROR_CODES.USER_SUSPENDED
-            : AUTH_ERROR_CODES.USER_DEACTIVATED;
-        throw new UnauthorizedException({
-          message: 'Account has been locked or suspended.',
-          code,
-        });
+            ? AuthErrorFactory.accountSuspended()
+            : AuthErrorFactory.accountDeactivated(),
+        );
       }
 
+      // === Clear any stale failures ===
       if (user.failedLoginAttempts || user.lockoutUntil) {
         await this.usersService.resetLoginFailures(user._id.toString());
       }
 
+      // === Issue tokens ===
       const { accessToken, refreshToken } = await this.tokenService.createAndSaveTokens(
         user._id.toString(),
         user.email,
@@ -209,9 +194,10 @@ export class AuthenticationService {
         },
       };
     } catch (error: unknown) {
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
       if (!(error instanceof UnauthorizedException) && !(error instanceof BadRequestException)) {
-        this.logger.error(`System error during login (${loginDto.email}): ${err.message}`, err.stack);
+        this.logger.error(`System error during login (${loginDto.email}): ${message}`, stack);
       }
       throw error;
     }

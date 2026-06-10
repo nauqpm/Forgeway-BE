@@ -50,6 +50,39 @@ export class UsersRepository {
       .exec();
   }
 
+  async incrementFailedLoginAttempts(userId: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $inc: { failedLoginAttempts: 1 } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async setLockout(userId: string, lockoutUntil: Date): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { lockoutUntil } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Partial update using $set to avoid overwriting unrelated fields.
+   */
+  async updatePassword(userId: string, hashedPassword: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { password: hashedPassword } },
+        { new: true },
+      )
+      .exec();
+  }
+
   // 📢 Thêm hàm `findAll` để trả về tất cả người dùng
   async findAll(): Promise<User[]> {
     return await this.userModel.find().exec();
