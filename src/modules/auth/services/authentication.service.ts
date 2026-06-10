@@ -1,5 +1,7 @@
-import { ConflictException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+
+import { ConflictException, BadRequestException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InviteService } from '@/modules/workspaces/services/invite.service';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 import { UsersService } from '../../users/services/users.service';
@@ -66,6 +68,10 @@ export class AuthenticationService {
     this.logger.log(`Yêu cầu đăng nhập từ email: ${loginDto.email}`);
 
     try {
+      if (!EMAIL_POLICY.noWhitespacePattern.test(loginDto.email)) {
+        throw new BadRequestException(EMAIL_POLICY.noWhitespaceMessage);
+      }
+
       const user = await this.usersService.findByEmail(loginDto.email);
       if (!user) {
         this.logger.warn(`Đăng nhập thất bại: Không tìm thấy email ${loginDto.email}`);
@@ -114,8 +120,14 @@ export class AuthenticationService {
       };
     } catch (error: unknown) {
       const err = error as Error;
-      if (!(error instanceof UnauthorizedException)) {
-        this.logger.error(`Lỗi hệ thống khi đăng nhập (${loginDto.email}): ${err.message}`, err.stack);
+      if (
+        !(error instanceof UnauthorizedException) &&
+        !(error instanceof BadRequestException)
+      ) {
+        this.logger.error(
+          `Lỗi hệ thống khi đăng nhập (${loginDto.email}): ${err.message}`,
+          err.stack,
+        );
       }
       throw error;
     }
