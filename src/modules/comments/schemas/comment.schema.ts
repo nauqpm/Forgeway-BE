@@ -20,6 +20,9 @@ export class Comment {
   @Prop({ required: true })
   targetId!: string;
 
+  @Prop({ type: String, index: true })
+  inlineId?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'Comment' })
   parentId?: Types.ObjectId;
 
@@ -34,6 +37,15 @@ export class Comment {
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   deletedBy?: Types.ObjectId;
+
+  @Prop({ type: Boolean, default: false })
+  isResolved!: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  resolvedBy?: Types.ObjectId;
+
+  @Prop({ type: Date })
+  resolvedAt?: Date;
 
   @Prop({ type: Date })
   editedAt?: Date;

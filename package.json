@@ -56,6 +56,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "helmet": "^8.0.0",
+    "html-to-docx": "^1.8.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "mongoose": "^8.10.1",
@@ -74,7 +75,8 @@
     "socket.io": "^4.8.3",
     "suneditor": "^2.47.5",
     "uuid": "^11.1.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -85,6 +87,7 @@
     "@swc/cli": "^0.6.0",
     "@swc/core": "^1.10.7",
     "@types/express": "^5.0.0",
+    "@types/html-to-docx": "^1.8.1",
     "@types/jest": "^29.5.14",
     "@types/mongoose": "^5.11.97",
     "@types/node": "^22.19.17",

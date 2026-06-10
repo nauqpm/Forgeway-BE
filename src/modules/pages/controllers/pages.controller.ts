@@ -12,6 +12,12 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Inject,
+  forwardRef,
+  Res,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,10 +40,14 @@ import { PagesService } from '../services/pages.service';
 import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
 import { FilterPageDto } from '../dtos/filter-page.dto';
+import { SyncPageDto } from '../dtos/sync-page.dto';
+import { CreateVersionDto } from '../dtos/create-version.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
+import { RealtimeService } from '../../realtime/realtime.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 // ---------------------------------------------------------------------------
 // Response shape DTOs (inline, for Swagger schema only — no runtime overhead)
@@ -99,7 +109,11 @@ class UpdateLabelsBodyDto {
 @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT token' })
 @ApiForbiddenResponse({ description: 'Insufficient role for this resource' })
 export class PagesController {
-  constructor(private readonly pagesService: PagesService) { }
+  constructor(
+    private readonly pagesService: PagesService,
+    @Inject(forwardRef(() => RealtimeService))
+    private readonly realtimeService: RealtimeService,
+  ) { }
 
   // -------------------------------------------------------------------------
   // POST /pages
@@ -139,6 +153,19 @@ export class PagesController {
   })
   async findAll(@Query() filterDto: FilterPageDto) {
     return this.pagesService.findAll(filterDto);
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/link-preview
+  // -------------------------------------------------------------------------
+  @Get('link-preview')
+  @ApiOperation({
+    summary: 'Get link preview metadata',
+    description: 'Fetch OpenGraph metadata securely via backend proxy',
+  })
+  @ApiQuery({ name: 'url', description: 'URL to preview' })
+  async getLinkPreview(@Query('url') url: string) {
+    return this.pagesService.getLinkPreview(url);
   }
 
   // -------------------------------------------------------------------------
@@ -197,6 +224,27 @@ export class PagesController {
     @Request() req: any,
   ) {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
+  }
+
+  // -------------------------------------------------------------------------
+  // PATCH /pages/:id/sync
+  // -------------------------------------------------------------------------
+  @Patch(':id/sync')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @ApiOperation({
+    summary: 'Synchronize page Yjs state and document content snapshots',
+    description: 'Updates page yjsState, contentJson, content (HTML), and plainTextSnapshot.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiOkResponse({ description: 'Page synchronized successfully', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
+  async sync(
+    @Param('id') id: string,
+    @Body() syncPageDto: SyncPageDto,
+    @Request() req: any,
+  ) {
+    return this.pagesService.sync(id, syncPageDto, req.user.userId);
   }
 
   // -------------------------------------------------------------------------
@@ -383,5 +431,138 @@ export class PagesController {
     }
 
     return this.pagesService.findById(id);
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /pages/:id/versions
+  // -------------------------------------------------------------------------
+  @Post(':id/versions')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @ApiOperation({
+    summary: 'Tạo phiên bản mới có tên',
+    description: 'Lưu trạng thái hiện tại của tài liệu (yjsState, content, contentJson) thành một phiên bản có tên.',
+  })
+  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  @ApiBody({ type: CreateVersionDto })
+  @ApiCreatedResponse({ description: 'Phiên bản mới được tạo thành công' })
+  async createVersion(
+    @Param('id') id: string,
+    @Body() dto: CreateVersionDto,
+    @Request() req: any,
+  ) {
+    return this.pagesService.createVersion(id, dto.label, req.user.userId);
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/versions
+  // -------------------------------------------------------------------------
+  @Get(':id/versions')
+  @ApiOperation({
+    summary: 'Lấy danh sách các phiên bản của tài liệu',
+    description: 'Trả về danh sách các phiên bản đã lưu của tài liệu, sắp xếp theo thời gian tạo mới nhất.',
+  })
+  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  @ApiOkResponse({ description: 'Danh sách các phiên bản' })
+  async getVersions(@Param('id') id: string) {
+    return this.pagesService.getVersions(id);
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/versions/:versionId
+  // -------------------------------------------------------------------------
+  @Get(':id/versions/:versionId')
+  @ApiOperation({
+    summary: 'Lấy chi tiết một phiên bản tài liệu',
+    description: 'Trả về thông tin chi tiết và nội dung snapshot của phiên bản.',
+  })
+  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  @ApiParam({ name: 'versionId', description: 'ID của phiên bản' })
+  @ApiOkResponse({ description: 'Chi tiết phiên bản' })
+  async getVersionById(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.pagesService.getVersionById(id, versionId);
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /pages/:id/versions/:versionId/restore
+  // -------------------------------------------------------------------------
+  @Post(':id/versions/:versionId/restore')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @ApiOperation({
+    summary: 'Khôi phục tài liệu về phiên bản chỉ định',
+    description: 'Khôi phục nội dung và trạng thái Yjs của tài liệu về phiên bản đã lưu.',
+  })
+  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  @ApiParam({ name: 'versionId', description: 'ID của phiên bản' })
+  @ApiOkResponse({ description: 'Tài liệu đã được khôi phục thành công' })
+  async restoreVersion(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+    @Request() req: any,
+  ) {
+    const page = await this.pagesService.restoreVersion(id, versionId, req.user.userId);
+    
+    // Phát thông báo realtime tới toàn bộ các client đang kết nối trong page room
+    this.realtimeService.emitPageVersionRestored(
+      page._id.toString(),
+      page.yjsState,
+      page.content,
+      page.contentJson,
+    );
+
+    return page;
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/export/docx
+  // -------------------------------------------------------------------------
+  @Get(':id/export/docx')
+  @UseGuards(WorkspaceRoleGuard)
+  @ApiOperation({
+    summary: 'Xuất tài liệu thành tệp Word (.docx)',
+    description: 'Chuyển đổi nội dung HTML của trang tài liệu hiện tại thành tệp Word (.docx) và tải xuống.',
+  })
+  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  async exportDocx(@Param('id') id: string, @Res() res: any) {
+    const { buffer, filename } = await this.pagesService.exportToDocx(id);
+
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+      'Content-Length': buffer.length,
+    });
+
+    res.end(buffer);
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /pages/import/docx
+  // -------------------------------------------------------------------------
+  @Post('import/docx')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+      fileFilter: (req: any, file: any, cb: any) => {
+        if (!file.originalname.match(/\.(docx)$/)) {
+          return cb(new BadRequestException('Chỉ cho phép tải lên tệp .docx'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiOperation({
+    summary: 'Nhập nội dung từ tệp Word (.docx)',
+    description: 'Chuyển đổi tệp Word (.docx) tải lên thành chuỗi HTML sạch để chèn vào trình soạn thảo.',
+  })
+  async importDocx(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng tải lên tệp Word (.docx)');
+    }
+    const html = await this.pagesService.importFromDocx(file.buffer);
+    return { html };
   }
 }
