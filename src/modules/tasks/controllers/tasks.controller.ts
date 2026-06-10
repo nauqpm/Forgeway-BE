@@ -526,10 +526,7 @@ export class TasksController {
 
   @Patch(':id')
   @UseGuards(WorkspaceRoleGuard)
-  @RequirePermissions(
-    WORKSPACE_PERMISSIONS.TASK_EDIT,
-    WORKSPACE_PERMISSIONS.TASK_MOVE,
-  )
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @ApiOperation({ summary: 'Update task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiBadRequestResponse({ description: 'Invalid task update payload' })
@@ -581,7 +578,8 @@ export class TasksController {
   }
 
   @Patch(':id/reorder')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_MOVE)
   @ApiOperation({
     summary: 'Reorder task/card by relative neighbor tasks',
   })
@@ -645,7 +643,8 @@ export class TasksController {
   }
 
   @Patch(':id/move')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_MOVE)
   @ApiOperation({
     summary: 'Move task/card across board columns or Scrum sprint scopes',
   })
