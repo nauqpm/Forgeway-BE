@@ -24,3 +24,20 @@ export interface SprintEventContext extends DomainEventMetadata {
 export interface SprintCreatedEventData extends SprintEventContext {
   sprint: SprintSummaryPayload;
 }
+
+export interface SprintUpdatedEventData extends SprintEventContext {
+  sprint: SprintSummaryPayload;
+}
+
+export interface SprintDeletedEventData extends SprintEventContext {
+  sprint?: SprintSummaryPayload;
+}
+
+export interface SprintStartedEventData extends SprintEventContext {
+  sprint: SprintSummaryPayload;
+}
+
+export interface SprintCompletedEventData extends SprintEventContext {
+  sprint: SprintSummaryPayload;
+  incompleteTasksMovedTo?: string | null;
+}

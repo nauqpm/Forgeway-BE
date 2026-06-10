@@ -14,6 +14,7 @@ import { CompleteSprintDto, StartSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { BoardStatusService } from './board-status.service';
 import { MongoTransactionService } from './mongo-transaction.service';
+import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 
 @Injectable()
 export class SprintLifecycleService {
@@ -22,6 +23,7 @@ export class SprintLifecycleService {
   constructor(
     private readonly mongoTransactionService: MongoTransactionService,
     private readonly boardStatusService: BoardStatusService,
+    private readonly sprintDomainEventPublisher: SprintDomainEventPublisher,
     @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
   ) {}
@@ -30,10 +32,11 @@ export class SprintLifecycleService {
     workspaceId: string,
     sprintId: string,
     dto: StartSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
     this.logger.log(`Bắt đầu một sprint: ${sprintId} cho workspace: ${workspaceId}`);
 
-    return this.mongoTransactionService.withTransaction(async (session) => {
+    const startedSprint = await this.mongoTransactionService.withTransaction(async (session) => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
 
@@ -81,16 +84,23 @@ export class SprintLifecycleService {
 
       return sprint.save({ session: session ?? undefined });
     });
+
+    this.sprintDomainEventPublisher.publishStarted(startedSprint, actorId);
+    return startedSprint;
   }
 
   async completeSprint(
     workspaceId: string,
     sprintId: string,
     dto: CompleteSprintDto,
+    actorId?: string,
   ): Promise<any> {
     this.logger.log(`Completing sprint: ${sprintId} for workspace: ${workspaceId}`);
 
-    return this.mongoTransactionService.withTransaction(async (session) => {
+    let completedSprint: SprintDocument | null = null;
+    let incompleteTasksMovedTo: string | null = null;
+
+    const result = await this.mongoTransactionService.withTransaction(async (session) => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
       const moveToSprintObjectId = dto.moveToSprintId
@@ -163,6 +173,8 @@ export class SprintLifecycleService {
       sprint.status = 'completed';
       sprint.completedAt = new Date();
       const savedSprint = await sprint.save({ session: session ?? undefined });
+      completedSprint = savedSprint;
+      incompleteTasksMovedTo = moveToSprintObjectId?.toString() ?? null;
 
       return {
         _id: savedSprint._id,
@@ -173,5 +185,15 @@ export class SprintLifecycleService {
         incompleteTasksMovedTo: moveToSprintObjectId,
       };
     });
+
+    if (completedSprint) {
+      this.sprintDomainEventPublisher.publishCompleted(
+        completedSprint,
+        actorId,
+        incompleteTasksMovedTo,
+      );
+    }
+
+    return result;
   }
 }

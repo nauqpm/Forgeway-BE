@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 export class RegisterDto {
@@ -16,6 +17,9 @@ export class RegisterDto {
     example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Email không hợp lệ.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   @IsNotEmpty({ message: 'Email không được để trống.' })
   email!: string;
 
@@ -24,6 +28,9 @@ export class RegisterDto {
     example: 'Password123!',
   })
   @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password!: string;
 }
@@ -34,6 +41,9 @@ export class LoginDto {
     example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Email không hợp lệ.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   email!: string;
 
   @ApiProperty({
@@ -59,6 +69,9 @@ export class UpdateProfileDto {
   })
   @IsOptional()
   @IsEmail({}, { message: 'Email không hợp lệ.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   email?: string;
 
   @ApiPropertyOptional({
@@ -66,6 +79,9 @@ export class UpdateProfileDto {
     example: 'NewPassword123!',
   })
   @IsOptional()
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password?: string;
 
@@ -107,6 +123,9 @@ export class VerifyEmailDto {
     example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Email không hợp lệ.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   email!: string;
 
   @ApiProperty({
@@ -123,6 +142,9 @@ export class ResendVerificationDto {
     example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Email khong hop le.' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   @IsNotEmpty({ message: 'Email khong duoc de trong.' })
   email!: string;
 }

@@ -60,6 +60,7 @@ export class SprintCommandService {
     workspaceId: string,
     sprintId: string,
     dto: UpdateSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
     const timestamp = new Date().toISOString();
 
@@ -153,6 +154,7 @@ export class SprintCommandService {
           `=============================================\n`,
       );
 
+      this.sprintDomainEventPublisher.publishUpdated(updatedSprint, actorId);
       return updatedSprint;
     } catch (error) {
       if (
@@ -167,7 +169,13 @@ export class SprintCommandService {
     }
   }
 
-  async deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
+  async deleteSprint(
+    workspaceId: string,
+    sprintId: string,
+    actorId?: string,
+  ): Promise<void> {
+    let deletedSprint: SprintDocument | null = null;
+
     await this.mongoTransactionService.withTransaction(async (session) => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
@@ -191,6 +199,8 @@ export class SprintCommandService {
         throw new BadRequestException('Only planning sprints can be deleted');
       }
 
+      deletedSprint = sprint;
+
       await this.taskModel
         .updateMany(
           {
@@ -212,6 +222,10 @@ export class SprintCommandService {
         .deleteOne({ _id: sprint._id }, { session: session ?? undefined })
         .exec();
     });
+
+    if (deletedSprint) {
+      this.sprintDomainEventPublisher.publishDeleted(deletedSprint, actorId);
+    }
   }
 
   async deleteByWorkspace(workspaceId: string): Promise<void> {

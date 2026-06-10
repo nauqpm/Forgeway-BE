@@ -78,8 +78,9 @@ export class WorkspacesController {
   async update(
     @Param('workspaceId') workspaceId: string,
     @Body() dto: UpdateWorkspaceDto,
+    @Request() req: any,
   ) {
-    return this.workspacesService.update(workspaceId, dto);
+    return this.workspacesService.update(workspaceId, dto, req.user.userId);
   }
 
   @Delete(':workspaceId')
@@ -87,8 +88,8 @@ export class WorkspacesController {
   @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete workspace (owner only)' })
-  async remove(@Param('workspaceId') workspaceId: string) {
-    await this.workspacesService.delete(workspaceId);
+  async remove(@Param('workspaceId') workspaceId: string, @Request() req: any) {
+    await this.workspacesService.delete(workspaceId, req.user.userId);
   }
 
   @Get(':workspaceId/members')
@@ -149,15 +150,15 @@ export class WorkspacesController {
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiOperation({ summary: 'Restore soft-deleted workspace (super_admin only)' })
-  async restore(@Param('workspaceId') workspaceId: string) {
-    return this.workspacesService.restore(workspaceId);
+  async restore(@Param('workspaceId') workspaceId: string, @Request() req: any) {
+    return this.workspacesService.restore(workspaceId, req.user.userId);
   }
 
   @Post(':workspaceId/archive')
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiOperation({ summary: 'Archive workspace (super_admin only)' })
-  async archive(@Param('workspaceId') workspaceId: string) {
-    return this.workspacesService.archive(workspaceId);
+  async archive(@Param('workspaceId') workspaceId: string, @Request() req: any) {
+    return this.workspacesService.archive(workspaceId, req.user.userId);
   }
 }

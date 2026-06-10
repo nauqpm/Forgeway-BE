@@ -32,8 +32,6 @@ export class PagesService {
 
   constructor(
     @InjectModel(Page.name) private readonly pageModel: Model<PageDocument>,
-    @InjectModel(Workspace.name)
-    private readonly workspaceModel: Model<WorkspaceDocument>,
   ) {}
 
   async create(dto: CreatePageDto, userId: string): Promise<PageDocument> {
@@ -50,7 +48,11 @@ export class PagesService {
     }
 
     const title = dto.title.trim();
-    await this.ensureUniqueTitleInLocation(title, dto.workspaceId, dto.parentId);
+    await this.ensureUniqueTitleInLocation(
+      title,
+      dto.workspaceId,
+      dto.parentId,
+    );
 
     const slug = dto.slug || (await this.generateUniqueSlug(title));
 

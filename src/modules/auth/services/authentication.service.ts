@@ -1,10 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+
+import { ConflictException, BadRequestException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InviteService } from '@/modules/workspaces/services/invite.service';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 import { UsersService } from '../../users/services/users.service';
@@ -24,17 +21,17 @@ export class AuthenticationService {
     private readonly tokenService: TokenService,
     private readonly verifyService: VerifyService,
     private readonly inviteService: InviteService,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto) {
     this.logger.log(`Bắt đầu quy trình đăng ký cho email: ${registerDto.email}`);
 
     try {
       const existingUser = await this.usersService.findByEmail(registerDto.email);
-      if (existingUser) {
-        this.logger.warn(
-          `Đăng ký thất bại: Email ${registerDto.email} đã tồn tại trong hệ thống.`,
-        );
+      if (existingUser && existingUser.status === USER_STATUSES.PENDING_VERIFICATION) {
+        throw new ForbiddenException('Vui lòng xác thực email trước khi đăng ký', 'EMAIL_NOT_VERIFIED');
+      } else if (existingUser) {
+        this.logger.warn(`Đăng ký thất bại: Email ${registerDto.email} đã tồn tại trong hệ thống.`);
         throw new ConflictException('Email đã được sử dụng');
       }
 
@@ -44,32 +41,24 @@ export class AuthenticationService {
         role: GLOBAL_ROLES.USER,
         status: USER_STATUSES.PENDING_VERIFICATION,
       });
-      this.logger.log(
-        `Tạo người dùng thành công: ${newUser.email} (ID: ${newUser._id})`,
-      );
+      this.logger.log(`Tạo người dùng thành công: ${newUser.email} (ID: ${newUser._id})`);
 
       await this.verifyService.sendVerificationEmail(registerDto.email);
       this.logger.log(`Đã gửi email xác thực đến: ${registerDto.email}`);
 
       this.inviteService
         .processPostRegisterInvites(registerDto.email, newUser._id.toString())
-        .catch((err) =>
-          this.logger.error('processPostRegisterInvites thất bại', err),
-        );
+        .catch(err => this.logger.error('processPostRegisterInvites thất bại', err));
 
       return {
         success: true,
-        message:
-          'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
+        message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
         email: registerDto.email,
       };
     } catch (error: unknown) {
       const err = error as Error;
       if (!(error instanceof ConflictException)) {
-        this.logger.error(
-          `Lỗi nghiêm trọng trong quá trình đăng ký (${registerDto.email}): ${err.message}`,
-          err.stack,
-        );
+        this.logger.error(`Lỗi nghiêm trọng trong quá trình đăng ký (${registerDto.email}): ${err.message}`, err.stack);
       }
       throw error;
     }
@@ -79,6 +68,10 @@ export class AuthenticationService {
     this.logger.log(`Yêu cầu đăng nhập từ email: ${loginDto.email}`);
 
     try {
+      if (!EMAIL_POLICY.noWhitespacePattern.test(loginDto.email)) {
+        throw new BadRequestException(EMAIL_POLICY.noWhitespaceMessage);
+      }
+
       const user = await this.usersService.findByEmail(loginDto.email);
       if (!user) {
         this.logger.warn(`Đăng nhập thất bại: Không tìm thấy email ${loginDto.email}`);
@@ -86,18 +79,11 @@ export class AuthenticationService {
       }
 
       if (!user.password) {
-        this.logger.warn(
-          `Đăng nhập thất bại: Tài khoản ${loginDto.email} sử dụng Google OAuth`,
-        );
-        throw new UnauthorizedException(
-          'Tài khoản này được đăng ký qua Google. Vui lòng đăng nhập bằng Google.',
-        );
+        this.logger.warn(`Đăng nhập thất bại: Tài khoản ${loginDto.email} sử dụng Google OAuth`);
+        throw new UnauthorizedException('Tài khoản này được đăng ký qua Google. Vui lòng đăng nhập bằng Google.');
       }
 
-      const isPasswordValid = await this.passwordService.verifyPassword(
-        loginDto.password,
-        user.password,
-      );
+      const isPasswordValid = await this.passwordService.verifyPassword(loginDto.password, user.password);
       if (!isPasswordValid) {
         this.logger.warn(`Đăng nhập thất bại: Sai mật khẩu cho email ${loginDto.email}`);
         throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
@@ -107,19 +93,16 @@ export class AuthenticationService {
         this.logger.warn(
           `Đăng nhập thất bại: Tài khoản ${loginDto.email} chưa được kích hoạt (Status: ${user.status})`,
         );
-        throw new UnauthorizedException(
-          'Vui lòng xác thực email trước khi đăng nhập',
-        );
+        throw new UnauthorizedException('Vui lòng xác thực email trước khi đăng nhập');
       }
 
-      const { accessToken, refreshToken } =
-        await this.tokenService.createAndSaveTokens(
-          user._id.toString(),
-          user.email,
-          user.role,
-          user.fullName,
-          user.avatar,
-        );
+      const { accessToken, refreshToken } = await this.tokenService.createAndSaveTokens(
+        user._id.toString(),
+        user.email,
+        user.role,
+        user.fullName,
+        user.avatar,
+      );
 
       this.logger.log(`Đăng nhập thành công: ${user.email} (ID: ${user._id})`);
 
@@ -137,7 +120,10 @@ export class AuthenticationService {
       };
     } catch (error: unknown) {
       const err = error as Error;
-      if (!(error instanceof UnauthorizedException)) {
+      if (
+        !(error instanceof UnauthorizedException) &&
+        !(error instanceof BadRequestException)
+      ) {
         this.logger.error(
           `Lỗi hệ thống khi đăng nhập (${loginDto.email}): ${err.message}`,
           err.stack,
@@ -153,21 +139,15 @@ export class AuthenticationService {
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      this.logger.error(
-        `Xác thực thành công nhưng không tìm thấy User với email: ${email}`,
-      );
-      throw new UnauthorizedException(
-        'Mã xác thực không hợp lệ hoặc đã hết hạn',
-      );
+      this.logger.error(`Xác thực thành công nhưng không tìm thấy User với email: ${email}`);
+      throw new UnauthorizedException('Mã xác thực không hợp lệ hoặc đã hết hạn');
     }
 
     if (user.status !== USER_STATUSES.ACTIVE) {
       await this.usersService.updateUser(user._id.toString(), {
         status: USER_STATUSES.ACTIVE,
       });
-      this.logger.log(
-        `Tài khoản ${email} đã được kích hoạt thành công (Status -> ACTIVE)`,
-      );
+      this.logger.log(`Tài khoản ${email} đã được kích hoạt thành công (Status -> ACTIVE)`);
     } else {
       this.logger.log(`Tài khoản ${email} đã ở trạng thái ACTIVE từ trước.`);
     }

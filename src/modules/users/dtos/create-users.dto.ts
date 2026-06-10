@@ -2,16 +2,23 @@ import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsNotEmpty } fro
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 // 📄 DTO cho tạo người dùng mới
 export class CreateUsersDto {
   @IsNotEmpty()
   @IsEmail()
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   email!: string;
 
   @IsNotEmpty()
   @IsString()
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, { message: PASSWORD_POLICY.message })
   password!: string;
 

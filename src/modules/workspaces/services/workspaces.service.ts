@@ -20,6 +20,7 @@ import { Page, PageDocument } from '../../pages/schemas/page.schema';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceKeyService } from './workspace-key.service';
+import { WorkspaceDomainEventPublisher } from './workspace-domain-event.publisher';
 
 @Injectable()
 export class WorkspacesService {
@@ -32,6 +33,7 @@ export class WorkspacesService {
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
     private readonly workspaceKeyService: WorkspaceKeyService,
+    private readonly workspaceDomainEventPublisher: WorkspaceDomainEventPublisher,
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     @InjectModel(Page.name)
@@ -87,6 +89,8 @@ export class WorkspacesService {
           );
         }
       }
+
+      this.workspaceDomainEventPublisher.publishCreated(workspace, userId);
 
       return workspace;
     } catch (error) {
@@ -165,7 +169,7 @@ export class WorkspacesService {
     );
   }
 
-  async update(id: string, dto: UpdateWorkspaceDto): Promise<any> {
+  async update(id: string, dto: UpdateWorkspaceDto, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${id}" not found`);
@@ -179,10 +183,20 @@ export class WorkspacesService {
     if (dto.status) workspace.status = dto.status;
     if (dto.access) workspace.access = dto.access;
 
-    return this.workspacesRepository.update(id, workspace);
+    const updated = await this.workspacesRepository.update(id, workspace);
+    if (updated) {
+      this.workspaceDomainEventPublisher.publishUpdated(updated, actorId);
+    }
+
+    return updated;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, actorId?: string): Promise<void> {
+    const workspace = await this.workspacesRepository.findById(id);
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+    }
+
     try {
       await this.kanbanService.deleteByWorkspace(id);
     } catch (error) {
@@ -199,9 +213,11 @@ export class WorkspacesService {
     if (!deleted) {
       throw new NotFoundException(`Workspace with ID "${id}" not found`);
     }
+
+    this.workspaceDomainEventPublisher.publishDeleted(id, workspace, actorId);
   }
 
-  async restore(id: string): Promise<any> {
+  async restore(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.restore(id);
     if (!workspace) {
       throw new NotFoundException(`Deleted workspace with ID "${id}" not found`);
@@ -213,16 +229,22 @@ export class WorkspacesService {
       this.logger.error(`Failed to restore sprint data for workspace ${id}`, error);
     }
 
+    this.workspaceDomainEventPublisher.publishRestored(workspace, actorId);
     return workspace;
   }
 
-  async archive(id: string): Promise<any> {
+  async archive(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${id}" not found`);
     }
 
     workspace.status = 'archived';
-    return this.workspacesRepository.update(id, workspace);
+    const archived = await this.workspacesRepository.update(id, workspace);
+    if (archived) {
+      this.workspaceDomainEventPublisher.publishArchived(archived, actorId);
+    }
+
+    return archived;
   }
 }

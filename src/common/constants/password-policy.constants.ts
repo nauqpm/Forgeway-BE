@@ -1,5 +1,7 @@
 export const PASSWORD_POLICY = {
+  noWhitespacePattern: /^\S+$/,
+  noWhitespaceMessage: 'Passwords must not contain spaces.',
   pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
   message:
-    'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.',
+    'Passwords must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.',
 } as const;

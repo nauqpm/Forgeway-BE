@@ -37,8 +37,18 @@ async function bootstrap() {
     app.use(cookieParser());
 
     // CORS - cho phép nhiều frontend origins
-    const allowedOrigins = [
+    const PORT = process.env.PORT || 5512;
+    const configuredOrigins = [
       process.env.FRONTEND_URL,
+      ...(process.env.CORS_ORIGINS ?? '')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    ];
+
+    const allowedOrigins = [
+      ...configuredOrigins,
+      `http://localhost:${PORT}`,
       'http://localhost:5173',      // Vite dev server (Admin FE)
       'http://localhost:5174',      // Vite alternative
       'http://localhost:5175',
@@ -102,8 +112,6 @@ async function bootstrap() {
         persistAuthorization: true, // giữ token khi refresh page
       },
     });
-
-    const PORT = process.env.PORT || 5512;
 
     // await app.listen(PORT, '0.0.0.0'); // for LAN network deploy
     await app.listen(PORT);

@@ -15,6 +15,7 @@ import { Types } from 'mongoose';
 
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { OmitType } from '@nestjs/swagger';
 
@@ -31,12 +32,18 @@ export class UpdateUsersDto {
 
   @IsOptional()
   @IsEmail({}, { message: 'Invalid email address' })
+  @Matches(EMAIL_POLICY.noWhitespacePattern, {
+    message: EMAIL_POLICY.noWhitespaceMessage,
+  })
   @MaxLength(255)
   email?: string;
 
   @IsOptional()
   @IsString()
   @Length(8, 100)
+  @Matches(PASSWORD_POLICY.noWhitespacePattern, {
+    message: PASSWORD_POLICY.noWhitespaceMessage,
+  })
   @Matches(PASSWORD_POLICY.pattern, {
     message: PASSWORD_POLICY.message,
   })
