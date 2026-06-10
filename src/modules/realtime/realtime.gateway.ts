@@ -75,7 +75,7 @@ export class RealtimeGateway
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
       const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
-      this.logger.debug(
+      this.logger.log(
         `Realtime client connected: ${client.id} | User: ${userIdentifier}`,
       );
     } catch (error) {
@@ -87,8 +87,11 @@ export class RealtimeGateway
   }
 
   handleDisconnect(client: Socket): void {
-    this.socketAuthService.clearDisconnectTimer(client as AuthenticatedSocket);
-    this.logger.debug(`Realtime client disconnected: ${client.id}`);
+    const authClient = client as AuthenticatedSocket;
+    this.socketAuthService.clearDisconnectTimer(authClient);
+    const user = authClient.data?.user;
+    const userIdentifier = user?.email ? ` | User: ${user.email} (${user.userId})` : user?.userId ? ` | User: ${user.userId}` : '';
+    this.logger.log(`Realtime client disconnected: ${client.id}${userIdentifier}`);
   }
 
   @SubscribeMessage('workspace:join')

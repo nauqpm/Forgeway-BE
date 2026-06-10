@@ -114,7 +114,11 @@ export class SocketAuthService {
     }
 
     client.data.disconnectTimer = setTimeout(() => {
-      this.logger.debug(`Disconnecting realtime client ${client.id} because access token expired.`);
+      const user = client.data.user;
+      const userIdentifier = user?.email ? `${user.email} (${user.userId})` : user?.userId || 'unknown';
+      this.logger.log(
+        `Disconnecting realtime client ${client.id} | User: ${userIdentifier} because access token expired.`,
+      );
       client.disconnect(true);
     }, delayMs);
   }
