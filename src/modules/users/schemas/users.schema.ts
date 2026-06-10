@@ -48,6 +48,12 @@ export class User {
   @Prop()
   gender?: string; // Giới tính (tùy chọn)
 
+  @Prop({ default: 0 })
+  failedLoginAttempts!: number;
+
+  @Prop()
+  lockoutUntil?: Date;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -68,6 +74,8 @@ UserSchema.set('toJSON', {
     ret.id = ret._id.toString();
     delete ret._id;
     delete ret.__v;
+    delete ret.failedLoginAttempts;
+    delete ret.lockoutUntil;
     delete ret.password; // 👈 Ẩn mật khẩu trong phản hồi JSON
   },
 });

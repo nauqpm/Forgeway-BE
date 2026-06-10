@@ -13,6 +13,14 @@ import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
+export interface LoginFailureState {
+  failedAttempts: number;
+  isLocked: boolean;
+  lockedUntil?: string;
+  remainingAttempts: number;
+  maxAttempts: number;
+}
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -33,6 +41,35 @@ export class UsersService {
   // 📢 Tìm người dùng bằng email
   async findByEmail(email: string): Promise<User | null> {
     return await this.usersRepository.findByEmail(email);
+  }
+
+  async resetLoginFailures(userId: string): Promise<void> {
+    await this.usersRepository.update(userId, {
+      $set: { failedLoginAttempts: 0 },
+      $unset: { lockoutUntil: 1 },
+    });
+  }
+
+  async registerFailedLoginAttempt(user: User): Promise<LoginFailureState> {
+    const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
+    const nextFailedAttempts = (user.failedLoginAttempts ?? 0) + 1;
+    const isLocked = nextFailedAttempts >= maxAttempts;
+    const lockedUntil = isLocked
+      ? new Date(Date.now() + PASSWORD_POLICY.lockoutDurationMs)
+      : undefined;
+
+    await this.usersRepository.update(user._id.toString(), {
+      failedLoginAttempts: nextFailedAttempts,
+      lockoutUntil: lockedUntil,
+    });
+
+    return {
+      failedAttempts: nextFailedAttempts,
+      isLocked,
+      lockedUntil: lockedUntil?.toISOString(),
+      remainingAttempts: Math.max(0, maxAttempts - nextFailedAttempts),
+      maxAttempts,
+    };
   }
 
   // 📢 Tạo người dùng mới
