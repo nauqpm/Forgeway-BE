@@ -13,21 +13,21 @@ import { PASSWORD_POLICY } from '../../../common/constants/password-policy.const
 
 export class RegisterDto {
   @ApiProperty({
-    description: 'Email của người dùng',
+    description: 'User email',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Email không hợp lệ.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
+  @IsNotEmpty({ message: 'Email cannot be empty.' })
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
   })
-  @IsNotEmpty({ message: 'Email không được để trống.' })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email!: string;
 
   @ApiProperty({
-    description: 'Mật khẩu',
+    description: 'Password',
     example: 'Password123!',
   })
-  @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
+  @IsNotEmpty({ message: 'Password cannot be empty.' })
   @Matches(PASSWORD_POLICY.noWhitespacePattern, {
     message: PASSWORD_POLICY.noWhitespaceMessage,
   })
@@ -37,30 +37,31 @@ export class RegisterDto {
 
 export class LoginDto {
   @ApiProperty({
-    description: 'Email của người dùng',
+    description: 'User email',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Email không hợp lệ.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
+  @IsNotEmpty({ message: 'Email cannot be empty.' })
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
   })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email!: string;
 
   @ApiProperty({
-    description: 'Mật khẩu',
+    description: 'Password',
     example: 'Password123!',
   })
-  @IsNotEmpty({ message: 'Mật khẩu không được để trống.' })
+  @IsNotEmpty({ message: 'Password cannot be empty.' })
   password!: string;
 }
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({
-    description: 'Tên đầy đủ',
-    example: 'Nguyễn Văn A',
+    description: 'Full name',
+    example: 'John Doe',
   })
   @IsOptional()
-  @IsString({ message: 'Tên đầy đủ phải là chuỗi ký tự.' })
+  @IsString({ message: 'Full name must be a string.' })
   fullName?: string;
 
   @ApiPropertyOptional({
@@ -68,14 +69,14 @@ export class UpdateProfileDto {
     example: 'user@example.com',
   })
   @IsOptional()
-  @IsEmail({}, { message: 'Email không hợp lệ.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
   })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email?: string;
 
   @ApiPropertyOptional({
-    description: 'Mật khẩu mới',
+    description: 'New password',
     example: 'NewPassword123!',
   })
   @IsOptional()
@@ -86,65 +87,65 @@ export class UpdateProfileDto {
   password?: string;
 
   @ApiPropertyOptional({
-    description: 'URL của ảnh đại diện',
+    description: 'Avatar image URL',
     example: 'https://example.com/avatar.jpg',
   })
   @IsOptional()
-  @IsString({ message: 'URL avatar phải là chuỗi ký tự.' })
+  @IsString({ message: 'Avatar URL must be a string.' })
   avatarUrl?: string;
 
   @ApiPropertyOptional({
-    description: 'Số điện thoại',
+    description: 'Phone number',
     example: '0123456789',
   })
   @IsOptional()
-  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự.' })
+  @IsString({ message: 'Phone number must be a string.' })
   phoneNumber?: string;
 }
 
 export class UpdateUserDto extends UpdateProfileDto {
   @ApiPropertyOptional({
-    description: 'Quyền của người dùng',
+    description: 'User role',
     enum: Object.values(GLOBAL_ROLES),
     example: GLOBAL_ROLES.USER,
   })
   @IsOptional()
-  @IsString({ message: 'Role phải là kiểu chuỗi.' })
+  @IsString({ message: 'Role must be a string.' })
   @IsIn(Object.values(GLOBAL_ROLES), {
-    message:
-      'Role phải là một trong các giá trị: super_admin, user',
+    message: 'Role must be one of the following values: super_admin, user',
   })
   role?: string;
 }
 
 export class VerifyEmailDto {
   @ApiProperty({
-    description: 'Email của người dùng',
+    description: 'User email',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Email không hợp lệ.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
+  @IsNotEmpty({ message: 'Email cannot be empty.' })
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
   })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email!: string;
 
   @ApiProperty({
-    description: 'Mã xác thực email',
+    description: 'Email verification code',
     example: '123456',
   })
-  @IsNotEmpty({ message: 'Mã xác thực không được để trống.' })
+  @IsNotEmpty({ message: 'Verification code cannot be empty.' })
   code!: string;
 }
 
 export class ResendVerificationDto {
   @ApiProperty({
-    description: 'Email của người dùng',
+    description: 'User email',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Email khong hop le.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
+  @IsNotEmpty({ message: 'Email cannot be empty.' })
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
   })
-  @IsNotEmpty({ message: 'Email khong duoc de trong.' })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email!: string;
 }

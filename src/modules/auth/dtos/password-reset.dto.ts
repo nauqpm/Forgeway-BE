@@ -13,11 +13,11 @@ export class RequestPasswordResetDto {
     description: 'User email for requesting a password reset',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Invalid email address.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
-  })
   @IsNotEmpty({ message: 'Email must not be empty.' })
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
+  })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email!: string;
 }
 
@@ -48,11 +48,11 @@ export class VerifyOtpDto {
     description: 'User email',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Invalid email address.' })
-  @Matches(EMAIL_POLICY.noWhitespacePattern, {
-    message: EMAIL_POLICY.noWhitespaceMessage,
-  })
   @IsNotEmpty({ message: 'Email must not be empty.' })
+  @Matches(EMAIL_POLICY.pattern, {
+    message: EMAIL_POLICY.message,
+  })
+  @IsEmail({}, { message: EMAIL_POLICY.message })
   email!: string;
 
   @ApiProperty({
