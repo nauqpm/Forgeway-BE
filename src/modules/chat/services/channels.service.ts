@@ -5,6 +5,7 @@ import { Channel, ChannelDocument } from '../schemas/channel.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { MessagesService } from './messages.service';
+import { UsersService } from '../../users/services/users.service';
 
 @Injectable()
 export class ChannelsService {
@@ -17,6 +18,8 @@ export class ChannelsService {
     private readonly workspaceMemberService: WorkspaceMemberService,
     @Inject(forwardRef(() => MessagesService))
     private readonly messagesService: MessagesService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
   ) {}
 
   async createGeneralChannel(): Promise<void> {
@@ -141,6 +144,91 @@ export class ChannelsService {
       throw new ForbiddenException('You do not have access to this channel');
     }
     await this.messagesService.markAsRead(channelId, userId);
+  }
+
+  async getOrCreateDM(userAId: string, userBId: string): Promise<ChannelDocument> {
+    const members = [userAId, userBId].sort();
+    
+    // Find existing DM with exactly these two members
+    const existing = await this.channelModel.findOne({
+      type: 'dm',
+      members: { $all: members, $size: 2 }
+    }).populate('members', '_id fullName avatar email').exec();
+
+    if (existing) return existing;
+
+    // Create new DM channel
+    const newChannel = await this.channelModel.create({
+      type: 'dm',
+      name: '', // Frontend will render name from other member
+      members: members.map(id => new Types.ObjectId(id)),
+      isPrivate: true,
+      createdBy: new Types.ObjectId(userAId),
+      workspaceId: null,
+    });
+
+    return newChannel.populate('members', '_id fullName avatar email');
+  }
+
+  async getRecentDMs(userId: string): Promise<any[]> {
+    const channels = await this.channelModel.find({
+      type: 'dm',
+      members: new Types.ObjectId(userId)
+    })
+    .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
+    .limit(20)
+    .populate('members', '_id fullName avatar email')
+    .exec();
+
+    // Add unread count
+    return Promise.all(
+      channels.map(async (channel) => {
+        const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
+        return {
+          ...channel.toObject(),
+          unreadCount,
+        };
+      })
+    );
+  }
+
+  async updateLastMessage(channelId: string, message: { content: string; senderId: any; senderName: string; sentAt: Date }) {
+    return this.channelModel.findByIdAndUpdate(channelId, {
+      $set: {
+        lastMessage: {
+          content: message.content,
+          senderId: new Types.ObjectId(message.senderId.toString()),
+          senderName: message.senderName,
+          sentAt: message.sentAt,
+        }
+      }
+    }, { new: true }).exec();
+  }
+
+  async searchUsers(query: string, excludeUserId: string) {
+    return this.usersService.searchUsers(query, excludeUserId);
+  }
+
+  /** Lightweight version of findByUser to be used during Socket connection */
+  async findMyChannelIds(userId: string): Promise<string[]> {
+    if (!Types.ObjectId.isValid(userId)) return [];
+    
+    // Use a direct query instead of workspacesService to avoid heavy counting logic
+    const channels = await this.channelModel.find({
+      $or: [
+        { type: 'general' },
+        { type: 'announcement' },
+        { workspaceId: { $in: await this.getUserWorkspaceIds(userId) } },
+        { type: 'dm', members: new Types.ObjectId(userId) }
+      ]
+    }, { _id: 1 }).exec();
+
+    return channels.map(c => c._id.toString());
+  }
+
+  private async getUserWorkspaceIds(userId: string): Promise<Types.ObjectId[]> {
+    const workspaces = await this.workspacesService.findByUserId(userId);
+    return workspaces.map(w => w._id);
   }
 
   async findByWorkspace(workspaceId: string): Promise<ChannelDocument[]> {

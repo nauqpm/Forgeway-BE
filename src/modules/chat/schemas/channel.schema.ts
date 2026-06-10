@@ -17,6 +17,25 @@ export class Channel {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', default: null, index: true })
   workspaceId?: Types.ObjectId;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [], index: true })
+  members!: Types.ObjectId[];
+
+  @Prop({
+    type: {
+      content: String,
+      senderId: { type: Types.ObjectId, ref: 'User' },
+      senderName: String,
+      sentAt: Date,
+    },
+    _id: false,
+  })
+  lastMessage?: {
+    content: string;
+    senderId: Types.ObjectId;
+    senderName: string;
+    sentAt: Date;
+  };
+
   @Prop({ default: false })
   isPrivate!: boolean;
 

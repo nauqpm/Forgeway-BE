@@ -35,6 +35,24 @@ export class ChannelsController {
     return this.channelsService.findByUser(userId);
   }
 
+  @Get('dm/recent')
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getRecentDMs(@CurrentUser('userId') userId: string) {
+    return this.channelsService.getRecentDMs(userId);
+  }
+
+  @Post('dm')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async openDM(@CurrentUser('userId') userId: string, @Body() body: { targetUserId: string }) {
+    return this.channelsService.getOrCreateDM(userId, body.targetUserId);
+  }
+
+  @Get('users/search')
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async searchUsers(@CurrentUser('userId') userId: string, @Query('q') query: string) {
+    return this.channelsService.searchUsers(query || '', userId);
+  }
+
   @Get('channels/:id')
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getChannelDetails(@Param('id') id: string) {
