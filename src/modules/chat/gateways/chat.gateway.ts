@@ -46,7 +46,19 @@ export class ChatGateway implements OnGatewayConnection {
     try {
       const user = await this.socketAuthService.authenticate(client);
       const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
-      this.logger.debug(`Chat client connected: ${client.id} | User: ${userIdentifier}`);
+      
+      // Join personal room
+      await client.join(RoomBuilder.user(user.userId));
+
+      // Auto-join all accessible channels to receive real-time unread updates
+      const channels = await this.channelsService.findByUser(user.userId);
+      for (const channel of channels) {
+        await client.join(RoomBuilder.channel(channel._id.toString()));
+      }
+
+      this.logger.log(
+        `Chat client connected: ${client.id} | User: ${userIdentifier} | Joined ${channels.length} channels`,
+      );
     } catch (error) {
       this.logger.warn(`Rejected chat connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
@@ -92,6 +104,15 @@ export class ChatGateway implements OnGatewayConnection {
     if (!userId || !payload.channelId) return { ok: false };
 
     const message = await this.messagesService.send(payload.channelId, userId, payload);
+    
+    // Update last message preview in channel
+    await this.channelsService.updateLastMessage(payload.channelId, {
+      content: message.content,
+      senderId: userId,
+      senderName: (message as any).senderId?.fullName || '',
+      sentAt: (message as any).createdAt,
+    });
+
     const room = RoomBuilder.channel(payload.channelId);
     
     const envelope: RealtimeEnvelope<any> = {
