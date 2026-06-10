@@ -16,6 +16,7 @@ import { Channel, ChannelSchema } from './schemas/channel.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { Meeting, MeetingSchema } from './schemas/meeting.schema';
 import { Reaction, ReactionSchema } from './schemas/reaction.schema';
+import { ChannelReadMarker, ChannelReadMarkerSchema } from './schemas/channel-read-marker.schema';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { Reaction, ReactionSchema } from './schemas/reaction.schema';
       { name: Message.name, schema: MessageSchema },
       { name: Meeting.name, schema: MeetingSchema },
       { name: Reaction.name, schema: ReactionSchema },
+      { name: ChannelReadMarker.name, schema: ChannelReadMarkerSchema },
     ]),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => AuthModule),
