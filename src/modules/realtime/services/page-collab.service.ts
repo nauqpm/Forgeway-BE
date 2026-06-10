@@ -87,11 +87,13 @@ export class PageCollabService {
    * Called on `page:publish`.
    * Flushes the current Yjs state to the main Page document.
    */
-  async publishToPage(pageId: string, userId: string): Promise<void> {
+  async publishToPage(
+    pageId: string,
+    userId: string,
+    title: string,
+    content: string,
+  ): Promise<void> {
     const ydoc = await this.getOrCreate(pageId);
-
-    const title = ydoc.getText('title').toString();
-    const content = ydoc.getText('content').toString();
 
     // Persist Yjs state synchronously so the draft is always up-to-date
     await this.persistDoc(pageId, ydoc);

@@ -256,7 +256,12 @@ export class RealtimeGateway
     if (!user) return { ok: false };
 
     try {
-      await this.pageCollabService.publishToPage(body.pageId, user.userId);
+      await this.pageCollabService.publishToPage(
+        body.pageId,
+        user.userId,
+        body.title,
+        body.content,
+      );
     } catch (err) {
       this.logger.error(
         `publishPage failed for ${body.pageId}: ${(err as Error).message}`,
