@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ChannelsService } from '../services/channels.service';
@@ -17,6 +18,7 @@ import { MeetingService } from '../services/meeting.service';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { EditMessageDto } from '../dtos/edit-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
+import { CHAT_THROTTLE_CONFIG } from '../constants/chat-throttler.constants';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
@@ -28,16 +30,26 @@ export class ChannelsController {
   ) {}
 
   @Get('channels')
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getUserChannels(@CurrentUser('userId') userId: string) {
     return this.channelsService.findByUser(userId);
   }
 
   @Get('channels/:id')
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getChannelDetails(@Param('id') id: string) {
     return this.channelsService.findById(id);
   }
 
+  @Post('channels/:id/read')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async markAsRead(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+    await this.channelsService.markAsRead(id, userId);
+    return { ok: true };
+  }
+
   @Get('channels/:id/messages')
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getMessages(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
@@ -47,6 +59,7 @@ export class ChannelsController {
   }
 
   @Post('channels/:id/messages')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_SEND)
   async sendMessage(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
@@ -56,6 +69,7 @@ export class ChannelsController {
   }
 
   @Patch('messages/:id')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   async editMessage(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
@@ -65,11 +79,13 @@ export class ChannelsController {
   }
 
   @Delete('messages/:id')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   async deleteMessage(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.messagesService.softDelete(id, userId);
   }
 
   @Post('messages/:id/reactions')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   async toggleReaction(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
@@ -80,26 +96,31 @@ export class ChannelsController {
   }
 
   @Post('channels/:id/meeting')
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   async createMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.meetingService.create(id, userId);
   }
 
   @Get('channels/:id/meeting')
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getActiveMeeting(@Param('id') id: string) {
     return this.meetingService.findActive(id);
   }
 
   @Post('meeting/:id/join')
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   async joinMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.meetingService.join(id, userId);
   }
 
   @Post('meeting/:id/leave')
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   async leaveMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.meetingService.leave(id, userId);
   }
 
   @Patch('meeting/:id/audio')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   async toggleAudio(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
@@ -109,6 +130,7 @@ export class ChannelsController {
   }
 
   @Patch('meeting/:id/video')
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   async toggleVideo(
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
@@ -118,6 +140,7 @@ export class ChannelsController {
   }
 
   @Post('meeting/:id/end')
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   async endMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.meetingService.end(id, userId);
   }

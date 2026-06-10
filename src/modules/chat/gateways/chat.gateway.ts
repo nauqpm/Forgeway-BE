@@ -19,6 +19,7 @@ import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { SocketThrottlerGuard } from '../../../common/guards/socket-throttler.guard';
 import { SocketAuthService } from '../../realtime/services/socket-auth.service';
 import { AuthenticatedSocket } from '../../realtime/contracts/authenticated-socket.interface';
+import { CHAT_THROTTLE_CONFIG } from '../constants/chat-throttler.constants';
 
 @UseGuards(SocketThrottlerGuard)
 @WebSocketGateway({
@@ -53,7 +54,7 @@ export class ChatGateway implements OnGatewayConnection {
   }
 
   // 5.1 Room Management
-  @Throttle({ chat_room: { limit: 10, ttl: 60000 } })
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   @SubscribeMessage('chat.join')
   async handleJoin(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -70,7 +71,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
-  @Throttle({ chat_room: { limit: 10, ttl: 60000 } })
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   @SubscribeMessage('chat.leave')
   async handleLeave(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -81,7 +82,7 @@ export class ChatGateway implements OnGatewayConnection {
   }
 
   // 5.2 Text Chat Events
-  @Throttle({ chat_send: { limit: 5, ttl: 10000 } })
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_SEND)
   @SubscribeMessage('chat.send')
   async handleSend(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -104,7 +105,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
-  @Throttle({ chat_action: { limit: 5, ttl: 30000 } })
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   @SubscribeMessage('chat.edit')
   async handleEdit(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -127,7 +128,7 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
-  @Throttle({ chat_action: { limit: 5, ttl: 30000 } })
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   @SubscribeMessage('chat.delete')
   async handleDelete(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -169,7 +170,20 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
-  @Throttle({ chat_typing: { limit: 1, ttl: 2000 } })
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  @SubscribeMessage('chat.mark_read')
+  async handleMarkRead(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: { channelId: string },
+  ) {
+    const userId = client.data.user?.userId;
+    if (!userId || !body.channelId) return { ok: false };
+
+    await this.channelsService.markAsRead(body.channelId, userId);
+    return { ok: true };
+  }
+
+  @Throttle(CHAT_THROTTLE_CONFIG.TYPING)
   @SubscribeMessage('chat.typing')
   async handleTyping(
     @ConnectedSocket() client: AuthenticatedSocket,
