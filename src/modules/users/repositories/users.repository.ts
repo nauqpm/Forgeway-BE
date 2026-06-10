@@ -19,6 +19,11 @@ export interface PaginatedUsersResult {
   total: number;
 }
 
+type UserUpdatePayload =
+  | Partial<User>
+  | { $unset: Record<string, unknown> }
+  | { $set: Record<string, unknown>; $unset?: Record<string, unknown> };
+
 @Injectable()
 export class UsersRepository {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
@@ -38,10 +43,43 @@ export class UsersRepository {
 
   async update(
     userId: string,
-    updateData: Partial<User> | { $unset: Record<string, unknown> },
+    updateData: UserUpdatePayload,
   ): Promise<User | null> {
     return await this.userModel
       .findByIdAndUpdate(userId, updateData, { new: true })
+      .exec();
+  }
+
+  async incrementFailedLoginAttempts(userId: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $inc: { failedLoginAttempts: 1 } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async setLockout(userId: string, lockoutUntil: Date): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { lockoutUntil } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Partial update using $set to avoid overwriting unrelated fields.
+   */
+  async updatePassword(userId: string, hashedPassword: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { password: hashedPassword } },
+        { new: true },
+      )
       .exec();
   }
 
