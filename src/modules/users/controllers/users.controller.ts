@@ -10,6 +10,8 @@ import {
   Request,
   NotFoundException,
   BadRequestException,
+  Logger,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -23,7 +25,22 @@ import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
   constructor(private readonly usersService: UsersService) {}
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Get('all')
+  async getAllUsersForSearch(
+    @Request() req,
+    @Query('search') search?: string,
+  ) {
+    this.logger.log(`Fetching all users for search. Query: ${search}, User: ${req.user.userId}`);
+    if (search) {
+      return await this.usersService.searchUsers(search, req.user.userId);
+    }
+    return await this.usersService.getAllUsers();
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')

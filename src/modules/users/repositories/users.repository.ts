@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../schemas/users.schema';
 
 export interface SanitizedUserRecord {
@@ -67,6 +67,22 @@ export class UsersRepository {
     ]);
 
     return { users, total };
+  }
+
+  async search(query: string, excludeUserId: string): Promise<User[]> {
+    const regex = new RegExp(query, 'i');
+    return this.userModel
+      .find({
+        $and: [
+          { _id: { $ne: new Types.ObjectId(excludeUserId) } },
+          {
+            $or: [{ fullName: regex }, { email: regex }, { phone: regex }],
+          },
+        ],
+      })
+      .select('_id email fullName avatar status')
+      .limit(10)
+      .exec();
   }
 
   // 📢 Thêm hàm `delete` để xóa người dùng

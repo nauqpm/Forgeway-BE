@@ -11,6 +11,7 @@ import { User } from '../schemas/users.schema';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -21,6 +22,12 @@ export class UsersService {
   // 📢 Lấy thông tin người dùng theo ID
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Đang tìm người dùng với ID: ${id}`);
+    
+    if (!Types.ObjectId.isValid(id)) {
+      this.logger.warn(`ID người dùng không hợp lệ: ${id}`);
+      throw new BadRequestException('Invalid User ID format');
+    }
+
     const user = await this.usersRepository.findById(id);
     if (!user) {
       this.logger.warn(`Không tìm thấy người dùng với ID: ${id}`);
@@ -190,6 +197,11 @@ export class UsersService {
     }
     this.logger.log(`Đã cập nhật status của user ${userId} thành ${status}`);
     return updated;
+  }
+
+  async searchUsers(query: string, excludeUserId: string): Promise<User[]> {
+    const users = await this.usersRepository.search(query, excludeUserId);
+    return users;
   }
 
   /**
