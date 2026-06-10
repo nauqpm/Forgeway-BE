@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Message, MessageDocument } from '../schemas/message.schema';
 import { Reaction, ReactionDocument } from '../schemas/reaction.schema';
+import { ChannelReadMarker, ChannelReadMarkerDocument } from '../schemas/channel-read-marker.schema';
 import { ChannelsService } from './channels.service';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
@@ -18,12 +19,43 @@ export class MessagesService {
   constructor(
     @InjectModel(Message.name) private readonly messageModel: Model<MessageDocument>,
     @InjectModel(Reaction.name) private readonly reactionModel: Model<ReactionDocument>,
+    @InjectModel(ChannelReadMarker.name) private readonly readMarkerModel: Model<ChannelReadMarkerDocument>,
+    @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => WorkspaceMemberService))
     private readonly workspaceMemberService: WorkspaceMemberService,
   ) {}
+
+  async countUnread(channelId: string, userId: string): Promise<number> {
+    const marker = await this.readMarkerModel.findOne({
+      channelId: new Types.ObjectId(channelId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    const lastReadAt = marker?.lastReadAt || new Date(0);
+
+    return this.messageModel.countDocuments({
+      channelId: new Types.ObjectId(channelId),
+      senderId: { $ne: new Types.ObjectId(userId) },
+      createdAt: { $gt: lastReadAt },
+      deletedAt: null,
+    });
+  }
+
+  async markAsRead(channelId: string, userId: string): Promise<void> {
+    await this.readMarkerModel.updateOne(
+      {
+        channelId: new Types.ObjectId(channelId),
+        userId: new Types.ObjectId(userId),
+      },
+      {
+        $set: { lastReadAt: new Date() },
+      },
+      { upsert: true },
+    );
+  }
 
   async toggleReaction(messageId: string, userId: string, emoji: string): Promise<any> {
     if (!Types.ObjectId.isValid(messageId)) {
