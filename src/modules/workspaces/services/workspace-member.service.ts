@@ -154,6 +154,42 @@ export class WorkspaceMemberService {
     return workspace.members.some((member) => member.userId.toString() === userId);
   }
 
+  /**
+   * Fetch the workspace once and return a Set of member userId strings.
+   * Use this to batch-check membership for multiple users in a single query.
+   */
+  async getMemberIdsSet(workspaceId: string): Promise<Set<string>> {
+    const workspace = await this.workspacesRepository.findById(workspaceId);
+    if (!workspace) return new Set();
+    return new Set(workspace.members.map((m) => m.userId.toString()));
+  }
+
+  /**
+   * Filter an array of user IDs to only those who are workspace members.
+   * Uses a single query (fetch workspace once) instead of N queries.
+   */
+  async filterMembers(
+    workspaceId: string,
+    userIds: string[],
+  ): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const memberIds = await this.getMemberIdsSet(workspaceId);
+    return userIds.filter((id) => memberIds.has(id));
+  }
+
+  /**
+   * Return the subset of user IDs that are NOT workspace members.
+   * Uses a single query (fetch workspace once) instead of N queries.
+   */
+  async filterNonMembers(
+    workspaceId: string,
+    userIds: string[],
+  ): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const memberIds = await this.getMemberIdsSet(workspaceId);
+    return userIds.filter((id) => !memberIds.has(id));
+  }
+
   private ensureNotLastAdmin(workspace: any, userId: string): void {
     const adminCount = workspace.members.filter(
       (member: any) => member.role === SPACE_ROLES.WORKSPACE_ADMIN,

@@ -50,6 +50,10 @@ export class TaskCommentService {
     const task = await this.getCommentableTask(workspaceId, taskId, userId);
     await this.validateParentComment(workspaceId, taskId, dto.parentId);
 
+    if (dto.mentions && dto.mentions.length > 0) {
+      await this.validateMentionsAreMembers(workspaceId, dto.mentions);
+    }
+
     const comment = await new this.commentModel({
       workspaceId: new Types.ObjectId(workspaceId),
       content: dto.content,
@@ -316,41 +320,89 @@ export class TaskCommentService {
       throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
     }
   }
+  private async validateMentionsAreMembers(
+    workspaceId: string,
+    mentionedUserIds: string[],
+  ): Promise<void> {
+    // Single query — fetches workspace once and checks membership in memory
+    const nonMembers = await this.workspaceMemberService.filterNonMembers(
+      workspaceId,
+      mentionedUserIds,
+    );
+
+    if (nonMembers.length > 0) {
+      throw new BadRequestException(
+        'Mentioned users must be members of this workspace',
+      );
+    }
+  }
+
+  private async filterWorkspaceMembers(
+    workspaceId: string,
+    userIds: string[],
+  ): Promise<string[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    // Single query — fetches workspace once and filters in memory
+    return this.workspaceMemberService.filterMembers(workspaceId, userIds);
+  }
+
   private async notifyTaskComment(
     comment: CommentDocument,
     task: TaskDocument,
     actorId: string,
   ): Promise<void> {
     try {
-      const mentionRecipientIds = this.uniqueIds(comment.mentions).filter(
-        (recipientId) => recipientId !== actorId,
-      );
-      await this.notificationsService.notifyCommentMentioned({
-        recipientIds: mentionRecipientIds,
-        actorId,
-        workspaceId: this.toId(task.workspaceId),
-        taskId: task._id.toString(),
-        taskKey: task.key,
-        taskTitle: task.title,
-        commentId: comment._id.toString(),
-      });
+      const workspaceId = this.toId(task.workspaceId);
+      const mentionRecipientIds = this.uniqueIds(comment.mentions)
+        .filter((recipientId) => recipientId !== actorId)
+        .filter((recipientId) => recipientId.length > 0);
 
-      const mentioned = new Set(mentionRecipientIds);
+      // Only send mention notifications to workspace members
+      const memberMentionIds = await this.filterWorkspaceMembers(
+        workspaceId,
+        mentionRecipientIds,
+      );
+
+      if (memberMentionIds.length > 0) {
+        await this.notificationsService.notifyCommentMentioned({
+          recipientIds: memberMentionIds,
+          actorId,
+          workspaceId,
+          taskId: task._id.toString(),
+          taskKey: task.key,
+          taskTitle: task.title,
+          commentId: comment._id.toString(),
+        });
+      }
+
+      const mentioned = new Set(memberMentionIds);
       const relatedRecipientIds = this.uniqueIds([
         task.assigneeId,
         task.reporterId,
       ]).filter(
         (recipientId) => recipientId !== actorId && !mentioned.has(recipientId),
       );
-      await this.notificationsService.notifyTaskCommentCreated({
-        recipientIds: relatedRecipientIds,
-        actorId,
-        workspaceId: this.toId(task.workspaceId),
-        taskId: task._id.toString(),
-        taskKey: task.key,
-        taskTitle: task.title,
-        commentId: comment._id.toString(),
-      });
+
+      // Only send comment notifications to workspace members
+      const memberRelatedIds = await this.filterWorkspaceMembers(
+        workspaceId,
+        relatedRecipientIds,
+      );
+
+      if (memberRelatedIds.length > 0) {
+        await this.notificationsService.notifyTaskCommentCreated({
+          recipientIds: memberRelatedIds,
+          actorId,
+          workspaceId,
+          taskId: task._id.toString(),
+          taskKey: task.key,
+          taskTitle: task.title,
+          commentId: comment._id.toString(),
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Failed to create task comment notification: ${message}`);
