@@ -3,10 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as Y from 'yjs';
 
-import {
-  PageDraft,
-  PageDraftDocument,
-} from '@/modules/pages/schemas/page-draft.schema';
+import { PageDraft, PageDraftDocument } from '@/modules/pages/schemas/page-draft.schema';
 import { PagesService } from '@/modules/pages/services/pages.service';
 
 /** Full Yjs snapshot returned to a joining client */
@@ -71,15 +68,9 @@ export class PageCollabService {
    * Throws on corrupted data so the gateway can return `{ ok: false }`
    * and avoid relaying bad bytes to peers.
    */
-  async applyUpdate(
-    pageId: string,
-    update: Uint8Array,
-    userId: string,
-  ): Promise<void> {
+  async applyUpdate(pageId: string, update: Uint8Array, userId: string): Promise<void> {
     if (!update?.length || update.length > 1_000_000) {
-      this.logger.warn(
-        `Rejected oversized/empty Yjs update from user ${userId} for page ${pageId}`,
-      );
+      this.logger.warn(`Rejected oversized/empty Yjs update from user ${userId} for page ${pageId}`);
       throw new Error('invalid_update');
     }
 
@@ -152,7 +143,7 @@ export class PageCollabService {
     const existing = this.docs.get(pageId);
     if (existing) return existing;
 
-    const promise = this.initDoc(pageId).catch((err) => {
+    const promise = this.initDoc(pageId).catch(err => {
       // Clean up so the next call retries from scratch
       this.docs.delete(pageId);
       throw err;
@@ -281,7 +272,7 @@ export class PageCollabService {
 
 // ─── Util ──────────────────────────────────────────────────────────
 
-/** Diff-friendly Y.Text replacement — minimal CRDT operations */
+/** Diff-friendly Y.Text replacement — minimal CRDT operations - use for bootstrap*/
 function replaceYText(text: Y.Text, next: string): void {
   const curr = text.toString();
   if (curr === next) return;
