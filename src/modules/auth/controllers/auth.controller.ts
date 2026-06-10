@@ -246,6 +246,8 @@ export class AuthController {
           role: 'user',
           fullName: 'John Doe',
           avatar: 'https://...',
+          googleId: '...',
+          ssoProvider: 'google',
         },
       },
     },

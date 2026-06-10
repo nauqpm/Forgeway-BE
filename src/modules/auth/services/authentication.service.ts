@@ -191,6 +191,8 @@ export class AuthenticationService {
           role: user.role,
           fullName: user.fullName,
           avatar: user.avatar,
+          googleId: user.googleId,
+          ssoProvider: user.googleId ? 'google' : undefined,
         },
       };
     } catch (error: unknown) {
