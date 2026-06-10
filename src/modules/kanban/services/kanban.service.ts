@@ -254,6 +254,19 @@ export class KanbanService {
     }
 
     const workspaceId = this.toId(board.workspaceId);
+
+    const archivedTaskCount = await this.taskModel.countDocuments({
+      workspaceId: new Types.ObjectId(workspaceId),
+      columnId,
+      isArchived: true,
+    }).exec();
+
+    if (archivedTaskCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete this column because it still contains ${archivedTaskCount} archived task(s). Please permanently delete those tasks first.`,
+      );
+    }
+
     const taskCount = await this.taskModel.countDocuments({
       workspaceId: new Types.ObjectId(workspaceId),
       columnId,

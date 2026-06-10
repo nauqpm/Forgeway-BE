@@ -131,6 +131,10 @@ export class DocumentsService {
     const storagePath = resolve(process.cwd(), relativePath, filename);
     await fs.writeFile(storagePath, file.buffer);
 
+    await this.ensureUniqueNameForUser(userId, name);
+    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
+    await fs.writeFile(storagePath, file.buffer);
+
     const created = await this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
       name,

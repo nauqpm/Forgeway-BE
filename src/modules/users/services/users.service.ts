@@ -13,18 +13,25 @@ import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
+export interface LoginFailureState {
+  failedAttempts: number;
+  isLocked: boolean;
+  lockedUntil?: string;
+  remainingAttempts: number;
+  maxAttempts: number;
+}
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(private readonly usersRepository: UsersRepository) {}
 
-  // 📢 Lấy thông tin người dùng theo ID
   async getUserById(id: string): Promise<User> {
-    this.logger.debug(`Đang tìm người dùng với ID: ${id}`);
+    this.logger.debug(`Fetching user by ID: ${id}`);
     const user = await this.usersRepository.findById(id);
     if (!user) {
-      this.logger.warn(`Không tìm thấy người dùng với ID: ${id}`);
+      this.logger.warn(`User not found with ID: ${id}`);
       throw new NotFoundException('User not found');
     }
     return user;
@@ -35,10 +42,44 @@ export class UsersService {
     return await this.usersRepository.findByEmail(email);
   }
 
-  // 📢 Tạo người dùng mới
+  async resetLoginFailures(userId: string): Promise<void> {
+    await this.usersRepository.update(userId, {
+      $set: { failedLoginAttempts: 0 },
+      $unset: { lockoutUntil: 1 },
+    });
+  }
+
+  async registerFailedLoginAttempt(userId: string): Promise<LoginFailureState> {
+    const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
+
+    // Use atomic $inc to prevent race conditions from concurrent requests
+    const updatedUser = await this.usersRepository.incrementFailedLoginAttempts(userId);
+    const currentAttempts = updatedUser?.failedLoginAttempts ?? 0;
+    const isLocked = currentAttempts >= maxAttempts;
+
+    if (isLocked) {
+      const lockedUntil = new Date(Date.now() + PASSWORD_POLICY.lockoutDurationMs);
+      await this.usersRepository.setLockout(userId, lockedUntil);
+
+      return {
+        failedAttempts: currentAttempts,
+        isLocked: true,
+        lockedUntil: lockedUntil.toISOString(),
+        remainingAttempts: 0,
+        maxAttempts,
+      };
+    }
+
+    return {
+      failedAttempts: currentAttempts,
+      isLocked: false,
+      remainingAttempts: maxAttempts - currentAttempts,
+      maxAttempts,
+    };
+  }
+
   async createUser(userData: CreateUsersDto): Promise<User> {
-    this.logger.log(`Đang tạo người dùng mới với email: ${userData.email}`);
-    // Hash mật khẩu nếu có
+    this.logger.log(`Creating new user with email: ${userData.email}`);
     if (userData.password) {
       const salt = await bcrypt.genSalt();
       userData.password = await bcrypt.hash(userData.password, salt);
@@ -46,21 +87,21 @@ export class UsersService {
 
     try {
       const user = await this.usersRepository.create(userData);
-      this.logger.log(`Đã tạo người dùng thành công: ${user.email}`);
+      this.logger.log(`User created successfully: ${user.email}`);
       return user;
     } catch (error) {
-      this.logger.error(`Lỗi khi tạo người dùng (${userData.email}):`, error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to create user (${userData.email}): ${message}`);
       throw error;
     }
   }
 
-  // 📢 Cập nhật thông tin người dùng
   async updateUser(
     userId: string,
     updateData: UpdateUsersDto | { $unset: Record<string, unknown> },
     isPasswordHashed = false,
   ): Promise<User> {
-    this.logger.log(`Cập nhật thông tin cho User ID: ${userId}`);
+    this.logger.log(`Updating user info for User ID: ${userId}`);
 
     if (this.isPasswordUpdate(updateData) && !isPasswordHashed) {
       await this.handlePasswordUpdate(userId, updateData);
@@ -69,8 +110,8 @@ export class UsersService {
     const updatedUser = await this.usersRepository.update(userId, updateData);
 
     if (!updatedUser) {
-      this.logger.warn(`Không tìm thấy User ID: ${userId}`);
-      throw new NotFoundException('Không tìm thấy người dùng');
+      this.logger.warn(`User not found: ${userId}`);
+      throw new NotFoundException('User not found');
     }
 
     return updatedUser;
@@ -86,28 +127,21 @@ export class UsersService {
     userId: string,
     updateData: UpdateUsersDto,
   ): Promise<void> {
-    this.logger.log(`Cập nhật mật khẩu cho User ID: ${userId}`);
-    this.logger.log(updateData, 'Update data');
+    this.logger.log(`Updating password for User ID: ${userId}`);
 
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
 
     if (!updateData.currentPassword) {
-      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+      throw new BadRequestException('Current password is incorrect');
     }
 
     if (!PASSWORD_POLICY.noWhitespacePattern.test(updateData.password!)) {
       throw new BadRequestException(PASSWORD_POLICY.noWhitespaceMessage);
     }
-
-    // THAY VÌ LÀM NHƯ SAU THÌ RESET PASSWORK
-    // OAuth account chưa có password
-    // if (!user.password) {
-    //   return;
-    // }
 
     const isMatch = await bcrypt.compare(
       updateData.currentPassword,
@@ -115,13 +149,12 @@ export class UsersService {
     );
 
     if (!isMatch) {
-      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+      throw new BadRequestException('Current password is incorrect');
     }
 
     updateData.password = await bcrypt.hash(updateData.password!, 10);
   }
 
-  // 📢 Lấy danh sách tất cả người dùng
   async getAllUsers(): Promise<User[]> {
     return await this.usersRepository.findAll();
   }
@@ -167,51 +200,46 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
-  // 🔑 Super admin: Cập nhật role của user
   async updateUserRole(userId: string, role: string): Promise<User> {
-    this.logger.log(`Cập nhật role cho User ID: ${userId} thành ${role}`);
+    this.logger.log(`Updating role for User ID: ${userId} to ${role}`);
     const user = await this.usersRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
     const updated = await this.usersRepository.update(userId, { role });
     if (!updated) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
-    this.logger.log(`Đã cập nhật role của user ${userId} thành ${role}`);
+    this.logger.log(`Role updated for user ${userId} to ${role}`);
     return updated;
   }
 
-  // 🔑 Super admin: Cập nhật status của user
   async updateUserStatus(userId: string, status: string): Promise<User> {
-    this.logger.log(`Cập nhật status cho User ID: ${userId} thành ${status}`);
+    this.logger.log(`Updating status for User ID: ${userId} to ${status}`);
     const user = await this.usersRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
     const updated = await this.usersRepository.update(userId, { status });
     if (!updated) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
-    this.logger.log(`Đã cập nhật status của user ${userId} thành ${status}`);
+    this.logger.log(`Status updated for user ${userId} to ${status}`);
     return updated;
   }
 
-  /**
-   * 🔄 Cập nhật mật khẩu cho người dùng
-   */
   async updatePassword(email: string, newPassword: string) {
     const user = await this.usersRepository.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException('User not found');
     }
 
-    user.password = newPassword;
-    await this.usersRepository.update(user._id.toString(), user);
+    // Use partial update with $set to avoid overwriting unrelated fields
+    await this.usersRepository.updatePassword(user._id.toString(), newPassword);
 
     return {
       success: true,
-      message: 'Cập nhật mật khẩu thành công',
+      message: 'Password updated successfully',
     };
   }
 }

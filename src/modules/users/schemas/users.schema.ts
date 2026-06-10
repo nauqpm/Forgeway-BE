@@ -1,4 +1,4 @@
-// 📁 src/modules/users/schemas/user.schema.ts
+// src/modules/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
@@ -12,16 +12,16 @@ export class User {
   email!: string;
 
   @Prop()
-  password?: string; // 👈 Không bắt buộc nếu đăng nhập bằng Google
+  password?: string; // Optional for Google OAuth users
 
   @Prop()
-  googleId?: string; // 👈 Thêm Google ID (tùy chọn)
+  googleId?: string; // Google OAuth identifier (optional)
 
   @Prop({ type: String, enum: Object.values(GLOBAL_ROLES), default: GLOBAL_ROLES.USER })
   role!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Role' })
-  roleId?: Types.ObjectId; // 👈 ID của vai trò tùy chỉnh
+  roleId?: Types.ObjectId; // ID of custom role
 
   @Prop({
     type: String,
@@ -31,43 +31,54 @@ export class User {
   status!: string;
 
   @Prop()
-  fullName?: string; // Tên đầy đủ (tùy chọn)
+  fullName?: string; // Full name (optional)
 
   @Prop()
-  avatar?: string; // URL avatar (tùy chọn)
+  avatar?: string; // Avatar URL (optional)
 
   @Prop()
-  phone?: string; // Số điện thoại (tùy chọn)
+  phone?: string; // Phone number (optional)
 
   @Prop()
-  address?: string; // Địa chỉ (tùy chọn)
+  address?: string; // Address (optional)
 
   @Prop()
-  birthday?: string; // Ngày sinh (tùy chọn)
+  birthday?: string; // Birth date (optional)
 
   @Prop()
-  gender?: string; // Giới tính (tùy chọn)
+  gender?: string; // Gender (optional)
+
+  @Prop({ default: 0 })
+  failedLoginAttempts!: number;
+
+  @Prop()
+  lockoutUntil?: Date;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
 
-  // ✅ Getter để chuyển đổi _id thành id (chuỗi)
+  // Getter to expose _id as id string
   get id(): string {
     return this._id.toString();
   }
 }
 
-// Tạo schema cho User
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// ✅ Tự động ánh xạ _id thành id trong phản hồi JSON
+// Auto-map _id to id in JSON responses and exclude sensitive fields
 UserSchema.set('toJSON', {
   virtuals: true,
   transform: (_, ret: any) => {
     ret.id = ret._id.toString();
     delete ret._id;
     delete ret.__v;
-    delete ret.password; // 👈 Ẩn mật khẩu trong phản hồi JSON
+    delete ret.failedLoginAttempts;
+    delete ret.lockoutUntil;
+    delete ret.password; // Exclude password from JSON responses
+    
+    if (ret.googleId) {
+      ret.ssoProvider = 'google';
+    }
   },
 });
