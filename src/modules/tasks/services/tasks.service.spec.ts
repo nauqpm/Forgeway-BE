@@ -1,6 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
+import { KanbanService } from '../../kanban/services/kanban.service';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
@@ -9,6 +11,7 @@ import { TaskCreationValidationService } from './task-creation-validation.servic
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { TaskCounterService } from './task-counter.service';
 import { TaskDataTransformerService } from './task-data-transformer.service';
+import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
 import { TasksService } from './tasks.service';
@@ -24,6 +27,7 @@ describe('TasksService', () => {
   let taskCounterService: jest.Mocked<TaskCounterService>;
   let taskActivitiesService: jest.Mocked<TaskActivitiesService>;
   let scrumService: jest.Mocked<ScrumService>;
+  let kanbanService: jest.Mocked<KanbanService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -51,6 +55,7 @@ describe('TasksService', () => {
             restoreInWorkspace: jest.fn(),
             softDelete: jest.fn(),
             softDeleteInWorkspace: jest.fn(),
+            findTasksInRankScope: jest.fn(),
           },
         },
         {
@@ -113,12 +118,35 @@ describe('TasksService', () => {
             findByIdInWorkspace: jest.fn(),
           },
         },
+        {
+          provide: TaskDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+            publishUpdated: jest.fn(),
+            publishArchived: jest.fn(),
+            publishRestored: jest.fn(),
+            publishDeleted: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            notifyTaskAssigned: jest.fn(),
+          },
+        },
+        {
+          provide: KanbanService,
+          useValue: {
+            findByWorkspaceId: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<TasksService>(TasksService);
     repository = module.get(TasksRepository);
     mapper = module.get(TaskMapper);
+    repository.findTasksInRankScope.mockResolvedValue([]);
     keyService = module.get(TaskKeyService);
     taskCounterService = module.get(TaskCounterService);
     taskActivitiesService = module.get(TaskActivitiesService);
@@ -126,6 +154,7 @@ describe('TasksService', () => {
     normalizerService = module.get(TaskNormalizerService);
     transformerService = module.get(TaskDataTransformerService);
     scrumService = module.get(ScrumService);
+    kanbanService = module.get(KanbanService);
   });
 
   it('creates a task by delegating validation, normalization and transformation', async () => {
@@ -275,6 +304,51 @@ describe('TasksService', () => {
       page: 1,
       limit: 20,
     });
+  });
+
+  it('uses current renamed column names for archived task statuses', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const task = {
+      _id: new Types.ObjectId(),
+      key: 'TESKB-1',
+      columnId: 'inprogress',
+      status: 'in-progress',
+      isArchived: true,
+    };
+
+    repository.findArchivedByWorkspace.mockResolvedValue({
+      tasks: [task] as any,
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+    kanbanService.findByWorkspaceId.mockResolvedValue([
+      {
+        columns: [
+          {
+            id: 'inprogress',
+            name: '1',
+            order: 1,
+            mappedStatuses: ['in-progress'],
+          },
+        ],
+      },
+    ] as any);
+    mapper.mapToDtos.mockImplementation((tasks) => tasks as any);
+
+    const result = await service.findArchivedByWorkspaceId(
+      workspaceId,
+      userId,
+    );
+
+    expect(kanbanService.findByWorkspaceId).toHaveBeenCalledWith(workspaceId);
+    expect(result.tasks).toEqual([
+      expect.objectContaining({
+        columnId: 'inprogress',
+        status: '1',
+      }),
+    ]);
   });
 
   it('finds Scrum backlog tasks by workspace key', async () => {

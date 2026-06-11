@@ -6,6 +6,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { BoardColumn } from '../../kanban/schemas/kanban-board.schema';
+import { KanbanService } from '../../kanban/services/kanban.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
@@ -35,6 +37,7 @@ export class TasksService {
     private readonly taskCounterService: TaskCounterService,
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
+    private readonly kanbanService: KanbanService,
     private readonly transformerService: TaskDataTransformerService,
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
@@ -204,8 +207,9 @@ export class TasksService {
       workspaceId,
       filterDto,
     );
+    const tasks = this.taskMapper.mapToDtos(result.tasks);
     return {
-      tasks: this.taskMapper.mapToDtos(result.tasks),
+      tasks: await this.applyArchivedColumnNames(workspaceId, tasks),
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -968,6 +972,35 @@ export class TasksService {
 
   private toId(value: any): string {
     return value?._id?.toString?.() ?? value?.toString?.() ?? '';
+  }
+
+  private async applyArchivedColumnNames(
+    workspaceId: string,
+    tasks: TaskDto[],
+  ): Promise<TaskDto[]> {
+    if (tasks.length === 0) {
+      return tasks;
+    }
+
+    const boards = await this.kanbanService.findByWorkspaceId(workspaceId);
+    const columnsById = new Map<string, BoardColumn>();
+
+    boards.forEach((board) => {
+      (board.columns || []).forEach((column) => {
+        columnsById.set(column.id, column);
+      });
+    });
+
+    return tasks.map((task) => {
+      const column = task.columnId ? columnsById.get(task.columnId) : undefined;
+
+      return column
+        ? {
+            ...task,
+            status: column.name,
+          }
+        : task;
+    });
   }
 
   private toTimestamp(value: unknown): number {
