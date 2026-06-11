@@ -287,43 +287,6 @@ export class ChannelsService {
     );
   }
 
-  async getRecentDMUsers(userId: string): Promise<any[]> {
-    // 1. Lấy danh sách channel DM gần đây (chỉ lấy member IDs)
-    const channels = await this.channelModel.find({
-      type: 'dm',
-      members: new Types.ObjectId(userId)
-    })
-    .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
-    .limit(20)
-    .select('members')
-    .lean()
-    .exec();
-
-    // 2. Trích xuất ID của người đối phương
-    const otherUserIds = channels.map(channel => 
-      channel.members.find(m => m.toString() !== userId)?.toString()
-    ).filter(id => !!id) as string[];
-
-    if (otherUserIds.length === 0) return [];
-
-    // 3. Lấy thông tin user một lần duy nhất
-    const userInfos = await this.usersService.getUsersByIds(otherUserIds);
-    
-    // Ánh xạ lại để đảm bảo thứ tự và có trường id
-    const userIdToInfo = new Map(userInfos.map(u => [u._id.toString(), u]));
-    
-    return otherUserIds.map(id => {
-      const u = userIdToInfo.get(id);
-      if (u) {
-        return {
-          ...u,
-          id: u._id.toString(),
-        };
-      }
-      return null;
-    }).filter(u => !!u);
-  }
-
   async updateLastMessage(channelId: string, message: { content: string; senderId: any; senderName: string; sentAt: Date }) {
     return this.channelModel.findByIdAndUpdate(channelId, {
       $set: {

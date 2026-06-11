@@ -60,13 +60,6 @@ export class ChannelsController {
     return this.channelsService.searchUsers(query || '', userId);
   }
 
-  @Get('users/recent')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
-  async getRecentDMUsers(@CurrentUser('userId') userId: string) {
-    return this.channelsService.getRecentDMUsers(userId);
-  }
-
   @Get(':id')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
