@@ -20,9 +20,7 @@ describe('TaskDataTransformerService search tokens', () => {
       'ALTA-1',
     );
 
-    expect(data.searchTokens).toEqual(
-      expect.arrayContaining(['a', 'al', 'alta', 'r', 're', 'registration']),
-    );
+    expect(data.searchTokens).toEqual(expect.arrayContaining(['a', 'al', 'alta', 'r', 're', 'registration']));
   });
 
   it('regenerates search tokens when title changes on update', () => {
@@ -31,8 +29,6 @@ describe('TaskDataTransformerService search tokens', () => {
       { key: 'ALTA-1', title: 'Registration' } as any,
     );
 
-    expect(data.searchTokens).toEqual(
-      expect.arrayContaining(['a', 'al', 'r', 're', 'reset', 'p', 'pa']),
-    );
+    expect(data.searchTokens).toEqual(expect.arrayContaining(['a', 'al', 'r', 're', 'reset', 'p', 'pa']));
   });
 });

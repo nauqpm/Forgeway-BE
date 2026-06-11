@@ -1,11 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  Logger,
-  Inject,
-  forwardRef,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger, Inject, forwardRef } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PermissionsService } from '../services/permissions.service';
 import { JwtService } from '@nestjs/jwt';
@@ -29,7 +22,7 @@ export class PermissionGuard implements CanActivate {
     private permissionsService: PermissionsService,
     private jwtService: JwtService,
     @Inject(getModelToken(Auth.name)) private authModel: Model<Auth>,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Get permission requirements from metadata
@@ -56,14 +49,11 @@ export class PermissionGuard implements CanActivate {
     }
 
     // Check both direct and role-based permissions
-    const hasPermission = await this.permissionsService.checkUserPermission(
-      userId,
-      resource,
-      action
-    );
+    const hasPermission = await this.permissionsService.checkUserPermission(userId, resource, action);
 
-    this.logger.debug(`[PermissionGuard] Checking permission: resource=${resource}, action=${action}, result=${hasPermission}`);
+    this.logger.debug(
+      `[PermissionGuard] Checking permission: resource=${resource}, action=${action}, result=${hasPermission}`,
+    );
     return hasPermission;
   }
 }
-

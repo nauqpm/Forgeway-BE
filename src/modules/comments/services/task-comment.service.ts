@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -61,21 +55,13 @@ export class TaskCommentService {
       targetType: 'task',
       targetId: taskId,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
-      mentions: dto.mentions?.map((id) => new Types.ObjectId(id)) || [],
+      mentions: dto.mentions?.map(id => new Types.ObjectId(id)) || [],
     }).save();
 
-    await this.taskActivitiesService.recordCommentAdded(
-      task,
-      userId,
-      comment._id.toString(),
-    );
+    await this.taskActivitiesService.recordCommentAdded(task, userId, comment._id.toString());
     await this.notifyTaskComment(comment, task, userId);
 
-    const populated = await this.findTaskCommentDocument(
-      workspaceId,
-      taskId,
-      comment._id.toString(),
-    );
+    const populated = await this.findTaskCommentDocument(workspaceId, taskId, comment._id.toString());
 
     if (!populated) {
       throw new NotFoundException('Comment not found');
@@ -87,11 +73,7 @@ export class TaskCommentService {
     return commentDto;
   }
 
-  async findByTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<CommentDto[]> {
+  async findByTask(workspaceId: string, taskId: string, userId: string): Promise<CommentDto[]> {
     await this.getReadableTask(workspaceId, taskId, userId);
 
     const comments = await this.commentModel
@@ -133,11 +115,7 @@ export class TaskCommentService {
     comment.editedAt = new Date();
     const saved = await comment.save();
     await saved.populate('authorId', 'fullName email avatar');
-    await this.taskActivitiesService.recordCommentUpdated(
-      task,
-      userId,
-      comment._id.toString(),
-    );
+    await this.taskActivitiesService.recordCommentUpdated(task, userId, comment._id.toString());
 
     const commentDto = this.commentMapper.mapToDto(saved);
     this.publishCommentUpdatedEvent(task, userId, commentDto);
@@ -145,12 +123,7 @@ export class TaskCommentService {
     return commentDto;
   }
 
-  async deleteForTask(
-    workspaceId: string,
-    taskId: string,
-    commentId: string,
-    userId: string,
-  ): Promise<void> {
+  async deleteForTask(workspaceId: string, taskId: string, commentId: string, userId: string): Promise<void> {
     const task = await this.getCommentableTask(workspaceId, taskId, userId);
     const comment = await this.findTaskCommentDocument(workspaceId, taskId, commentId);
 
@@ -169,19 +142,11 @@ export class TaskCommentService {
     comment.deletedAt = new Date();
     comment.deletedBy = new Types.ObjectId(userId);
     await comment.save();
-    await this.taskActivitiesService.recordCommentDeleted(
-      task,
-      userId,
-      comment._id.toString(),
-    );
+    await this.taskActivitiesService.recordCommentDeleted(task, userId, comment._id.toString());
     this.publishCommentDeletedEvent(task, userId, comment._id.toString());
   }
 
-  private publishCommentCreatedEvent(
-    task: TaskDocument,
-    actorId: string,
-    comment: CommentDto,
-  ): void {
+  private publishCommentCreatedEvent(task: TaskDocument, actorId: string, comment: CommentDto): void {
     const event = new TaskCommentCreatedEvent({
       workspaceId: this.toId(task.workspaceId),
       taskId: task._id.toString(),
@@ -195,11 +160,7 @@ export class TaskCommentService {
     this.eventEmitter.emit(event.type, event);
   }
 
-  private publishCommentUpdatedEvent(
-    task: TaskDocument,
-    actorId: string,
-    comment: CommentDto,
-  ): void {
+  private publishCommentUpdatedEvent(task: TaskDocument, actorId: string, comment: CommentDto): void {
     const event = new TaskCommentUpdatedEvent({
       workspaceId: this.toId(task.workspaceId),
       taskId: task._id.toString(),
@@ -213,11 +174,7 @@ export class TaskCommentService {
     this.eventEmitter.emit(event.type, event);
   }
 
-  private publishCommentDeletedEvent(
-    task: TaskDocument,
-    actorId: string,
-    commentId: string,
-  ): void {
+  private publishCommentDeletedEvent(task: TaskDocument, actorId: string, commentId: string): void {
     const event = new TaskCommentDeletedEvent({
       workspaceId: this.toId(task.workspaceId),
       taskId: task._id.toString(),
@@ -229,11 +186,7 @@ export class TaskCommentService {
 
     this.eventEmitter.emit(event.type, event);
   }
-  private async getReadableTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDocument> {
+  private async getReadableTask(workspaceId: string, taskId: string, userId: string): Promise<TaskDocument> {
     this.validateObjectId(workspaceId, 'Workspace');
     this.validateObjectId(taskId, 'Task');
     await this.workspacesService.findById(workspaceId);
@@ -254,11 +207,7 @@ export class TaskCommentService {
     return task;
   }
 
-  private async getCommentableTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDocument> {
+  private async getCommentableTask(workspaceId: string, taskId: string, userId: string): Promise<TaskDocument> {
     const task = await this.getReadableTask(workspaceId, taskId, userId);
 
     if (task.isArchived) {
@@ -268,11 +217,7 @@ export class TaskCommentService {
     return task;
   }
 
-  private async validateParentComment(
-    workspaceId: string,
-    taskId: string,
-    parentId?: string,
-  ): Promise<void> {
+  private async validateParentComment(workspaceId: string, taskId: string, parentId?: string): Promise<void> {
     if (!parentId) {
       return;
     }
@@ -305,10 +250,7 @@ export class TaskCommentService {
       .exec();
   }
 
-  private async assertWorkspaceMember(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
+  private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
     const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
@@ -320,27 +262,16 @@ export class TaskCommentService {
       throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
     }
   }
-  private async validateMentionsAreMembers(
-    workspaceId: string,
-    mentionedUserIds: string[],
-  ): Promise<void> {
+  private async validateMentionsAreMembers(workspaceId: string, mentionedUserIds: string[]): Promise<void> {
     // Single query — fetches workspace once and checks membership in memory
-    const nonMembers = await this.workspaceMemberService.filterNonMembers(
-      workspaceId,
-      mentionedUserIds,
-    );
+    const nonMembers = await this.workspaceMemberService.filterNonMembers(workspaceId, mentionedUserIds);
 
     if (nonMembers.length > 0) {
-      throw new BadRequestException(
-        'Mentioned users must be members of this workspace',
-      );
+      throw new BadRequestException('Mentioned users must be members of this workspace');
     }
   }
 
-  private async filterWorkspaceMembers(
-    workspaceId: string,
-    userIds: string[],
-  ): Promise<string[]> {
+  private async filterWorkspaceMembers(workspaceId: string, userIds: string[]): Promise<string[]> {
     if (userIds.length === 0) {
       return [];
     }
@@ -349,22 +280,15 @@ export class TaskCommentService {
     return this.workspaceMemberService.filterMembers(workspaceId, userIds);
   }
 
-  private async notifyTaskComment(
-    comment: CommentDocument,
-    task: TaskDocument,
-    actorId: string,
-  ): Promise<void> {
+  private async notifyTaskComment(comment: CommentDocument, task: TaskDocument, actorId: string): Promise<void> {
     try {
       const workspaceId = this.toId(task.workspaceId);
       const mentionRecipientIds = this.uniqueIds(comment.mentions)
-        .filter((recipientId) => recipientId !== actorId)
-        .filter((recipientId) => recipientId.length > 0);
+        .filter(recipientId => recipientId !== actorId)
+        .filter(recipientId => recipientId.length > 0);
 
       // Only send mention notifications to workspace members
-      const memberMentionIds = await this.filterWorkspaceMembers(
-        workspaceId,
-        mentionRecipientIds,
-      );
+      const memberMentionIds = await this.filterWorkspaceMembers(workspaceId, mentionRecipientIds);
 
       if (memberMentionIds.length > 0) {
         await this.notificationsService.notifyCommentMentioned({
@@ -379,18 +303,12 @@ export class TaskCommentService {
       }
 
       const mentioned = new Set(memberMentionIds);
-      const relatedRecipientIds = this.uniqueIds([
-        task.assigneeId,
-        task.reporterId,
-      ]).filter(
-        (recipientId) => recipientId !== actorId && !mentioned.has(recipientId),
+      const relatedRecipientIds = this.uniqueIds([task.assigneeId, task.reporterId]).filter(
+        recipientId => recipientId !== actorId && !mentioned.has(recipientId),
       );
 
       // Only send comment notifications to workspace members
-      const memberRelatedIds = await this.filterWorkspaceMembers(
-        workspaceId,
-        relatedRecipientIds,
-      );
+      const memberRelatedIds = await this.filterWorkspaceMembers(workspaceId, relatedRecipientIds);
 
       if (memberRelatedIds.length > 0) {
         await this.notificationsService.notifyTaskCommentCreated({
@@ -410,13 +328,7 @@ export class TaskCommentService {
   }
 
   private uniqueIds(values: Array<unknown>): string[] {
-    return Array.from(
-      new Set(
-        values
-          .map((value) => this.toId(value))
-          .filter((value) => Types.ObjectId.isValid(value)),
-      ),
-    );
+    return Array.from(new Set(values.map(value => this.toId(value)).filter(value => Types.ObjectId.isValid(value))));
   }
 
   private toId(value: any): string {

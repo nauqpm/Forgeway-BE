@@ -1,10 +1,5 @@
 // users.service.ts
-import {
-  Injectable,
-  NotFoundException,
-  Logger,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
@@ -117,16 +112,11 @@ export class UsersService {
     return updatedUser;
   }
 
-  private isPasswordUpdate(
-    data: UpdateUsersDto | { $unset: Record<string, unknown> },
-  ): data is UpdateUsersDto {
+  private isPasswordUpdate(data: UpdateUsersDto | { $unset: Record<string, unknown> }): data is UpdateUsersDto {
     return 'password' in data && !!data.password;
   }
 
-  private async handlePasswordUpdate(
-    userId: string,
-    updateData: UpdateUsersDto,
-  ): Promise<void> {
+  private async handlePasswordUpdate(userId: string, updateData: UpdateUsersDto): Promise<void> {
     this.logger.log(`Updating password for User ID: ${userId}`);
 
     const user = await this.usersRepository.findById(userId);
@@ -143,10 +133,7 @@ export class UsersService {
       throw new BadRequestException(PASSWORD_POLICY.noWhitespaceMessage);
     }
 
-    const isMatch = await bcrypt.compare(
-      updateData.currentPassword,
-      user.password,
-    );
+    const isMatch = await bcrypt.compare(updateData.currentPassword, user.password);
 
     if (!isMatch) {
       throw new BadRequestException('Current password is incorrect');
@@ -172,13 +159,8 @@ export class UsersService {
     };
   }> {
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-    const safeLimit = Number.isFinite(limit)
-      ? Math.min(100, Math.max(1, Math.floor(limit)))
-      : 20;
-    const { users, total } = await this.usersRepository.findAllPaginated(
-      safePage,
-      safeLimit,
-    );
+    const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.floor(limit))) : 20;
+    const { users, total } = await this.usersRepository.findAllPaginated(safePage, safeLimit);
 
     return {
       data: users,

@@ -168,12 +168,9 @@ export class DashboardService {
         .select('storyPoints columnId')
         .exec();
 
-      const totalPoints = sprintTasks.reduce(
-        (sum, task) => sum + (task.storyPoints || 0),
-        0,
-      );
+      const totalPoints = sprintTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
       const completedPoints = sprintTasks
-        .filter((task) => task.columnId === 'done')
+        .filter(task => task.columnId === 'done')
         .reduce((sum, task) => sum + (task.storyPoints || 0), 0);
 
       sprintProgress = {
@@ -181,8 +178,7 @@ export class DashboardService {
         sprintName: `Sprint ${activeSprint._id.toString().substring(activeSprint._id.toString().length - 4)}`,
         totalStoryPoints: totalPoints,
         completedStoryPoints: completedPoints,
-        completionPercentage:
-          totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0,
+        completionPercentage: totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0,
       };
     }
 
@@ -264,13 +260,10 @@ export class DashboardService {
       .exec();
 
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => t.columnId === 'done').length;
-    const totalStoryPoints = tasks.reduce(
-      (sum, task) => sum + (task.storyPoints || 0),
-      0,
-    );
+    const completedTasks = tasks.filter(t => t.columnId === 'done').length;
+    const totalStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
     const completedStoryPoints = tasks
-      .filter((task) => task.columnId === 'done')
+      .filter(task => task.columnId === 'done')
       .reduce((sum, task) => sum + (task.storyPoints || 0), 0);
 
     const tasksByStatus = await this.taskModel.aggregate([
@@ -290,14 +283,11 @@ export class DashboardService {
       completedTasks,
       totalStoryPoints,
       completedStoryPoints,
-      completionPercentage:
-        totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+      completionPercentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
       storyPointsCompletionPercentage:
-        totalStoryPoints > 0
-          ? Math.round((completedStoryPoints / totalStoryPoints) * 100)
-          : 0,
+        totalStoryPoints > 0 ? Math.round((completedStoryPoints / totalStoryPoints) * 100) : 0,
       tasksByStatus,
-      tasks: tasks.map((task) => ({
+      tasks: tasks.map(task => ({
         _id: task._id,
         title: task.title,
         key: task.key,

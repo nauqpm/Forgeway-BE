@@ -1,9 +1,4 @@
-import {
-  ArrayUnique,
-  IsArray,
-  IsMongoId,
-  IsNotEmpty,
-} from 'class-validator';
+import { ArrayUnique, IsArray, IsMongoId, IsNotEmpty } from 'class-validator';
 
 export class UpdateDocumentWorkspacesDto {
   @IsNotEmpty()

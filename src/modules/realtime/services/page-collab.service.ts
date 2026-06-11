@@ -87,12 +87,7 @@ export class PageCollabService {
    * Called on `page:publish`.
    * Flushes the current Yjs state to the main Page document.
    */
-  async publishToPage(
-    pageId: string,
-    userId: string,
-    title: string,
-    content: string,
-  ): Promise<void> {
+  async publishToPage(pageId: string, userId: string, title: string, content: string): Promise<void> {
     const ydoc = await this.getOrCreate(pageId);
 
     // Persist Yjs state synchronously so the draft is always up-to-date
@@ -166,7 +161,7 @@ export class PageCollabService {
     if (draft?.yjsState) {
       // ── Happy path: restore from persisted Yjs snapshot ──────
       try {
-        Y.applyUpdate(ydoc, new Uint8Array(draft.yjsState), 'server-bootstrap');
+        Y.applyUpdate(ydoc, new Uint8Array(Uint8Array.from(draft.yjsState)), 'server-bootstrap');
       } catch (err) {
         this.logger.warn(
           `Corrupted yjsState for page ${pageId}, rebuilding from text fields: ${(err as Error).message}`,

@@ -22,4 +22,4 @@ import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
   providers: [PagesService, JwtAuthGuard, WorkspaceRoleGuard],
   exports: [PagesService, JwtAuthGuard, MongooseModule],
 })
-export class PagesModule { }
+export class PagesModule {}

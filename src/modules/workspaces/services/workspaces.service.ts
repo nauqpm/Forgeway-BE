@@ -61,9 +61,7 @@ export class WorkspacesService {
         type: dto.type || 'kanban',
         access: dto.access || 'public',
         ownerId: new Types.ObjectId(userId),
-        members: [
-          { userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN },
-        ],
+        members: [{ userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN }],
         settings: {},
         status: 'active',
       });
@@ -71,10 +69,7 @@ export class WorkspacesService {
       try {
         await this.kanbanService.createDefaultBoard(workspace._id.toString());
       } catch (error) {
-        this.logger.error(
-          `Failed to create default board for workspace ${workspace._id}`,
-          error,
-        );
+        this.logger.error(`Failed to create default board for workspace ${workspace._id}`, error);
       }
 
       try {
@@ -83,10 +78,7 @@ export class WorkspacesService {
         if (error instanceof ConflictException) {
           this.logger.warn(`Default workflow already exists for workspace ${workspace._id}`);
         } else {
-          this.logger.error(
-            `Failed to create default workflow for workspace ${workspace._id}`,
-            error,
-          );
+          this.logger.error(`Failed to create default workflow for workspace ${workspace._id}`, error);
         }
       }
 
@@ -134,7 +126,7 @@ export class WorkspacesService {
 
   private async withWorkspaceCounts(workspaces: any[]): Promise<any[]> {
     return Promise.all(
-      workspaces.map(async (workspace) => {
+      workspaces.map(async workspace => {
         const workspaceId = workspace._id;
         const [taskCount, pageCount, documentCount] = await Promise.all([
           this.taskModel.countDocuments({
@@ -148,9 +140,7 @@ export class WorkspacesService {
           }),
         ]);
         const docsCount = pageCount + documentCount;
-        const workspaceData = typeof workspace.toObject === 'function'
-          ? workspace.toObject()
-          : { ...workspace };
+        const workspaceData = typeof workspace.toObject === 'function' ? workspace.toObject() : { ...workspace };
 
         return {
           ...workspaceData,

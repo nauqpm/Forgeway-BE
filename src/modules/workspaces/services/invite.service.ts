@@ -41,11 +41,7 @@ export class InviteService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async createInvite(
-    workspaceId: string,
-    invitedByUserId: string,
-    dto: CreateInviteDto,
-  ): Promise<Invite> {
+  async createInvite(workspaceId: string, invitedByUserId: string, dto: CreateInviteDto): Promise<Invite> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) throw new NotFoundException('Workspace not found');
 
@@ -53,16 +49,11 @@ export class InviteService {
 
     const existingUser = await this.usersService.findByEmail(normalizedEmail);
     if (existingUser) {
-      const isMember = workspace.members.some(
-        (m) => m.userId.toString() === existingUser._id.toString(),
-      );
+      const isMember = workspace.members.some(m => m.userId.toString() === existingUser._id.toString());
       if (isMember) throw new ConflictException('User is already a member of this workspace');
     }
 
-    const pendingInvite = await this.inviteRepository.findPendingByEmailAndWorkspace(
-      normalizedEmail,
-      workspaceId,
-    );
+    const pendingInvite = await this.inviteRepository.findPendingByEmailAndWorkspace(normalizedEmail, workspaceId);
     if (pendingInvite) throw new ConflictException('Invite already pending for this email');
 
     const token = uuidv4();
@@ -87,18 +78,14 @@ export class InviteService {
       existingUser?._id?.toString(),
     );
 
-    await this.notifyExistingUserInvited(
-      existingUser,
-      workspace,
-      invite,
-      invitedByUserId,
-      role,
-    );
+    await this.notifyExistingUserInvited(existingUser, workspace, invite, invitedByUserId, role);
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const acceptUrl = `${frontendUrl}/invites/accept/${token}`;
 
-    this.logger.log(`[sendInvite] to=${normalizedEmail} workspace="${workspace.name}" frontendUrl=${frontendUrl} acceptUrl=${acceptUrl}`);
+    this.logger.log(
+      `[sendInvite] to=${normalizedEmail} workspace="${workspace.name}" frontendUrl=${frontendUrl} acceptUrl=${acceptUrl}`,
+    );
 
     this.mailerService
       .sendMail({
@@ -112,7 +99,7 @@ export class InviteService {
         },
       })
       .then(() => this.logger.log(`[sendInvite] email sent OK → ${normalizedEmail}`))
-      .catch((err) => this.logger.error(`[sendInvite] email FAILED → ${normalizedEmail}`, err?.message));
+      .catch(err => this.logger.error(`[sendInvite] email FAILED → ${normalizedEmail}`, err?.message));
 
     return invite;
   }
@@ -177,7 +164,7 @@ export class InviteService {
     const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
     if (!workspace) throw new NotFoundException('Workspace not found');
 
-    const alreadyMember = workspace.members.some((m) => m.userId.toString() === userId);
+    const alreadyMember = workspace.members.some(m => m.userId.toString() === userId);
     if (alreadyMember) throw new ConflictException('You are already a member of this workspace');
 
     await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
@@ -222,19 +209,10 @@ export class InviteService {
   async processPostRegisterInvites(email: string, userId: string): Promise<void> {
     const pendingInvites = await this.inviteRepository.findPendingValidByEmail(email);
     await Promise.all(
-      pendingInvites.map(async (invite) => {
-        const workspace = await this.workspacesRepository.findById(
-          invite.workspaceId.toString(),
-        );
-        await this.workspacesRepository.addMember(
-          invite.workspaceId.toString(),
-          userId,
-          invite.role,
-        );
-        await this.inviteRepository.updateStatus(
-          (invite as any)._id.toString(),
-          INVITE_STATUS.ACCEPTED,
-        );
+      pendingInvites.map(async invite => {
+        const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
+        await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
+        await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
         if (workspace) {
           this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
         }
@@ -264,12 +242,7 @@ export class InviteService {
     this.eventEmitter.emit(event.type, event);
   }
 
-  private publishWorkspaceMemberJoinedEvent(
-    workspace: any,
-    userId: string,
-    role: string,
-    actorId?: string,
-  ): void {
+  private publishWorkspaceMemberJoinedEvent(workspace: any, userId: string, role: string, actorId?: string): void {
     const event = new WorkspaceMemberJoinedEvent({
       workspaceId: workspace._id.toString(),
       actorId,
@@ -343,4 +316,3 @@ export class InviteService {
     }
   }
 }
-

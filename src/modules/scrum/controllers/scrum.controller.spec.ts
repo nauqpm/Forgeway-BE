@@ -111,17 +111,9 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'member' };
       scrumService.createSprint.mockResolvedValue(expectedResult as any);
 
-      const result = await controller.createSprint(
-        workspaceId,
-        dto,
-        user as any,
-      );
+      const result = await controller.createSprint(workspaceId, dto, user as any);
 
-      expect(scrumService.createSprint).toHaveBeenCalledWith(
-        workspaceId,
-        dto,
-        user.userId,
-      );
+      expect(scrumService.createSprint).toHaveBeenCalledWith(workspaceId, dto, user.userId);
       expect(result).toEqual(expectedResult);
     });
   });
@@ -150,11 +142,7 @@ describe('ScrumController', () => {
 
       const result = await controller.updateSprint(workspaceId, sprintId, dto);
 
-      expect(scrumService.updateSprint).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-        dto,
-      );
+      expect(scrumService.updateSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto);
       expect(result).toEqual(updatedSprint);
     });
   });
@@ -166,10 +154,7 @@ describe('ScrumController', () => {
 
       const result = await controller.deleteSprint(workspaceId, sprintId);
 
-      expect(scrumService.deleteSprint).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-      );
+      expect(scrumService.deleteSprint).toHaveBeenCalledWith(workspaceId, sprintId);
       expect(result).toBeUndefined();
     });
   });
@@ -186,11 +171,7 @@ describe('ScrumController', () => {
 
       const result = await controller.startSprint(workspaceId, sprintId, dto);
 
-      expect(scrumService.startSprint).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-        dto,
-      );
+      expect(scrumService.startSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto);
       expect(result).toEqual(startedSprint);
     });
   });
@@ -206,17 +187,9 @@ describe('ScrumController', () => {
       };
       scrumService.completeSprint.mockResolvedValue(summary);
 
-      const result = await controller.completeSprint(
-        workspaceId,
-        sprintId,
-        dto,
-      );
+      const result = await controller.completeSprint(workspaceId, sprintId, dto);
 
-      expect(scrumService.completeSprint).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-        dto,
-      );
+      expect(scrumService.completeSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto);
       expect(result).toEqual(summary);
     });
   });
@@ -266,19 +239,9 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'member' };
       scrumService.moveTasksToSprint.mockResolvedValue({ modifiedCount: 2 });
 
-      const result = await controller.moveTasksToSprint(
-        workspaceId,
-        sprintId,
-        dto,
-        user as any,
-      );
+      const result = await controller.moveTasksToSprint(workspaceId, sprintId, dto, user as any);
 
-      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-        dto.taskIds,
-        false,
-      );
+      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto.taskIds, false);
       expect(result).toEqual({ modifiedCount: 2 });
     });
 
@@ -288,19 +251,9 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'super_admin' };
       scrumService.moveTasksToSprint.mockResolvedValue({ modifiedCount: 1 });
 
-      await controller.moveTasksToSprint(
-        workspaceId,
-        sprintId,
-        dto,
-        user as any,
-      );
+      await controller.moveTasksToSprint(workspaceId, sprintId, dto, user as any);
 
-      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-        dto.taskIds,
-        true,
-      );
+      expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(workspaceId, sprintId, dto.taskIds, true);
     });
   });
 
@@ -310,17 +263,9 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'member' };
       scrumService.moveTasksToBacklog.mockResolvedValue({ modifiedCount: 1 });
 
-      const result = await controller.moveTasksToBacklog(
-        workspaceId,
-        dto,
-        user as any,
-      );
+      const result = await controller.moveTasksToBacklog(workspaceId, dto, user as any);
 
-      expect(scrumService.moveTasksToBacklog).toHaveBeenCalledWith(
-        workspaceId,
-        dto.taskIds,
-        false,
-      );
+      expect(scrumService.moveTasksToBacklog).toHaveBeenCalledWith(workspaceId, dto.taskIds, false);
       expect(result).toEqual({ modifiedCount: 1 });
     });
   });
@@ -333,10 +278,7 @@ describe('ScrumController', () => {
 
       const result = await controller.getSprintTasks(workspaceId, sprintId);
 
-      expect(scrumService.getSprintTasks).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-      );
+      expect(scrumService.getSprintTasks).toHaveBeenCalledWith(workspaceId, sprintId);
       expect(result).toEqual(tasks);
     });
   });
@@ -352,15 +294,9 @@ describe('ScrumController', () => {
       };
       scrumService.getCompleteSprintPreview.mockResolvedValue(preview);
 
-      const result = await controller.getCompleteSprintPreview(
-        workspaceId,
-        sprintId,
-      );
+      const result = await controller.getCompleteSprintPreview(workspaceId, sprintId);
 
-      expect(scrumService.getCompleteSprintPreview).toHaveBeenCalledWith(
-        workspaceId,
-        sprintId,
-      );
+      expect(scrumService.getCompleteSprintPreview).toHaveBeenCalledWith(workspaceId, sprintId);
       expect(result).toEqual(preview);
     });
   });

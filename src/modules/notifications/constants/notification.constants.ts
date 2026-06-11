@@ -5,8 +5,7 @@ export const NOTIFICATION_TYPES = {
   WORKSPACE_INVITED: 'WORKSPACE_INVITED',
 } as const;
 
-export type NotificationType =
-  (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
+export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
 
 export const NOTIFICATION_TYPE_VALUES = Object.values(NOTIFICATION_TYPES);
 
@@ -17,12 +16,9 @@ export const NOTIFICATION_ENTITY_TYPES = {
   INVITE: 'invite',
 } as const;
 
-export type NotificationEntityType =
-  (typeof NOTIFICATION_ENTITY_TYPES)[keyof typeof NOTIFICATION_ENTITY_TYPES];
+export type NotificationEntityType = (typeof NOTIFICATION_ENTITY_TYPES)[keyof typeof NOTIFICATION_ENTITY_TYPES];
 
-export const NOTIFICATION_ENTITY_TYPE_VALUES = Object.values(
-  NOTIFICATION_ENTITY_TYPES,
-);
+export const NOTIFICATION_ENTITY_TYPE_VALUES = Object.values(NOTIFICATION_ENTITY_TYPES);
 
 export const NOTIFICATION_LIMITS = {
   DEFAULT_PAGE: 1,

@@ -7,8 +7,7 @@ import { NotificationEventContext } from './notification-event-payloads';
 export abstract class BaseNotificationEvent<
   TType extends DomainEventType,
   TData extends NotificationEventContext,
-> implements DomainEvent<TType, TData>
-{
+> implements DomainEvent<TType, TData> {
   readonly eventId?: string;
   readonly correlationId?: string;
   readonly causationId?: string;

@@ -1,15 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { CommentService } from '../services/comment.service';
 import { CreateCommentDto } from '../dtos/create-comment.dto';
@@ -33,28 +22,19 @@ export class CommentsController {
   @ApiOperation({ summary: 'List generic comments' })
   @ApiQuery({ name: 'targetType', required: true, enum: ['task', 'page'] })
   @ApiQuery({ name: 'targetId', required: true })
-  async findAll(
-    @Query('targetType') targetType: string,
-    @Query('targetId') targetId: string,
-  ) {
+  async findAll(@Query('targetType') targetType: string, @Query('targetId') targetId: string) {
     return this.commentService.findByTarget(targetType, targetId);
   }
 
   @Get('target/:targetType/:targetId/threaded')
   @ApiOperation({ summary: 'Get all comments for a target as threads' })
-  async findByTargetThreaded(
-    @Param('targetType') targetType: string,
-    @Param('targetId') targetId: string,
-  ) {
+  async findByTargetThreaded(@Param('targetType') targetType: string, @Param('targetId') targetId: string) {
     return this.commentService.findByTargetThreaded(targetType, targetId);
   }
 
   @Get('target/:targetType/:targetId')
   @ApiOperation({ summary: 'Get all comments for a target (task or page)' })
-  async findByTarget(
-    @Param('targetType') targetType: string,
-    @Param('targetId') targetId: string,
-  ) {
+  async findByTarget(@Param('targetType') targetType: string, @Param('targetId') targetId: string) {
     return this.commentService.findByTarget(targetType, targetId);
   }
 
@@ -66,10 +46,7 @@ export class CommentsController {
 
   @Get('count/:targetType/:targetId')
   @ApiOperation({ summary: 'Count comments for a target' })
-  async countByTarget(
-    @Param('targetType') targetType: string,
-    @Param('targetId') targetId: string,
-  ) {
+  async countByTarget(@Param('targetType') targetType: string, @Param('targetId') targetId: string) {
     const count = await this.commentService.countByTarget(targetType, targetId);
     return { count };
   }
@@ -82,11 +59,7 @@ export class CommentsController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a generic comment' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateCommentDto,
-    @Request() req: any,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateCommentDto, @Request() req: any) {
     return this.commentService.update(id, dto, req.user.userId);
   }
 

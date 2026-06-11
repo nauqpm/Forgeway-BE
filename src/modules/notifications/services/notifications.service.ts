@@ -1,9 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
-import {
-  NotificationDto,
-  NotificationListDto,
-} from '../dtos/notification.dto';
+import { NotificationDto, NotificationListDto } from '../dtos/notification.dto';
 import {
   CommentNotificationInput,
   CreateNotificationInput,
@@ -39,21 +36,14 @@ export class NotificationsService {
     return notificationDto;
   }
 
-  async createMany(
-    inputs: CreateNotificationInput[],
-  ): Promise<NotificationDto[]> {
-    const validInputs = inputs.filter((input) =>
-      this.isValidRecipient(input.recipientId),
-    );
+  async createMany(inputs: CreateNotificationInput[]): Promise<NotificationDto[]> {
+    const validInputs = inputs.filter(input => this.isValidRecipient(input.recipientId));
     if (!validInputs.length) {
       return [];
     }
 
-    const notifications =
-      await this.notificationsRepository.createMany(validInputs);
-    const notificationDtos = notifications.map((notification) =>
-      this.notificationMapper.mapToDto(notification),
-    );
+    const notifications = await this.notificationsRepository.createMany(validInputs);
+    const notificationDtos = notifications.map(notification => this.notificationMapper.mapToDto(notification));
     this.notificationDomainEventPublisher.publishManyCreated(notificationDtos);
 
     return notificationDtos;
@@ -76,7 +66,7 @@ export class NotificationsService {
   async notifyCommentMentioned(input: CommentNotificationInput): Promise<void> {
     const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
     await this.createMany(
-      recipientIds.map((recipientId) =>
+      recipientIds.map(recipientId =>
         this.notificationFactory.buildCommentMentioned({
           ...input,
           recipientId,
@@ -85,12 +75,10 @@ export class NotificationsService {
     );
   }
 
-  async notifyTaskCommentCreated(
-    input: CommentNotificationInput,
-  ): Promise<void> {
+  async notifyTaskCommentCreated(input: CommentNotificationInput): Promise<void> {
     const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
     await this.createMany(
-      recipientIds.map((recipientId) =>
+      recipientIds.map(recipientId =>
         this.notificationFactory.buildTaskCommentCreated({
           ...input,
           recipientId,
@@ -99,9 +87,7 @@ export class NotificationsService {
     );
   }
 
-  async notifyWorkspaceInvited(
-    input: WorkspaceInviteNotificationInput,
-  ): Promise<void> {
+  async notifyWorkspaceInvited(input: WorkspaceInviteNotificationInput): Promise<void> {
     const recipientIds = this.getRecipients([input.recipientId], input.actorId);
     if (!recipientIds.length) {
       return;
@@ -115,16 +101,8 @@ export class NotificationsService {
     );
   }
 
-  async listForUser(
-    userId: string,
-    page = 1,
-    limit = 20,
-  ): Promise<NotificationListDto> {
-    const result = await this.notificationsRepository.findByRecipient(
-      userId,
-      page,
-      limit,
-    );
+  async listForUser(userId: string, page = 1, limit = 20): Promise<NotificationListDto> {
+    const result = await this.notificationsRepository.findByRecipient(userId, page, limit);
 
     return this.notificationMapper.mapToListDto(result);
   }
@@ -134,15 +112,8 @@ export class NotificationsService {
     return { count };
   }
 
-  async markAsRead(
-    userId: string,
-    notificationId: string,
-  ): Promise<NotificationDto> {
-    const notification =
-      await this.notificationsRepository.markAsReadForRecipient(
-        notificationId,
-        userId,
-      );
+  async markAsRead(userId: string, notificationId: string): Promise<NotificationDto> {
+    const notification = await this.notificationsRepository.markAsReadForRecipient(notificationId, userId);
     if (!notification) {
       throw new NotFoundException('Notification not found');
     }
@@ -155,28 +126,14 @@ export class NotificationsService {
 
   async markAllAsRead(userId: string): Promise<{ modifiedCount: number }> {
     const readAt = new Date();
-    const result = await this.notificationsRepository.markAllAsReadForRecipient(
-      userId,
-      readAt,
-    );
-    this.notificationDomainEventPublisher.publishReadAll(
-      userId,
-      readAt,
-      result.modifiedCount,
-    );
+    const result = await this.notificationsRepository.markAllAsReadForRecipient(userId, readAt);
+    this.notificationDomainEventPublisher.publishReadAll(userId, readAt, result.modifiedCount);
 
     return result;
   }
 
-  async findByIdForUser(
-    userId: string,
-    notificationId: string,
-  ): Promise<NotificationDto> {
-    const notification =
-      await this.notificationsRepository.findByIdForRecipient(
-        notificationId,
-        userId,
-      );
+  async findByIdForUser(userId: string, notificationId: string): Promise<NotificationDto> {
+    const notification = await this.notificationsRepository.findByIdForRecipient(notificationId, userId);
     if (!notification) {
       throw new NotFoundException('Notification not found');
     }
@@ -189,9 +146,9 @@ export class NotificationsService {
     return Array.from(
       new Set(
         recipients
-          .filter((recipientId) => Types.ObjectId.isValid(recipientId))
-          .map((recipientId) => recipientId.toString())
-          .filter((recipientId) => recipientId !== actor),
+          .filter(recipientId => Types.ObjectId.isValid(recipientId))
+          .map(recipientId => recipientId.toString())
+          .filter(recipientId => recipientId !== actor),
       ),
     );
   }

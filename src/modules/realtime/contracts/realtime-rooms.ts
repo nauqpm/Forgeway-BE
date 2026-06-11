@@ -10,6 +10,5 @@ export const RoomBuilder = {
   user: (id: string): UserRoom => `user:${id}`,
   task: (id: string): TaskRoom => `task:${id}`,
   page: (id: string): PageRoom => `page:${id}`,
-  presence: (workspaceId: string, userId: string): PresenceKey =>
-    `presence:${workspaceId}:${userId}`,
+  presence: (workspaceId: string, userId: string): PresenceKey => `presence:${workspaceId}:${userId}`,
 } as const;

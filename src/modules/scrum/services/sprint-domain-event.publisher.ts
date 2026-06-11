@@ -65,11 +65,7 @@ export class SprintDomainEventPublisher {
     );
   }
 
-  publishCompleted(
-    sprint: SprintDocument | any,
-    actorId?: string,
-    incompleteTasksMovedTo?: string | null,
-  ): void {
+  publishCompleted(sprint: SprintDocument | any, actorId?: string, incompleteTasksMovedTo?: string | null): void {
     this.emit(
       new SprintCompletedEvent({
         workspaceId: this.toId(sprint.workspaceId),
@@ -86,9 +82,7 @@ export class SprintDomainEventPublisher {
     try {
       this.eventEmitter.emit(event.type, event);
     } catch (error) {
-      this.logger.warn(
-        `Failed to publish sprint domain event. type=${event.type}, reason=${(error as Error).message}`,
-      );
+      this.logger.warn(`Failed to publish sprint domain event. type=${event.type}, reason=${(error as Error).message}`);
     }
   }
 
