@@ -136,6 +136,13 @@ export class WorkspaceMemberService {
     return workspace.members.some(member => member.userId.toString() === userId);
   }
 
+  async getMemberRole(workspaceId: string, userId: string): Promise<string | null> {
+    const workspace = await this.workspacesRepository.findById(workspaceId);
+    if (!workspace) return null;
+    const member = workspace.members.find((m) => m.userId.toString() === userId);
+    return member ? member.role : null;
+  }
+
   /**
    * Fetch the workspace once and return a Set of member userId strings.
    * Use this to batch-check membership for multiple users in a single query.
