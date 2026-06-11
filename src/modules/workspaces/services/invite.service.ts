@@ -333,6 +333,7 @@ export class InviteService {
         recipientId: invitedUser._id.toString(),
         actorId: invitedByUserId,
         workspaceId: workspace._id.toString(),
+        workspaceKey: workspace.key,
         workspaceName: workspace.name,
         inviteId: (invite as any)._id.toString(),
         role,
