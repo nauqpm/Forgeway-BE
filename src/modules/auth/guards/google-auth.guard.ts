@@ -28,9 +28,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     if (err || !user) {
       const req = context.switchToHttp().getRequest<Request>();
       const reason =
-        err?.message ||
-        (typeof info === 'string' ? info : info?.message) ||
-        'Google OAuth authentication failed';
+        err?.message || (typeof info === 'string' ? info : info?.message) || 'Google OAuth authentication failed';
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_FAILED,

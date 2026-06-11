@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import {
-  DOMAIN_EVENT_TYPES,
-  DomainEventType,
-} from '../../../shared/events/domain-events';
+import { DOMAIN_EVENT_TYPES, DomainEventType } from '../../../shared/events/domain-events';
 import {
   BaseWorkspaceEvent,
   WorkspaceArchivedEventData,
@@ -18,12 +15,7 @@ import {
   WorkspaceRestoredEventData,
   WorkspaceUpdatedEventData,
 } from '../../../shared/events/domain-events/workspace';
-import {
-  REALTIME_EVENT_TYPES,
-  RealtimeEnvelope,
-  RealtimeEventType,
-  RoomBuilder,
-} from '../contracts';
+import { REALTIME_EVENT_TYPES, RealtimeEnvelope, RealtimeEventType, RoomBuilder } from '../contracts';
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type WorkspaceRealtimeEventData =
@@ -37,10 +29,7 @@ export type WorkspaceRealtimeEventData =
   | WorkspaceMemberRemovedEventData
   | WorkspaceMemberRoleUpdatedEventData;
 
-export type WorkspaceRealtimeDomainEvent = BaseWorkspaceEvent<
-  DomainEventType,
-  WorkspaceRealtimeEventData
->;
+export type WorkspaceRealtimeDomainEvent = BaseWorkspaceEvent<DomainEventType, WorkspaceRealtimeEventData>;
 
 @Injectable()
 export class WorkspaceRealtimeListener {
@@ -50,10 +39,7 @@ export class WorkspaceRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CREATED, { async: true })
   handleWorkspaceInviteCreated(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceInviteEvent(
-      REALTIME_EVENT_TYPES.WORKSPACE_INVITE_CREATED,
-      event,
-    );
+    this.publishWorkspaceInviteEvent(REALTIME_EVENT_TYPES.WORKSPACE_INVITE_CREATED, event);
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_CREATED, { async: true })
@@ -100,34 +86,21 @@ export class WorkspaceRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_JOINED, { async: true })
   handleWorkspaceMemberJoined(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceMemberEvent(
-      REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_JOINED,
-      event,
-    );
+    this.publishWorkspaceMemberEvent(REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_JOINED, event);
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_REMOVED, { async: true })
   handleWorkspaceMemberRemoved(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceMemberEvent(
-      REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_REMOVED,
-      event,
-    );
+    this.publishWorkspaceMemberEvent(REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_REMOVED, event);
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_ROLE_UPDATED, { async: true })
   handleWorkspaceMemberRoleUpdated(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceEvent(
-      REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_ROLE_UPDATED,
-      event,
-    );
+    this.publishWorkspaceEvent(REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_ROLE_UPDATED, event);
   }
 
-  private publishWorkspaceInviteEvent(
-    type: RealtimeEventType,
-    event: WorkspaceRealtimeDomainEvent,
-  ): void {
-    const recipientId = (event.data as WorkspaceInviteCreatedEventData)
-      .recipientId;
+  private publishWorkspaceInviteEvent(type: RealtimeEventType, event: WorkspaceRealtimeDomainEvent): void {
+    const recipientId = (event.data as WorkspaceInviteCreatedEventData).recipientId;
 
     if (!recipientId) {
       this.logger.debug(
@@ -139,21 +112,11 @@ export class WorkspaceRealtimeListener {
     this.publishToRoom(type, event, RoomBuilder.user(recipientId));
   }
 
-  private publishWorkspaceEvent(
-    type: RealtimeEventType,
-    event: WorkspaceRealtimeDomainEvent,
-  ): void {
-    this.publishToRoom(
-      type,
-      event,
-      RoomBuilder.workspace(event.data.workspaceId),
-    );
+  private publishWorkspaceEvent(type: RealtimeEventType, event: WorkspaceRealtimeDomainEvent): void {
+    this.publishToRoom(type, event, RoomBuilder.workspace(event.data.workspaceId));
   }
 
-  private publishWorkspaceMemberEvent(
-    type: RealtimeEventType,
-    event: WorkspaceRealtimeDomainEvent,
-  ): void {
+  private publishWorkspaceMemberEvent(type: RealtimeEventType, event: WorkspaceRealtimeDomainEvent): void {
     const userId = (event.data as WorkspaceMemberRemovedEventData).userId;
 
     if (!userId) {
@@ -164,11 +127,7 @@ export class WorkspaceRealtimeListener {
     this.publishToRoom(type, event, RoomBuilder.user(userId));
   }
 
-  private publishToRoom(
-    type: RealtimeEventType,
-    event: WorkspaceRealtimeDomainEvent,
-    room: string,
-  ): void {
+  private publishToRoom(type: RealtimeEventType, event: WorkspaceRealtimeDomainEvent, room: string): void {
     try {
       const envelope = this.buildEnvelope(type, event);
 
@@ -188,10 +147,7 @@ export class WorkspaceRealtimeListener {
     event: BaseWorkspaceEvent<DomainEventType, TData>,
   ): RealtimeEnvelope<TData> {
     return {
-      eventId:
-        event.eventId ??
-        event.data.eventId ??
-        `${type}:${event.data.workspaceId}:${event.occurredAt.getTime()}`,
+      eventId: event.eventId ?? event.data.eventId ?? `${type}:${event.data.workspaceId}:${event.occurredAt.getTime()}`,
       type,
       correlationId: event.correlationId ?? event.data.correlationId,
       causationId: event.causationId ?? event.data.causationId,

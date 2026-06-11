@@ -9,10 +9,7 @@ import {
 
 @Injectable()
 export class InviteRepository {
-  constructor(
-    @InjectModel(Invite.name)
-    private readonly inviteModel: Model<InviteDocument>,
-  ) {}
+  constructor(@InjectModel(Invite.name) private readonly inviteModel: Model<InviteDocument>) {}
 
   async create(data: Partial<Invite>): Promise<Invite> {
     const doc = new this.inviteModel(data);
@@ -45,11 +42,7 @@ export class InviteRepository {
   }
 
   async findByToken(token: string): Promise<Invite | null> {
-    return this.inviteModel
-      .findOne({ token })
-      .populate('invitedBy', 'fullName email avatar')
-      .lean()
-      .exec();
+    return this.inviteModel.findOne({ token }).populate('invitedBy', 'fullName email avatar').lean().exec();
   }
 
   async findPendingValidByEmail(email: string): Promise<Invite[]> {
@@ -75,22 +68,12 @@ export class InviteRepository {
   }
 
   async updateStatus(inviteId: string, status: string): Promise<Invite | null> {
-    return this.inviteModel
-      .findByIdAndUpdate(inviteId, { status }, { new: true })
-      .lean()
-      .exec();
+    return this.inviteModel.findByIdAndUpdate(inviteId, { status }, { new: true }).lean().exec();
   }
 
-  async addAcceptedBy(
-    inviteId: string,
-    userId: string,
-  ): Promise<Invite | null> {
+  async addAcceptedBy(inviteId: string, userId: string): Promise<Invite | null> {
     return this.inviteModel
-      .findByIdAndUpdate(
-        inviteId,
-        { $addToSet: { acceptedBy: new Types.ObjectId(userId) } },
-        { new: true },
-      )
+      .findByIdAndUpdate(inviteId, { $addToSet: { acceptedBy: new Types.ObjectId(userId) } }, { new: true })
       .lean()
       .exec();
   }

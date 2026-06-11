@@ -48,9 +48,7 @@ export class CommentService {
       throw new NotFoundException(`Comment with id ${id} not found`);
     }
 
-    const comment = await this.commentModel
-      .findOne({ _id: new Types.ObjectId(id), isDeleted: { $ne: true } })
-      .exec();
+    const comment = await this.commentModel.findOne({ _id: new Types.ObjectId(id), isDeleted: { $ne: true } }).exec();
     if (!comment) {
       throw new NotFoundException(`Comment with id ${id} not found`);
     }
@@ -69,13 +67,8 @@ export class CommentService {
       .exec();
   }
 
-  async findByTargetThreaded(
-    targetType: string,
-    targetId: string,
-  ): Promise<CommentDocument[]> {
-    this.logger.debug(
-      `Finding threaded comments for ${targetType}:${targetId}`,
-    );
+  async findByTargetThreaded(targetType: string, targetId: string): Promise<CommentDocument[]> {
+    this.logger.debug(`Finding threaded comments for ${targetType}:${targetId}`);
 
     const comments = await this.commentModel
       .find({ targetType, targetId, isDeleted: { $ne: true } })
@@ -122,11 +115,7 @@ export class CommentService {
       .exec();
   }
 
-  async update(
-    id: string,
-    dto: UpdateCommentDto,
-    userId: string,
-  ): Promise<CommentDocument> {
+  async update(id: string, dto: UpdateCommentDto, userId: string): Promise<CommentDocument> {
     this.logger.log(`Updating comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
@@ -159,8 +148,6 @@ export class CommentService {
   async countByTarget(targetType: string, targetId: string): Promise<number> {
     this.logger.debug(`Counting comments for ${targetType}:${targetId}`);
 
-    return this.commentModel
-      .countDocuments({ targetType, targetId, isDeleted: { $ne: true } })
-      .exec();
+    return this.commentModel.countDocuments({ targetType, targetId, isDeleted: { $ne: true } }).exec();
   }
 }

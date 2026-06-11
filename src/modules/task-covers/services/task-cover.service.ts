@@ -26,33 +26,20 @@ export class TaskCoverService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async getCover(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskCoverDto | null> {
+  async getCover(workspaceId: string, taskId: string, userId: string): Promise<TaskCoverDto | null> {
     await this.assertWorkspaceMember(workspaceId, userId);
     const task = await this.getTaskInWorkspace(workspaceId, taskId);
 
     return this.taskCoverMapper.mapToDto(task.cover);
   }
 
-  async setCover(
-    workspaceId: string,
-    taskId: string,
-    dto: SetTaskCoverDto,
-    userId: string,
-  ): Promise<TaskCoverDto> {
+  async setCover(workspaceId: string, taskId: string, dto: SetTaskCoverDto, userId: string): Promise<TaskCoverDto> {
     await this.assertWorkspaceMember(workspaceId, userId);
     const task = await this.getTaskInWorkspace(workspaceId, taskId);
     this.taskCoverPolicy.assertCanModify(task);
 
     const cover = this.taskCoverMapper.mapInputToCover(dto, userId);
-    const updatedTask = await this.taskCoverRepository.setCover(
-      workspaceId,
-      taskId,
-      cover,
-    );
+    const updatedTask = await this.taskCoverRepository.setCover(workspaceId, taskId, cover);
 
     if (!updatedTask?.cover) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -74,39 +61,22 @@ export class TaskCoverService {
     return coverDto;
   }
 
-  async removeCover(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeCover(workspaceId: string, taskId: string, userId: string): Promise<void> {
     await this.assertWorkspaceMember(workspaceId, userId);
     const task = await this.getTaskInWorkspace(workspaceId, taskId);
     this.taskCoverPolicy.assertCanModify(task);
 
-    const updatedTask = await this.taskCoverRepository.removeCover(
-      workspaceId,
-      taskId,
-    );
+    const updatedTask = await this.taskCoverRepository.removeCover(workspaceId, taskId);
 
     if (!updatedTask) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    await this.taskActivitiesService.recordTaskCoverChanged(
-      updatedTask,
-      userId,
-      'remove',
-      task.cover?.type,
-      null,
-    );
+    await this.taskActivitiesService.recordTaskCoverChanged(updatedTask, userId, 'remove', task.cover?.type, null);
     this.publishCoverUpdatedEvent(updatedTask, userId, null);
   }
 
-  private publishCoverUpdatedEvent(
-    task: any,
-    actorId: string,
-    cover: TaskCoverDto | null,
-  ): void {
+  private publishCoverUpdatedEvent(task: any, actorId: string, cover: TaskCoverDto | null): void {
     const event = new TaskCoverUpdatedEvent({
       workspaceId: this.toId(task.workspaceId),
       taskId: this.toId(task._id),
@@ -119,10 +89,7 @@ export class TaskCoverService {
     this.eventEmitter.emit(event.type, event);
   }
   private async getTaskInWorkspace(workspaceId: string, taskId: string) {
-    const task = await this.taskCoverRepository.findTaskInWorkspace(
-      workspaceId,
-      taskId,
-    );
+    const task = await this.taskCoverRepository.findTaskInWorkspace(workspaceId, taskId);
 
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -135,10 +102,7 @@ export class TaskCoverService {
     return value?._id?.toString?.() ?? value?.toString?.() ?? '';
   }
 
-  private async assertWorkspaceMember(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
+  private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
     await this.workspacesService.findById(workspaceId);
     const isMember = await this.workspaceMemberService.isMember(
       workspaceId,

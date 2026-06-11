@@ -111,9 +111,4 @@ export class UpdateUsersDto {
   currentPassword?: string;
 }
 
-export class UpdateUserProfileDto extends OmitType(UpdateUsersDto, [
-  'googleId',
-  'role',
-  'roleId',
-  'status',
-] as const) {}
+export class UpdateUserProfileDto extends OmitType(UpdateUsersDto, ['googleId', 'role', 'roleId', 'status'] as const) {}

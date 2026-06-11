@@ -52,12 +52,7 @@ const storage = diskStorage({
     const day = String(now.getDate()).padStart(2, '0');
 
     // Lấy module type từ body hoặc query hoặc mặc định là 'others'
-    const moduleType =
-      req.body?.type ||
-      req.query?.type ||
-      req.body?.targetType ||
-      req.query?.targetType ||
-      'others';
+    const moduleType = req.body?.type || req.query?.type || req.body?.targetType || req.query?.targetType || 'others';
 
     const uploadPath = join('uploads', moduleType, String(year), month, day);
 
@@ -186,11 +181,7 @@ export class ImagesController {
     const userId = req.user.userId;
 
     // The service now handles Cloudinary upload automatically if type is AVATAR
-    const image = await this.imagesService.create(
-      { type: ImageType.AVATAR, targetId: userId },
-      file,
-      userId,
-    );
+    const image = await this.imagesService.create({ type: ImageType.AVATAR, targetId: userId }, file, userId);
 
     return {
       success: true,

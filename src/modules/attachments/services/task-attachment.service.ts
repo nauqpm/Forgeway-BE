@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { createReadStream, existsSync, ReadStream } from 'fs';
@@ -13,10 +8,7 @@ import { TaskActivitiesService } from '../../task-activities/services/task-activ
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
-import {
-  TaskAttachmentAddedEvent,
-  TaskAttachmentDeletedEvent,
-} from '../../../shared/events/domain-events/task';
+import { TaskAttachmentAddedEvent, TaskAttachmentDeletedEvent } from '../../../shared/events/domain-events/task';
 import { AttachmentDto } from '../dtos/attachment.dto';
 import { AttachmentFile } from '../dtos/attachment-input.dto';
 import { AttachmentMapper } from '../mappers/attachment.mapper';
@@ -79,11 +71,7 @@ export class TaskAttachmentService {
       attachment.originalName,
     );
 
-    const populated = await this.findTaskAttachmentDocument(
-      workspaceId,
-      taskId,
-      attachment._id.toString(),
-    );
+    const populated = await this.findTaskAttachmentDocument(workspaceId, taskId, attachment._id.toString());
 
     if (!populated) {
       throw new NotFoundException('Attachment not found');
@@ -95,11 +83,7 @@ export class TaskAttachmentService {
     return attachmentDto;
   }
 
-  async findByTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<AttachmentDto[]> {
+  async findByTask(workspaceId: string, taskId: string, userId: string): Promise<AttachmentDto[]> {
     await this.getReadableTask(workspaceId, taskId, userId);
 
     const attachments = await this.attachmentModel
@@ -116,18 +100,9 @@ export class TaskAttachmentService {
     return this.attachmentMapper.mapToDtos(attachments);
   }
 
-  async deleteForTask(
-    workspaceId: string,
-    taskId: string,
-    attachmentId: string,
-    userId: string,
-  ): Promise<void> {
+  async deleteForTask(workspaceId: string, taskId: string, attachmentId: string, userId: string): Promise<void> {
     const task = await this.getAttachableTask(workspaceId, taskId, userId);
-    const attachment = await this.findTaskAttachmentDocument(
-      workspaceId,
-      taskId,
-      attachmentId,
-    );
+    const attachment = await this.findTaskAttachmentDocument(workspaceId, taskId, attachmentId);
 
     if (!attachment) {
       throw new NotFoundException(
@@ -156,12 +131,7 @@ export class TaskAttachmentService {
       attachment._id.toString(),
       attachment.originalName,
     );
-    this.publishAttachmentDeletedEvent(
-      task,
-      userId,
-      attachment._id.toString(),
-      attachment.originalName,
-    );
+    this.publishAttachmentDeletedEvent(task, userId, attachment._id.toString(), attachment.originalName);
   }
 
   async getDownloadStream(
@@ -171,11 +141,7 @@ export class TaskAttachmentService {
     userId: string,
   ): Promise<TaskAttachmentFileStream> {
     await this.getReadableTask(workspaceId, taskId, userId);
-    const attachment = await this.getReadableAttachment(
-      workspaceId,
-      taskId,
-      attachmentId,
-    );
+    const attachment = await this.getReadableAttachment(workspaceId, taskId, attachmentId);
 
     attachment.downloadCount += 1;
     await attachment.save();
@@ -190,11 +156,7 @@ export class TaskAttachmentService {
     userId: string,
   ): Promise<TaskAttachmentFileStream> {
     await this.getReadableTask(workspaceId, taskId, userId);
-    const attachment = await this.getReadableAttachment(
-      workspaceId,
-      taskId,
-      attachmentId,
-    );
+    const attachment = await this.getReadableAttachment(workspaceId, taskId, attachmentId);
 
     const mimeType = this.resolveMimeType(
       attachment.mimeType,
@@ -208,11 +170,7 @@ export class TaskAttachmentService {
     return this.createFileStream(attachment, mimeType);
   }
 
-  private publishAttachmentAddedEvent(
-    task: TaskDocument,
-    actorId: string,
-    attachment: AttachmentDto,
-  ): void {
+  private publishAttachmentAddedEvent(task: TaskDocument, actorId: string, attachment: AttachmentDto): void {
     const event = new TaskAttachmentAddedEvent({
       workspaceId: this.toId(task.workspaceId),
       taskId: task._id.toString(),
@@ -244,11 +202,7 @@ export class TaskAttachmentService {
 
     this.eventEmitter.emit(event.type, event);
   }
-  private async getReadableTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDocument> {
+  private async getReadableTask(workspaceId: string, taskId: string, userId: string): Promise<TaskDocument> {
     this.validateObjectId(workspaceId, 'Workspace');
     this.validateObjectId(taskId, 'Task');
     await this.workspacesService.findById(workspaceId);
@@ -269,11 +223,7 @@ export class TaskAttachmentService {
     return task;
   }
 
-  private async getAttachableTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDocument> {
+  private async getAttachableTask(workspaceId: string, taskId: string, userId: string): Promise<TaskDocument> {
     const task = await this.getReadableTask(workspaceId, taskId, userId);
 
     if (task.isArchived) {
@@ -288,11 +238,7 @@ export class TaskAttachmentService {
     taskId: string,
     attachmentId: string,
   ): Promise<AttachmentDocument> {
-    const attachment = await this.findTaskAttachmentDocument(
-      workspaceId,
-      taskId,
-      attachmentId,
-    );
+    const attachment = await this.findTaskAttachmentDocument(workspaceId, taskId, attachmentId);
 
     if (!attachment) {
       throw new NotFoundException(
@@ -303,10 +249,7 @@ export class TaskAttachmentService {
     return attachment;
   }
 
-  private createFileStream(
-    attachment: AttachmentDocument,
-    mimeType?: string,
-  ): TaskAttachmentFileStream {
+  private createFileStream(attachment: AttachmentDocument, mimeType?: string): TaskAttachmentFileStream {
     const filePath = this.resolveStoredFilePath(attachment);
 
     if (!filePath) {
@@ -330,10 +273,9 @@ export class TaskAttachmentService {
 
   private resolveStoredFilePath(attachment: AttachmentDocument): string | null {
     const storageRoot = `${this.uploadsDir}${sep}`;
-    const candidates = [
-      attachment.storageKey,
-      this.storageKeyFromUrl(attachment.url),
-    ].filter((value): value is string => Boolean(value));
+    const candidates = [attachment.storageKey, this.storageKeyFromUrl(attachment.url)].filter(
+      (value): value is string => Boolean(value),
+    );
 
     for (const candidate of [...new Set(candidates)]) {
       const filePath = resolve(this.uploadsDir, candidate);
@@ -348,9 +290,7 @@ export class TaskAttachmentService {
   private storageKeyFromUrl(url?: string): string | null {
     if (!url) return null;
     const normalizedUrl = url.replace(/\\/g, '/').replace(/^\/+/, '');
-    return normalizedUrl.startsWith('uploads/')
-      ? normalizedUrl.slice('uploads/'.length)
-      : normalizedUrl;
+    return normalizedUrl.startsWith('uploads/') ? normalizedUrl.slice('uploads/'.length) : normalizedUrl;
   }
 
   private resolveMimeType(mimeType?: string, fileName?: string): string {
@@ -380,11 +320,7 @@ export class TaskAttachmentService {
 
   private isPreviewable(mimeType: string): boolean {
     const normalized = mimeType.toLowerCase();
-    return (
-      normalized.startsWith('image/') ||
-      normalized === 'application/pdf' ||
-      normalized === 'text/plain'
-    );
+    return normalized.startsWith('image/') || normalized === 'application/pdf' || normalized === 'text/plain';
   }
 
   private async findTaskAttachmentDocument(
@@ -408,14 +344,8 @@ export class TaskAttachmentService {
       .exec();
   }
 
-  private async assertWorkspaceMember(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(
-      workspaceId,
-      userId,
-    );
+  private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }

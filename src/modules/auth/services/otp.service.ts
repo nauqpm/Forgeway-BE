@@ -7,9 +7,7 @@ import { generateOtpCode } from '../utils/otp.utils';
 
 @Injectable()
 export class OtpService {
-  constructor(
-    @InjectModel(Otp.name) private readonly otpModel: Model<OtpDocument>,
-  ) {}
+  constructor(@InjectModel(Otp.name) private readonly otpModel: Model<OtpDocument>) {}
 
   /** SEC-5: OTP cryptographically secure */
   generateOtp(): string {

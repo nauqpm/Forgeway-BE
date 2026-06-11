@@ -23,19 +23,10 @@ export class SearchController {
   @ApiQuery({
     name: 'types',
     required: false,
-    description:
-      'Comma-separated list of types to search (task,workspace,page)',
+    description: 'Comma-separated list of types to search (task,workspace,page)',
   })
-  @ApiQuery({
-    name: 'workspaceId',
-    required: false,
-    description: 'Filter by workspace ID',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Maximum results per type',
-  })
+  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Maximum results per type' })
   async search(
     @Query('q') query: string,
     @Query('types') types?: string,

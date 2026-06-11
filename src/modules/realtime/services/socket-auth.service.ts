@@ -99,10 +99,7 @@ export class SocketAuthService {
     }
   }
 
-  private scheduleDisconnectAtTokenExpiry(
-    client: AuthenticatedSocket,
-    expiresAtSeconds?: number,
-  ): void {
+  private scheduleDisconnectAtTokenExpiry(client: AuthenticatedSocket, expiresAtSeconds?: number): void {
     this.clearDisconnectTimer(client);
 
     if (!expiresAtSeconds) {

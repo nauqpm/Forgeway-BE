@@ -1,10 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workflow, WorkflowDocument } from '../schemas/workflow.schema';
@@ -18,10 +12,7 @@ import { UpdateWorkflowDto } from '../dtos/update-workflow.dto';
 export class WorkflowsService implements OnModuleInit {
   private readonly logger = new Logger(WorkflowsService.name);
 
-  constructor(
-    @InjectModel(Workflow.name)
-    private readonly workflowModel: Model<WorkflowDocument>,
-  ) {}
+  constructor(@InjectModel(Workflow.name) private readonly workflowModel: Model<WorkflowDocument>) {}
 
   async onModuleInit(): Promise<void> {
     await this.dropLegacyProjectIndex();
@@ -183,15 +174,10 @@ export class WorkflowsService implements OnModuleInit {
 
       if (indexExists) {
         await collection.dropIndex('projectId_1');
-        this.logger.warn(
-          'Dropped legacy workflows.projectId_1 index; workflows now use workspaceId',
-        );
+        this.logger.warn('Dropped legacy workflows.projectId_1 index; workflows now use workspaceId');
       }
     } catch (error) {
-      this.logger.warn(
-        'Could not drop legacy workflows.projectId_1 index automatically',
-        error,
-      );
+      this.logger.warn('Could not drop legacy workflows.projectId_1 index automatically', error);
     }
   }
 }

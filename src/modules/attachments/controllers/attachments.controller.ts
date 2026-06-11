@@ -17,14 +17,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateAttachmentInput } from '../dtos/attachment-input.dto';
 import { AttachmentService } from '../services/attachment.service';
@@ -38,10 +31,7 @@ export class AttachmentsController {
 
   @Get()
   @ApiOperation({ summary: 'List generic attachments by target' })
-  async findByTarget(
-    @Query('targetType') targetType: string,
-    @Query('targetId') targetId: string,
-  ) {
+  async findByTarget(@Query('targetType') targetType: string, @Query('targetId') targetId: string) {
     return this.attachmentService.findByTarget(targetType, targetId);
   }
 
@@ -74,22 +64,10 @@ export class AttachmentsController {
           const day = String(now.getDate()).padStart(2, '0');
 
           // Get module from body or query
-          const targetType =
-            req.body?.targetType || req.query?.targetType || 'others';
-          const moduleFolder =
-            targetType === 'task'
-              ? 'tasks'
-              : targetType === 'page'
-                ? 'pages'
-                : 'others';
+          const targetType = req.body?.targetType || req.query?.targetType || 'others';
+          const moduleFolder = targetType === 'task' ? 'tasks' : targetType === 'page' ? 'pages' : 'others';
 
-          const uploadPath = join(
-            'uploads',
-            moduleFolder,
-            String(year),
-            month,
-            day,
-          );
+          const uploadPath = join('uploads', moduleFolder, String(year), month, day);
 
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });

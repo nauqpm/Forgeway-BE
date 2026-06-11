@@ -77,20 +77,12 @@ export class DocumentsController {
   }
 
   @Patch(':id')
-  updateMine(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateDocumentDto,
-  ) {
+  updateMine(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: UpdateDocumentDto) {
     return this.documentsService.updateMine(userId, id, dto);
   }
 
   @Patch(':id/content')
-  updateContent(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateDocumentContentDto,
-  ) {
+  updateContent(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: UpdateDocumentContentDto) {
     return this.documentsService.updateContent(userId, id, dto);
   }
 
@@ -100,20 +92,12 @@ export class DocumentsController {
   }
 
   @Post(':id/attach')
-  attach(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: AttachDocumentDto,
-  ) {
+  attach(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: AttachDocumentDto) {
     return this.documentsService.attach(userId, id, dto);
   }
 
   @Post(':id/detach')
-  detach(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: DetachDocumentDto,
-  ) {
+  detach(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: DetachDocumentDto) {
     return this.documentsService.detach(userId, id, dto);
   }
 
@@ -127,44 +111,26 @@ export class DocumentsController {
   }
 
   @Get('workspace/:workspaceId')
-  listByWorkspace(
-    @CurrentUser('userId') userId: string,
-    @Param('workspaceId') workspaceId: string,
-  ) {
+  listByWorkspace(@CurrentUser('userId') userId: string, @Param('workspaceId') workspaceId: string) {
     return this.documentsService.listByWorkspace(userId, workspaceId);
   }
 
   @Get(':id/download')
-  async download(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async download(@CurrentUser('userId') userId: string, @Param('id') id: string, @Res() res: Response) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     return res.download(doc.storagePath, doc.originalName);
   }
 
   @Get(':id/view')
-  async view(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async view(@CurrentUser('userId') userId: string, @Param('id') id: string, @Res() res: Response) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     res.setHeader('Content-Type', doc.mimeType);
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${encodeURIComponent(doc.originalName)}"`,
-    );
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.originalName)}"`);
     return res.sendFile(doc.storagePath);
   }
 
   @Get(':id/preview')
-  async preview(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async preview(@CurrentUser('userId') userId: string, @Param('id') id: string, @Res() res: Response) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     const html = await this.documentsService.renderPreviewHtml(doc);
     if (!html) {

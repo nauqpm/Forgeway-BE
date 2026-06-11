@@ -31,10 +31,8 @@ interface PopulatedUserPermission {
 @Injectable()
 export class PermissionsService {
   constructor(
-    @InjectModel(Permission.name)
-    private permissionModel: Model<PermissionDocument>,
-    @InjectModel(UserPermission.name)
-    private userPermissionModel: Model<UserPermissionDocument>,
+    @InjectModel(Permission.name) private permissionModel: Model<PermissionDocument>,
+    @InjectModel(UserPermission.name) private userPermissionModel: Model<UserPermissionDocument>,
   ) {}
 
   async findAll(): Promise<PermissionDocument[]> {
@@ -58,14 +56,12 @@ export class PermissionsService {
         .lean<PopulatedUserPermission[]>()
         .exec();
 
-      const allPermissions: PermissionWithSource[] = userPermissions.map(
-        up => ({
-          _id: up.permissionId._id,
-          resource: up.permissionId.resource,
-          action: up.permissionId.action,
-          source: 'direct' as const,
-        }),
-      );
+      const allPermissions: PermissionWithSource[] = userPermissions.map(up => ({
+        _id: up.permissionId._id,
+        resource: up.permissionId.resource,
+        action: up.permissionId.action,
+        source: 'direct' as const,
+      }));
 
       console.log('Combined permissions:', allPermissions);
       return allPermissions;
@@ -85,8 +81,7 @@ export class PermissionsService {
 
       // Check if any permission matches the required resource and action
       const hasPermission = allPermissions.some(
-        permission =>
-          permission.resource === resource && permission.action === action,
+        permission => permission.resource === resource && permission.action === action,
       );
 
       console.log(
@@ -150,10 +145,7 @@ export class PermissionsService {
       }
 
       // Return updated permissions with populated data
-      const updatedPermissions = await this.userPermissionModel
-        .find({ userId })
-        .populate('permissionId')
-        .exec();
+      const updatedPermissions = await this.userPermissionModel.find({ userId }).populate('permissionId').exec();
 
       console.log('Updated permissions:', updatedPermissions);
       return updatedPermissions;

@@ -129,9 +129,7 @@ describe('TaskAttachmentService', () => {
     });
     attachmentMapper.mapToDto.mockReturnValue(mapped as any);
 
-    await expect(
-      service.uploadForTask(workspaceId, taskId, file, userId),
-    ).resolves.toEqual(mapped);
+    await expect(service.uploadForTask(workspaceId, taskId, file, userId)).resolves.toEqual(mapped);
 
     expect(attachmentService.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -162,9 +160,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    await expect(
-      service.uploadForTask(workspaceId, taskId, file, userId),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.uploadForTask(workspaceId, taskId, file, userId)).rejects.toThrow(BadRequestException);
 
     expect(attachmentService.create).not.toHaveBeenCalled();
     expect(taskActivitiesService.recordAttachmentAdded).not.toHaveBeenCalled();
@@ -203,12 +199,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    const result = await service.getDownloadStream(
-      workspaceId,
-      taskId,
-      attachment._id.toString(),
-      userId,
-    );
+    const result = await service.getDownloadStream(workspaceId, taskId, attachment._id.toString(), userId);
 
     expect(result.mimeType).toBe('text/plain');
     expect(result.originalName).toBe('hello.txt');
@@ -254,12 +245,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    const result = await service.getPreviewStream(
-      workspaceId,
-      taskId,
-      attachment._id.toString(),
-      userId,
-    );
+    const result = await service.getPreviewStream(workspaceId, taskId, attachment._id.toString(), userId);
 
     expect(result.mimeType).toBe('image/jpeg');
     expect(result.originalName).toBe('anh-test.jpg');
@@ -306,12 +292,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    const result = await service.getDownloadStream(
-      workspaceId,
-      taskId,
-      attachment._id.toString(),
-      userId,
-    );
+    const result = await service.getDownloadStream(workspaceId, taskId, attachment._id.toString(), userId);
 
     expect(result.originalName).toBe('hello.txt');
     expect(attachment.downloadCount).toBe(1);
@@ -351,13 +332,8 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    await expect(
-      service.getPreviewStream(
-        workspaceId,
-        taskId,
-        attachment._id.toString(),
-        userId,
-      ),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.getPreviewStream(workspaceId, taskId, attachment._id.toString(), userId)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });

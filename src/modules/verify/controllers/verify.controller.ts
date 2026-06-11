@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  Res,
-  HttpStatus,
-  HttpCode,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, HttpStatus, HttpCode, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { VerifyService } from '../services/verify.service';

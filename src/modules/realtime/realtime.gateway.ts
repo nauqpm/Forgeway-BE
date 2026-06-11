@@ -11,11 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import {
-  AuthenticatedSocket,
-  REALTIME_EVENT_TYPES,
-  RoomBuilder,
-} from './contracts';
+import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contracts';
 import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
@@ -48,9 +44,7 @@ const socketValidationPipe = new ValidationPipe({
   pingInterval: 10_000,
   pingTimeout: 5_000,
 })
-export class RealtimeGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -74,13 +68,9 @@ export class RealtimeGateway
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
-      this.logger.debug(
-        `Realtime client connected: ${client.id}, userId: ${user.userId}`,
-      );
+      this.logger.debug(`Realtime client connected: ${client.id}, userId: ${user.userId}`);
     } catch (error) {
-      this.logger.warn(
-        `Rejected realtime connection ${client.id}: ${(error as Error).message}`,
-      );
+      this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
     }
   }
@@ -221,30 +211,22 @@ export class RealtimeGateway
     if (!user) return { ok: false };
 
     if (!body.update?.length) {
-      this.logger.warn(
-        `Empty yjs-update from ${user.userId} for page ${body.pageId}`,
-      );
+      this.logger.warn(`Empty yjs-update from ${user.userId} for page ${body.pageId}`);
       return { ok: false };
     }
 
     try {
-      await this.pageCollabService.applyUpdate(
-        body.pageId,
-        new Uint8Array(body.update),
-        user.userId,
-      );
+      await this.pageCollabService.applyUpdate(body.pageId, new Uint8Array(body.update), user.userId);
     } catch {
       // applyUpdate already logs the error; do NOT relay corrupted bytes
       return { ok: false };
     }
 
     // Relay raw bytes to all OTHER clients in the page room
-    client
-      .to(RoomBuilder.page(body.pageId))
-      .emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
-        pageId: body.pageId,
-        update: body.update,
-      });
+    client.to(RoomBuilder.page(body.pageId)).emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
+      pageId: body.pageId,
+      update: body.update,
+    });
 
     return { ok: true };
   }
@@ -265,16 +247,9 @@ export class RealtimeGateway
     if (!user) return { ok: false };
 
     try {
-      await this.pageCollabService.publishToPage(
-        body.pageId,
-        user.userId,
-        body.title,
-        body.content,
-      );
+      await this.pageCollabService.publishToPage(body.pageId, user.userId, body.title, body.content);
     } catch (err) {
-      this.logger.error(
-        `publishPage failed for ${body.pageId}: ${(err as Error).message}`,
-      );
+      this.logger.error(`publishPage failed for ${body.pageId}: ${(err as Error).message}`);
       return { ok: false };
     }
 

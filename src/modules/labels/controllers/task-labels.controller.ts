@@ -40,11 +40,6 @@ export class TaskLabelsController {
     @Body() dto: SetTaskLabelsDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<TaskDto> {
-    return this.taskLabelService.setTaskLabels(
-      workspaceId,
-      taskId,
-      dto,
-      user.userId,
-    );
+    return this.taskLabelService.setTaskLabels(workspaceId, taskId, dto, user.userId);
   }
 }

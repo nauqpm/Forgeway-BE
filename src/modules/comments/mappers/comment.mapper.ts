@@ -5,8 +5,7 @@ import { CommentAuthorDto, CommentDto } from '../dtos/comment.dto';
 @Injectable()
 export class CommentMapper {
   mapToDto(comment: CommentDocument): CommentDto {
-    const value =
-      typeof comment.toObject === 'function' ? comment.toObject() : comment;
+    const value = typeof comment.toObject === 'function' ? comment.toObject() : comment;
     const plain = value as Record<string, any>;
 
     return {
@@ -18,9 +17,7 @@ export class CommentMapper {
       targetType: plain.targetType,
       targetId: String(plain.targetId),
       parentId: this.toOptionalId(plain.parentId),
-      mentions: Array.isArray(plain.mentions)
-        ? plain.mentions.map(item => this.toId(item)).filter(Boolean)
-        : [],
+      mentions: Array.isArray(plain.mentions) ? plain.mentions.map(item => this.toId(item)).filter(Boolean) : [],
       isDeleted: Boolean(plain.isDeleted),
       editedAt: plain.editedAt,
       createdAt: plain.createdAt,

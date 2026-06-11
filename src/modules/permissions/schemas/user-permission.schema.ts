@@ -33,5 +33,4 @@ export class UserPermission {
   permissionId!: Types.ObjectId | Permission;
 }
 
-export const UserPermissionSchema =
-  SchemaFactory.createForClass(UserPermission);
+export const UserPermissionSchema = SchemaFactory.createForClass(UserPermission);

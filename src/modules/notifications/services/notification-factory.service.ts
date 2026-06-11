@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  NOTIFICATION_ENTITY_TYPES,
-  NOTIFICATION_TYPES,
-} from '../constants/notification.constants';
+import { NOTIFICATION_ENTITY_TYPES, NOTIFICATION_TYPES } from '../constants/notification.constants';
 import { CreateNotificationInput } from '../interfaces/create-notification-input.interface';
 
 interface TaskAssignedFactoryInput {
@@ -92,9 +89,7 @@ export class NotificationFactoryService {
     };
   }
 
-  buildWorkspaceInvited(
-    input: WorkspaceInviteFactoryInput,
-  ): CreateNotificationInput {
+  buildWorkspaceInvited(input: WorkspaceInviteFactoryInput): CreateNotificationInput {
     return {
       recipientId: input.recipientId,
       actorId: input.actorId,

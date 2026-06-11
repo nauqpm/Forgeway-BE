@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import type { Cache } from 'cache-manager';
@@ -17,17 +10,8 @@ import {
   WorkspaceDocument,
 } from '@/modules/workspaces/schemas/workspace.schema';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
-import {
-  CreateColumnDto,
-  KanbanBoardColumnDto,
-  MoveColumnDto,
-  UpdateColumnDto,
-} from '../dtos/kanban.dto';
-import {
-  Board,
-  BoardColumn,
-  BoardDocument,
-} from '../schemas/kanban-board.schema';
+import { CreateColumnDto, KanbanBoardColumnDto, MoveColumnDto, UpdateColumnDto } from '../dtos/kanban.dto';
+import { Board, BoardColumn, BoardDocument } from '../schemas/kanban-board.schema';
 
 type VersionedBoardDocument = BoardDocument & { __v?: number };
 
@@ -132,9 +116,7 @@ export class KanbanService {
       throw new BadRequestException('Invalid workspace ID format');
     }
 
-    return this.boardModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
+    return this.boardModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 
   public async findById(id: string): Promise<BoardDocument> {
@@ -270,9 +252,7 @@ export class KanbanService {
     }
 
     const nextColumns = columns.map(item =>
-      item.id === columnId
-        ? { ...item, wipLimit: wipLimit ?? undefined }
-        : item,
+      item.id === columnId ? { ...item, wipLimit: wipLimit ?? undefined } : item,
     );
     const updated = await this.saveColumnsWithVersion(board, nextColumns);
     const workspaceId = this.toId(updated.workspaceId);
@@ -288,11 +268,7 @@ export class KanbanService {
     return updated;
   }
 
-  public async deleteColumn(
-    boardId: string,
-    columnId: string,
-    targetColumnId?: string,
-  ): Promise<BoardDocument> {
+  public async deleteColumn(boardId: string, columnId: string, targetColumnId?: string): Promise<BoardDocument> {
     const board = await this.findById(boardId);
     const columns = this.toPlainColumns(board.columns);
     const columnIndex = columns.findIndex(c => c.id === columnId);
@@ -343,9 +319,7 @@ export class KanbanService {
       );
     }
 
-    const nextColumns = this.reindexColumns(
-      columns.filter(col => col.id !== columnId),
-    );
+    const nextColumns = this.reindexColumns(columns.filter(col => col.id !== columnId));
 
     try {
       const session = await this.connection.startSession();
@@ -470,9 +444,7 @@ export class KanbanService {
       return this.boardModel.hydrate(cached);
     }
 
-    const board = await this.boardModel
-      .findOne({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
+    const board = await this.boardModel.findOne({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
     const resolved = board ?? (await this.createDefaultBoard(workspaceId));
 
     await this.cacheBoard(workspaceId, resolved);

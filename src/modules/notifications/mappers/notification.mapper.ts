@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
-import {
-  NotificationActorDto,
-  NotificationDto,
-  NotificationListDto,
-} from '../dtos/notification.dto';
+import { NotificationActorDto, NotificationDto, NotificationListDto } from '../dtos/notification.dto';
 import { NotificationDocument } from '../schemas/notification.schema';
 
 @Injectable()
@@ -37,9 +33,7 @@ export class NotificationMapper {
     limit: number;
   }): NotificationListDto {
     return {
-      notifications: result.notifications.map(notification =>
-        this.mapToDto(notification),
-      ),
+      notifications: result.notifications.map(notification => this.mapToDto(notification)),
       total: result.total,
       page: result.page,
       limit: result.limit,

@@ -1,10 +1,6 @@
 // Bọc logic transaction MongoDB: withTransaction() và withSession().
 // Dùng cho các thao tác cần transaction như start/complete sprint.
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { ClientSession, Connection } from 'mongoose';
 
@@ -14,14 +10,9 @@ export class MongoTransactionService {
 
   constructor(@InjectConnection() private readonly connection: Connection) {}
 
-  async withTransaction<T>(
-    fn: (session: ClientSession | null) => Promise<T>,
-  ): Promise<T> {
+  async withTransaction<T>(fn: (session: ClientSession | null) => Promise<T>): Promise<T> {
     let session: ClientSession | null = null;
-    const isDev =
-      process.env.NODE_ENV === 'development' ||
-      process.env.NODE_ENV === 'local' ||
-      !process.env.NODE_ENV;
+    const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'local' || !process.env.NODE_ENV;
 
     try {
       try {
@@ -84,10 +75,7 @@ export class MongoTransactionService {
     }
   }
 
-  withSession<T extends { session: (s: ClientSession) => T }>(
-    query: T,
-    session: ClientSession | null,
-  ): T {
+  withSession<T extends { session: (s: ClientSession) => T }>(query: T, session: ClientSession | null): T {
     return session ? query.session(session) : query;
   }
 }

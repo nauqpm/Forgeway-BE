@@ -11,14 +11,8 @@ export class TaskCoverRepository {
     private readonly taskModel: Model<TaskDocument>,
   ) {}
 
-  async findTaskInWorkspace(
-    workspaceId: string,
-    taskId: string,
-  ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(taskId)
-    ) {
+  async findTaskInWorkspace(workspaceId: string, taskId: string): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
       return null;
     }
 
@@ -31,15 +25,8 @@ export class TaskCoverRepository {
       .exec();
   }
 
-  async setCover(
-    workspaceId: string,
-    taskId: string,
-    cover: TaskCover,
-  ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(taskId)
-    ) {
+  async setCover(workspaceId: string, taskId: string, cover: TaskCover): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
       return null;
     }
 
@@ -54,9 +41,7 @@ export class TaskCoverRepository {
           $set: {
             cover: {
               ...cover,
-              updatedBy: cover.updatedBy
-                ? new Types.ObjectId(cover.updatedBy)
-                : undefined,
+              updatedBy: cover.updatedBy ? new Types.ObjectId(cover.updatedBy) : undefined,
             },
           },
           $inc: { version: 1 },
@@ -66,14 +51,8 @@ export class TaskCoverRepository {
       .exec();
   }
 
-  async removeCover(
-    workspaceId: string,
-    taskId: string,
-  ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(taskId)
-    ) {
+  async removeCover(workspaceId: string, taskId: string): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
       return null;
     }
 

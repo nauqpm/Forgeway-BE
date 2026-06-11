@@ -1,10 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { CookieOptions, Response } from 'express';
 
-import {
-  getAccessCookieOptions,
-  getRefreshCookieOptions,
-} from '../../../config/cookie.config';
+import { getAccessCookieOptions, getRefreshCookieOptions } from '../../../config/cookie.config';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 
 export function setAccessTokenCookie(

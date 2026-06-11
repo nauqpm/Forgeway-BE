@@ -28,11 +28,7 @@ export class LabelService {
     private readonly labelMapper: LabelMapper,
   ) {}
 
-  async create(
-    workspaceId: string,
-    dto: CreateLabelDto,
-    userId: string,
-  ): Promise<LabelDto> {
+  async create(workspaceId: string, dto: CreateLabelDto, userId: string): Promise<LabelDto> {
     await this.assertWorkspaceMember(workspaceId, userId);
     const normalizedName = this.normalizeName(dto.name);
     await this.ensureNameAvailable(workspaceId, normalizedName);
@@ -65,12 +61,7 @@ export class LabelService {
     return this.labelMapper.mapToDtos(labels);
   }
 
-  async update(
-    workspaceId: string,
-    labelId: string,
-    dto: UpdateLabelDto,
-    userId: string,
-  ): Promise<LabelDto> {
+  async update(workspaceId: string, labelId: string, dto: UpdateLabelDto, userId: string): Promise<LabelDto> {
     await this.assertWorkspaceMember(workspaceId, userId);
     const label = await this.findLabelDocument(workspaceId, labelId);
 
@@ -91,11 +82,7 @@ export class LabelService {
     return this.labelMapper.mapToDto(label);
   }
 
-  async delete(
-    workspaceId: string,
-    labelId: string,
-    userId: string,
-  ): Promise<void> {
+  async delete(workspaceId: string, labelId: string, userId: string): Promise<void> {
     await this.assertWorkspaceMember(workspaceId, userId);
     const label = await this.findLabelDocument(workspaceId, labelId);
 
@@ -109,41 +96,28 @@ export class LabelService {
     await label.save();
 
     await this.taskModel
-      .updateMany(
-        { workspaceId: new Types.ObjectId(workspaceId) },
-        { $pull: { labelIds: label._id } },
-      )
+      .updateMany({ workspaceId: new Types.ObjectId(workspaceId) }, { $pull: { labelIds: label._id } })
       .exec();
   }
 
-  async findActiveLabelsByIds(
-    workspaceId: string,
-    labelIds: string[],
-  ): Promise<LabelDocument[]> {
+  async findActiveLabelsByIds(workspaceId: string, labelIds: string[]): Promise<LabelDocument[]> {
     this.validateObjectId(workspaceId, 'Workspace');
     const uniqueLabelIds = [...new Set(labelIds)];
 
     if (uniqueLabelIds.some(labelId => !Types.ObjectId.isValid(labelId))) {
-      throw new BadRequestException(
-        'Label IDs must be valid MongoDB ObjectIds',
-      );
+      throw new BadRequestException('Label IDs must be valid MongoDB ObjectIds');
     }
 
     return this.labelModel
       .find({
-        _id: {
-          $in: uniqueLabelIds.map(labelId => new Types.ObjectId(labelId)),
-        },
+        _id: { $in: uniqueLabelIds.map(labelId => new Types.ObjectId(labelId)) },
         workspaceId: new Types.ObjectId(workspaceId),
         isDeleted: { $ne: true },
       })
       .exec();
   }
 
-  private async findLabelDocument(
-    workspaceId: string,
-    labelId: string,
-  ): Promise<LabelDocument | null> {
+  private async findLabelDocument(workspaceId: string, labelId: string): Promise<LabelDocument | null> {
     this.validateObjectId(workspaceId, 'Workspace');
     if (!Types.ObjectId.isValid(labelId)) {
       return null;
@@ -178,10 +152,7 @@ export class LabelService {
     }
   }
 
-  private async assertWorkspaceMember(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
+  private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
     this.validateObjectId(workspaceId, 'Workspace');
     await this.workspacesService.findById(workspaceId);
 

@@ -95,12 +95,7 @@ export class TaskAttachmentController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: JwtPayload,
   ): Promise<AttachmentDto> {
-    return this.taskAttachmentService.uploadForTask(
-      workspaceId,
-      taskId,
-      file,
-      user.userId,
-    );
+    return this.taskAttachmentService.uploadForTask(workspaceId, taskId, file, user.userId);
   }
 
   @Get()
@@ -137,12 +132,7 @@ export class TaskAttachmentController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const file = await this.taskAttachmentService.getDownloadStream(
-      workspaceId,
-      taskId,
-      attachmentId,
-      user.userId,
-    );
+    const file = await this.taskAttachmentService.getDownloadStream(workspaceId, taskId, attachmentId, user.userId);
     this.setFileHeaders(response, file, 'attachment');
     this.logAttachmentAccess(request, {
       type: SECURITY_EVENT_TYPES.TASK_ATTACHMENT_DOWNLOADED,
@@ -179,12 +169,7 @@ export class TaskAttachmentController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const file = await this.taskAttachmentService.getPreviewStream(
-      workspaceId,
-      taskId,
-      attachmentId,
-      user.userId,
-    );
+    const file = await this.taskAttachmentService.getPreviewStream(workspaceId, taskId, attachmentId, user.userId);
     this.setFileHeaders(response, file, 'inline');
     this.logAttachmentAccess(request, {
       type: SECURITY_EVENT_TYPES.TASK_ATTACHMENT_PREVIEWED,
@@ -218,12 +203,7 @@ export class TaskAttachmentController {
     @Param('attachmentId') attachmentId: string,
     @CurrentUser() user: JwtPayload,
   ): Promise<void> {
-    await this.taskAttachmentService.deleteForTask(
-      workspaceId,
-      taskId,
-      attachmentId,
-      user.userId,
-    );
+    await this.taskAttachmentService.deleteForTask(workspaceId, taskId, attachmentId, user.userId);
   }
 
   private logAttachmentAccess(
@@ -258,21 +238,13 @@ export class TaskAttachmentController {
   ): void {
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader('Content-Length', file.size.toString());
-    response.setHeader(
-      'Content-Disposition',
-      this.buildContentDisposition(disposition, file.originalName),
-    );
+    response.setHeader('Content-Disposition', this.buildContentDisposition(disposition, file.originalName));
     response.setHeader('X-Content-Type-Options', 'nosniff');
   }
 
-  private buildContentDisposition(
-    disposition: 'attachment' | 'inline',
-    originalName: string,
-  ): string {
+  private buildContentDisposition(disposition: 'attachment' | 'inline', originalName: string): string {
     const fallbackName = this.toAsciiFileName(originalName);
-    const encodedName = encodeURIComponent(originalName)
-      .replace(/['()]/g, escape)
-      .replace(/\*/g, '%2A');
+    const encodedName = encodeURIComponent(originalName).replace(/['()]/g, escape).replace(/\*/g, '%2A');
 
     return `${disposition}; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`;
   }

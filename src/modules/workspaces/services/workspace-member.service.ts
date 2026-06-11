@@ -33,12 +33,7 @@ export class WorkspaceMemberService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async addMember(
-    workspaceId: string,
-    email: string,
-    role: SpaceRole,
-    actorId?: string,
-  ): Promise<any> {
+  async addMember(workspaceId: string, email: string, role: SpaceRole, actorId?: string): Promise<any> {
     this.logger.log(`Adding member ${email} to workspace ${workspaceId}`);
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
@@ -53,20 +48,14 @@ export class WorkspaceMemberService {
     }
 
     const userId = user._id.toString();
-    const isAlreadyMember = workspace.members.some(
-      member => member.userId.toString() === userId,
-    );
+    const isAlreadyMember = workspace.members.some(member => member.userId.toString() === userId);
     if (isAlreadyMember) {
       throw new BadRequestException(
         `User with email "${email}" is already a member`,
       );
     }
 
-    const updated = await this.workspacesRepository.addMember(
-      workspaceId,
-      userId,
-      role,
-    );
+    const updated = await this.workspacesRepository.addMember(workspaceId, userId, role);
     this.publishMemberJoinedEvent(workspace, userId, role, actorId);
     this.logger.log(
       `Added member ${email} to workspace ${workspaceId} as ${role}`,
@@ -74,11 +63,7 @@ export class WorkspaceMemberService {
     return updated;
   }
 
-  async removeMember(
-    workspaceId: string,
-    userId: string,
-    actorId?: string,
-  ): Promise<any> {
+  async removeMember(workspaceId: string, userId: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundException(
@@ -86,9 +71,7 @@ export class WorkspaceMemberService {
       );
     }
 
-    const member = workspace.members.find(
-      item => item.userId.toString() === userId,
-    );
+    const member = workspace.members.find(item => item.userId.toString() === userId);
     if (!member) {
       throw new NotFoundException(`User "${userId}" is not a member`);
     }
@@ -108,12 +91,7 @@ export class WorkspaceMemberService {
     return updated;
   }
 
-  async updateMemberRole(
-    workspaceId: string,
-    userId: string,
-    role: SpaceRole,
-    actorId?: string,
-  ): Promise<any> {
+  async updateMemberRole(workspaceId: string, userId: string, role: SpaceRole, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundException(
@@ -121,9 +99,7 @@ export class WorkspaceMemberService {
       );
     }
 
-    const member = workspace.members.find(
-      item => item.userId.toString() === userId,
-    );
+    const member = workspace.members.find(item => item.userId.toString() === userId);
     if (!member) {
       throw new NotFoundException(`User "${userId}" is not a member`);
     }
@@ -132,29 +108,14 @@ export class WorkspaceMemberService {
       throw new ForbiddenException('Cannot change owner role');
     }
 
-    if (
-      member.role === SPACE_ROLES.WORKSPACE_ADMIN &&
-      role !== SPACE_ROLES.WORKSPACE_ADMIN
-    ) {
+    if (member.role === SPACE_ROLES.WORKSPACE_ADMIN && role !== SPACE_ROLES.WORKSPACE_ADMIN) {
       this.ensureNotLastAdmin(workspace, userId);
     }
 
     const previousRole = member.role;
-    const updated = await this.workspacesRepository.updateMemberRole(
-      workspaceId,
-      userId,
-      role,
-    );
-    this.publishMemberRoleUpdatedEvent(
-      workspace,
-      userId,
-      previousRole,
-      role,
-      actorId,
-    );
-    this.logger.log(
-      `Member ${userId} role updated to ${role} in workspace ${workspaceId}`,
-    );
+    const updated = await this.workspacesRepository.updateMemberRole(workspaceId, userId, role);
+    this.publishMemberRoleUpdatedEvent(workspace, userId, previousRole, role, actorId);
+    this.logger.log(`Member ${userId} role updated to ${role} in workspace ${workspaceId}`);
     return updated;
   }
 
@@ -172,9 +133,7 @@ export class WorkspaceMemberService {
   async isMember(workspaceId: string, userId: string): Promise<boolean> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) return false;
-    return workspace.members.some(
-      member => member.userId.toString() === userId,
-    );
+    return workspace.members.some(member => member.userId.toString() === userId);
   }
 
   /**
@@ -191,10 +150,7 @@ export class WorkspaceMemberService {
    * Filter an array of user IDs to only those who are workspace members.
    * Uses a single query (fetch workspace once) instead of N queries.
    */
-  async filterMembers(
-    workspaceId: string,
-    userIds: string[],
-  ): Promise<string[]> {
+  async filterMembers(workspaceId: string, userIds: string[]): Promise<string[]> {
     if (userIds.length === 0) return [];
     const memberIds = await this.getMemberIdsSet(workspaceId);
     return userIds.filter(id => memberIds.has(id));
@@ -204,33 +160,16 @@ export class WorkspaceMemberService {
    * Return the subset of user IDs that are NOT workspace members.
    * Uses a single query (fetch workspace once) instead of N queries.
    */
-  async filterNonMembers(
-    workspaceId: string,
-    userIds: string[],
-  ): Promise<string[]> {
+  async filterNonMembers(workspaceId: string, userIds: string[]): Promise<string[]> {
     if (userIds.length === 0) return [];
     const memberIds = await this.getMemberIdsSet(workspaceId);
     return userIds.filter(id => !memberIds.has(id));
   }
 
-  async getMemberRole(
-    workspaceId: string,
-    userId: string,
-  ): Promise<string | null> {
-    const workspace = await this.workspacesRepository.findById(workspaceId);
-    if (!workspace) return null;
-    const member = workspace.members.find(m => m.userId.toString() === userId);
-    return member ? member.role : null;
-  }
-
   private ensureNotLastAdmin(workspace: any, userId: string): void {
-    const adminCount = workspace.members.filter(
-      (member: any) => member.role === SPACE_ROLES.WORKSPACE_ADMIN,
-    ).length;
+    const adminCount = workspace.members.filter((member: any) => member.role === SPACE_ROLES.WORKSPACE_ADMIN).length;
     const isTargetAdmin = workspace.members.some(
-      (member: any) =>
-        member.userId.toString() === userId &&
-        member.role === SPACE_ROLES.WORKSPACE_ADMIN,
+      (member: any) => member.userId.toString() === userId && member.role === SPACE_ROLES.WORKSPACE_ADMIN,
     );
 
     if (adminCount === 1 && isTargetAdmin) {
@@ -240,12 +179,7 @@ export class WorkspaceMemberService {
     }
   }
 
-  private publishMemberJoinedEvent(
-    workspace: any,
-    userId: string,
-    role: string,
-    actorId?: string,
-  ): void {
+  private publishMemberJoinedEvent(workspace: any, userId: string, role: string, actorId?: string): void {
     const event = new WorkspaceMemberJoinedEvent({
       workspaceId: workspace._id.toString(),
       actorId,
@@ -258,12 +192,7 @@ export class WorkspaceMemberService {
     this.eventEmitter.emit(event.type, event);
   }
 
-  private publishMemberRemovedEvent(
-    workspace: any,
-    userId: string,
-    previousRole?: string,
-    actorId?: string,
-  ): void {
+  private publishMemberRemovedEvent(workspace: any, userId: string, previousRole?: string, actorId?: string): void {
     const event = new WorkspaceMemberRemovedEvent({
       workspaceId: workspace._id.toString(),
       actorId,

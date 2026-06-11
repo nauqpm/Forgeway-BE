@@ -28,10 +28,7 @@ export class VerifyService {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
-    await this.verifyModel.updateMany(
-      { email, type: VerifyType.VERIFICATION, isUsed: false },
-      { isUsed: true },
-    );
+    await this.verifyModel.updateMany({ email, type: VerifyType.VERIFICATION, isUsed: false }, { isUsed: true });
 
     await this.verifyModel.create({
       email,
@@ -44,11 +41,7 @@ export class VerifyService {
     return code;
   }
 
-  async verifyCode(
-    email: string,
-    code: string,
-    type: VerifyType,
-  ): Promise<{ valid: boolean; message: string }> {
+  async verifyCode(email: string, code: string, type: VerifyType): Promise<{ valid: boolean; message: string }> {
     this.logger.log(`Attempting to verify code for ${email} (Type: ${type})`);
     const verification = await this.verifyModel.findOne({
       email,
@@ -117,10 +110,7 @@ export class VerifyService {
     });
   }
 
-  async verifyPasswordResetCode(
-    email: string,
-    otp: string,
-  ): Promise<{ valid: boolean; message: string }> {
+  async verifyPasswordResetCode(email: string, otp: string): Promise<{ valid: boolean; message: string }> {
     return this.verifyCode(email, otp, VerifyType.PASSWORD_RESET);
   }
 

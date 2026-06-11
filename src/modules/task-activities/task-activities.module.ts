@@ -7,10 +7,7 @@ import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { TaskActivitiesController } from './controllers/task-activities.controller';
 import { TaskActivityMapper } from './mappers/task-activity.mapper';
 import { TaskActivitiesRepository } from './repositories/task-activities.repository';
-import {
-  TaskActivity,
-  TaskActivitySchema,
-} from './schemas/task-activity.schema';
+import { TaskActivity, TaskActivitySchema } from './schemas/task-activity.schema';
 import { TaskActivitiesService } from './services/task-activities.service';
 
 @Module({
@@ -26,11 +23,7 @@ import { TaskActivitiesService } from './services/task-activities.service';
     AuditModule,
   ],
   controllers: [TaskActivitiesController],
-  providers: [
-    TaskActivitiesRepository,
-    TaskActivityMapper,
-    TaskActivitiesService,
-  ],
+  providers: [TaskActivitiesRepository, TaskActivityMapper, TaskActivitiesService],
   exports: [TaskActivitiesService],
 })
 export class TaskActivitiesModule {}

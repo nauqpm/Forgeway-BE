@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsArray,
-  MaxLength,
-  Matches,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, MaxLength, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePageDto {
@@ -46,8 +39,7 @@ export class CreatePageDto {
 
   @ApiPropertyOptional({
     description:
-      'URL-friendly slug. Only lowercase letters, digits, and hyphens. ' +
-      'Auto-generated from title if omitted.',
+      'URL-friendly slug. Only lowercase letters, digits, and hyphens. ' + 'Auto-generated from title if omitted.',
     example: 'getting-started-guide',
     pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
   })

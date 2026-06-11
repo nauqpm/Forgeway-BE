@@ -126,8 +126,7 @@ export class MoveColumnDto {
 export class DeleteColumnDto {
   @ApiPropertyOptional({
     example: 'col-xyz',
-    description:
-      'Column nhận task khi xóa. Bắt buộc nếu column hiện tại còn task.',
+    description: 'Column nhận task khi xóa. Bắt buộc nếu column hiện tại còn task.',
   })
   @IsOptional()
   @IsString()

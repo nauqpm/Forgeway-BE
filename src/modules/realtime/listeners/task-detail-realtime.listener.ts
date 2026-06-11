@@ -17,12 +17,7 @@ import {
   TaskEventContext,
   TaskLabelsUpdatedEventData,
 } from '../../../shared/events/domain-events/task';
-import {
-  REALTIME_EVENT_TYPES,
-  RealtimeEnvelope,
-  RealtimeEventType,
-  RoomBuilder,
-} from '../contracts';
+import { REALTIME_EVENT_TYPES, RealtimeEnvelope, RealtimeEventType, RoomBuilder } from '../contracts';
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type TaskDetailRealtimeEventData =
@@ -35,10 +30,7 @@ export type TaskDetailRealtimeEventData =
   | TaskCoverUpdatedEventData
   | TaskActivityCreatedEventData;
 
-export type TaskDetailRealtimeDomainEvent = BaseTaskEvent<
-  DomainEventType,
-  TaskDetailRealtimeEventData
->;
+export type TaskDetailRealtimeDomainEvent = BaseTaskEvent<DomainEventType, TaskDetailRealtimeEventData>;
 
 @Injectable()
 export class TaskDetailRealtimeListener {
@@ -107,10 +99,7 @@ export class TaskDetailRealtimeListener {
     );
   }
 
-  private publishTaskDetailEvent(
-    type: RealtimeEventType,
-    event: TaskDetailRealtimeDomainEvent,
-  ): void {
+  private publishTaskDetailEvent(type: RealtimeEventType, event: TaskDetailRealtimeDomainEvent): void {
     try {
       const room = RoomBuilder.task(event.data.taskId);
       const envelope = this.buildEnvelope(type, event);
@@ -131,10 +120,7 @@ export class TaskDetailRealtimeListener {
     event: BaseTaskEvent<DomainEventType, TData>,
   ): RealtimeEnvelope<TData> {
     return {
-      eventId:
-        event.eventId ??
-        event.data.eventId ??
-        `${type}:${event.data.taskId}:${event.occurredAt.getTime()}`,
+      eventId: event.eventId ?? event.data.eventId ?? `${type}:${event.data.taskId}:${event.occurredAt.getTime()}`,
       type,
       correlationId: event.correlationId ?? event.data.correlationId,
       causationId: event.causationId ?? event.data.causationId,

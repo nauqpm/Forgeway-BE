@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AddressesService } from '../services/addresses.service';
@@ -27,18 +18,12 @@ export class AddressesController {
   }
 
   @Get(':id')
-  async findById(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-  ) {
+  async findById(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.addressesService.findById(id, userId);
   }
 
   @Post()
-  async create(
-    @Body() createAddressDto: CreateAddressDto,
-    @CurrentUser('userId') userId: string,
-  ) {
+  async create(@Body() createAddressDto: CreateAddressDto, @CurrentUser('userId') userId: string) {
     return this.addressesService.create(createAddressDto, userId);
   }
 
@@ -58,10 +43,7 @@ export class AddressesController {
   }
 
   @Put(':id/default')
-  async setDefault(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-  ) {
+  async setDefault(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.addressesService.setDefault(id, userId);
   }
 }

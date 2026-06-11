@@ -1,19 +1,7 @@
 import { Type } from 'class-transformer';
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsDateString,
-  IsNumber,
-  MaxLength,
-  Min,
-  IsMongoId,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, IsNumber, MaxLength, Min, IsMongoId } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  TASK_PRIORITIES,
-  TASK_TYPES,
-} from '../../constants/task-status.constants';
+import { TASK_PRIORITIES, TASK_TYPES } from '../../constants/task-status.constants';
 
 export class CreateTaskDto {
   @ApiProperty({ example: 'Implement login feature' })

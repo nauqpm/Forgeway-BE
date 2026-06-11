@@ -101,9 +101,7 @@ describe('InviteController', () => {
   });
 
   it('getInviteById calls service with inviteId, userId, userEmail', async () => {
-    service.getInviteByIdForUser.mockResolvedValue({
-      workspaceName: 'Test',
-    } as any);
+    service.getInviteByIdForUser.mockResolvedValue({ workspaceName: 'Test' } as any);
 
     await controller.getInviteById('inviteId', mockUser as any);
 
@@ -151,10 +149,6 @@ describe('InviteController', () => {
 
     await controller.acceptInvite('some-token', mockUser as any);
 
-    expect(service.acceptInvite).toHaveBeenCalledWith(
-      'some-token',
-      mockUser.userId,
-      mockUser.email,
-    );
+    expect(service.acceptInvite).toHaveBeenCalledWith('some-token', mockUser.userId, mockUser.email);
   });
 });

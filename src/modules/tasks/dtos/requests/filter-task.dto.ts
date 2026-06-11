@@ -1,22 +1,7 @@
 import { Transform, Type } from 'class-transformer';
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  Min,
-  Max,
-  IsMongoId,
-  IsBoolean,
-  IsIn,
-  Matches,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, Min, Max, IsMongoId, IsBoolean, IsIn, Matches } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  TASK_KEY_PATTERN,
-  TASK_PRIORITIES,
-  TASK_TYPES,
-} from '../../constants/task-status.constants';
+import { TASK_KEY_PATTERN, TASK_PRIORITIES, TASK_TYPES } from '../../constants/task-status.constants';
 import { normalizeTaskKey } from '../../utils/task-key.util';
 
 const normalizeStatusFilter = (value: unknown): string[] | undefined => {

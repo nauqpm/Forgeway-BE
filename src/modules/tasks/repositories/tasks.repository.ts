@@ -38,15 +38,7 @@ interface TaskPaginatedResult {
   limit: number;
 }
 
-const TASK_SORT_FIELDS = new Set([
-  'createdAt',
-  'updatedAt',
-  'key',
-  'priority',
-  'status',
-  'rank',
-  'archivedAt',
-]);
+const TASK_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt']);
 
 @Injectable()
 export class TasksRepository {
@@ -59,10 +51,7 @@ export class TasksRepository {
     return new this.taskModel(data).save();
   }
 
-  async findById(
-    id: string,
-    options: TaskLookupOptions = {},
-  ): Promise<TaskDocument | null> {
+  async findById(id: string, options: TaskLookupOptions = {}): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -75,10 +64,7 @@ export class TasksRepository {
     ).exec();
   }
 
-  async findByKey(
-    key: string,
-    options: TaskLookupOptions = {},
-  ): Promise<TaskDocument | null> {
+  async findByKey(key: string, options: TaskLookupOptions = {}): Promise<TaskDocument | null> {
     return this.withRelations(
       this.taskModel.findOne({
         key,
@@ -136,10 +122,7 @@ export class TasksRepository {
     workspaceId: string,
     options: TaskLookupOptions = { includeArchived: true },
   ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(taskId) ||
-      !Types.ObjectId.isValid(workspaceId)
-    ) {
+    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
 
@@ -176,11 +159,7 @@ export class TasksRepository {
     const sort = this.buildSort(filterDto, { createdAt: -1 });
 
     const [tasks, total] = await Promise.all([
-      this.withRelations(this.taskModel.find(filter))
-        .skip(skip)
-        .limit(limit)
-        .sort(sort)
-        .exec(),
+      this.withRelations(this.taskModel.find(filter)).skip(skip).limit(limit).sort(sort).exec(),
       this.taskModel.countDocuments(filter).exec(),
     ]);
 
@@ -224,11 +203,7 @@ export class TasksRepository {
     const sort = this.buildSort(options, { archivedAt: -1, updatedAt: -1 });
 
     const [tasks, total] = await Promise.all([
-      this.withRelations(this.taskModel.find(filter))
-        .skip(skip)
-        .limit(limit)
-        .sort(sort)
-        .exec(),
+      this.withRelations(this.taskModel.find(filter)).skip(skip).limit(limit).sort(sort).exec(),
       this.taskModel.countDocuments(filter).exec(),
     ]);
 
@@ -251,14 +226,8 @@ export class TasksRepository {
       .exec();
   }
 
-  async findBySprintInWorkspace(
-    workspaceId: string,
-    sprintId: string,
-  ): Promise<TaskDocument[]> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(sprintId)
-    ) {
+  async findBySprintInWorkspace(workspaceId: string, sprintId: string): Promise<TaskDocument[]> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(sprintId)) {
       return [];
     }
 
@@ -278,9 +247,7 @@ export class TasksRepository {
       return 0;
     }
 
-    return this.taskModel
-      .countDocuments({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
+    return this.taskModel.countDocuments({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 
   async update(id: string, data: Partial<Task>): Promise<TaskDocument | null> {
@@ -303,11 +270,7 @@ export class TasksRepository {
     ).exec();
   }
 
-  async updateInWorkspace(
-    id: string,
-    workspaceId: string,
-    data: Partial<Task>,
-  ): Promise<TaskDocument | null> {
+  async updateInWorkspace(id: string, workspaceId: string, data: Partial<Task>): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
@@ -384,10 +347,7 @@ export class TasksRepository {
     workspaceId: string,
     session?: ClientSession,
   ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(taskId) ||
-      !Types.ObjectId.isValid(workspaceId)
-    ) {
+    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
 
@@ -403,17 +363,12 @@ export class TasksRepository {
     return this.withRelations(query).exec();
   }
 
-  async findTasksInRankScope(
-    scope: TaskRankScope,
-    session?: ClientSession,
-  ): Promise<TaskDocument[]> {
+  async findTasksInRankScope(scope: TaskRankScope, session?: ClientSession): Promise<TaskDocument[]> {
     if (!Types.ObjectId.isValid(scope.workspaceId)) {
       return [];
     }
 
-    const query = this.taskModel
-      .find(this.buildRankScopeFilter(scope))
-      .sort({ rank: 1, createdAt: 1 });
+    const query = this.taskModel.find(this.buildRankScopeFilter(scope)).sort({ rank: 1, createdAt: 1 });
     if (session) {
       query.session(session);
     }
@@ -487,16 +442,8 @@ export class TasksRepository {
     ).exec();
   }
 
-  async archiveInWorkspace(
-    id: string,
-    workspaceId: string,
-    archivedBy: string,
-  ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(id) ||
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(archivedBy)
-    ) {
+  async archiveInWorkspace(id: string, workspaceId: string, archivedBy: string): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(archivedBy)) {
       return null;
     }
 
@@ -542,10 +489,7 @@ export class TasksRepository {
     ).exec();
   }
 
-  async restoreInWorkspace(
-    id: string,
-    workspaceId: string,
-  ): Promise<TaskDocument | null> {
+  async restoreInWorkspace(id: string, workspaceId: string): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
@@ -568,10 +512,7 @@ export class TasksRepository {
     ).exec();
   }
 
-  async softDelete(
-    id: string,
-    deletedBy: string,
-  ): Promise<TaskDocument | null> {
+  async softDelete(id: string, deletedBy: string): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -596,16 +537,8 @@ export class TasksRepository {
     ).exec();
   }
 
-  async softDeleteInWorkspace(
-    id: string,
-    workspaceId: string,
-    deletedBy: string,
-  ): Promise<TaskDocument | null> {
-    if (
-      !Types.ObjectId.isValid(id) ||
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(deletedBy)
-    ) {
+  async softDeleteInWorkspace(id: string, workspaceId: string, deletedBy: string): Promise<TaskDocument | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(deletedBy)) {
       return null;
     }
 
@@ -649,14 +582,8 @@ export class TasksRepository {
     return { page, limit, skip: (page - 1) * limit };
   }
 
-  private buildSort(
-    options: TaskPaginationOptions,
-    defaultSort: Record<string, 1 | -1>,
-  ): Record<string, 1 | -1> {
-    const sortBy =
-      options.sortBy && TASK_SORT_FIELDS.has(options.sortBy)
-        ? options.sortBy
-        : undefined;
+  private buildSort(options: TaskPaginationOptions, defaultSort: Record<string, 1 | -1>): Record<string, 1 | -1> {
+    const sortBy = options.sortBy && TASK_SORT_FIELDS.has(options.sortBy) ? options.sortBy : undefined;
     const direction = options.sortOrder === 'asc' ? 1 : -1;
 
     if (!sortBy) {
@@ -711,18 +638,13 @@ export class TasksRepository {
       filter.status = { $in: filterDto.status };
     }
     if (filterDto.search) {
-      Object.assign(
-        filter,
-        this.taskSearchService.buildSearchFilter(filterDto.search),
-      );
+      Object.assign(filter, this.taskSearchService.buildSearchFilter(filterDto.search));
     }
 
     return filter;
   }
 
-  private buildVisibilityFilter(
-    options: TaskLookupOptions = {},
-  ): FilterQuery<TaskDocument> {
+  private buildVisibilityFilter(options: TaskLookupOptions = {}): FilterQuery<TaskDocument> {
     const filter: FilterQuery<TaskDocument> = {};
 
     if (!options.includeArchived) {
@@ -735,9 +657,7 @@ export class TasksRepository {
     return filter;
   }
 
-  private buildRankScopeFilter(
-    scope: TaskRankScope,
-  ): FilterQuery<TaskDocument> {
+  private buildRankScopeFilter(scope: TaskRankScope): FilterQuery<TaskDocument> {
     const filter: FilterQuery<TaskDocument> = {
       workspaceId: new Types.ObjectId(scope.workspaceId),
       ...this.buildVisibilityFilter(),
@@ -756,11 +676,7 @@ export class TasksRepository {
     return filter;
   }
 
-  async findCalendarByWorkspace(
-    workspaceId: string,
-    startRange: Date,
-    endRange: Date,
-  ): Promise<TaskDocument[]> {
+  async findCalendarByWorkspace(workspaceId: string, startRange: Date, endRange: Date): Promise<TaskDocument[]> {
     if (!Types.ObjectId.isValid(workspaceId)) return [];
     const wId = new Types.ObjectId(workspaceId);
     const docs = await this.withRelations(

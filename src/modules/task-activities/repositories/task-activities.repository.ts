@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import {
-  TaskActivity,
-  TaskActivityDocument,
-} from '../schemas/task-activity.schema';
+import { TaskActivity, TaskActivityDocument } from '../schemas/task-activity.schema';
 import { TaskActivityType } from '../constants/task-activity.constants';
 import { FilterTaskActivityDto } from '../dtos/filter-task-activity.dto';
 
@@ -62,11 +59,7 @@ export class TaskActivitiesRepository {
     const sort = this.buildSort(filterDto);
 
     const [activities, total] = await Promise.all([
-      this.withRelations(this.taskActivityModel.find(filter))
-        .skip(skip)
-        .limit(limit)
-        .sort(sort)
-        .exec(),
+      this.withRelations(this.taskActivityModel.find(filter)).skip(skip).limit(limit).sort(sort).exec(),
       this.taskActivityModel.countDocuments(filter).exec(),
     ]);
 

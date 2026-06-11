@@ -4,5 +4,4 @@ export const SECURITY_EVENT_SEVERITY = {
   CRITICAL: 'CRITICAL',
 } as const;
 
-export type SecurityEventSeverityLiteral =
-  (typeof SECURITY_EVENT_SEVERITY)[keyof typeof SECURITY_EVENT_SEVERITY];
+export type SecurityEventSeverityLiteral = (typeof SECURITY_EVENT_SEVERITY)[keyof typeof SECURITY_EVENT_SEVERITY];

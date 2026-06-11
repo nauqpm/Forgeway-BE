@@ -6,8 +6,7 @@ import { TaskActivityDocument } from '../schemas/task-activity.schema';
 @Injectable()
 export class TaskActivityMapper {
   mapToDto(activity: TaskActivityDocument | any): TaskActivityDto {
-    const plainActivity =
-      typeof activity?.toObject === 'function' ? activity.toObject() : activity;
+    const plainActivity = typeof activity?.toObject === 'function' ? activity.toObject() : activity;
 
     return {
       id: this.toId(plainActivity._id || plainActivity.id),

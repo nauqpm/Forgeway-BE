@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { extname, resolve, join } from 'path';
@@ -81,11 +76,7 @@ export class DocumentsService {
     const isPng = startsWith(0x89, 0x50, 0x4e, 0x47);
     const isJpeg = startsWith(0xff, 0xd8, 0xff);
     const isWebp =
-      startsWith(0x52, 0x49, 0x46, 0x46) &&
-      buf[8] === 0x57 &&
-      buf[9] === 0x45 &&
-      buf[10] === 0x42 &&
-      buf[11] === 0x50;
+      startsWith(0x52, 0x49, 0x46, 0x46) && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
     const isOle = startsWith(0xd0, 0xcf, 0x11, 0xe0);
 
     const valid =
@@ -147,10 +138,7 @@ export class DocumentsService {
     const workspace = await this.workspaceModel.findOne({
       _id: new Types.ObjectId(workspaceId),
       deletedAt: null,
-      $or: [
-        { ownerId: new Types.ObjectId(userId) },
-        { 'members.userId': new Types.ObjectId(userId) },
-      ],
+      $or: [{ ownerId: new Types.ObjectId(userId) }, { 'members.userId': new Types.ObjectId(userId) }],
     });
     if (!workspace) {
       throw new ForbiddenException('Workspace is deleted or inactive');
@@ -169,9 +157,7 @@ export class DocumentsService {
     const extension = this.ensureAllowedType(file);
     const name = dto.name?.trim() || file.originalname;
 
-    const workspaceIds = (dto.workspaceIds ?? []).map(
-      id => new Types.ObjectId(id),
-    );
+    const workspaceIds = (dto.workspaceIds ?? []).map(id => new Types.ObjectId(id));
     for (const wsId of workspaceIds) {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
@@ -211,9 +197,7 @@ export class DocumentsService {
     const sanitizedContent = this.sanitizeContent(rawContent);
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
 
-    const workspaceIds = (dto.workspaceIds ?? []).map(
-      id => new Types.ObjectId(id),
-    );
+    const workspaceIds = (dto.workspaceIds ?? []).map(id => new Types.ObjectId(id));
     for (const wsId of workspaceIds) {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
@@ -370,10 +354,7 @@ export class DocumentsService {
     const activeMemberWorkspace = await this.workspaceModel.findOne({
       _id: { $in: doc.workspaceIds },
       deletedAt: null,
-      $or: [
-        { ownerId: new Types.ObjectId(userId) },
-        { 'members.userId': new Types.ObjectId(userId) },
-      ],
+      $or: [{ ownerId: new Types.ObjectId(userId) }, { 'members.userId': new Types.ObjectId(userId) }],
     });
 
     if (!activeMemberWorkspace)
@@ -416,20 +397,12 @@ export class DocumentsService {
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
     await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
 
-    const updated = await this.documentModel.findOneAndUpdate(
-      { _id: doc._id },
-      { $set: { size } },
-      { new: true },
-    );
+    const updated = await this.documentModel.findOneAndUpdate({ _id: doc._id }, { $set: { size } }, { new: true });
 
     return updated;
   }
 
-  private async ensureUniqueNameForUser(
-    userId: string,
-    name: string,
-    excludeId?: string,
-  ): Promise<void> {
+  private async ensureUniqueNameForUser(userId: string, name: string, excludeId?: string): Promise<void> {
     const query: Record<string, any> = {
       uploadedBy: new Types.ObjectId(userId),
       deletedAt: null,
@@ -442,9 +415,7 @@ export class DocumentsService {
 
     const existingDocument = await this.documentModel.exists(query).exec();
     if (existingDocument) {
-      throw new BadRequestException(
-        'A document with this name already exists in your library',
-      );
+      throw new BadRequestException('A document with this name already exists in your library');
     }
   }
 

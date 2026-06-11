@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
@@ -21,11 +17,7 @@ export class TaskCreationValidationService {
     private readonly usersService: UsersService,
   ) {}
 
-  async validateCreateRequest(
-    dto: CreateTaskDto,
-    workspaceId: string,
-    userId: string,
-  ): Promise<any> {
+  async validateCreateRequest(dto: CreateTaskDto, workspaceId: string, userId: string): Promise<any> {
     this.validateObjectId(workspaceId, 'Workspace');
     const workspace = await this.workspacesService.findById(workspaceId);
 
@@ -37,10 +29,7 @@ export class TaskCreationValidationService {
     return workspace;
   }
 
-  async validateUpdateRequest(
-    dto: UpdateTaskDto,
-    workspaceId: string,
-  ): Promise<void> {
+  async validateUpdateRequest(dto: UpdateTaskDto, workspaceId: string): Promise<void> {
     if (dto.assigneeId) {
       await this.validateAssignee(dto.assigneeId, workspaceId);
     }
@@ -57,34 +46,20 @@ export class TaskCreationValidationService {
     return this.workspacesService.findById(workspaceId);
   }
 
-  async validateWorkspaceMember(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(
-      workspaceId,
-      userId,
-    );
+  async validateWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
   }
 
-  async validateAssignee(
-    assigneeId: string,
-    workspaceId: string,
-  ): Promise<void> {
+  async validateAssignee(assigneeId: string, workspaceId: string): Promise<void> {
     this.validateObjectId(assigneeId, 'Assignee');
     await this.usersService.getUserById(assigneeId);
 
-    const isMember = await this.workspaceMemberService.isMember(
-      workspaceId,
-      assigneeId,
-    );
+    const isMember = await this.workspaceMemberService.isMember(workspaceId, assigneeId);
     if (!isMember) {
-      throw new BadRequestException(
-        'Assignee must be a member of this workspace',
-      );
+      throw new BadRequestException('Assignee must be a member of this workspace');
     }
   }
 

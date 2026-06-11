@@ -10,12 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { NotificationsService } from '../services/notifications.service';
@@ -68,10 +63,7 @@ export class NotificationsController {
 
   @Put(':id/read')
   @ApiOperation({ summary: 'Mark one notification as read' })
-  async markAsReadLegacy(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
+  async markAsReadLegacy(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.notificationsService.markAsRead(req.user!.userId, id);
   }
 

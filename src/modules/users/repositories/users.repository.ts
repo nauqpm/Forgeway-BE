@@ -41,13 +41,8 @@ export class UsersRepository {
     return newUser.save();
   }
 
-  async update(
-    userId: string,
-    updateData: UserUpdatePayload,
-  ): Promise<User | null> {
-    return await this.userModel
-      .findByIdAndUpdate(userId, updateData, { new: true })
-      .exec();
+  async update(userId: string, updateData: UserUpdatePayload): Promise<User | null> {
+    return await this.userModel.findByIdAndUpdate(userId, updateData, { new: true }).exec();
   }
 
   async incrementFailedLoginAttempts(userId: string): Promise<User | null> {

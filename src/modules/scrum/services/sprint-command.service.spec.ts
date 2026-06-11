@@ -93,10 +93,7 @@ describe('SprintCommandService', () => {
       expect(result.name).toBe('Sprint 3'); // 2 existing + 1
       expect(result.status).toBe('planning');
       expect(result.workspaceId).toEqual(new Types.ObjectId(workspaceId));
-      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
-        result,
-        undefined,
-      );
+      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(result, undefined);
     });
 
     it('creates sprint with specified name', async () => {
@@ -105,10 +102,7 @@ describe('SprintCommandService', () => {
       const result = await service.createSprint(workspaceId, dto, actorId);
 
       expect(result.name).toBe('Custom Sprint Name');
-      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
-        result,
-        actorId,
-      );
+      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(result, actorId);
     });
   });
 
@@ -118,9 +112,7 @@ describe('SprintCommandService', () => {
 
     it('throws NotFoundException if sprint not found', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
-      await expect(
-        service.updateSprint(workspaceId, sprintId, {}),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateSprint(workspaceId, sprintId, {})).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when updating a completed sprint', async () => {
@@ -196,9 +188,7 @@ describe('SprintCommandService', () => {
 
     it('throws NotFoundException when deleting non-existent sprint', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
-      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when deleting a non-planning sprint', async () => {
@@ -208,9 +198,7 @@ describe('SprintCommandService', () => {
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
-      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(BadRequestException);
     });
 
     it('successfully deletes planning sprint and resets its tasks to backlog', async () => {
@@ -239,9 +227,7 @@ describe('SprintCommandService', () => {
           },
         },
       );
-      expect(sprintModel.deleteOne).toHaveBeenCalledWith({
-        _id: mockSprint._id,
-      });
+      expect(sprintModel.deleteOne).toHaveBeenCalledWith({ _id: mockSprint._id });
     });
   });
 

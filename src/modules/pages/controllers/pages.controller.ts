@@ -199,11 +199,7 @@ export class PagesController {
     type: PageResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Page not found' })
-  async update(
-    @Param('id') id: string,
-    @Body() updatePageDto: UpdatePageDto,
-    @Request() req: any,
-  ) {
+  async update(@Param('id') id: string, @Body() updatePageDto: UpdatePageDto, @Request() req: any) {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
   }
 
@@ -261,10 +257,7 @@ export class PagesController {
     type: PageResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Page or new parent not found' })
-  async moveToParent(
-    @Param('id') id: string,
-    @Body('parentId') parentId: string | null,
-  ) {
+  async moveToParent(@Param('id') id: string, @Body('parentId') parentId: string | null) {
     return this.pagesService.moveToParent(id, parentId);
   }
 

@@ -28,13 +28,7 @@ import { CloudinaryService } from './services/cloudinary.service';
           if (url.includes('avatar')) moduleType = 'avatars';
           else if (req.body?.type) moduleType = req.body.type;
 
-          const uploadPath = join(
-            'uploads',
-            moduleType,
-            String(year),
-            month,
-            day,
-          );
+          const uploadPath = join('uploads', moduleType, String(year), month, day);
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }

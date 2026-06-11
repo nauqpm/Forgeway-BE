@@ -42,11 +42,7 @@ export class InviteService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async createInvite(
-    workspaceId: string,
-    invitedByUserId: string,
-    dto: CreateInviteDto,
-  ): Promise<Invite> {
+  async createInvite(workspaceId: string, invitedByUserId: string, dto: CreateInviteDto): Promise<Invite> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) throw new NotFoundException('Workspace not found');
 
@@ -54,22 +50,12 @@ export class InviteService {
 
     const existingUser = await this.usersService.findByEmail(normalizedEmail);
     if (existingUser) {
-      const isMember = workspace.members.some(
-        m => m.userId.toString() === existingUser._id.toString(),
-      );
-      if (isMember)
-        throw new ConflictException(
-          'User is already a member of this workspace',
-        );
+      const isMember = workspace.members.some(m => m.userId.toString() === existingUser._id.toString());
+      if (isMember) throw new ConflictException('User is already a member of this workspace');
     }
 
-    const pendingInvite =
-      await this.inviteRepository.findPendingByEmailAndWorkspace(
-        normalizedEmail,
-        workspaceId,
-      );
-    if (pendingInvite)
-      throw new ConflictException('Invite already pending for this email');
+    const pendingInvite = await this.inviteRepository.findPendingByEmailAndWorkspace(normalizedEmail, workspaceId);
+    if (pendingInvite) throw new ConflictException('Invite already pending for this email');
 
     const token = uuidv4();
     const role = dto.role ?? SPACE_ROLES.MEMBER;
@@ -93,13 +79,7 @@ export class InviteService {
       existingUser?._id?.toString(),
     );
 
-    await this.notifyExistingUserInvited(
-      existingUser,
-      workspace,
-      invite,
-      invitedByUserId,
-      role,
-    );
+    await this.notifyExistingUserInvited(existingUser, workspace, invite, invitedByUserId, role);
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const acceptUrl = `${frontendUrl}/invites/accept/${token}`;
@@ -119,15 +99,8 @@ export class InviteService {
           acceptUrl,
         },
       })
-      .then(() =>
-        this.logger.log(`[sendInvite] email sent OK → ${normalizedEmail}`),
-      )
-      .catch(err =>
-        this.logger.error(
-          `[sendInvite] email FAILED → ${normalizedEmail}`,
-          err?.message,
-        ),
-      );
+      .then(() => this.logger.log(`[sendInvite] email sent OK → ${normalizedEmail}`))
+      .catch(err => this.logger.error(`[sendInvite] email FAILED → ${normalizedEmail}`, err?.message));
 
     return invite;
   }
@@ -184,33 +157,20 @@ export class InviteService {
     const invite = await this.inviteRepository.findByToken(token);
     if (!invite) throw new NotFoundException('Invite not found');
 
-    await this.acceptInviteRecord(invite, userId, userEmail, {
-      allowLinkInvite: true,
-    });
+    await this.acceptInviteRecord(invite, userId, userEmail, { allowLinkInvite: true });
   }
 
-  async acceptInviteByIdForUser(
-    inviteId: string,
-    userId: string,
-    userEmail: string,
-  ): Promise<void> {
+  async acceptInviteByIdForUser(inviteId: string, userId: string, userEmail: string): Promise<void> {
     const invite = await this.findInviteByIdOrThrow(inviteId);
     await this.acceptInviteRecord(invite, userId, userEmail);
   }
 
-  async declineInviteByIdForUser(
-    inviteId: string,
-    userId: string,
-    userEmail: string,
-  ): Promise<void> {
+  async declineInviteByIdForUser(inviteId: string, userId: string, userEmail: string): Promise<void> {
     const invite = await this.findInviteByIdOrThrow(inviteId);
     this.assertInviteCanBeActioned(invite);
     this.assertInviteRecipient(invite, userId, userEmail);
 
-    await this.inviteRepository.updateStatus(
-      (invite as any)._id.toString(),
-      INVITE_STATUS.DECLINED,
-    );
+    await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.DECLINED);
   }
 
   async getInviteByToken(token: string): Promise<{
@@ -244,11 +204,7 @@ export class InviteService {
     };
   }
 
-  async getInviteByIdForUser(
-    inviteId: string,
-    userId: string,
-    userEmail: string,
-  ): Promise<{
+  async getInviteByIdForUser(inviteId: string, userId: string, userEmail: string): Promise<{
     id: string;
     workspaceId: string;
     workspaceName: string;
@@ -270,29 +226,18 @@ export class InviteService {
     const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
     const normalizedEmail = userEmail.toLowerCase();
 
-    if (
-      inviteType === INVITE_TYPES.EMAIL &&
-      invite.invitedEmail !== normalizedEmail
-    ) {
-      throw new ForbiddenException(
-        'This invite was sent to a different email address',
-      );
+    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== normalizedEmail) {
+      throw new ForbiddenException('This invite was sent to a different email address');
     }
 
     if (inviteType === INVITE_TYPES.LINK) {
-      const acceptedBy = ((invite as any).acceptedBy ?? []).map((id: any) =>
-        id.toString(),
-      );
+      const acceptedBy = ((invite as any).acceptedBy ?? []).map((id: any) => id.toString());
       if (!acceptedBy.includes(userId)) {
-        throw new ForbiddenException(
-          'This invite is not available for this user',
-        );
+        throw new ForbiddenException('This invite is not available for this user');
       }
     }
 
-    const workspace = await this.workspacesRepository.findById(
-      invite.workspaceId.toString(),
-    );
+    const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
     if (!workspace) throw new NotFoundException('Workspace not found');
 
     return {
@@ -308,26 +253,13 @@ export class InviteService {
       expiresAt: invite.expiresAt ?? null,
     };
   }
-  async processPostRegisterInvites(
-    email: string,
-    userId: string,
-  ): Promise<void> {
-    const pendingInvites =
-      await this.inviteRepository.findPendingValidByEmail(email);
+  async processPostRegisterInvites(email: string, userId: string): Promise<void> {
+    const pendingInvites = await this.inviteRepository.findPendingValidByEmail(email);
     await Promise.all(
       pendingInvites.map(async invite => {
-        const workspace = await this.workspacesRepository.findById(
-          invite.workspaceId.toString(),
-        );
-        await this.workspacesRepository.addMember(
-          invite.workspaceId.toString(),
-          userId,
-          invite.role,
-        );
-        await this.inviteRepository.updateStatus(
-          (invite as any)._id.toString(),
-          INVITE_STATUS.ACCEPTED,
-        );
+        const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
+        await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
+        await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
         if (workspace) {
           this.publishWorkspaceMemberJoinedEvent(
             workspace,
@@ -369,31 +301,18 @@ export class InviteService {
     }
   }
 
-  private assertInviteRecipient(
-    invite: Invite,
-    userId: string,
-    userEmail: string,
-  ): void {
+  private assertInviteRecipient(invite: Invite, userId: string, userEmail: string): void {
     const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
     const normalizedEmail = userEmail.toLowerCase();
 
-    if (
-      inviteType === INVITE_TYPES.EMAIL &&
-      invite.invitedEmail !== normalizedEmail
-    ) {
-      throw new ForbiddenException(
-        'This invite was sent to a different email address',
-      );
+    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== normalizedEmail) {
+      throw new ForbiddenException('This invite was sent to a different email address');
     }
 
     if (inviteType === INVITE_TYPES.LINK) {
-      const acceptedBy = ((invite as any).acceptedBy ?? []).map((id: any) =>
-        id.toString(),
-      );
+      const acceptedBy = ((invite as any).acceptedBy ?? []).map((id: any) => id.toString());
       if (!acceptedBy.includes(userId)) {
-        throw new ForbiddenException(
-          'This invite is not available for this user',
-        );
+        throw new ForbiddenException('This invite is not available for this user');
       }
     }
   }
@@ -410,40 +329,20 @@ export class InviteService {
       this.assertInviteRecipient(invite, userId, userEmail);
     }
 
-    const workspace = await this.workspacesRepository.findById(
-      invite.workspaceId.toString(),
-    );
+    const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
     if (!workspace) throw new NotFoundException('Workspace not found');
 
-    const alreadyMember = workspace.members.some(
-      m => m.userId.toString() === userId,
-    );
-    if (alreadyMember)
-      throw new ConflictException('You are already a member of this workspace');
+    const alreadyMember = workspace.members.some((m) => m.userId.toString() === userId);
+    if (alreadyMember) throw new ConflictException('You are already a member of this workspace');
 
-    await this.workspacesRepository.addMember(
-      invite.workspaceId.toString(),
-      userId,
-      invite.role,
-    );
+    await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
     if (inviteType === INVITE_TYPES.LINK) {
-      await this.inviteRepository.addAcceptedBy(
-        (invite as any)._id.toString(),
-        userId,
-      );
+      await this.inviteRepository.addAcceptedBy((invite as any)._id.toString(), userId);
     } else {
-      await this.inviteRepository.updateStatus(
-        (invite as any)._id.toString(),
-        INVITE_STATUS.ACCEPTED,
-      );
+      await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
     }
 
-    this.publishWorkspaceMemberJoinedEvent(
-      workspace,
-      userId,
-      invite.role,
-      userId,
-    );
+    this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
   }
   private publishWorkspaceInviteCreatedEvent(
     workspace: any,
@@ -467,12 +366,7 @@ export class InviteService {
     this.eventEmitter.emit(event.type, event);
   }
 
-  private publishWorkspaceMemberJoinedEvent(
-    workspace: any,
-    userId: string,
-    role: string,
-    actorId?: string,
-  ): void {
+  private publishWorkspaceMemberJoinedEvent(workspace: any, userId: string, role: string, actorId?: string): void {
     const event = new WorkspaceMemberJoinedEvent({
       workspaceId: workspace._id.toString(),
       actorId,

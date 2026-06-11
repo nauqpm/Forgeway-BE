@@ -47,10 +47,7 @@ export class PresenceService implements OnModuleInit {
     }
   }
 
-  async heartbeat(
-    client: AuthenticatedSocket,
-    dto: PresenceHeartbeatDto,
-  ): Promise<PresenceHeartbeatResult> {
+  async heartbeat(client: AuthenticatedSocket, dto: PresenceHeartbeatDto): Promise<PresenceHeartbeatResult> {
     const user = this.getAuthenticatedUser(client);
     await this.authorizePresence(user.userId, dto.workspaceId, dto.taskId);
 
@@ -83,29 +80,19 @@ export class PresenceService implements OnModuleInit {
     };
   }
 
-  private async authorizePresence(
-    userId: string,
-    workspaceId: string,
-    taskId?: string,
-  ): Promise<void> {
+  private async authorizePresence(userId: string, workspaceId: string, taskId?: string): Promise<void> {
     const [isMember, taskExists] = await Promise.all([
       this.roomRepository.workspaceMembershipExists(workspaceId, userId),
-      taskId
-        ? this.roomRepository.taskExistsInWorkspace(taskId, workspaceId)
-        : Promise.resolve(true),
+      taskId ? this.roomRepository.taskExistsInWorkspace(taskId, workspaceId) : Promise.resolve(true),
     ]);
 
     if (!isMember) {
-      this.logger.warn(
-        `Presence unauthorized: user ${userId} is not member of workspace ${workspaceId}`,
-      );
+      this.logger.warn(`Presence unauthorized: user ${userId} is not member of workspace ${workspaceId}`);
       throw new WsException('Unauthorized presence heartbeat');
     }
 
     if (!taskExists) {
-      this.logger.warn(
-        `Presence unauthorized: task ${taskId} not found in workspace ${workspaceId}`,
-      );
+      this.logger.warn(`Presence unauthorized: task ${taskId} not found in workspace ${workspaceId}`);
       throw new WsException('Unauthorized presence heartbeat');
     }
   }

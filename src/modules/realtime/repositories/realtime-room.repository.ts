@@ -17,14 +17,8 @@ export class RealtimeRoomRepository {
     private readonly taskModel: Model<TaskDocument>,
   ) {}
 
-  async workspaceMembershipExists(
-    workspaceId: string,
-    userId: string,
-  ): Promise<boolean> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(userId)
-    ) {
+  async workspaceMembershipExists(workspaceId: string, userId: string): Promise<boolean> {
+    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
       return false;
     }
 
@@ -39,14 +33,8 @@ export class RealtimeRoomRepository {
     return Boolean(workspace);
   }
 
-  async taskExistsInWorkspace(
-    taskId: string,
-    workspaceId: string,
-  ): Promise<boolean> {
-    if (
-      !Types.ObjectId.isValid(taskId) ||
-      !Types.ObjectId.isValid(workspaceId)
-    ) {
+  async taskExistsInWorkspace(taskId: string, workspaceId: string): Promise<boolean> {
+    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
       return false;
     }
 

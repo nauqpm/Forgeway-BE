@@ -1,10 +1,5 @@
 import { Controller, Get, Request, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ForYouResponseDto } from '../dtos/for-you.dto';
@@ -31,13 +26,8 @@ export class ForYouController {
     description: 'For You workspace list returned successfully',
     type: ForYouResponseDto,
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Missing, invalid, or expired authentication token',
-  })
-  async getForYou(
-    @Request() req: { user: { userId: string } },
-  ): Promise<ForYouResponseDto> {
+  @ApiResponse({ status: 401, description: 'Missing, invalid, or expired authentication token' })
+  async getForYou(@Request() req: { user: { userId: string } }): Promise<ForYouResponseDto> {
     return this.forYouService.getForYouWorkspaces(req.user.userId);
   }
 }

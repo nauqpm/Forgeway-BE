@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { MoveTaskDto } from '../dtos/requests/move-task.dto';
@@ -75,28 +71,19 @@ export class TaskMoveService {
     }
 
     const currentSprint = task.sprintId
-      ? await this.scrumService.findByIdInWorkspace(
-          workspaceId,
-          this.toOptionalId(task.sprintId) as string,
-        )
+      ? await this.scrumService.findByIdInWorkspace(workspaceId, this.toOptionalId(task.sprintId) as string)
       : null;
 
-    const targetSprint = dto.sprintId
-      ? await this.scrumService.findByIdInWorkspace(workspaceId, dto.sprintId)
-      : null;
+    const targetSprint = dto.sprintId ? await this.scrumService.findByIdInWorkspace(workspaceId, dto.sprintId) : null;
 
     this.taskMovePolicy.validateMove(task, targetSprint, currentSprint);
 
-    const movedTask = await this.tasksRepository.moveTaskInWorkspace(
-      taskId,
-      workspaceId,
-      {
-        columnId: dto.columnId,
-        status: dto.status,
-        sprintId: dto.sprintId,
-        rank: dto.rank,
-      },
-    );
+    const movedTask = await this.tasksRepository.moveTaskInWorkspace(taskId, workspaceId, {
+      columnId: dto.columnId,
+      status: dto.status,
+      sprintId: dto.sprintId,
+      rank: dto.rank,
+    });
 
     if (!movedTask) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -124,15 +111,10 @@ export class TaskMoveService {
 
   private ensureMoveHasMutation(dto: MoveTaskDto): void {
     const hasMutation =
-      dto.columnId !== undefined ||
-      dto.status !== undefined ||
-      dto.sprintId !== undefined ||
-      dto.rank !== undefined;
+      dto.columnId !== undefined || dto.status !== undefined || dto.sprintId !== undefined || dto.rank !== undefined;
 
     if (!hasMutation) {
-      throw new BadRequestException(
-        'At least one move field is required: columnId, status, sprintId, or rank',
-      );
+      throw new BadRequestException('At least one move field is required: columnId, status, sprintId, or rank');
     }
   }
 

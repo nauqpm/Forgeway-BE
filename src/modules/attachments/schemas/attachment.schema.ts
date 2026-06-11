@@ -53,17 +53,6 @@ export class Attachment {
 }
 
 export const AttachmentSchema = SchemaFactory.createForClass(Attachment);
-AttachmentSchema.index({
-  targetType: 1,
-  targetId: 1,
-  isDeleted: 1,
-  createdAt: -1,
-});
-AttachmentSchema.index({
-  workspaceId: 1,
-  targetType: 1,
-  targetId: 1,
-  isDeleted: 1,
-  createdAt: -1,
-});
+AttachmentSchema.index({ targetType: 1, targetId: 1, isDeleted: 1, createdAt: -1 });
+AttachmentSchema.index({ workspaceId: 1, targetType: 1, targetId: 1, isDeleted: 1, createdAt: -1 });
 AttachmentSchema.index({ uploadedBy: 1 });
