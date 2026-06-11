@@ -1,0 +1,257 @@
+{
+  "folder": "sdlc-platform/sample avater workspace",
+  "uploadedAt": "2026-06-11T10:11:33.572Z",
+  "count": 25,
+  "assets": [
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar.png",
+      "filename": "viewavatar.png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172668/sdlc-platform/sample%20avater%20workspace/viewavatar.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 7659,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (1).png",
+      "filename": "viewavatar (1).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-1",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172669/sdlc-platform/sample%20avater%20workspace/viewavatar-1.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 7490,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (2).png",
+      "filename": "viewavatar (2).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-2",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172670/sdlc-platform/sample%20avater%20workspace/viewavatar-2.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 12297,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (3).png",
+      "filename": "viewavatar (3).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-3",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172672/sdlc-platform/sample%20avater%20workspace/viewavatar-3.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4966,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (4).png",
+      "filename": "viewavatar (4).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-4",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172673/sdlc-platform/sample%20avater%20workspace/viewavatar-4.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4727,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (5).png",
+      "filename": "viewavatar (5).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-5",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172674/sdlc-platform/sample%20avater%20workspace/viewavatar-5.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4860,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (6).png",
+      "filename": "viewavatar (6).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-6",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172675/sdlc-platform/sample%20avater%20workspace/viewavatar-6.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6900,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (8).png",
+      "filename": "viewavatar (8).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-8",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172676/sdlc-platform/sample%20avater%20workspace/viewavatar-8.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6013,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (9).png",
+      "filename": "viewavatar (9).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-9",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172677/sdlc-platform/sample%20avater%20workspace/viewavatar-9.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 3007,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (10).png",
+      "filename": "viewavatar (10).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-10",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172678/sdlc-platform/sample%20avater%20workspace/viewavatar-10.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 2669,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (11).png",
+      "filename": "viewavatar (11).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-11",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172679/sdlc-platform/sample%20avater%20workspace/viewavatar-11.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6635,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (12).png",
+      "filename": "viewavatar (12).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-12",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172680/sdlc-platform/sample%20avater%20workspace/viewavatar-12.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6729,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (13).png",
+      "filename": "viewavatar (13).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-13",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172681/sdlc-platform/sample%20avater%20workspace/viewavatar-13.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 5631,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (14).png",
+      "filename": "viewavatar (14).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-14",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172682/sdlc-platform/sample%20avater%20workspace/viewavatar-14.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 3942,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (15).png",
+      "filename": "viewavatar (15).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-15",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172683/sdlc-platform/sample%20avater%20workspace/viewavatar-15.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6670,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (16).png",
+      "filename": "viewavatar (16).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-16",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172684/sdlc-platform/sample%20avater%20workspace/viewavatar-16.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 5934,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (17).png",
+      "filename": "viewavatar (17).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-17",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172685/sdlc-platform/sample%20avater%20workspace/viewavatar-17.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 7466,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (18).png",
+      "filename": "viewavatar (18).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-18",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172686/sdlc-platform/sample%20avater%20workspace/viewavatar-18.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6349,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (19).png",
+      "filename": "viewavatar (19).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-19",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172687/sdlc-platform/sample%20avater%20workspace/viewavatar-19.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4419,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (20).png",
+      "filename": "viewavatar (20).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-20",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172688/sdlc-platform/sample%20avater%20workspace/viewavatar-20.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4753,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (21).png",
+      "filename": "viewavatar (21).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-21",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172689/sdlc-platform/sample%20avater%20workspace/viewavatar-21.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 3734,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (22).png",
+      "filename": "viewavatar (22).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-22",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172690/sdlc-platform/sample%20avater%20workspace/viewavatar-22.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 6384,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (23).png",
+      "filename": "viewavatar (23).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-23",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172690/sdlc-platform/sample%20avater%20workspace/viewavatar-23.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4183,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (24).png",
+      "filename": "viewavatar (24).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-24",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172692/sdlc-platform/sample%20avater%20workspace/viewavatar-24.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 5897,
+      "format": "png"
+    },
+    {
+      "source": "C:\\Users\\quanp\\Project\\AL-TASK\\Frontend\\app\\avaicon\\viewavatar (25).png",
+      "filename": "viewavatar (25).png",
+      "public_id": "sdlc-platform/sample avater workspace/viewavatar-25",
+      "secure_url": "https://res.cloudinary.com/sdlcplatform/image/upload/v1781172692/sdlc-platform/sample%20avater%20workspace/viewavatar-25.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 7672,
+      "format": "png"
+    }
+  ]
+}
