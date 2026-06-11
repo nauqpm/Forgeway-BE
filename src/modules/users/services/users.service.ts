@@ -17,7 +17,9 @@ import { Types } from 'mongoose';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+  ) {}
 
   // 📢 Lấy thông tin người dùng theo ID
   async getUserById(id: string): Promise<User> {
@@ -202,6 +204,10 @@ export class UsersService {
   async searchUsers(query: string, excludeUserId: string): Promise<User[]> {
     const users = await this.usersRepository.search(query, excludeUserId);
     return users;
+  }
+
+  async getUsersByIds(ids: string[]): Promise<User[]> {
+    return this.usersRepository.findByIds(ids);
   }
 
   /**

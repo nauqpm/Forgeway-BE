@@ -85,6 +85,14 @@ export class UsersRepository {
       .exec();
   }
 
+  async findByIds(ids: string[]): Promise<User[]> {
+    return this.userModel
+      .find({ _id: { $in: ids.map(id => new Types.ObjectId(id)) } })
+      .select('_id email fullName avatar role status createdAt updatedAt')
+      .lean()
+      .exec();
+  }
+
   // 📢 Thêm hàm `delete` để xóa người dùng
   async delete(userId: string): Promise<User | null> {
     return await this.userModel.findByIdAndDelete(userId).exec();
