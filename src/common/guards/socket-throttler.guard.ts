@@ -10,10 +10,11 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
     const client = context.switchToWs().getClient();
     
     // 1. Core Throttler Logic (using default in-memory storage)
-    const ip = client.conn.remoteAddress || 'unknown';
-    const key = generateKey(context, ip, throttler.name);
+    // Track strictly by authenticated userId
+    const tracker = client.data?.user?.userId || 'anonymous';
+    const key = generateKey(context, tracker, throttler.name);
     
-    const { totalHits } = await this.storageService.increment(
+    const { totalHits, timeToExpire } = await this.storageService.increment(
       key,
       ttl,
       limit,
@@ -40,8 +41,9 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
         error: 'ThrottlerException',
       });
       
-      // Also emit 'rate_limited' for compatibility with old Realtime logic if needed
-      client.emit('rate_limited', { retryAfterMs: ttl });
+      // Also emit 'rate_limited' with remaining TTL in milliseconds
+      const remainingMs = timeToExpire ? timeToExpire * 1000 : ttl;
+      client.emit('rate_limited', { retryAfterMs: remainingMs });
       
       throw new ThrottlerException();
     }
