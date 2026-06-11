@@ -46,7 +46,10 @@ export class NotificationRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.NOTIFICATION_READ, { async: true })
   handleNotificationRead(event: NotificationRealtimeDomainEvent): void {
-    this.publishNotificationEvent(REALTIME_EVENT_TYPES.NOTIFICATION_READ, event);
+    this.publishNotificationEvent(
+      REALTIME_EVENT_TYPES.NOTIFICATION_READ,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.NOTIFICATION_READ_ALL, { async: true })

@@ -22,7 +22,10 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { DocumentsService } from '../services/documents.service';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
 import { UpdateDocumentDto } from '../dtos/update-document.dto';
-import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dto';
+import {
+  AttachDocumentDto,
+  DetachDocumentDto,
+} from '../dtos/attach-document.dto';
 import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
 import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
 import { UpdateDocumentWorkspacesDto } from '../dtos/update-document-workspaces.dto';
@@ -43,7 +46,10 @@ export class DocumentsController {
   }
 
   @Post('create-online')
-  createOnline(@CurrentUser('userId') userId: string, @Body() dto: CreateOnlineDocumentDto) {
+  createOnline(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: CreateOnlineDocumentDto,
+  ) {
     return this.documentsService.createOnline(userId, dto);
   }
 
@@ -162,7 +168,9 @@ export class DocumentsController {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     const html = await this.documentsService.renderPreviewHtml(doc);
     if (!html) {
-      return res.status(415).json({ message: 'Preview not supported for this file type' });
+      return res
+        .status(415)
+        .json({ message: 'Preview not supported for this file type' });
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(html);

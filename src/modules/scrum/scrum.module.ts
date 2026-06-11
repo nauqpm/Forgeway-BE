@@ -5,20 +5,21 @@ import { Board, BoardSchema } from '../kanban/schemas/kanban-board.schema';
 import { KanbanModule } from '../kanban/kanban.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { AuthModule } from '../auth/auth.module';
-import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ScrumController } from './controllers/scrum.controller';
 import { Sprint, SprintSchema } from './schemas/sprint.schema';
 import { BacklogService } from './services/backlog.service';
 import { BoardStatusService } from './services/board-status.service';
-import { MongoTransactionService } from './services/mongo-transaction.service';
 import { ScrumService } from './services/scrum.service';
 import { SprintCommandService } from './services/sprint-command.service';
 import { SprintDomainEventPublisher } from './services/sprint-domain-event.publisher';
 import { SprintLifecycleService } from './services/sprint-lifecycle.service';
 import { SprintQueryService } from './services/sprint-query.service';
 import { SprintTaskMovementService } from './services/sprint-task-movement.service';
-
 
 @Module({
   imports: [
@@ -42,7 +43,6 @@ import { SprintTaskMovementService } from './services/sprint-task-movement.servi
     SprintTaskMovementService,
     BacklogService,
     BoardStatusService,
-    MongoTransactionService,
     WorkspaceRoleGuard,
   ],
   exports: [ScrumService],

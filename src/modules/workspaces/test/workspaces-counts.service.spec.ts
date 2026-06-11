@@ -45,7 +45,10 @@ describe('WorkspacesService workspace counts', () => {
         { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
         { provide: getModelToken(Task.name), useFactory: mockCountModel },
         { provide: getModelToken(Page.name), useFactory: mockCountModel },
-        { provide: getModelToken(DocumentEntity.name), useFactory: mockCountModel },
+        {
+          provide: getModelToken(DocumentEntity.name),
+          useFactory: mockCountModel,
+        },
       ],
     }).compile();
 

@@ -14,10 +14,7 @@ import {
 } from '../policies/task-reorder.policy';
 import { TasksRepository } from '../repositories/tasks.repository';
 import { TaskDocument } from '../schemas/task.schema';
-import {
-  compareRanks,
-  generateRankBetween,
-} from '../utils/rank.util';
+import { compareRanks, generateRankBetween } from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskMoveAuditMetadata, TaskMoveResult } from './task-move.service';
@@ -54,7 +51,8 @@ export class TaskReorderService {
     this.ensureReorderHasMutation(dto);
     this.ensureNeighborIdsAreValid(dto, taskId);
 
-    const workspace = await this.validationService.getWorkspaceById(workspaceId);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 
@@ -72,7 +70,7 @@ export class TaskReorderService {
 
     const currentSprintId = this.toOptionalId(task.sprintId);
     const targetSprintId =
-      dto.sprintId !== undefined ? dto.sprintId : currentSprintId ?? null;
+      dto.sprintId !== undefined ? dto.sprintId : (currentSprintId ?? null);
 
     if (targetSprintId && workspace.type !== 'scrum') {
       throw new BadRequestException(
@@ -81,7 +79,10 @@ export class TaskReorderService {
     }
 
     const currentSprint = currentSprintId
-      ? await this.scrumService.findByIdInWorkspace(workspaceId, currentSprintId)
+      ? await this.scrumService.findByIdInWorkspace(
+          workspaceId,
+          currentSprintId,
+        )
       : null;
     const targetSprint = targetSprintId
       ? await this.scrumService.findByIdInWorkspace(workspaceId, targetSprintId)
@@ -187,10 +188,15 @@ export class TaskReorderService {
       reorderedTask,
       userId,
     );
-    this.taskDomainEventPublisher.publishReordered(task, reorderedTask, userId, {
-      beforeTaskId: dto.beforeTaskId ?? null,
-      afterTaskId: dto.afterTaskId ?? null,
-    });
+    this.taskDomainEventPublisher.publishReordered(
+      task,
+      reorderedTask,
+      userId,
+      {
+        beforeTaskId: dto.beforeTaskId ?? null,
+        afterTaskId: dto.afterTaskId ?? null,
+      },
+    );
 
     return {
       task: this.taskMapper.mapToDto(reorderedTask),
@@ -261,7 +267,10 @@ export class TaskReorderService {
       scopeTasks,
     );
 
-    return generateRankBetween(boundaryRanks.beforeRank, boundaryRanks.afterRank);
+    return generateRankBetween(
+      boundaryRanks.beforeRank,
+      boundaryRanks.afterRank,
+    );
   }
 
   private resolveBoundaryRanks(
@@ -280,7 +289,7 @@ export class TaskReorderService {
     const taskId = task._id.toString();
     const rankedScopeTasks = scopeTasks
       .filter(
-        (scopeTask) =>
+        scopeTask =>
           scopeTask._id.toString() !== taskId && Boolean(scopeTask.rank),
       )
       .sort((left, right) => this.compareTaskOrder(left, right));
@@ -317,7 +326,11 @@ export class TaskReorderService {
       !task.rank ||
       Boolean(beforeTask && !beforeTask.rank) ||
       Boolean(afterTask && !afterTask.rank) ||
-      Boolean(beforeTask?.rank && afterTask?.rank && beforeTask.rank === afterTask.rank) ||
+      Boolean(
+        beforeTask?.rank &&
+        afterTask?.rank &&
+        beforeTask.rank === afterTask.rank,
+      ) ||
       task.rank === nextRank
     );
   }
@@ -335,14 +348,14 @@ export class TaskReorderService {
       session,
     );
     const orderedTasks = scopeTasks
-      .filter((scopeTask) => scopeTask._id.toString() !== taskId)
+      .filter(scopeTask => scopeTask._id.toString() !== taskId)
       .sort((left, right) => this.compareTaskOrder(left, right));
     const insertIndex = this.resolveInsertIndex(
       orderedTasks,
       beforeTask,
       afterTask,
     );
-    const orderedTaskIds = orderedTasks.map((scopeTask) => ({
+    const orderedTaskIds = orderedTasks.map(scopeTask => ({
       taskId: scopeTask._id.toString(),
       rank: scopeTask.rank,
     }));
@@ -353,7 +366,7 @@ export class TaskReorderService {
     });
 
     let previousRank: string | undefined;
-    const withNewRanks = orderedTaskIds.map((item) => {
+    const withNewRanks = orderedTaskIds.map(item => {
       const newRank = generateRankBetween(undefined, previousRank);
       previousRank = newRank;
 
@@ -362,13 +375,14 @@ export class TaskReorderService {
         newRank,
       };
     });
-    const movedIndex = withNewRanks.findIndex((item) => item.taskId === taskId);
+    const movedIndex = withNewRanks.findIndex(item => item.taskId === taskId);
     const rankUpdates = withNewRanks
-      .filter((item) => item.taskId !== taskId && item.newRank !== item.rank)
+      .filter(item => item.taskId !== taskId && item.newRank !== item.rank)
       .map(({ taskId: id, newRank }) => ({ taskId: id, rank: newRank }));
 
     return {
-      nextRank: withNewRanks[movedIndex]?.newRank ?? task.rank ?? generateRankBetween(),
+      nextRank:
+        withNewRanks[movedIndex]?.newRank ?? task.rank ?? generateRankBetween(),
       rankUpdates,
     };
   }
@@ -380,7 +394,7 @@ export class TaskReorderService {
   ): number {
     if (beforeTask) {
       const beforeIndex = orderedTasks.findIndex(
-        (task) => task._id.toString() === beforeTask._id.toString(),
+        task => task._id.toString() === beforeTask._id.toString(),
       );
       if (beforeIndex >= 0) {
         return beforeIndex;
@@ -389,7 +403,7 @@ export class TaskReorderService {
 
     if (afterTask) {
       const afterIndex = orderedTasks.findIndex(
-        (task) => task._id.toString() === afterTask._id.toString(),
+        task => task._id.toString() === afterTask._id.toString(),
       );
       if (afterIndex >= 0) {
         return afterIndex + 1;
@@ -448,7 +462,8 @@ export class TaskReorderService {
     sprintId: string | null,
     rankScope: 'board' | 'sprint' = 'board',
   ): TaskReorderScope {
-    const isScrumSprintList = workspaceType === 'scrum' && rankScope === 'sprint';
+    const isScrumSprintList =
+      workspaceType === 'scrum' && rankScope === 'sprint';
     const isScrumBacklog = workspaceType === 'scrum' && sprintId === null;
     const shouldScopeByColumn = !isScrumSprintList && !isScrumBacklog;
 

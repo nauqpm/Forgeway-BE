@@ -9,7 +9,9 @@ import { ForYouService } from './for-you.service';
 
 describe('ForYouService', () => {
   let service: ForYouService;
-  let repository: jest.Mocked<Pick<WorkspacesRepository, 'findActiveForUserOverview'>>;
+  let repository: jest.Mocked<
+    Pick<WorkspacesRepository, 'findActiveForUserOverview'>
+  >;
 
   beforeEach(async () => {
     repository = {
@@ -39,7 +41,9 @@ describe('ForYouService', () => {
   it('returns an empty workspace list', async () => {
     repository.findActiveForUserOverview.mockResolvedValue([]);
 
-    const result = await service.getForYouWorkspaces(new Types.ObjectId().toString());
+    const result = await service.getForYouWorkspaces(
+      new Types.ObjectId().toString(),
+    );
 
     expect(result).toEqual({ success: true, workspaces: [] });
   });

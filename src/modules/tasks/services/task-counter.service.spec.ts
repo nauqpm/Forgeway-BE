@@ -39,7 +39,9 @@ describe('TaskCounterService', () => {
   it('initializes from existing task count before incrementing', async () => {
     taskCounterModel.findOneAndUpdate
       .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) })
-      .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue({ taskSequence: 6 }) });
+      .mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValue({ taskSequence: 6 }),
+      });
     taskModel.countDocuments.mockReturnValueOnce({
       exec: jest.fn().mockResolvedValue(5),
     });

@@ -57,13 +57,16 @@ export class VerifyController {
   }
 
   @Get('confirm')
-  @ApiOperation({ summary: 'Confirm email verification (redirect to frontend)' })
-  @ApiQuery({ name: 'token', required: true, description: 'Verification token' })
+  @ApiOperation({
+    summary: 'Confirm email verification (redirect to frontend)',
+  })
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Verification token',
+  })
   @ApiResponse({ status: 302, description: 'Redirect to frontend' })
-  async confirmEmail(
-    @Query('token') token: string,
-    @Res() res: Response,
-  ) {
+  async confirmEmail(@Query('token') token: string, @Res() res: Response) {
     if (!token) {
       throw new BadRequestException('Token is required');
     }
@@ -75,12 +78,13 @@ export class VerifyController {
   @Get('resend')
   @ApiOperation({ summary: 'Resend verification code' })
   @ApiQuery({ name: 'email', required: true })
-  @ApiQuery({ name: 'type', required: true, enum: ['verification', 'password-reset'] })
+  @ApiQuery({
+    name: 'type',
+    required: true,
+    enum: ['verification', 'password-reset'],
+  })
   @ApiResponse({ status: 200, description: 'Verification code resent' })
-  async resendCode(
-    @Query('email') email: string,
-    @Query('type') type: string,
-  ) {
+  async resendCode(@Query('email') email: string, @Query('type') type: string) {
     if (type === 'verification') {
       await this.verifyService.sendVerificationEmail(email);
     } else if (type === 'password-reset') {

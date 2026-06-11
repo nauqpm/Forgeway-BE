@@ -77,7 +77,12 @@ export class ScrumController {
     @Body() dto: UpdateSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.updateSprint(workspaceId, sprintId, dto, user.userId);
+    return this.scrumService.updateSprint(
+      workspaceId,
+      sprintId,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('sprints/:sprintId')
@@ -108,7 +113,12 @@ export class ScrumController {
     @Body() dto: StartSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.startSprint(workspaceId, sprintId, dto, user.userId);
+    return this.scrumService.startSprint(
+      workspaceId,
+      sprintId,
+      dto,
+      user.userId,
+    );
   }
 
   @Post('sprints/:sprintId/complete')
@@ -124,7 +134,12 @@ export class ScrumController {
     @Body() dto: CompleteSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.completeSprint(workspaceId, sprintId, dto, user.userId);
+    return this.scrumService.completeSprint(
+      workspaceId,
+      sprintId,
+      dto,
+      user.userId,
+    );
   }
 
   @Get('backlog')

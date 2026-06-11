@@ -21,7 +21,11 @@ export class OtpService {
     return bcrypt.hash(otp, 10);
   }
 
-  async createOtp(email: string, otpPlaintext: string, ttlMs: number): Promise<void> {
+  async createOtp(
+    email: string,
+    otpPlaintext: string,
+    ttlMs: number,
+  ): Promise<void> {
     const hashedOtp = await this.hashOtp(otpPlaintext);
     await this.otpModel.create({
       email,
@@ -41,15 +45,20 @@ export class OtpService {
 
   async verifyOtp(email: string, otpPlaintext: string): Promise<void> {
     const otpRecord = await this.getLatestActiveOtp(email);
-    const isValid = otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
+    const isValid =
+      otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
     if (!isValid) {
       throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
   }
 
-  async consumeVerifiedOtp(email: string, otpPlaintext: string): Promise<OtpDocument> {
+  async consumeVerifiedOtp(
+    email: string,
+    otpPlaintext: string,
+  ): Promise<OtpDocument> {
     const otpRecord = await this.getLatestActiveOtp(email);
-    const isValid = otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
+    const isValid =
+      otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
     if (!isValid) {
       throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }

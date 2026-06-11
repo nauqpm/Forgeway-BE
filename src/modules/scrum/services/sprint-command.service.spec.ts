@@ -3,7 +3,6 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SprintCommandService } from './sprint-command.service';
-import { MongoTransactionService } from './mongo-transaction.service';
 import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 import { Sprint } from '../schemas/sprint.schema';
 import { Task } from '../../tasks/schemas/task.schema';
@@ -13,8 +12,6 @@ describe('SprintCommandService', () => {
   let sprintModel: any;
   let taskModel: any;
   let sprintDomainEventPublisher: { publishCreated: jest.Mock };
-
-  const mockSession = {};
 
   const mockQuery = (val: any) => ({
     exec: jest.fn().mockResolvedValue(val),
@@ -26,13 +23,6 @@ describe('SprintCommandService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SprintCommandService,
-        {
-          provide: MongoTransactionService,
-          useValue: {
-            withTransaction: jest.fn().mockImplementation((fn) => fn(mockSession)),
-            withSession: jest.fn().mockImplementation((query) => query),
-          },
-        },
         {
           provide: getModelToken(Sprint.name),
           useValue: {
@@ -69,22 +59,21 @@ describe('SprintCommandService', () => {
     sprintModel.countDocuments.mockReturnValue({
       exec: jest.fn().mockResolvedValue(2),
     });
-    
+
     // Define mock class for Sprint model constructor
     const mockSprintInstance = function (this: any, data: any) {
       Object.assign(this, data);
       this.save = jest.fn().mockResolvedValue(this);
     };
     Object.assign(mockSprintInstance, sprintModel);
-    
+
     // Replace injected model token with mock constructor
     service = new SprintCommandService(
-      module.get(MongoTransactionService),
       mockSprintInstance as any,
       module.get(getModelToken(Task.name)),
       sprintDomainEventPublisher as any,
     );
-    
+
     // Save reference to mock constructor for test validation
     sprintModel = mockSprintInstance;
     taskModel = module.get(getModelToken(Task.name));
@@ -96,7 +85,7 @@ describe('SprintCommandService', () => {
     it('creates sprint with auto-generated name if omitted', async () => {
       const dto = { goal: 'Test goals' };
       const result = await service.createSprint(workspaceId, dto as any);
-      
+
       expect(sprintModel.countDocuments).toHaveBeenCalledWith({
         workspaceId: new Types.ObjectId(workspaceId),
         deletedAt: null,
@@ -114,7 +103,7 @@ describe('SprintCommandService', () => {
       const dto = { name: 'Custom Sprint Name', goal: 'Test goals' };
       const actorId = new Types.ObjectId().toString();
       const result = await service.createSprint(workspaceId, dto, actorId);
-      
+
       expect(result.name).toBe('Custom Sprint Name');
       expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
         result,
@@ -129,9 +118,9 @@ describe('SprintCommandService', () => {
 
     it('throws NotFoundException if sprint not found', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
-      await expect(service.updateSprint(workspaceId, sprintId, {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.updateSprint(workspaceId, sprintId, {}),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when updating a completed sprint', async () => {
@@ -141,9 +130,9 @@ describe('SprintCommandService', () => {
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
-      await expect(service.updateSprint(workspaceId, sprintId, { name: 'New Name' })).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.updateSprint(workspaceId, sprintId, { name: 'New Name' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when trying to update dates of non-planning sprint', async () => {
@@ -154,7 +143,9 @@ describe('SprintCommandService', () => {
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
       await expect(
-        service.updateSprint(workspaceId, sprintId, { startDate: new Date().toISOString() }),
+        service.updateSprint(workspaceId, sprintId, {
+          startDate: new Date().toISOString(),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -164,17 +155,23 @@ describe('SprintCommandService', () => {
         status: 'planning',
         startDate: new Date('2026-06-10'),
         endDate: new Date('2026-06-20'),
-        save: jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); }),
+        save: jest.fn().mockImplementation(function (this: any) {
+          return Promise.resolve(this);
+        }),
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
       await expect(
-        service.updateSprint(workspaceId, sprintId, { endDate: new Date('2026-06-05').toISOString() }),
+        service.updateSprint(workspaceId, sprintId, {
+          endDate: new Date('2026-06-05').toISOString(),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('successfully updates planning sprint details', async () => {
-      const saveSpy = jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); });
+      const saveSpy = jest.fn().mockImplementation(function (this: any) {
+        return Promise.resolve(this);
+      });
       const mockSprint: any = {
         _id: new Types.ObjectId(sprintId),
         status: 'planning',
@@ -222,7 +219,9 @@ describe('SprintCommandService', () => {
         status: 'planning',
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
-      sprintModel.deleteOne = jest.fn().mockReturnValue(mockQuery({ deletedCount: 1 }));
+      sprintModel.deleteOne = jest
+        .fn()
+        .mockReturnValue(mockQuery({ deletedCount: 1 }));
       taskModel.updateMany.mockReturnValue(mockQuery({ modifiedCount: 5 }));
 
       await service.deleteSprint(workspaceId, sprintId);
@@ -239,12 +238,10 @@ describe('SprintCommandService', () => {
             status: 'todo',
           },
         },
-        { session: mockSession },
       );
-      expect(sprintModel.deleteOne).toHaveBeenCalledWith(
-        { _id: mockSprint._id },
-        { session: mockSession },
-      );
+      expect(sprintModel.deleteOne).toHaveBeenCalledWith({
+        _id: mockSprint._id,
+      });
     });
   });
 

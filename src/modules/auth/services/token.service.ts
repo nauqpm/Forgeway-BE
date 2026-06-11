@@ -50,7 +50,9 @@ export class TokenService {
       const payload = { userId, email, role, fullName, avatar };
       const token = this.jwtService.sign(payload);
 
-      const expiresInDays = parseInt(this.configService.get<string>('JWT_EXPIRES_IN_DAYS') || '7');
+      const expiresInDays = parseInt(
+        this.configService.get<string>('JWT_EXPIRES_IN_DAYS') || '7',
+      );
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
@@ -64,7 +66,9 @@ export class TokenService {
       });
 
       await newToken.save();
-      this.logger.log(`✅ Token được lưu thành công vào database cho user: ${email}`);
+      this.logger.log(
+        `✅ Token được lưu thành công vào database cho user: ${email}`,
+      );
       return token;
     } catch (error) {
       const err = error as Error;
@@ -84,7 +88,13 @@ export class TokenService {
     avatar?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
-      const accessToken = this.createAccessToken(userId, email, role, fullName, avatar);
+      const accessToken = this.createAccessToken(
+        userId,
+        email,
+        role,
+        fullName,
+        avatar,
+      );
       const refreshToken = this.createRefreshToken(userId);
 
       const familyId = randomBytes(16).toString('hex');
@@ -113,12 +123,16 @@ export class TokenService {
         expiresAt: refreshExpiry,
       });
 
-      this.logger.debug(`🔑 Tokens đã được tạo và lưu cho userId: ${userId}, family: ${familyId}`);
+      this.logger.debug(
+        `🔑 Tokens đã được tạo và lưu cho userId: ${userId}, family: ${familyId}`,
+      );
       return { accessToken, refreshToken };
     } catch (error) {
       const err = error as Error;
       this.logger.error(`❌ Error creating tokens: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Cannot create authentication tokens');
+      throw new InternalServerErrorException(
+        'Cannot create authentication tokens',
+      );
     }
   }
 
@@ -129,33 +143,51 @@ export class TokenService {
     fullName?: string,
     avatar?: string,
   ): string {
-    const payload = { userId, email, role, fullName, avatar, type: TOKEN_TYPES.ACCESS };
+    const payload = {
+      userId,
+      email,
+      role,
+      fullName,
+      avatar,
+      type: TOKEN_TYPES.ACCESS,
+    };
     return this.jwtService.sign(payload);
   }
 
   private createRefreshToken(userId: string): string {
     // Add jti to avoid identical JWT when issued within same second (token field has unique index)
-    const payload = { userId, type: TOKEN_TYPES.REFRESH, jti: randomBytes(8).toString('hex') };
+    const payload = {
+      userId,
+      type: TOKEN_TYPES.REFRESH,
+      jti: randomBytes(8).toString('hex'),
+    };
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
-      expiresIn: this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') || '7d',
+      expiresIn:
+        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') || '7d',
     });
   }
 
   /**
    * Revoke current session tokens (access + refresh) by raw token(s)
    */
-  async revokeSessionTokens(accessToken?: string, refreshToken?: string): Promise<{ message: string }> {
+  async revokeSessionTokens(
+    accessToken?: string,
+    refreshToken?: string,
+  ): Promise<{ message: string }> {
     if (!accessToken && !refreshToken) {
       throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
     }
 
     try {
-      const hashedTokens = ([accessToken, refreshToken].filter(Boolean) as string[]).map((t) =>
-        this.hashToken(t),
-      );
+      const hashedTokens = (
+        [accessToken, refreshToken].filter(Boolean) as string[]
+      ).map(t => this.hashToken(t));
 
-      await this.tokenModel.updateMany({ token: { $in: hashedTokens } }, { status: false });
+      await this.tokenModel.updateMany(
+        { token: { $in: hashedTokens } },
+        { status: false },
+      );
       return { message: 'Đăng xuất thành công' };
     } catch (error: unknown) {
       const err = error as Error;
@@ -183,7 +215,9 @@ export class TokenService {
       expiresAt: new Date(Date.now() + expiresInMs),
     });
 
-    this.logger.debug(`Password reset grant stored for userId: ${userId}; expiresInMs: ${expiresInMs}`);
+    this.logger.debug(
+      `Password reset grant stored for userId: ${userId}; expiresInMs: ${expiresInMs}`,
+    );
     return { resetGrant, expiresInMs };
   }
 
@@ -207,11 +241,17 @@ export class TokenService {
     );
 
     if (!consumed) {
-      this.logger.warn('Password reset grant consume rejected: invalid, expired, or reused grant');
-      throw new UnauthorizedException('Reset grant khong hop le, da het han hoac da duoc su dung');
+      this.logger.warn(
+        'Password reset grant consume rejected: invalid, expired, or reused grant',
+      );
+      throw new UnauthorizedException(
+        'Reset grant khong hop le, da het han hoac da duoc su dung',
+      );
     }
 
-    this.logger.debug(`Password reset grant consumed for userId: ${consumed.userId}`);
+    this.logger.debug(
+      `Password reset grant consumed for userId: ${consumed.userId}`,
+    );
     return { email: consumed.email };
   }
 
@@ -233,8 +273,12 @@ export class TokenService {
       .exec();
 
     if (!activeGrant) {
-      this.logger.warn('Password reset grant validation rejected: invalid, expired, or reused grant');
-      throw new UnauthorizedException('Reset grant khong hop le, da het han hoac da duoc su dung');
+      this.logger.warn(
+        'Password reset grant validation rejected: invalid, expired, or reused grant',
+      );
+      throw new UnauthorizedException(
+        'Reset grant khong hop le, da het han hoac da duoc su dung',
+      );
     }
 
     return { email: activeGrant.email };
@@ -244,7 +288,9 @@ export class TokenService {
    * SEC-8: Atomic consume + token family theft detection
    * Refresh token rotation with family reuse detection (behavior preserved)
    */
-  async refreshAccessToken(refreshToken: string): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
     try {
       const decoded = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
@@ -255,7 +301,11 @@ export class TokenService {
       }
 
       const consumed = await this.tokenModel.findOneAndUpdate(
-        { token: this.hashToken(refreshToken), status: true, type: TOKEN_TYPES.REFRESH },
+        {
+          token: this.hashToken(refreshToken),
+          status: true,
+          type: TOKEN_TYPES.REFRESH,
+        },
         { $set: { status: false } },
         { new: false },
       );
@@ -297,11 +347,17 @@ export class TokenService {
             type: SECURITY_EVENT_TYPES.REFRESH_REUSED,
             severity: 'WARN',
             userId: revokedToken.userId?.toString(),
-            metadata: { familyId: revokedToken.familyId, revokedAgeMs, withinGrace: true },
+            metadata: {
+              familyId: revokedToken.familyId,
+              revokedAgeMs,
+              withinGrace: true,
+            },
           });
         }
 
-        throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+        throw new UnauthorizedException(
+          'Refresh token không hợp lệ hoặc đã hết hạn',
+        );
       }
 
       const user = await this.usersService.getUserById(decoded.userId);
@@ -350,16 +406,24 @@ export class TokenService {
         expiresAt: refreshExpiry,
       });
 
-      this.logger.debug(`🔄 Token rotated — userId: ${decoded.userId}, family: ${familyId}`);
+      this.logger.debug(
+        `🔄 Token rotated — userId: ${decoded.userId}, family: ${familyId}`,
+      );
 
-      return { success: true, accessToken: newAccessToken, refreshToken: newRefreshToken };
+      return {
+        success: true,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      };
     } catch (error: unknown) {
       const err = error as Error;
       if (err.name === 'JsonWebTokenError') {
         throw new UnauthorizedException('Refresh token không hợp lệ');
       }
       if (err.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Refresh token đã hết hạn, vui lòng đăng nhập lại');
+        throw new UnauthorizedException(
+          'Refresh token đã hết hạn, vui lòng đăng nhập lại',
+        );
       }
       this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
       throw error;
@@ -370,7 +434,10 @@ export class TokenService {
   async invalidateToken(token: string): Promise<void> {
     this.logger.log(`🚪 Hủy token`);
     try {
-      await this.tokenModel.updateOne({ token: this.hashToken(token) }, { status: false });
+      await this.tokenModel.updateOne(
+        { token: this.hashToken(token) },
+        { status: false },
+      );
       this.logger.log(`✅ Token đã được hủy`);
     } catch (error) {
       const err = error as Error;
@@ -392,7 +459,10 @@ export class TokenService {
         .exec();
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi tìm access token: ${err.message}`, err.stack);
+      this.logger.error(
+        `❌ Lỗi khi tìm access token: ${err.message}`,
+        err.stack,
+      );
       throw new InternalServerErrorException('Không thể tìm thấy token.');
     }
   }
@@ -410,7 +480,10 @@ export class TokenService {
         .exec();
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi tìm refresh token: ${err.message}`, err.stack);
+      this.logger.error(
+        `❌ Lỗi khi tìm refresh token: ${err.message}`,
+        err.stack,
+      );
       throw new InternalServerErrorException('Không thể tìm thấy token.');
     }
   }

@@ -23,7 +23,7 @@ export class TaskActivityMapper {
   }
 
   mapToDtos(activities: Array<TaskActivityDocument | any>): TaskActivityDto[] {
-    return activities.map((activity) => this.mapToDto(activity));
+    return activities.map(activity => this.mapToDto(activity));
   }
 
   private toId(value: any): string {

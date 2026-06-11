@@ -1,4 +1,12 @@
-import { IsString, MaxLength, IsEnum, IsOptional, IsMongoId, IsArray, IsNumber } from 'class-validator';
+import {
+  IsString,
+  MaxLength,
+  IsEnum,
+  IsOptional,
+  IsMongoId,
+  IsArray,
+  IsNumber,
+} from 'class-validator';
 
 export class AttachmentDto {
   @IsString() url!: string;

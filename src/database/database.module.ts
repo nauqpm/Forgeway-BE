@@ -21,7 +21,7 @@ const CONNECTION_TIMEOUT = 10000; // ⏱️ Thời gian chờ tối đa 10 giây
         return {
           uri,
           serverSelectionTimeoutMS: CONNECTION_TIMEOUT, // ⏰ Thời gian chờ tối đa 10 giây
-          connectionFactory: async (connection) => {
+          connectionFactory: async connection => {
             try {
               await connection.asPromise(); // Đảm bảo kết nối MongoDB hoàn tất
               console.log('✅ Kết nối MongoDB thành công!');

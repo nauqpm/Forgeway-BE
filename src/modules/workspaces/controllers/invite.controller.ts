@@ -9,7 +9,13 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags, ApiBody } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiBody,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { ScopedRoleGuard } from '@/common/guards/scoped-role.guard';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
@@ -32,7 +38,10 @@ export class InviteController {
   @ApiBody({ type: CreateInviteDto })
   @ApiBearerAuth()
   @Post(':id/invites')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(
+    JwtAuthGuard,
+    ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN),
+  )
   createInvite(
     @Param('id') workspaceId: string,
     @CurrentUser() user: any,
@@ -48,7 +57,10 @@ export class InviteController {
   @ApiBody({ type: CreateInviteLinkDto })
   @ApiBearerAuth()
   @Post(':id/invites/link')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(
+    JwtAuthGuard,
+    ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN),
+  )
   createInviteLink(
     @Param('id') workspaceId: string,
     @CurrentUser() user: any,
@@ -59,7 +71,10 @@ export class InviteController {
 
   @ApiBearerAuth()
   @Get(':id/invites')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(
+    JwtAuthGuard,
+    ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN),
+  )
   getInvites(@Param('id') workspaceId: string) {
     return this.inviteService.getInvites(workspaceId);
   }
@@ -69,7 +84,10 @@ export class InviteController {
   @ApiParam({ name: 'inviteId', description: 'ID của lời mời', type: String })
   @ApiBearerAuth()
   @Delete(':id/invites/:inviteId')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(
+    JwtAuthGuard,
+    ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN),
+  )
   cancelInvite(
     @Param('id') workspaceId: string,
     @Param('inviteId') inviteId: string,
@@ -77,6 +95,49 @@ export class InviteController {
     return this.inviteService.cancelInvite(workspaceId, inviteId);
   }
 
+  @ApiOperation({ summary: 'Get authenticated invite detail by invite id' })
+  @ApiParam({ name: 'inviteId', description: 'Invite id', type: String })
+  @ApiBearerAuth()
+  @Get('invites/id/:inviteId')
+  @UseGuards(JwtAuthGuard)
+  getInviteById(@Param('inviteId') inviteId: string, @CurrentUser() user: any) {
+    return this.inviteService.getInviteByIdForUser(
+      inviteId,
+      user.userId,
+      user.email,
+    );
+  }
+  @ApiOperation({ summary: 'Accept authenticated invite by invite id' })
+  @ApiParam({ name: 'inviteId', description: 'Invite id', type: String })
+  @ApiBearerAuth()
+  @Post('invites/id/:inviteId/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptInviteById(
+    @Param('inviteId') inviteId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inviteService.acceptInviteByIdForUser(
+      inviteId,
+      user.userId,
+      user.email,
+    );
+  }
+
+  @ApiOperation({ summary: 'Decline authenticated invite by invite id' })
+  @ApiParam({ name: 'inviteId', description: 'Invite id', type: String })
+  @ApiBearerAuth()
+  @Post('invites/id/:inviteId/decline')
+  @UseGuards(JwtAuthGuard)
+  declineInviteById(
+    @Param('inviteId') inviteId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inviteService.declineInviteByIdForUser(
+      inviteId,
+      user.userId,
+      user.email,
+    );
+  }
   @ApiOperation({ summary: 'Lấy thông tin lời mời bằng token' })
   @ApiParam({ name: 'token', description: 'Token của lời mời', type: String })
   @Get('invites/:token')

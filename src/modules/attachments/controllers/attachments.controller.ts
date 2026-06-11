@@ -72,17 +72,29 @@ export class AttachmentsController {
           const year = now.getFullYear();
           const month = String(now.getMonth() + 1).padStart(2, '0');
           const day = String(now.getDate()).padStart(2, '0');
-          
+
           // Get module from body or query
-          const targetType = req.body?.targetType || req.query?.targetType || 'others';
-          const moduleFolder = targetType === 'task' ? 'tasks' : targetType === 'page' ? 'pages' : 'others';
-          
-          const uploadPath = join('uploads', moduleFolder, String(year), month, day);
-          
+          const targetType =
+            req.body?.targetType || req.query?.targetType || 'others';
+          const moduleFolder =
+            targetType === 'task'
+              ? 'tasks'
+              : targetType === 'page'
+                ? 'pages'
+                : 'others';
+
+          const uploadPath = join(
+            'uploads',
+            moduleFolder,
+            String(year),
+            month,
+            day,
+          );
+
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }
-          
+
           cb(null, uploadPath);
         },
         filename: (req, file, callback) => {

@@ -28,7 +28,7 @@ export class NotificationDomainEventPublisher {
   }
 
   publishManyCreated(notifications: NotificationDto[]): void {
-    notifications.forEach((notification) => this.publishCreated(notification));
+    notifications.forEach(notification => this.publishCreated(notification));
   }
 
   publishRead(notification: NotificationDto): void {
@@ -44,11 +44,7 @@ export class NotificationDomainEventPublisher {
     );
   }
 
-  publishReadAll(
-    recipientId: string,
-    readAt: Date,
-    readCount?: number,
-  ): void {
+  publishReadAll(recipientId: string, readAt: Date, readCount?: number): void {
     this.emit(
       new NotificationReadAllEvent({
         recipientId,

@@ -36,7 +36,8 @@ export class CreatePageDto {
   workspaceId?: string;
 
   @ApiPropertyOptional({
-    description: 'ObjectId of the parent page. Omit or set null for a root page.',
+    description:
+      'ObjectId of the parent page. Omit or set null for a root page.',
     example: '665f1a2b3c4d5e6f7a8b9c0e',
   })
   @IsOptional()

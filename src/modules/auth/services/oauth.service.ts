@@ -28,11 +28,14 @@ export class OAuthService {
     photos?: { value: string }[];
   }): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     if (!profile || typeof profile !== 'object') {
-      throw new BadRequestException('Lỗi xác thực Google: Dữ liệu không hợp lệ');
+      throw new BadRequestException(
+        'Lỗi xác thực Google: Dữ liệu không hợp lệ',
+      );
     }
 
     try {
-      const email: string | undefined = profile.emails?.[0]?.value || profile.email;
+      const email: string | undefined =
+        profile.emails?.[0]?.value || profile.email;
       if (!email) {
         throw new BadRequestException('Không tìm thấy email từ Google');
       }
@@ -49,14 +52,19 @@ export class OAuthService {
 
       if (currentUser) {
         if (!currentUser.googleId || currentUser.googleId !== googleId) {
-          const updatedUser = await this.usersService.updateUser(currentUser._id.toString(), {
-            googleId,
-            avatar: avatar || currentUser.avatar,
-            fullName: fullName || currentUser.fullName,
-          });
+          const updatedUser = await this.usersService.updateUser(
+            currentUser._id.toString(),
+            {
+              googleId,
+              avatar: avatar || currentUser.avatar,
+              fullName: fullName || currentUser.fullName,
+            },
+          );
 
           if (!updatedUser) {
-            throw new BadRequestException('Không thể cập nhật thông tin người dùng');
+            throw new BadRequestException(
+              'Không thể cập nhật thông tin người dùng',
+            );
           }
 
           currentUser = updatedUser;
@@ -85,13 +93,14 @@ export class OAuthService {
       }
 
       // Issue access+refresh pair — identical behavior (delegated)
-      const { accessToken, refreshToken } = await this.tokenService.createAndSaveTokens(
-        currentUser._id.toString(),
-        currentUser.email,
-        currentUser.role,
-        currentUser.fullName,
-        currentUser.avatar,
-      );
+      const { accessToken, refreshToken } =
+        await this.tokenService.createAndSaveTokens(
+          currentUser._id.toString(),
+          currentUser.email,
+          currentUser.role,
+          currentUser.fullName,
+          currentUser.avatar,
+        );
 
       return { user: currentUser, accessToken, refreshToken };
     } catch (error) {
@@ -99,7 +108,9 @@ export class OAuthService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new InternalServerErrorException('Lỗi trong quá trình xác thực Google');
+      throw new InternalServerErrorException(
+        'Lỗi trong quá trình xác thực Google',
+      );
     }
   }
 }

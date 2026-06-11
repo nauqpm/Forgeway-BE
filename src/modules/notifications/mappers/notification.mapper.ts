@@ -37,7 +37,7 @@ export class NotificationMapper {
     limit: number;
   }): NotificationListDto {
     return {
-      notifications: result.notifications.map((notification) =>
+      notifications: result.notifications.map(notification =>
         this.mapToDto(notification),
       ),
       total: result.total,

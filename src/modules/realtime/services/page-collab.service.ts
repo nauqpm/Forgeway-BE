@@ -97,11 +97,13 @@ export class PageCollabService {
    * Called on `page:publish`.
    * Flushes the current Yjs state to the main Page document.
    */
-  async publishToPage(pageId: string, userId: string): Promise<void> {
+  async publishToPage(
+    pageId: string,
+    userId: string,
+    title: string,
+    content: string,
+  ): Promise<void> {
     const ydoc = await this.getOrCreate(pageId);
-
-    const title = ydoc.getText('title').toString();
-    const content = ydoc.getText('content').toString();
 
     // Persist Yjs state synchronously so the draft is always up-to-date
     await this.persistDoc(pageId, ydoc);
@@ -153,7 +155,7 @@ export class PageCollabService {
     const existing = this.docs.get(pageId);
     if (existing) return existing;
 
-    const promise = this.initDoc(pageId).catch((err) => {
+    const promise = this.initDoc(pageId).catch(err => {
       // Clean up so the next call retries from scratch
       this.docs.delete(pageId);
       throw err;
@@ -174,7 +176,11 @@ export class PageCollabService {
     if (draft?.yjsState) {
       // ── Happy path: restore from persisted Yjs snapshot ──────
       try {
-        Y.applyUpdate(ydoc, new Uint8Array(draft.yjsState), 'server-bootstrap');
+        Y.applyUpdate(
+          ydoc,
+          new Uint8Array(Uint8Array.from(draft.yjsState)),
+          'server-bootstrap',
+        );
       } catch (err) {
         this.logger.warn(
           `Corrupted yjsState for page ${pageId}, rebuilding from text fields: ${(err as Error).message}`,
@@ -282,7 +288,7 @@ export class PageCollabService {
 
 // ─── Util ──────────────────────────────────────────────────────────
 
-/** Diff-friendly Y.Text replacement — minimal CRDT operations */
+/** Diff-friendly Y.Text replacement — minimal CRDT operations - use for bootstrap*/
 function replaceYText(text: Y.Text, next: string): void {
   const curr = text.toString();
   if (curr === next) return;

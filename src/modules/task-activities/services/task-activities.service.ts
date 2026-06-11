@@ -72,12 +72,11 @@ export class TaskActivitiesService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    const result =
-      await this.taskActivitiesRepository.findByTaskInWorkspace(
-        workspaceId,
-        taskId,
-        filterDto,
-      );
+    const result = await this.taskActivitiesRepository.findByTaskInWorkspace(
+      workspaceId,
+      taskId,
+      filterDto,
+    );
 
     return {
       activities: this.taskActivityMapper.mapToDtos(result.activities),
@@ -386,9 +385,7 @@ export class TaskActivitiesService {
       taskKey: after.key,
       actorId,
       type,
-      metadata: sensitive
-        ? { field, changed: true }
-        : { field, from, to },
+      metadata: sensitive ? { field, changed: true } : { field, from, to },
     });
   }
 
@@ -499,7 +496,10 @@ export class TaskActivitiesService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new NotFoundException(`Task not found`);
     }
@@ -509,7 +509,10 @@ export class TaskActivitiesService {
     workspaceId: string,
     taskId: string,
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(taskId)
+    ) {
       return null;
     }
 

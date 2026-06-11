@@ -53,11 +53,7 @@ describe('Auth throttling (e2e)', () => {
     jest.clearAllMocks();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        ThrottlerModule.forRoot([
-          { name: 'default', ttl: 60_000, limit: 120 },
-        ]),
-      ],
+      imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }])],
       controllers: [AuthController, PasswordController],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -126,8 +122,8 @@ describe('Auth throttling (e2e)', () => {
       .expect(200);
 
     const setCookie = response.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some((cookie) => cookie.startsWith('access_token='))).toBe(true);
-    expect(setCookie.some((cookie) => cookie.startsWith('refresh_token='))).toBe(true);
+    expect(setCookie.some(cookie => cookie.startsWith('access_token='))).toBe(true);
+    expect(setCookie.some(cookie => cookie.startsWith('refresh_token='))).toBe(true);
     expect(response.body).not.toHaveProperty('accessToken');
     expect(response.body).not.toHaveProperty('refreshToken');
     expect(response.body).not.toHaveProperty('tokens');
@@ -145,8 +141,8 @@ describe('Auth throttling (e2e)', () => {
       .expect(200);
 
     const setCookie = response.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some((cookie) => cookie.startsWith('access_token='))).toBe(true);
-    expect(setCookie.some((cookie) => cookie.startsWith('refresh_token='))).toBe(true);
+    expect(setCookie.some(cookie => cookie.startsWith('access_token='))).toBe(true);
+    expect(setCookie.some(cookie => cookie.startsWith('refresh_token='))).toBe(true);
     expect(response.body).not.toHaveProperty('accessToken');
     expect(response.body).not.toHaveProperty('refreshToken');
     expect(response.body).not.toHaveProperty('tokens');
@@ -154,51 +150,32 @@ describe('Auth throttling (e2e)', () => {
   });
 
   it('limits repeated login attempts', async () => {
-    const responses = await postUntilLimited(
-      '/auth/login',
-      { email: 'test@example.com', password: 'WrongPass1!' },
-      6,
-    );
+    const responses = await postUntilLimited('/auth/login', { email: 'test@example.com', password: 'WrongPass1!' }, 6);
 
-    expect(responses.some((res) => res.status === 429)).toBe(true);
+    expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated email availability probes', async () => {
-    const responses = await getUntilLimited(
-      '/auth/check-email?email=test@example.com',
-      6,
-    );
+    const responses = await getUntilLimited('/auth/check-email?email=test@example.com', 6);
 
-    expect(responses.some((res) => res.status === 429)).toBe(true);
+    expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated OTP verification attempts', async () => {
-    const responses = await postUntilLimited(
-      '/auth/verify-otp',
-      { email: 'test@example.com', otp: '123456' },
-      6,
-    );
+    const responses = await postUntilLimited('/auth/verify-otp', { email: 'test@example.com', otp: '123456' }, 6);
 
-    expect(responses.some((res) => res.status === 429)).toBe(true);
+    expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated refresh attempts', async () => {
-    const responses = await postUntilLimited(
-      '/auth/refresh',
-      { refreshToken: 'refresh-token' },
-      31,
-    );
+    const responses = await postUntilLimited('/auth/refresh', { refreshToken: 'refresh-token' }, 31);
 
-    expect(responses.some((res) => res.status === 429)).toBe(true);
+    expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated password reset requests', async () => {
-    const responses = await postUntilLimited(
-      '/auth/request-password-reset',
-      { email: 'test@example.com' },
-      4,
-    );
+    const responses = await postUntilLimited('/auth/request-password-reset', { email: 'test@example.com' }, 4);
 
-    expect(responses.some((res) => res.status === 429)).toBe(true);
+    expect(responses.some(res => res.status === 429)).toBe(true);
   });
 });

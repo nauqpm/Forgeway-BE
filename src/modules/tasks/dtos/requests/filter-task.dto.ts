@@ -22,8 +22,8 @@ import { normalizeTaskKey } from '../../utils/task-key.util';
 const normalizeStatusFilter = (value: unknown): string[] | undefined => {
   const values = Array.isArray(value) ? value : [value];
   const statuses = values
-    .flatMap((item) => String(item ?? '').split(','))
-    .map((item) => item.trim())
+    .flatMap(item => String(item ?? '').split(','))
+    .map(item => item.trim())
     .filter(Boolean);
 
   return statuses.length > 0 ? statuses : undefined;
@@ -32,8 +32,8 @@ const normalizeStatusFilter = (value: unknown): string[] | undefined => {
 const normalizeIdListFilter = (value: unknown): string[] | undefined => {
   const values = Array.isArray(value) ? value : [value];
   const ids = values
-    .flatMap((item) => String(item ?? '').split(','))
-    .map((item) => item.trim())
+    .flatMap(item => String(item ?? '').split(','))
+    .map(item => item.trim())
     .filter(Boolean);
 
   return ids.length > 0 ? ids : undefined;
@@ -71,7 +71,8 @@ export class FilterTaskDto {
   reporterId?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter tasks that contain all provided label IDs. Supports labelIds=id1,id2 or repeated labelIds query params.',
+    description:
+      'Filter tasks that contain all provided label IDs. Supports labelIds=id1,id2 or repeated labelIds query params.',
     oneOf: [
       { type: 'string', example: '665c0a8c3a9b1d6d9c000001' },
       { type: 'array', items: { type: 'string' } },
@@ -98,10 +99,15 @@ export class FilterTaskDto {
   type?: string;
 
   @ApiPropertyOptional({
-    description: 'Single status or multi-select statuses. Supports status=todo,inprogress or repeated status query params.',
+    description:
+      'Single status or multi-select statuses. Supports status=todo,inprogress or repeated status query params.',
     oneOf: [
       { type: 'string', example: 'todo' },
-      { type: 'array', items: { type: 'string' }, example: ['todo', 'inprogress', 'testing'] },
+      {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['todo', 'inprogress', 'testing'],
+      },
     ],
   })
   @IsOptional()
@@ -147,12 +153,28 @@ export class FilterTaskDto {
   limit?: number;
 
   @ApiPropertyOptional({
-    enum: ['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt'],
+    enum: [
+      'createdAt',
+      'updatedAt',
+      'key',
+      'priority',
+      'status',
+      'rank',
+      'archivedAt',
+    ],
     default: 'createdAt',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt'])
+  @IsIn([
+    'createdAt',
+    'updatedAt',
+    'key',
+    'priority',
+    'status',
+    'rank',
+    'archivedAt',
+  ])
   sortBy?: string;
 
   @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })

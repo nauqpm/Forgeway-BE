@@ -83,21 +83,29 @@ import { ChatModule } from './modules/chat/chat.module';
           const year = now.getFullYear();
           const month = String(now.getMonth() + 1).padStart(2, '0');
           const day = String(now.getDate()).padStart(2, '0');
-          
+
           // Try to determine module type from URL
           let moduleType = 'others';
           const url = req.url || '';
-          if (url.includes('tasks') || url.includes('board')) moduleType = 'tasks';
+          if (url.includes('tasks') || url.includes('board'))
+            moduleType = 'tasks';
           else if (url.includes('documents')) moduleType = 'documents';
           else if (url.includes('comments')) moduleType = 'comments';
-          else if (url.includes('imagesapi')) moduleType = req.body?.type || 'others';
-          
-          const uploadPath = join('uploads', moduleType, String(year), month, day);
-          
+          else if (url.includes('imagesapi'))
+            moduleType = req.body?.type || 'others';
+
+          const uploadPath = join(
+            'uploads',
+            moduleType,
+            String(year),
+            month,
+            day,
+          );
+
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }
-          
+
           cb(null, uploadPath);
         },
         filename: (req, file, cb) => {

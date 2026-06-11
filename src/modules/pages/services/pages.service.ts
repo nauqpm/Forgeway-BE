@@ -287,7 +287,7 @@ export class PagesService {
 
     const descendants = result[0]?.descendants ?? [];
 
-    const idsToDelete = descendants.map((x) => x._id);
+    const idsToDelete = descendants.map(x => x._id);
 
     if (idsToDelete.length > 0) {
       await this.pageModel.deleteMany({
@@ -389,7 +389,7 @@ export class PagesService {
     this.logger.debug(`Removing label "${label}" from page ${pageId}`);
 
     const page = await this.findById(pageId);
-    page.labels = page.labels.filter((l) => l !== label);
+    page.labels = page.labels.filter(l => l !== label);
 
     return page.save();
   }

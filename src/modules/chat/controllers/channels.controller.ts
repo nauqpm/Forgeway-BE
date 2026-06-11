@@ -15,6 +15,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
 import { MeetingService } from '../services/meeting.service';
+import { MeetingType } from '../schemas/meeting.schema';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { EditMessageDto } from '../dtos/edit-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
@@ -43,13 +44,19 @@ export class ChannelsController {
 
   @Post('dm')
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
-  async openDM(@CurrentUser('userId') userId: string, @Body() body: { targetUserId: string }) {
+  async openDM(
+    @CurrentUser('userId') userId: string,
+    @Body() body: { targetUserId: string },
+  ) {
     return this.channelsService.getOrCreateDM(userId, body.targetUserId);
   }
 
   @Get('users/search')
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
-  async searchUsers(@CurrentUser('userId') userId: string, @Query('q') query: string) {
+  async searchUsers(
+    @CurrentUser('userId') userId: string,
+    @Query('q') query: string,
+  ) {
     return this.channelsService.searchUsers(query || '', userId);
   }
 
@@ -61,7 +68,10 @@ export class ChannelsController {
 
   @Post('channels/:id/read')
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
-  async markAsRead(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+  async markAsRead(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
     await this.channelsService.markAsRead(id, userId);
     return { ok: true };
   }
@@ -98,7 +108,10 @@ export class ChannelsController {
 
   @Delete('messages/:id')
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
-  async deleteMessage(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+  async deleteMessage(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
     return this.messagesService.softDelete(id, userId);
   }
 
@@ -115,8 +128,12 @@ export class ChannelsController {
 
   @Post('channels/:id/meeting')
   @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async createMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
-    return this.meetingService.create(id, userId);
+  async createMeeting(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: { type?: MeetingType },
+  ) {
+    return this.meetingService.create(id, userId, body.type ?? 'video');
   }
 
   @Get('channels/:id/meeting')
@@ -127,13 +144,19 @@ export class ChannelsController {
 
   @Post('meeting/:id/join')
   @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async joinMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+  async joinMeeting(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
     return this.meetingService.join(id, userId);
   }
 
   @Post('meeting/:id/leave')
   @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async leaveMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+  async leaveMeeting(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
     return this.meetingService.leave(id, userId);
   }
 
@@ -159,7 +182,10 @@ export class ChannelsController {
 
   @Post('meeting/:id/end')
   @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async endMeeting(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+  async endMeeting(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
     return this.meetingService.end(id, userId);
   }
 }

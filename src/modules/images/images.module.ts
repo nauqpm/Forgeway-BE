@@ -22,20 +22,27 @@ import { CloudinaryService } from './services/cloudinary.service';
           const year = now.getFullYear();
           const month = String(now.getMonth() + 1).padStart(2, '0');
           const day = String(now.getDate()).padStart(2, '0');
-          
+
           let moduleType = 'others';
           const url = req.url || '';
           if (url.includes('avatar')) moduleType = 'avatars';
           else if (req.body?.type) moduleType = req.body.type;
-          
-          const uploadPath = join('uploads', moduleType, String(year), month, day);
+
+          const uploadPath = join(
+            'uploads',
+            moduleType,
+            String(year),
+            month,
+            day,
+          );
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }
           cb(null, uploadPath);
         },
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
@@ -45,7 +52,12 @@ import { CloudinaryService } from './services/cloudinary.service';
     forwardRef(() => AuthModule),
   ],
   controllers: [ImagesController],
-  providers: [ImagesService, JwtAuthGuard, CloudinaryProvider, CloudinaryService],
+  providers: [
+    ImagesService,
+    JwtAuthGuard,
+    CloudinaryProvider,
+    CloudinaryService,
+  ],
   exports: [ImagesService, JwtAuthGuard, CloudinaryService],
 })
 export class ImagesModule {}

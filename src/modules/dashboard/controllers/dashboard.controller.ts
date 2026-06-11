@@ -8,12 +8,18 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) { }
+  constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('workspace/:workspaceId')
   @ApiOperation({ summary: 'Get workspace overview statistics' })
-  async getWorkspaceOverview(@Param('workspaceId') workspaceId: string, @Request() req) {
-    return this.dashboardService.getWorkspaceOverview(workspaceId, req.user.userId);
+  async getWorkspaceOverview(
+    @Param('workspaceId') workspaceId: string,
+    @Request() req,
+  ) {
+    return this.dashboardService.getWorkspaceOverview(
+      workspaceId,
+      req.user.userId,
+    );
   }
 
   @Get('workspace/:workspaceId/stats')

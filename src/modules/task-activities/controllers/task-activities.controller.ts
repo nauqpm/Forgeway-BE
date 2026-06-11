@@ -29,9 +29,7 @@ import { TaskActivitiesService } from '../services/task-activities.service';
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces/:key/board/:taskId/activities')
 export class TaskActivitiesController {
-  constructor(
-    private readonly taskActivitiesService: TaskActivitiesService,
-  ) {}
+  constructor(private readonly taskActivitiesService: TaskActivitiesService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))

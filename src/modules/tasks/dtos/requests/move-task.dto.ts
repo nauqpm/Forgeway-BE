@@ -22,7 +22,8 @@ export class MoveTaskDto {
   status?: string;
 
   @ApiPropertyOptional({
-    description: 'Sprint ID to assign, or null to move the task back to backlog.',
+    description:
+      'Sprint ID to assign, or null to move the task back to backlog.',
     nullable: true,
   })
   @Transform(({ value }) => emptyStringToNull(value))

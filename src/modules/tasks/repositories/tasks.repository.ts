@@ -441,8 +441,8 @@ export class TasksRepository {
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const operations = rankUpdates
-      .filter((update) => Types.ObjectId.isValid(update.taskId))
-      .map((update) => ({
+      .filter(update => Types.ObjectId.isValid(update.taskId))
+      .map(update => ({
         updateOne: {
           filter: {
             _id: new Types.ObjectId(update.taskId),
@@ -630,7 +630,9 @@ export class TasksRepository {
     ).exec();
   }
 
-  private buildVersionedSetUpdate(data: Partial<Task>): Record<string, unknown> {
+  private buildVersionedSetUpdate(
+    data: Partial<Task>,
+  ): Record<string, unknown> {
     return {
       $set: data,
       $inc: { version: 1 },
@@ -692,7 +694,7 @@ export class TasksRepository {
     }
     if (filterDto.labelIds?.length) {
       filter.labelIds = {
-        $all: filterDto.labelIds.map((labelId) => new Types.ObjectId(labelId)),
+        $all: filterDto.labelIds.map(labelId => new Types.ObjectId(labelId)),
       };
     }
     if (filterDto.taskKey) {
@@ -807,4 +809,3 @@ export class TasksRepository {
       .populate('labelIds', 'name');
   }
 }
-

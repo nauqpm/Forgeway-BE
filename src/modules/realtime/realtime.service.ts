@@ -55,7 +55,9 @@ export class RealtimeService {
       occurredAt: new Date().toISOString(),
     };
 
-    this.server.to(this.workspaceRoom(workspaceId)).emit(BOARD_REALTIME_EVENTS.BOARD_DELTA, delta);
+    this.server
+      .to(this.workspaceRoom(workspaceId))
+      .emit(BOARD_REALTIME_EVENTS.BOARD_DELTA, delta);
   }
 
   workspaceRoom(workspaceId: string): string {

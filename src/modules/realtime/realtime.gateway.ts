@@ -74,9 +74,8 @@ export class RealtimeGateway
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
-      const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
-      this.logger.log(
-        `Realtime client connected: ${client.id} | User: ${userIdentifier}`,
+      this.logger.debug(
+        `Realtime client connected: ${client.id}, userId: ${user.userId}`,
       );
     } catch (error) {
       this.logger.warn(
@@ -90,8 +89,14 @@ export class RealtimeGateway
     const authClient = client as AuthenticatedSocket;
     this.socketAuthService.clearDisconnectTimer(authClient);
     const user = authClient.data?.user;
-    const userIdentifier = user?.email ? ` | User: ${user.email} (${user.userId})` : user?.userId ? ` | User: ${user.userId}` : '';
-    this.logger.log(`Realtime client disconnected: ${client.id}${userIdentifier}`);
+    const userIdentifier = user?.email
+      ? ` | User: ${user.email} (${user.userId})`
+      : user?.userId
+        ? ` | User: ${user.userId}`
+        : '';
+    this.logger.log(
+      `Realtime client disconnected: ${client.id}${userIdentifier}`,
+    );
   }
 
   @SubscribeMessage('workspace:join')
@@ -260,7 +265,12 @@ export class RealtimeGateway
     if (!user) return { ok: false };
 
     try {
-      await this.pageCollabService.publishToPage(body.pageId, user.userId);
+      await this.pageCollabService.publishToPage(
+        body.pageId,
+        user.userId,
+        body.title,
+        body.content,
+      );
     } catch (err) {
       this.logger.error(
         `publishPage failed for ${body.pageId}: ${(err as Error).message}`,

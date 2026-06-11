@@ -1,27 +1,60 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Meeting, MeetingDocument } from '../schemas/meeting.schema';
+import {
+  Meeting,
+  MeetingDocument,
+  MeetingType,
+} from '../schemas/meeting.schema';
 import { ChannelsService } from './channels.service';
+import { MessagesService } from './messages.service';
+import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
+import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
+import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 
 @Injectable()
 export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
 
   constructor(
-    @InjectModel(Meeting.name) private readonly meetingModel: Model<MeetingDocument>,
+    @InjectModel(Meeting.name)
+    private readonly meetingModel: Model<MeetingDocument>,
     private readonly channelsService: ChannelsService,
+    @Inject(forwardRef(() => MessagesService))
+    private readonly messagesService: MessagesService,
+    private readonly realtimePublisher: RealtimePublisher,
   ) {}
 
-  async create(channelId: string, userId: string): Promise<MeetingDocument> {
-    const hasAccess = await this.channelsService.validateUserAccess(channelId, userId);
+  async create(
+    channelId: string,
+    userId: string,
+    type: MeetingType = 'video',
+  ): Promise<MeetingDocument> {
+    if (type !== 'voice' && type !== 'video') {
+      throw new BadRequestException('Meeting type must be voice or video');
+    }
+
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      userId,
+    );
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
     }
 
     const activeMeeting = await this.findActive(channelId);
     if (activeMeeting) {
-      throw new BadRequestException('An active meeting already exists in this channel');
+      throw new BadRequestException(
+        'An active meeting already exists in this channel',
+      );
     }
 
     const channel = await this.channelsService.findById(channelId);
@@ -31,17 +64,57 @@ export class MeetingService {
       workspaceId: channel.workspaceId,
       createdBy: new Types.ObjectId(userId),
       status: 'waiting',
+      type,
       participants: [
         {
           userId: new Types.ObjectId(userId),
           joinedAt: new Date(),
           isAudioOn: true,
-          isVideoOn: false,
+          isVideoOn: type === 'video',
           isMuted: false,
         },
       ],
       startedAt: new Date(),
     });
+
+    const message = await this.messagesService.send(channelId, userId, {
+      content:
+        type === 'voice' ? 'Voice call started' : 'Video meeting started',
+      type: 'system',
+    });
+
+    await this.channelsService.updateLastMessage(channelId, {
+      content: message.content,
+      senderId: userId,
+      senderName: (message as any).senderId?.fullName || 'System',
+      sentAt: (message as any).createdAt,
+    });
+
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT,
+        data: message,
+        occurredAt: new Date().toISOString(),
+      },
+      '/chat',
+    );
+
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.MEETING_STARTED,
+        data: {
+          meetingId: meeting._id.toString(),
+          channelId,
+          type: meeting.type,
+        },
+        occurredAt: new Date().toISOString(),
+      },
+      '/chat',
+    );
 
     return meeting;
   }
@@ -56,12 +129,17 @@ export class MeetingService {
       throw new NotFoundException('Meeting not found or already ended');
     }
 
-    const hasAccess = await this.channelsService.validateUserAccess(meeting.channelId.toString(), userId);
+    const hasAccess = await this.channelsService.validateUserAccess(
+      meeting.channelId.toString(),
+      userId,
+    );
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
     }
 
-    const isAlreadyIn = meeting.participants.some((p) => p.userId.toString() === userId);
+    const isAlreadyIn = meeting.participants.some(
+      p => p.userId.toString() === userId,
+    );
     if (isAlreadyIn) {
       return meeting;
     }
@@ -70,7 +148,7 @@ export class MeetingService {
       userId: new Types.ObjectId(userId),
       joinedAt: new Date(),
       isAudioOn: true,
-      isVideoOn: false,
+      isVideoOn: meeting.type === 'video',
       isMuted: false,
     });
 
@@ -91,7 +169,9 @@ export class MeetingService {
       throw new NotFoundException('Meeting not found');
     }
 
-    meeting.participants = meeting.participants.filter((p) => p.userId.toString() !== userId);
+    meeting.participants = meeting.participants.filter(
+      p => p.userId.toString() !== userId,
+    );
 
     if (meeting.participants.length === 0) {
       meeting.status = 'ended';
@@ -101,14 +181,34 @@ export class MeetingService {
     return meeting.save();
   }
 
-  async toggleAudio(meetingId: string, userId: string, isOn: boolean): Promise<void> {
+  async toggleAudio(
+    meetingId: string,
+    userId: string,
+    isOn: boolean,
+  ): Promise<void> {
     await this.meetingModel.updateOne(
       { _id: meetingId, 'participants.userId': new Types.ObjectId(userId) },
       { $set: { 'participants.$.isAudioOn': isOn } },
     );
   }
 
-  async toggleVideo(meetingId: string, userId: string, isOn: boolean): Promise<void> {
+  async toggleVideo(
+    meetingId: string,
+    userId: string,
+    isOn: boolean,
+  ): Promise<void> {
+    const meeting = await this.meetingModel
+      .findById(meetingId)
+      .select('type')
+      .exec();
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found');
+    }
+
+    if (meeting.type === 'voice' && isOn) {
+      throw new BadRequestException('Voice calls do not support video');
+    }
+
     await this.meetingModel.updateOne(
       { _id: meetingId, 'participants.userId': new Types.ObjectId(userId) },
       { $set: { 'participants.$.isVideoOn': isOn } },
@@ -144,6 +244,31 @@ export class MeetingService {
     return this.meetingModel
       .findOne({
         channelId: new Types.ObjectId(channelId),
+        status: { $in: ['waiting', 'active'] },
+      })
+      .exec();
+  }
+
+  async findById(meetingId: string): Promise<MeetingDocument> {
+    if (!Types.ObjectId.isValid(meetingId)) {
+      throw new NotFoundException('Invalid Meeting ID');
+    }
+
+    const meeting = await this.meetingModel.findById(meetingId).exec();
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found');
+    }
+
+    return meeting;
+  }
+
+  async findActiveByParticipant(userId: string): Promise<MeetingDocument[]> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return [];
+    }
+    return this.meetingModel
+      .find({
+        'participants.userId': new Types.ObjectId(userId),
         status: { $in: ['waiting', 'active'] },
       })
       .exec();

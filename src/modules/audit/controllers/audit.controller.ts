@@ -6,7 +6,12 @@ import {
   UseGuards,
   Logger,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { AuditLogService } from '../services/audit-log.service';
@@ -25,7 +30,9 @@ export class AuditController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get('logs')
-  @ApiOperation({ summary: 'Super admin only: query audit/activity logs with filters' })
+  @ApiOperation({
+    summary: 'Super admin only: query audit/activity logs with filters',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of audit events',
@@ -82,7 +89,11 @@ export class AuditController {
       example: {
         total: 1000,
         bySeverity: { INFO: 800, WARN: 180, CRITICAL: 20 },
-        byType: { LOGIN_SUCCESS: 500, TASK_VIEWED: 200, UNAUTHORIZED_ACCESS: 50 },
+        byType: {
+          LOGIN_SUCCESS: 500,
+          TASK_VIEWED: 200,
+          UNAUTHORIZED_ACCESS: 50,
+        },
         recentCount: 42,
       },
     },

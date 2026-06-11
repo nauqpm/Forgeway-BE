@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export type MeetingDocument = Meeting & Document;
+export type MeetingType = 'voice' | 'video';
 
 @Schema()
 export class MeetingParticipant {
@@ -23,10 +24,25 @@ export class Meeting {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   createdBy!: Types.ObjectId;
 
-  @Prop({ type: String, enum: ['waiting', 'active', 'ended'], default: 'waiting' })
+  @Prop({
+    type: String,
+    enum: ['waiting', 'active', 'ended'],
+    default: 'waiting',
+  })
   status!: string;
 
-  @Prop({ type: [SchemaFactory.createForClass(MeetingParticipant)], default: [] })
+  @Prop({
+    type: String,
+    enum: ['voice', 'video'],
+    default: 'video',
+    index: true,
+  })
+  type!: MeetingType;
+
+  @Prop({
+    type: [SchemaFactory.createForClass(MeetingParticipant)],
+    default: [],
+  })
   participants!: MeetingParticipant[];
 
   @Prop({ type: String, default: null })

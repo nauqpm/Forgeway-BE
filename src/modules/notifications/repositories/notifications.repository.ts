@@ -26,7 +26,7 @@ export class NotificationsRepository {
     }
 
     const notifications = await this.notificationModel.insertMany(
-      inputs.map((input) => this.toPersistence(input)),
+      inputs.map(input => this.toPersistence(input)),
     );
 
     return notifications as unknown as NotificationDocument[];

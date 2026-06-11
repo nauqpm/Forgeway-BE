@@ -1,4 +1,4 @@
-// Xử lý backlog: 
+// Xử lý backlog:
 // - lấy task chưa thuộc sprint
 // - sort theo priority
 // - hoặc trả backlog dạng grouped gồm active sprint
@@ -13,7 +13,8 @@ import { sortTasksByPriority } from '../utils/task-priority-sorter.util';
 @Injectable()
 export class BacklogService {
   constructor(
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
+    @InjectModel(Sprint.name)
+    private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
   ) {}
 
@@ -65,11 +66,11 @@ export class BacklogService {
     const sprintIds: Types.ObjectId[] = [];
 
     if (activeSprint?._id) {
-      sprintIds.push(activeSprint._id as Types.ObjectId);
+      sprintIds.push(activeSprint._id);
     }
 
     for (const sprint of futureSprints) {
-      sprintIds.push(sprint._id as Types.ObjectId);
+      sprintIds.push(sprint._id);
     }
 
     const tasksBySprintId = new Map<string, any[]>();
@@ -106,7 +107,7 @@ export class BacklogService {
             tasks: tasksBySprintId.get(activeSprint._id.toString()) ?? [],
           }
         : null,
-      futureSprints: futureSprints.map((sprint) => ({
+      futureSprints: futureSprints.map(sprint => ({
         ...sprint,
         tasks: tasksBySprintId.get(sprint._id.toString()) ?? [],
       })),

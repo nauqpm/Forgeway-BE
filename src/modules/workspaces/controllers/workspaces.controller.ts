@@ -11,12 +11,24 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+} from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
 import { WorkspaceMemberService } from '../services/workspace-member.service';
-import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
+import {
+  CreateWorkspaceDto,
+  UpdateWorkspaceDto,
+} from '../dtos/create-workspace.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
+import {
+  SPACE_ROLES,
+  SpaceRole,
+} from '../../../common/constants/space-role.constants';
 import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
@@ -34,11 +46,15 @@ export class WorkspacesController {
   constructor(
     private readonly workspacesService: WorkspacesService,
     private readonly workspaceMemberService: WorkspaceMemberService,
-  ) { }
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lấy tất cả workspace của người dùng hiện tại' })
-  @ApiResponse({ status: 200, description: 'Danh sách workspace', schema: { example: [{ _id: '...', name: 'My Workspace', owner: '...' }] } })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách workspace',
+    schema: { example: [{ _id: '...', name: 'My Workspace', owner: '...' }] },
+  })
   async findAll(@Request() req: any) {
     return this.workspacesService.findByUserId(req.user.userId);
   }
@@ -47,7 +63,9 @@ export class WorkspacesController {
   @Get('admin/all')
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Super admin: Lấy tất cả workspaces (bao gồm cả đã xóa)' })
+  @ApiOperation({
+    summary: 'Super admin: Lấy tất cả workspaces (bao gồm cả đã xóa)',
+  })
   @ApiResponse({ status: 200, description: 'Danh sách tất cả workspaces' })
   async findAllAdmin() {
     return this.workspacesService.findAllWithDeleted();
@@ -56,7 +74,11 @@ export class WorkspacesController {
   @Get(':workspaceId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Lấy workspace theo ID' })
-  @ApiResponse({ status: 200, description: 'Thông tin workspace', schema: { example: { _id: '...', name: 'My Workspace', members: [] } } })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin workspace',
+    schema: { example: { _id: '...', name: 'My Workspace', members: [] } },
+  })
   async findOne(@Param('workspaceId') workspaceId: string) {
     const workspace = await this.workspacesService.findById(workspaceId);
     return workspace;
@@ -64,7 +86,11 @@ export class WorkspacesController {
 
   @Post()
   @ApiOperation({ summary: 'Tạo workspace mới' })
-  @ApiResponse({ status: 201, description: 'Tạo workspace thành công', schema: { example: { _id: '...', name: 'New Workspace' } } })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo workspace thành công',
+    schema: { example: { _id: '...', name: 'New Workspace' } },
+  })
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() dto: CreateWorkspaceDto) {
     console.log('📥 Nhận yêu cầu tạo Workspace:', JSON.stringify(dto));
@@ -102,14 +128,21 @@ export class WorkspacesController {
   @Post(':workspaceId/members')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add member to workspace (owner/workspace admin only)' })
+  @ApiOperation({
+    summary: 'Add member to workspace (owner/workspace admin only)',
+  })
   @ApiBody({ type: CreateInviteDto })
   async addMember(
     @Param('workspaceId') workspaceId: string,
     @Body() body: { email: string; role: SpaceRole },
     @Request() req: any,
   ) {
-    return this.workspaceMemberService.addMember(workspaceId, body.email, body.role, req.user.userId);
+    return this.workspaceMemberService.addMember(
+      workspaceId,
+      body.email,
+      body.role,
+      req.user.userId,
+    );
   }
 
   @Put(':workspaceId/members/:userId')
@@ -121,7 +154,12 @@ export class WorkspacesController {
     @Body() body: { role: SpaceRole },
     @Request() req: any,
   ) {
-    return this.workspaceMemberService.updateMemberRole(workspaceId, userId, body.role, req.user.userId);
+    return this.workspaceMemberService.updateMemberRole(
+      workspaceId,
+      userId,
+      body.role,
+      req.user.userId,
+    );
   }
 
   @Delete(':workspaceId/members/me')
@@ -131,26 +169,41 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
     @Request() req: any,
   ) {
-    await this.workspaceMemberService.removeMember(workspaceId, req.user.userId, req.user.userId);
+    await this.workspaceMemberService.removeMember(
+      workspaceId,
+      req.user.userId,
+      req.user.userId,
+    );
   }
 
   @Delete(':workspaceId/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove member from workspace (owner/workspace admin only)' })
+  @ApiOperation({
+    summary: 'Remove member from workspace (owner/workspace admin only)',
+  })
   async removeMember(
     @Param('workspaceId') workspaceId: string,
     @Param('userId') userId: string,
     @Request() req: any,
   ) {
-    await this.workspaceMemberService.removeMember(workspaceId, userId, req.user.userId);
+    await this.workspaceMemberService.removeMember(
+      workspaceId,
+      userId,
+      req.user.userId,
+    );
   }
 
   @Post(':workspaceId/restore')
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Restore soft-deleted workspace (super_admin only)' })
-  async restore(@Param('workspaceId') workspaceId: string, @Request() req: any) {
+  @ApiOperation({
+    summary: 'Restore soft-deleted workspace (super_admin only)',
+  })
+  async restore(
+    @Param('workspaceId') workspaceId: string,
+    @Request() req: any,
+  ) {
     return this.workspacesService.restore(workspaceId, req.user.userId);
   }
 
@@ -158,7 +211,10 @@ export class WorkspacesController {
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @ApiOperation({ summary: 'Archive workspace (super_admin only)' })
-  async archive(@Param('workspaceId') workspaceId: string, @Request() req: any) {
+  async archive(
+    @Param('workspaceId') workspaceId: string,
+    @Request() req: any,
+  ) {
     return this.workspacesService.archive(workspaceId, req.user.userId);
   }
 }

@@ -16,7 +16,10 @@ export const WORKSPACE_PERMISSIONS = {
 export type WorkspacePermission =
   (typeof WORKSPACE_PERMISSIONS)[keyof typeof WORKSPACE_PERMISSIONS];
 
-export const WORKSPACE_ROLE_PERMISSIONS: Record<SpaceRole, WorkspacePermission[]> = {
+export const WORKSPACE_ROLE_PERMISSIONS: Record<
+  SpaceRole,
+  WorkspacePermission[]
+> = {
   [SPACE_ROLES.WORKSPACE_ADMIN]: Object.values(WORKSPACE_PERMISSIONS),
   [SPACE_ROLES.MEMBER]: [
     WORKSPACE_PERMISSIONS.TASK_CREATE,

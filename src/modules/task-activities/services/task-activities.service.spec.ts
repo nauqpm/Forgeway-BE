@@ -81,7 +81,10 @@ describe('TaskActivitiesService', () => {
     });
 
     expect(workspacesService.findById).toHaveBeenCalledWith('TESKB');
-    expect(workspacesService.isMember).toHaveBeenCalledWith(workspaceId, userId);
+    expect(workspacesService.isMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
     expect(repository.findByTaskInWorkspace).toHaveBeenCalledWith(
       workspaceId,
       taskId,

@@ -3,7 +3,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PermissionsController } from './controllers/permissions.controller';
 import { PermissionsService } from './services/permissions.service';
 import { Permission, PermissionSchema } from './schemas/permission.schema';
-import { UserPermission, UserPermissionSchema } from './schemas/user-permission.schema';
+import {
+  UserPermission,
+  UserPermissionSchema,
+} from './schemas/user-permission.schema';
 import { AuthModule } from '../auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -34,4 +37,4 @@ import { User, UserSchema } from '../users/schemas/users.schema';
   providers: [PermissionsService, ConfigService],
   exports: [PermissionsService, MongooseModule],
 })
-export class PermissionsModule { }
+export class PermissionsModule {}

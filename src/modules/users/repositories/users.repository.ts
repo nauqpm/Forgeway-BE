@@ -19,9 +19,14 @@ export interface PaginatedUsersResult {
   total: number;
 }
 
+type UserUpdatePayload =
+  | Partial<User>
+  | { $unset: Record<string, unknown> }
+  | { $set: Record<string, unknown>; $unset?: Record<string, unknown> };
+
 @Injectable()
 export class UsersRepository {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
   async findById(id: string): Promise<User | null> {
     return this.userModel.findById(id).exec();
@@ -38,10 +43,42 @@ export class UsersRepository {
 
   async update(
     userId: string,
-    updateData: Partial<User> | { $unset: Record<string, unknown> },
+    updateData: UserUpdatePayload,
   ): Promise<User | null> {
     return await this.userModel
       .findByIdAndUpdate(userId, updateData, { new: true })
+      .exec();
+  }
+
+  async incrementFailedLoginAttempts(userId: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $inc: { failedLoginAttempts: 1 } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async setLockout(userId: string, lockoutUntil: Date): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true })
+      .exec();
+  }
+
+  /**
+   * Partial update using $set to avoid overwriting unrelated fields.
+   */
+  async updatePassword(
+    userId: string,
+    hashedPassword: string,
+  ): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { password: hashedPassword } },
+        { new: true },
+      )
       .exec();
   }
 
@@ -50,9 +87,13 @@ export class UsersRepository {
     return await this.userModel.find().exec();
   }
 
-  async findAllPaginated(page: number, limit: number): Promise<PaginatedUsersResult> {
+  async findAllPaginated(
+    page: number,
+    limit: number,
+  ): Promise<PaginatedUsersResult> {
     const skip = (page - 1) * limit;
-    const projection = '_id email role status fullName avatar createdAt updatedAt';
+    const projection =
+      '_id email role status fullName avatar createdAt updatedAt';
 
     const [users, total] = await Promise.all([
       this.userModel

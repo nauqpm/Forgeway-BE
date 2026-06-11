@@ -9,10 +9,7 @@ import { ScrumService } from '../../scrum/services/scrum.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
-import {
-  CreateTaskDto,
-  UpdateTaskDto,
-} from '../dtos/requests/create-task.dto';
+import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 
 @Injectable()
 export class TaskCreationValidationService {
@@ -64,7 +61,10 @@ export class TaskCreationValidationService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
@@ -107,4 +107,3 @@ export class TaskCreationValidationService {
     }
   }
 }
-

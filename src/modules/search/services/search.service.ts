@@ -27,8 +27,14 @@ export class SearchService {
     @InjectModel(Page.name) private pageModel: Model<Page>,
   ) {}
 
-  async search(query: string, userId: string, options?: SearchOptions): Promise<SearchResult> {
-    this.logger.log(`Searching for "${query}" with options: ${JSON.stringify(options)}`);
+  async search(
+    query: string,
+    userId: string,
+    options?: SearchOptions,
+  ): Promise<SearchResult> {
+    this.logger.log(
+      `Searching for "${query}" with options: ${JSON.stringify(options)}`,
+    );
 
     const types = options?.types || ['task', 'workspace', 'page'];
     const limit = options?.limit || 20;
@@ -44,7 +50,10 @@ export class SearchService {
     }
 
     if (types.includes('workspace')) {
-      result.workspaces = await this.searchWorkspaces(query, options?.workspaceId);
+      result.workspaces = await this.searchWorkspaces(
+        query,
+        options?.workspaceId,
+      );
     }
 
     if (types.includes('page')) {
@@ -55,7 +64,9 @@ export class SearchService {
   }
 
   async searchTasks(query: string, workspaceId?: string): Promise<any[]> {
-    this.logger.log(`Searching tasks for query: "${query}", workspaceId: ${workspaceId}`);
+    this.logger.log(
+      `Searching tasks for query: "${query}", workspaceId: ${workspaceId}`,
+    );
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
@@ -72,13 +83,17 @@ export class SearchService {
 
     return this.taskModel
       .find(matchQuery)
-      .select('_id key title status type priority workspaceId assigneeId createdAt')
+      .select(
+        '_id key title status type priority workspaceId assigneeId createdAt',
+      )
       .limit(20)
       .exec();
   }
 
   async searchWorkspaces(query: string, workspaceId?: string): Promise<any[]> {
-    this.logger.log(`Searching workspaces for query: "${query}", workspaceId: ${workspaceId}`);
+    this.logger.log(
+      `Searching workspaces for query: "${query}", workspaceId: ${workspaceId}`,
+    );
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
@@ -101,7 +116,9 @@ export class SearchService {
   }
 
   async searchPages(query: string, spaceId?: string): Promise<any[]> {
-    this.logger.log(`Searching pages for query: "${query}", spaceId: ${spaceId}`);
+    this.logger.log(
+      `Searching pages for query: "${query}", spaceId: ${spaceId}`,
+    );
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {

@@ -1,13 +1,28 @@
-import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException, mixin, Type } from '@nestjs/common';
+import {
+  BadRequestException,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  mixin,
+  Type,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Workspace, WorkspaceDocument } from '@/modules/workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '@/modules/workspaces/schemas/workspace.schema';
 
-export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanActivate> => {
+export const WorkspaceTypeGuard = (
+  requiredType: 'scrum' | 'kanban',
+): Type<CanActivate> => {
   @Injectable()
   class WorkspaceTypeGuardMixin implements CanActivate {
     constructor(
-      @InjectModel(Workspace.name) private readonly workspaceModel: Model<WorkspaceDocument>,
+      @InjectModel(Workspace.name)
+      private readonly workspaceModel: Model<WorkspaceDocument>,
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -19,7 +34,9 @@ export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanAc
       }
 
       if (!Types.ObjectId.isValid(workspaceId)) {
-        throw new BadRequestException('workspaceId must be a valid MongoDB ObjectId');
+        throw new BadRequestException(
+          'workspaceId must be a valid MongoDB ObjectId',
+        );
       }
 
       const workspace = await this.workspaceModel

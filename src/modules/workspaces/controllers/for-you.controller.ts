@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Request, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -36,7 +31,10 @@ export class ForYouController {
     description: 'For You workspace list returned successfully',
     type: ForYouResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Missing, invalid, or expired authentication token' })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing, invalid, or expired authentication token',
+  })
   async getForYou(
     @Request() req: { user: { userId: string } },
   ): Promise<ForYouResponseDto> {

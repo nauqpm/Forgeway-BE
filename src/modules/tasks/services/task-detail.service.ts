@@ -47,7 +47,9 @@ export class TaskDetailService {
     const task = await this.tasksRepository.findDetailByKeyInWorkspace(
       normalizedTaskKey,
       workspaceId,
-      { includeArchived: true },
+      {
+        includeArchived: true,
+      },
     );
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
@@ -60,7 +62,8 @@ export class TaskDetailService {
     workspaceKey: string,
     userId: string,
   ): Promise<string> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 

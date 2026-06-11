@@ -41,11 +41,15 @@ export class ScrumService {
     dto: UpdateSprintDto,
     actorId?: string,
   ): Promise<SprintDocument> {
-    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto, actorId);
+    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
   }
 
-  deleteSprint(workspaceId: string, sprintId: string, actorId?: string): Promise<void> {
-    return this.sprintCommandService.deleteSprint(workspaceId, sprintId, actorId);
+  deleteSprint(
+    workspaceId: string,
+    sprintId: string,
+    actorId?: string,
+  ): Promise<void> {
+    return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
   }
 
   startSprint(
@@ -54,7 +58,7 @@ export class ScrumService {
     dto: StartSprintDto,
     actorId?: string,
   ): Promise<SprintDocument> {
-    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto, actorId);
+    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
   }
 
   completeSprint(
@@ -63,7 +67,11 @@ export class ScrumService {
     dto: CompleteSprintDto,
     actorId?: string,
   ): Promise<unknown> {
-    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto, actorId);
+    return this.sprintLifecycleService.completeSprint(
+      workspaceId,
+      sprintId,
+      dto,
+    );
   }
 
   getBacklog(workspaceId: string, grouped = false): Promise<unknown> {
@@ -87,7 +95,10 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
   ): Promise<unknown> {
-    return this.sprintQueryService.getCompleteSprintPreview(workspaceId, sprintId);
+    return this.sprintQueryService.getCompleteSprintPreview(
+      workspaceId,
+      sprintId,
+    );
   }
 
   moveTasksToSprint(

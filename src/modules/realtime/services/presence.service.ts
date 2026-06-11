@@ -6,7 +6,9 @@ import { AuthenticatedSocket, RoomBuilder, SocketUser } from '../contracts';
 import { PresenceHeartbeatDto } from '../dto/presence-heartbeat.dto';
 import { RealtimeRoomRepository } from '../repositories/realtime-room.repository';
 
-type PresenceRedisClient = NonNullable<Awaited<ReturnType<RedisService['createClient']>>>;
+type PresenceRedisClient = NonNullable<
+  Awaited<ReturnType<RedisService['createClient']>>
+>;
 
 export interface PresenceHeartbeatResult {
   ok: boolean;
@@ -33,7 +35,9 @@ export class PresenceService implements OnModuleInit {
       if (this.redisClient) {
         this.logger.log('Presence Redis client initialized.');
       } else {
-        this.logger.warn('Presence Redis client unavailable, presence will run in degraded mode.');
+        this.logger.warn(
+          'Presence Redis client unavailable, presence will run in degraded mode.',
+        );
       }
     } catch (error) {
       this.redisClient = null;
@@ -51,7 +55,9 @@ export class PresenceService implements OnModuleInit {
     await this.authorizePresence(user.userId, dto.workspaceId, dto.taskId);
 
     if (!this.redisClient) {
-      this.logger.warn('Presence heartbeat skipped because Redis is not configured.');
+      this.logger.warn(
+        'Presence heartbeat skipped because Redis is not configured.',
+      );
       return {
         ok: false,
         expiresInMs: 0,

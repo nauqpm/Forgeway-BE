@@ -1,4 +1,7 @@
-import { TaskCoverSource, TaskCoverType } from '../constants/task-cover.constants';
+import {
+  TaskCoverSource,
+  TaskCoverType,
+} from '../constants/task-cover.constants';
 
 export interface TaskCover {
   type: TaskCoverType;

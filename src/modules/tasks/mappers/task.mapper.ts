@@ -52,7 +52,7 @@ export class TaskMapper {
   }
 
   mapToDtos(tasks: Array<TaskDocument | any>): TaskDto[] {
-    return tasks.map((task) => this.mapToDto(task));
+    return tasks.map(task => this.mapToDto(task));
   }
 
   mapToDetailDto(task: TaskDocument | any): TaskDetailDto {
@@ -150,8 +150,8 @@ export class TaskMapper {
     }
 
     return values
-      .filter((value) => value && value._id)
-      .map((value) => ({
+      .filter(value => value && value._id)
+      .map(value => ({
         id: this.toId(value),
         name: value.name,
       }));

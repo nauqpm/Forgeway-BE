@@ -8,7 +8,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workflow, WorkflowDocument } from '../schemas/workflow.schema';
-import { CreateWorkflowDto, WorkflowTransitionDto } from '../dtos/create-workflow.dto';
+import {
+  CreateWorkflowDto,
+  WorkflowTransitionDto,
+} from '../dtos/create-workflow.dto';
 import { UpdateWorkflowDto } from '../dtos/update-workflow.dto';
 
 @Injectable()
@@ -16,20 +19,23 @@ export class WorkflowsService implements OnModuleInit {
   private readonly logger = new Logger(WorkflowsService.name);
 
   constructor(
-    @InjectModel(Workflow.name) private readonly workflowModel: Model<WorkflowDocument>,
+    @InjectModel(Workflow.name)
+    private readonly workflowModel: Model<WorkflowDocument>,
   ) {}
 
   async onModuleInit(): Promise<void> {
     await this.dropLegacyProjectIndex();
   }
 
-  async create(dto: CreateWorkflowDto & { workspaceId: string }): Promise<WorkflowDocument> {
+  async create(
+    dto: CreateWorkflowDto & { workspaceId: string },
+  ): Promise<WorkflowDocument> {
     const existingWorkflow = await this.findByWorkspace(dto.workspaceId);
     if (existingWorkflow) {
       throw new ConflictException('Workflow already exists for this Workspace');
     }
 
-    const statusesWithDefaults = dto.statuses.map((status) => ({
+    const statusesWithDefaults = dto.statuses.map(status => ({
       ...status,
       color: status.color || '#6b7280',
     }));
@@ -43,12 +49,16 @@ export class WorkflowsService implements OnModuleInit {
     });
 
     const saved = await workflow.save();
-    this.logger.log(`Created workflow ${saved._id} for Workspace ${dto.workspaceId}`);
+    this.logger.log(
+      `Created workflow ${saved._id} for Workspace ${dto.workspaceId}`,
+    );
     return saved;
   }
 
   async findByWorkspace(workspaceId: string): Promise<WorkflowDocument | null> {
-    return this.workflowModel.findOne({ workspaceId: new Types.ObjectId(workspaceId) });
+    return this.workflowModel.findOne({
+      workspaceId: new Types.ObjectId(workspaceId),
+    });
   }
 
   async findById(id: string): Promise<WorkflowDocument> {
@@ -65,9 +75,10 @@ export class WorkflowsService implements OnModuleInit {
   async update(id: string, dto: UpdateWorkflowDto): Promise<WorkflowDocument> {
     const workflow = await this.findById(id);
     if (dto.name !== undefined) workflow.name = dto.name;
-    if (dto.defaultStatus !== undefined) workflow.defaultStatus = dto.defaultStatus;
+    if (dto.defaultStatus !== undefined)
+      workflow.defaultStatus = dto.defaultStatus;
     if (dto.statuses !== undefined) {
-      workflow.statuses = dto.statuses.map((status) => ({
+      workflow.statuses = dto.statuses.map(status => ({
         ...status,
         color: status.color || '#6b7280',
       })) as any;
@@ -87,17 +98,27 @@ export class WorkflowsService implements OnModuleInit {
     this.logger.log(`Deleted workflow ${id}`);
   }
 
-  async canTransition(workflowId: string, fromStatus: string, toStatus: string): Promise<boolean> {
+  async canTransition(
+    workflowId: string,
+    fromStatus: string,
+    toStatus: string,
+  ): Promise<boolean> {
     const workflow = await this.findById(workflowId);
     const transition = workflow.transitions.find(
-      (t: WorkflowTransitionDto) => t.fromStatus === fromStatus && t.toStatus === toStatus,
+      (t: WorkflowTransitionDto) =>
+        t.fromStatus === fromStatus && t.toStatus === toStatus,
     );
     return !!transition;
   }
 
-  async getNextStatuses(workflowId: string, currentStatus: string): Promise<WorkflowTransitionDto[]> {
+  async getNextStatuses(
+    workflowId: string,
+    currentStatus: string,
+  ): Promise<WorkflowTransitionDto[]> {
     const workflow = await this.findById(workflowId);
-    return workflow.transitions.filter((t: WorkflowTransitionDto) => t.fromStatus === currentStatus);
+    return workflow.transitions.filter(
+      (t: WorkflowTransitionDto) => t.fromStatus === currentStatus,
+    );
   }
 
   async createDefaultWorkflow(workspaceId: string): Promise<WorkflowDocument> {
@@ -108,15 +129,33 @@ export class WorkflowsService implements OnModuleInit {
 
     const defaultStatuses = [
       { id: 'todo', name: 'To Do', color: '#6b7280', category: 'todo' },
-      { id: 'inprogress', name: 'In Progress', color: '#f59e0b', category: 'inprogress' },
-      { id: 'review', name: 'In Review', color: '#8b5cf6', category: 'inprogress' },
+      {
+        id: 'inprogress',
+        name: 'In Progress',
+        color: '#f59e0b',
+        category: 'inprogress',
+      },
+      {
+        id: 'review',
+        name: 'In Review',
+        color: '#8b5cf6',
+        category: 'inprogress',
+      },
       { id: 'done', name: 'Done', color: '#10b981', category: 'done' },
     ];
 
     const defaultTransitions: WorkflowTransitionDto[] = [
       { fromStatus: 'todo', toStatus: 'inprogress', name: 'Start Working' },
-      { fromStatus: 'inprogress', toStatus: 'review', name: 'Submit for Review' },
-      { fromStatus: 'inprogress', toStatus: 'todo', name: 'Move Back to To Do' },
+      {
+        fromStatus: 'inprogress',
+        toStatus: 'review',
+        name: 'Submit for Review',
+      },
+      {
+        fromStatus: 'inprogress',
+        toStatus: 'todo',
+        name: 'Move Back to To Do',
+      },
       { fromStatus: 'review', toStatus: 'inprogress', name: 'Request Changes' },
       { fromStatus: 'review', toStatus: 'done', name: 'Approve' },
       { fromStatus: 'done', toStatus: 'inprogress', name: 'Reopen' },
@@ -131,7 +170,9 @@ export class WorkflowsService implements OnModuleInit {
     });
 
     const saved = await workflow.save();
-    this.logger.log(`Created default workflow ${saved._id} for Workspace ${workspaceId}`);
+    this.logger.log(
+      `Created default workflow ${saved._id} for Workspace ${workspaceId}`,
+    );
     return saved;
   }
 

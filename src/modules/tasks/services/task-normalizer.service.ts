@@ -1,10 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { BoardColumn } from '../../kanban/schemas/kanban-board.schema';
-import {
-  CreateTaskDto,
-  UpdateTaskDto,
-} from '../dtos/requests/create-task.dto';
+import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 
 @Injectable()
@@ -36,7 +33,9 @@ export class TaskNormalizerService {
 
     if (workspaceType !== 'kanban') {
       if (dto.boardId) {
-        throw new BadRequestException('Scrum workspace task cannot have boardId');
+        throw new BadRequestException(
+          'Scrum workspace task cannot have boardId',
+        );
       }
       return dto;
     }
@@ -140,7 +139,7 @@ export class TaskNormalizerService {
     status?: string,
   ): BoardColumn | undefined {
     if (columnId) {
-      const column = columns.find((item) => item.id === columnId);
+      const column = columns.find(item => item.id === columnId);
       if (!column) {
         throw new BadRequestException(
           `Column "${columnId}" does not exist in this board`,
@@ -151,7 +150,7 @@ export class TaskNormalizerService {
 
     if (status) {
       const column = columns.find(
-        (item) =>
+        item =>
           item.id === status || (item.mappedStatuses || []).includes(status),
       );
       if (!column) {
@@ -165,11 +164,16 @@ export class TaskNormalizerService {
     return undefined;
   }
 
-  private getFirstKanbanColumn(columns: BoardColumn[]): BoardColumn | undefined {
+  private getFirstKanbanColumn(
+    columns: BoardColumn[],
+  ): BoardColumn | undefined {
     return [...columns].sort((left, right) => left.order - right.order)[0];
   }
 
-  private resolveTaskStatus(column: BoardColumn, requestedStatus?: string): string {
+  private resolveTaskStatus(
+    column: BoardColumn,
+    requestedStatus?: string,
+  ): string {
     if (requestedStatus) {
       return requestedStatus;
     }
@@ -186,4 +190,3 @@ export class TaskNormalizerService {
     return id || undefined;
   }
 }
-

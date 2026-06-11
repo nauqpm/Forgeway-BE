@@ -11,6 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "dev": "nest start --watch",
+    "dev-LAN": "nest start --watch --host 0.0.0.0",
     "start:debug": "nest start --debug --watch",
     "debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",

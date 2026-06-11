@@ -1,9 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request as ExpressRequest } from 'express';
@@ -23,7 +18,7 @@ export class PasswordController {
   constructor(
     private readonly passwordResetService: PasswordResetService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   @ApiOperation({ summary: 'Yêu cầu đặt lại mật khẩu' })
   @ApiResponse({
@@ -77,7 +72,8 @@ export class PasswordController {
   @Post('verify-otp')
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.passwordResetService.verifyOtpAndIssueGrant(dto);
+      const result =
+        await this.passwordResetService.verifyOtpAndIssueGrant(dto);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.OTP_VERIFIED_GRANT_ISSUED,
         severity: 'INFO',
@@ -114,7 +110,8 @@ export class PasswordController {
     @Req() req: ExpressRequest,
   ) {
     try {
-      const result = await this.passwordResetService.resetPasswordWithGrant(dto);
+      const result =
+        await this.passwordResetService.resetPasswordWithGrant(dto);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.PASSWORD_RESET_COMPLETED,
         severity: 'INFO',
@@ -131,4 +128,3 @@ export class PasswordController {
     }
   }
 }
-

@@ -1,4 +1,8 @@
-import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Types } from 'mongoose';
 import { SPACE_ROLES } from '../constants/space-role.constants';
@@ -55,7 +59,7 @@ describe('WorkspaceRoleGuard', () => {
   };
 
   const moduleRef = {
-    get: jest.fn((token) => {
+    get: jest.fn(token => {
       if (token?.name === 'WorkspacesService') return workspacesService;
       if (token?.name === 'PagesService') return pagesService;
       return undefined;
@@ -64,7 +68,9 @@ describe('WorkspaceRoleGuard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    reflector.getAllAndOverride.mockReturnValue([WORKSPACE_PERMISSIONS.TASK_MOVE]);
+    reflector.getAllAndOverride.mockReturnValue([
+      WORKSPACE_PERMISSIONS.TASK_MOVE,
+    ]);
     workspacesService.findByKey.mockResolvedValue({
       _id: workspaceId,
       ownerId,
@@ -103,9 +109,9 @@ describe('WorkspaceRoleGuard', () => {
       user: { userId: memberId.toString(), role: 'user' },
     };
 
-    await expect(guard.canActivate(makeContext(request))).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      guard.canActivate(makeContext(request)),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(workspacesService.findByKey).not.toHaveBeenCalled();
     expect(workspacesService.findById).not.toHaveBeenCalled();
   });
@@ -117,13 +123,15 @@ describe('WorkspaceRoleGuard', () => {
       user: { userId: viewerId.toString(), role: 'user' },
     };
 
-    await expect(guard.canActivate(makeContext(request))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      guard.canActivate(makeContext(request)),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('resolves page routes through the page workspaceId when no workspace param exists', async () => {
-    reflector.getAllAndOverride.mockReturnValue([WORKSPACE_PERMISSIONS.PAGE_EDIT]);
+    reflector.getAllAndOverride.mockReturnValue([
+      WORKSPACE_PERMISSIONS.PAGE_EDIT,
+    ]);
     pagesService.findById.mockResolvedValue({ workspaceId });
 
     const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);

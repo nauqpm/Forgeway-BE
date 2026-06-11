@@ -8,7 +8,9 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Workflow.name, schema: WorkflowSchema }]),
+    MongooseModule.forFeature([
+      { name: Workflow.name, schema: WorkflowSchema },
+    ]),
     forwardRef(() => AuthModule),
   ],
   controllers: [WorkflowsController],

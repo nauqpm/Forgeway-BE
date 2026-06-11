@@ -15,7 +15,10 @@ export class TaskCoverRepository {
     workspaceId: string,
     taskId: string,
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(taskId)
+    ) {
       return null;
     }
 
@@ -33,7 +36,10 @@ export class TaskCoverRepository {
     taskId: string,
     cover: TaskCover,
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(taskId)
+    ) {
       return null;
     }
 
@@ -64,7 +70,10 @@ export class TaskCoverRepository {
     workspaceId: string,
     taskId: string,
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(taskId)
+    ) {
       return null;
     }
 

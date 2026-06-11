@@ -1,7 +1,17 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsEnum, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { WorkflowStatusDto, WorkflowTransitionDto } from './create-workflow.dto';
+import {
+  WorkflowStatusDto,
+  WorkflowTransitionDto,
+} from './create-workflow.dto';
 
 export { WorkflowStatusDto, WorkflowTransitionDto };
 

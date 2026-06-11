@@ -28,6 +28,7 @@ interface WorkspaceInviteFactoryInput {
   recipientId: string;
   actorId: string;
   workspaceId: string;
+  workspaceKey?: string;
   workspaceName: string;
   inviteId: string;
   role: string;
@@ -105,6 +106,7 @@ export class NotificationFactoryService {
       entityId: input.inviteId,
       metadata: {
         workspaceId: input.workspaceId,
+        workspaceKey: input.workspaceKey,
         workspaceName: input.workspaceName,
         inviteId: input.inviteId,
         role: input.role,

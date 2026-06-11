@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Address, AddressDocument } from '../schemas/address.schema';
@@ -10,7 +14,10 @@ export class AddressesService {
     @InjectModel(Address.name) private addressModel: Model<AddressDocument>,
   ) {}
 
-  async create(createAddressDto: CreateAddressDto, userId: string): Promise<Address> {
+  async create(
+    createAddressDto: CreateAddressDto,
+    userId: string,
+  ): Promise<Address> {
     if (createAddressDto.isDefault) {
       await this.addressModel.updateMany(
         { userId: new Types.ObjectId(userId) },
@@ -34,7 +41,10 @@ export class AddressesService {
 
   async findById(id: string, userId: string): Promise<Address> {
     const address = await this.addressModel
-      .findOne({ _id: new Types.ObjectId(id), userId: new Types.ObjectId(userId) })
+      .findOne({
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+      })
       .exec();
 
     if (!address) {
@@ -49,7 +59,10 @@ export class AddressesService {
     userId: string,
   ): Promise<Address> {
     const address = await this.addressModel
-      .findOne({ _id: new Types.ObjectId(id), userId: new Types.ObjectId(userId) })
+      .findOne({
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+      })
       .exec();
 
     if (!address) {
@@ -58,7 +71,10 @@ export class AddressesService {
 
     if (updateAddressDto.isDefault) {
       await this.addressModel.updateMany(
-        { userId: new Types.ObjectId(userId), _id: { $ne: new Types.ObjectId(id) } },
+        {
+          userId: new Types.ObjectId(userId),
+          _id: { $ne: new Types.ObjectId(id) },
+        },
         { $set: { isDefault: false } },
       );
     }
@@ -69,7 +85,10 @@ export class AddressesService {
 
   async delete(id: string, userId: string): Promise<void> {
     const result = await this.addressModel
-      .deleteOne({ _id: new Types.ObjectId(id), userId: new Types.ObjectId(userId) })
+      .deleteOne({
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+      })
       .exec();
 
     if (result.deletedCount === 0) {
@@ -79,7 +98,10 @@ export class AddressesService {
 
   async setDefault(id: string, userId: string): Promise<Address> {
     const address = await this.addressModel
-      .findOne({ _id: new Types.ObjectId(id), userId: new Types.ObjectId(userId) })
+      .findOne({
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+      })
       .exec();
 
     if (!address) {

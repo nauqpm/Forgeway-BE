@@ -62,10 +62,7 @@ export class NotificationsController {
 
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark one notification as read' })
-  async markAsRead(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
-  ) {
+  async markAsRead(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.notificationsService.markAsRead(req.user!.userId, id);
   }
 

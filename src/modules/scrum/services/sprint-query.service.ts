@@ -1,4 +1,4 @@
-//Xử lý các thao tác đọc dữ liệu sprint: 
+//Xử lý các thao tác đọc dữ liệu sprint:
 // - lấy danh sách sprint theo workspace
 // - lấy active sprint
 // - lấy task trong sprint
@@ -20,9 +20,10 @@ import { BoardStatusService } from './board-status.service';
 export class SprintQueryService {
   constructor(
     private readonly boardStatusService: BoardStatusService,
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
+    @InjectModel(Sprint.name)
+    private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
-  ) { }
+  ) {}
 
   async findByWorkspace(workspaceId: string): Promise<SprintDocument[]> {
     return this.sprintModel
@@ -92,12 +93,13 @@ export class SprintQueryService {
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException('Only sprint in active status can be completed');
+      throw new BadRequestException(
+        'Only sprint in active status can be completed',
+      );
     }
 
-    const completedStatuses = await this.boardStatusService.getCompletedStatuses(
-      workspaceObjectId,
-    );
+    const completedStatuses =
+      await this.boardStatusService.getCompletedStatuses(workspaceObjectId);
 
     const tasks = await this.taskModel
       .find({
@@ -109,7 +111,7 @@ export class SprintQueryService {
       .exec();
 
     const incompleteTasks = sortTasksByPriority(
-      tasks.filter((task) => !completedStatuses.includes(task.status)),
+      tasks.filter(task => !completedStatuses.includes(task.status)),
     );
 
     return {
@@ -159,6 +161,3 @@ export class SprintQueryService {
     }
   }
 }
-
-
-

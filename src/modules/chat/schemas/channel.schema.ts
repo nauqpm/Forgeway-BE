@@ -5,7 +5,11 @@ export type ChannelDocument = Channel & Document;
 
 @Schema({ timestamps: true })
 export class Channel {
-  @Prop({ type: String, enum: ['general', 'workspace', 'announcement', 'dm'], required: true })
+  @Prop({
+    type: String,
+    enum: ['general', 'workspace', 'announcement', 'dm'],
+    required: true,
+  })
   type!: 'general' | 'workspace' | 'announcement' | 'dm';
 
   @Prop({ required: true })
@@ -17,7 +21,11 @@ export class Channel {
   @Prop({ type: Types.ObjectId, ref: 'Workspace', default: null, index: true })
   workspaceId?: Types.ObjectId;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [], index: true })
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'User' }],
+    default: [],
+    index: true,
+  })
   members!: Types.ObjectId[];
 
   @Prop({

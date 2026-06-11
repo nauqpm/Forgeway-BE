@@ -16,7 +16,9 @@ export class BoardStatusService {
     session?: ClientSession,
   ): Promise<string[]> {
     const boardQuery = this.boardModel.findOne({ workspaceId }).lean();
-    const board = await (session ? boardQuery.session(session) : boardQuery).exec();
+    const board = await (
+      session ? boardQuery.session(session) : boardQuery
+    ).exec();
 
     const doneColumns =
       board?.columns?.filter((column: any) => {

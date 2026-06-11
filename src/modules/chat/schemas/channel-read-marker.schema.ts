@@ -17,7 +17,8 @@ export class ChannelReadMarker {
   readonly _id!: Types.ObjectId;
 }
 
-export const ChannelReadMarkerSchema = SchemaFactory.createForClass(ChannelReadMarker);
+export const ChannelReadMarkerSchema =
+  SchemaFactory.createForClass(ChannelReadMarker);
 
 // Unique index: Each user has only one read marker per channel
 ChannelReadMarkerSchema.index({ channelId: 1, userId: 1 }, { unique: true });

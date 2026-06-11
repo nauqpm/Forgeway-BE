@@ -1,4 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested, IsNumber, ValidateIf, IsInt, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  ValidateIf,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -62,13 +72,19 @@ export class CreateColumnDto {
 }
 
 export class UpdateColumnDto {
-  @ApiPropertyOptional({ example: 'Code Review', description: 'Tên column mới' })
+  @ApiPropertyOptional({
+    example: 'Code Review',
+    description: 'Tên column mới',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   name?: string;
 
-  @ApiPropertyOptional({ example: ['in-review', 'review'], description: 'Danh sách status được ánh xạ' })
+  @ApiPropertyOptional({
+    example: ['in-review', 'review'],
+    description: 'Danh sách status được ánh xạ',
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -76,7 +92,11 @@ export class UpdateColumnDto {
 }
 
 export class UpdateWipLimitDto {
-  @ApiPropertyOptional({ example: 5, description: 'Giới hạn WIP cho column. Truyền null để xóa giới hạn.', nullable: true })
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Giới hạn WIP cho column. Truyền null để xóa giới hạn.',
+    nullable: true,
+  })
   @IsOptional()
   @IsNumber()
   @Min(1)
@@ -84,20 +104,31 @@ export class UpdateWipLimitDto {
 }
 
 export class MoveColumnDto {
-  @ApiPropertyOptional({ example: 2, description: 'Vị trí index mới (0-based)' })
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'Vị trí index mới (0-based)',
+  })
   @ValidateIf((o: MoveColumnDto) => o.afterColumnId === undefined)
   @IsInt()
   @Min(0)
   targetIndex?: number;
 
-  @ApiPropertyOptional({ example: 'abc123', description: 'Chèn sau column này. Truyền null để đưa lên đầu.', nullable: true })
+  @ApiPropertyOptional({
+    example: 'abc123',
+    description: 'Chèn sau column này. Truyền null để đưa lên đầu.',
+    nullable: true,
+  })
   @ValidateIf((o: MoveColumnDto) => o.targetIndex === undefined)
   @IsString()
   afterColumnId?: string | null;
 }
 
 export class DeleteColumnDto {
-  @ApiPropertyOptional({ example: 'col-xyz', description: 'Column nhận task khi xóa. Bắt buộc nếu column hiện tại còn task.' })
+  @ApiPropertyOptional({
+    example: 'col-xyz',
+    description:
+      'Column nhận task khi xóa. Bắt buộc nếu column hiện tại còn task.',
+  })
   @IsOptional()
   @IsString()
   targetColumnId?: string;

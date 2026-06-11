@@ -50,7 +50,9 @@ export class WorkspaceRoleGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<RequestWithWorkspaceAuth>();
+    const request = context
+      .switchToHttp()
+      .getRequest<RequestWithWorkspaceAuth>();
     const user = request.user;
 
     if (!user?.userId) {
@@ -61,16 +63,19 @@ export class WorkspaceRoleGuard implements CanActivate {
       request.workspaceAuth = {
         workspaceId: await this.resolveWorkspaceId(request),
         role: SPACE_ROLES.WORKSPACE_ADMIN,
-        permissions: getPermissionsForWorkspaceRole(SPACE_ROLES.WORKSPACE_ADMIN),
+        permissions: getPermissionsForWorkspaceRole(
+          SPACE_ROLES.WORKSPACE_ADMIN,
+        ),
       };
       return true;
     }
 
     const workspaceAuth =
-      request.workspaceAuth ?? (await this.resolveWorkspaceAuth(request, user.userId));
+      request.workspaceAuth ??
+      (await this.resolveWorkspaceAuth(request, user.userId));
     request.workspaceAuth = workspaceAuth;
 
-    const allowed = requiredPermissions.every((permission) =>
+    const allowed = requiredPermissions.every(permission =>
       workspaceAuth.permissions.includes(permission),
     );
 
@@ -90,7 +95,7 @@ export class WorkspaceRoleGuard implements CanActivate {
     const workspaceId = await this.resolveWorkspaceId(request);
     const workspace = await this.getWorkspacesService().findById(workspaceId);
     const member = workspace.members.find(
-      (item) => item.userId.toString() === userId,
+      item => item.userId.toString() === userId,
     );
     const role =
       workspace.ownerId.toString() === userId
@@ -129,7 +134,9 @@ export class WorkspaceRoleGuard implements CanActivate {
     }
 
     if (directWorkspaceId) {
-      throw new BadRequestException('workspaceId must be a valid MongoDB ObjectId');
+      throw new BadRequestException(
+        'workspaceId must be a valid MongoDB ObjectId',
+      );
     }
 
     const pageId =

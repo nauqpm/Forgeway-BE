@@ -48,7 +48,7 @@ export class RedisService implements OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     await Promise.all(
-      Array.from(this.clients).map(async (client) => {
+      Array.from(this.clients).map(async client => {
         if (!client.isOpen) return;
         await client.quit();
       }),

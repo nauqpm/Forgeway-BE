@@ -2,6 +2,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -29,7 +30,7 @@ import { CHAT_THROTTLE_CONFIG } from '../constants/chat-throttler.constants';
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection {
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -45,8 +46,10 @@ export class ChatGateway implements OnGatewayConnection {
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
       const user = await this.socketAuthService.authenticate(client);
-      const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
-      
+      const userIdentifier = user.email
+        ? `${user.email} (${user.userId})`
+        : user.userId;
+
       // Join personal room
       await client.join(RoomBuilder.user(user.userId));
 
@@ -60,8 +63,74 @@ export class ChatGateway implements OnGatewayConnection {
         `Chat client connected: ${client.id} | User: ${userIdentifier} | Joined ${channels.length} channels`,
       );
     } catch (error) {
-      this.logger.warn(`Rejected chat connection ${client.id}: ${(error as Error).message}`);
+      this.logger.warn(
+        `Rejected chat connection ${client.id}: ${(error as Error).message}`,
+      );
       client.disconnect(true);
+    }
+  }
+
+  async handleDisconnect(client: AuthenticatedSocket): Promise<void> {
+    try {
+      const userId = client.data?.user?.userId;
+      if (!userId) return;
+
+      this.logger.log(
+        `Chat client disconnected: ${client.id} | User: ${userId}`,
+      );
+
+      const activeMeetings =
+        await this.meetingService.findActiveByParticipant(userId);
+      for (const meeting of activeMeetings) {
+        const meetingId = meeting._id.toString();
+        const updatedMeeting = await this.meetingService.leave(
+          meetingId,
+          userId,
+        );
+
+        const envelope: RealtimeEnvelope<any> = {
+          eventId: new Types.ObjectId().toString(),
+          type: REALTIME_EVENT_TYPES.MEETING_USER_LEFT,
+          data: {
+            userId,
+            meetingId,
+            participants: updatedMeeting.participants,
+            channelId: updatedMeeting.channelId.toString(),
+            type: updatedMeeting.type,
+          },
+          occurredAt: new Date().toISOString(),
+        };
+
+        this.server
+          .to(RoomBuilder.meeting(meetingId))
+          .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
+        this.server
+          .to(RoomBuilder.channel(updatedMeeting.channelId.toString()))
+          .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
+
+        if (updatedMeeting.status === 'ended') {
+          const endedEnvelope: RealtimeEnvelope<any> = {
+            eventId: new Types.ObjectId().toString(),
+            type: REALTIME_EVENT_TYPES.MEETING_ENDED,
+            data: {
+              meetingId,
+              channelId: updatedMeeting.channelId.toString(),
+              type: updatedMeeting.type,
+            },
+            occurredAt: new Date().toISOString(),
+          };
+          this.server
+            .to(RoomBuilder.meeting(meetingId))
+            .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+          this.server
+            .to(RoomBuilder.channel(updatedMeeting.channelId.toString()))
+            .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error in handleDisconnect for ${client.id}: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -75,7 +144,10 @@ export class ChatGateway implements OnGatewayConnection {
     const userId = client.data.user?.userId;
     if (!userId || !body.channelId) return { ok: false };
 
-    const hasAccess = await this.channelsService.validateUserAccess(body.channelId, userId);
+    const hasAccess = await this.channelsService.validateUserAccess(
+      body.channelId,
+      userId,
+    );
     if (!hasAccess) return { ok: false, error: 'Forbidden' };
 
     await client.join(RoomBuilder.channel(body.channelId));
@@ -103,8 +175,12 @@ export class ChatGateway implements OnGatewayConnection {
     const userId = client.data.user?.userId;
     if (!userId || !payload.channelId) return { ok: false };
 
-    const message = await this.messagesService.send(payload.channelId, userId, payload);
-    
+    const message = await this.messagesService.send(
+      payload.channelId,
+      userId,
+      payload,
+    );
+
     // Update last message preview in channel
     await this.channelsService.updateLastMessage(payload.channelId, {
       content: message.content,
@@ -114,7 +190,7 @@ export class ChatGateway implements OnGatewayConnection {
     });
 
     const room = RoomBuilder.channel(payload.channelId);
-    
+
     const envelope: RealtimeEnvelope<any> = {
       eventId: new Types.ObjectId().toString(),
       type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT,
@@ -130,12 +206,17 @@ export class ChatGateway implements OnGatewayConnection {
   @SubscribeMessage('chat.edit')
   async handleEdit(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { messageId: string; channelId: string; content: string },
+    @MessageBody()
+    payload: { messageId: string; channelId: string; content: string },
   ) {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId) return { ok: false };
 
-    const message = await this.messagesService.edit(payload.messageId, userId, payload.content);
+    const message = await this.messagesService.edit(
+      payload.messageId,
+      userId,
+      payload.content,
+    );
     const room = RoomBuilder.channel(payload.channelId);
 
     const envelope: RealtimeEnvelope<any> = {
@@ -145,7 +226,9 @@ export class ChatGateway implements OnGatewayConnection {
       occurredAt: new Date().toISOString(),
     };
 
-    this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_EDITED, envelope);
+    this.server
+      .to(room)
+      .emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_EDITED, envelope);
     return { ok: true };
   }
 
@@ -168,14 +251,17 @@ export class ChatGateway implements OnGatewayConnection {
       occurredAt: new Date().toISOString(),
     };
 
-    this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED, envelope);
+    this.server
+      .to(room)
+      .emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED, envelope);
     return { ok: true };
   }
 
   @SubscribeMessage('chat.reaction')
   async handleReaction(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { messageId: string; emoji: string; channelId: string },
+    @MessageBody()
+    payload: { messageId: string; emoji: string; channelId: string },
   ) {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId || !payload.emoji) return { ok: false };
@@ -225,30 +311,37 @@ export class ChatGateway implements OnGatewayConnection {
   @SubscribeMessage('meeting.join')
   async handleMeetingJoin(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { channelId: string },
+    @MessageBody() body: { meetingId: string; displayName?: string },
   ) {
     const userId = client.data.user?.userId;
-    if (!userId || !body.channelId) return { ok: false };
+    if (!userId || !body.meetingId)
+      return { ok: false, message: 'Missing meetingId' };
 
-    let meeting = await this.meetingService.findActive(body.channelId);
-    if (!meeting) {
-      meeting = await this.meetingService.create(body.channelId, userId);
-    } else {
-      meeting = await this.meetingService.join(meeting._id.toString(), userId);
+    try {
+      const meeting = await this.meetingService.join(body.meetingId, userId);
+
+      const meetingId = meeting._id.toString();
+      await client.join(RoomBuilder.meeting(meetingId));
+
+      const envelope: RealtimeEnvelope<any> = {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.MEETING_USER_JOINED,
+        data: {
+          userId,
+          meetingId,
+          participants: meeting.participants,
+          displayName: body.displayName,
+        },
+        occurredAt: new Date().toISOString(),
+      };
+
+      this.server
+        .to(RoomBuilder.meeting(meetingId))
+        .emit(REALTIME_EVENT_TYPES.MEETING_USER_JOINED, envelope);
+      return { ok: true, meetingId };
+    } catch (error) {
+      return { ok: false, message: (error as Error).message };
     }
-
-    const meetingId = meeting._id.toString();
-    await client.join(RoomBuilder.meeting(meetingId));
-
-    const envelope: RealtimeEnvelope<any> = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.MEETING_USER_JOINED,
-      data: { userId, meetingId, participants: meeting.participants },
-      occurredAt: new Date().toISOString(),
-    };
-
-    this.server.to(RoomBuilder.meeting(meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_USER_JOINED, envelope);
-    return { ok: true, meetingId };
   }
 
   @SubscribeMessage('meeting.leave')
@@ -265,17 +358,63 @@ export class ChatGateway implements OnGatewayConnection {
     const envelope: RealtimeEnvelope<any> = {
       eventId: new Types.ObjectId().toString(),
       type: REALTIME_EVENT_TYPES.MEETING_USER_LEFT,
-      data: { userId, meetingId: body.meetingId, participants: meeting.participants },
+      data: {
+        userId,
+        meetingId: body.meetingId,
+        participants: meeting.participants,
+      },
       occurredAt: new Date().toISOString(),
     };
 
-    this.server.to(RoomBuilder.meeting(body.meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
+    this.server
+      .to(RoomBuilder.meeting(body.meetingId))
+      .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
 
     if (meeting.status === 'ended') {
-      this.server.to(RoomBuilder.meeting(body.meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_ENDED, { meetingId: body.meetingId });
+      this.server
+        .to(RoomBuilder.meeting(body.meetingId))
+        .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, {
+          meetingId: body.meetingId,
+        });
     }
 
     return { ok: true };
+  }
+
+  @SubscribeMessage('meeting.end')
+  async handleMeetingEnd(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: { meetingId: string },
+  ) {
+    const userId = client.data.user?.userId;
+    if (!userId || !body.meetingId) return { ok: false };
+
+    try {
+      const meeting = await this.meetingService.findById(body.meetingId);
+      await this.meetingService.end(body.meetingId, userId);
+
+      const envelope: RealtimeEnvelope<any> = {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.MEETING_ENDED,
+        data: {
+          meetingId: body.meetingId,
+          channelId: meeting.channelId.toString(),
+          type: meeting.type,
+        },
+        occurredAt: new Date().toISOString(),
+      };
+
+      this.server
+        .to(RoomBuilder.meeting(body.meetingId))
+        .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, envelope);
+      this.server
+        .to(RoomBuilder.channel(meeting.channelId.toString()))
+        .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, envelope);
+
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: (error as Error).message };
+    }
   }
 
   @SubscribeMessage('meeting.toggle.audio')
@@ -287,11 +426,13 @@ export class ChatGateway implements OnGatewayConnection {
     if (!userId || !body.meetingId) return;
 
     await this.meetingService.toggleAudio(body.meetingId, userId, body.isOn);
-    
-    this.server.to(RoomBuilder.meeting(body.meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED, {
-      userId,
-      isOn: body.isOn,
-    });
+
+    this.server
+      .to(RoomBuilder.meeting(body.meetingId))
+      .emit(REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED, {
+        userId,
+        isOn: body.isOn,
+      });
   }
 
   @SubscribeMessage('meeting.toggle.video')
@@ -303,53 +444,64 @@ export class ChatGateway implements OnGatewayConnection {
     if (!userId || !body.meetingId) return;
 
     await this.meetingService.toggleVideo(body.meetingId, userId, body.isOn);
-    
-    this.server.to(RoomBuilder.meeting(body.meetingId)).emit(REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED, {
-      userId,
-      isOn: body.isOn,
-    });
+
+    this.server
+      .to(RoomBuilder.meeting(body.meetingId))
+      .emit(REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED, {
+        userId,
+        isOn: body.isOn,
+      });
   }
 
   // 5.4 WebRTC Signaling
   @SubscribeMessage('rtc.offer')
   async handleRtcOffer(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { meetingId: string; targetUserId: string; sdp: any },
+    @MessageBody()
+    payload: { meetingId: string; targetUserId: string; sdp: any },
   ) {
     const senderId = client.data.user?.userId;
     if (!senderId) return;
 
-    this.server.to(RoomBuilder.user(payload.targetUserId)).emit(REALTIME_EVENT_TYPES.RTC_OFFER, {
-      ...payload,
-      senderId,
-    });
+    this.server
+      .to(RoomBuilder.user(payload.targetUserId))
+      .emit(REALTIME_EVENT_TYPES.RTC_OFFER, {
+        ...payload,
+        senderId,
+      });
   }
 
   @SubscribeMessage('rtc.answer')
   async handleRtcAnswer(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { meetingId: string; targetUserId: string; sdp: any },
+    @MessageBody()
+    payload: { meetingId: string; targetUserId: string; sdp: any },
   ) {
     const senderId = client.data.user?.userId;
     if (!senderId) return;
 
-    this.server.to(RoomBuilder.user(payload.targetUserId)).emit(REALTIME_EVENT_TYPES.RTC_ANSWER, {
-      ...payload,
-      senderId,
-    });
+    this.server
+      .to(RoomBuilder.user(payload.targetUserId))
+      .emit(REALTIME_EVENT_TYPES.RTC_ANSWER, {
+        ...payload,
+        senderId,
+      });
   }
 
   @SubscribeMessage('rtc.ice')
   async handleRtcIce(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { meetingId: string; targetUserId: string; candidate: any },
+    @MessageBody()
+    payload: { meetingId: string; targetUserId: string; candidate: any },
   ) {
     const senderId = client.data.user?.userId;
     if (!senderId) return;
 
-    this.server.to(RoomBuilder.user(payload.targetUserId)).emit(REALTIME_EVENT_TYPES.RTC_ICE_CANDIDATE, {
-      ...payload,
-      senderId,
-    });
+    this.server
+      .to(RoomBuilder.user(payload.targetUserId))
+      .emit(REALTIME_EVENT_TYPES.RTC_ICE_CANDIDATE, {
+        ...payload,
+        senderId,
+      });
   }
 }

@@ -62,10 +62,7 @@ class InMemoryTokenModel {
     return record;
   }
 
-  async updateMany(
-    query: Record<string, unknown>,
-    update: { $set: Partial<TokenRecord> } | Partial<TokenRecord>,
-  ) {
+  async updateMany(query: Record<string, unknown>, update: { $set: Partial<TokenRecord> } | Partial<TokenRecord>) {
     let modifiedCount = 0;
     const changes = '$set' in update ? update.$set : update;
     for (const record of this.records) {
@@ -78,7 +75,7 @@ class InMemoryTokenModel {
   }
 
   async updateOne(query: Record<string, unknown>, update: Partial<TokenRecord>) {
-    const record = this.records.find((item) => this.matches(item, query));
+    const record = this.records.find(item => this.matches(item, query));
     if (record) {
       Object.assign(record, update, { updatedAt: new Date() });
     }
@@ -86,8 +83,7 @@ class InMemoryTokenModel {
   }
 
   findOne(query: Record<string, unknown>) {
-    const resolve = async () =>
-      this.records.find((record) => this.matches(record, query)) ?? null;
+    const resolve = async () => this.records.find(record => this.matches(record, query)) ?? null;
     return {
       exec: resolve,
       then: (onFulfilled: (value: TokenRecord | null) => unknown, onRejected?: (reason: unknown) => unknown) =>
@@ -99,7 +95,7 @@ class InMemoryTokenModel {
     query: Record<string, unknown>,
     update: { $set: Partial<TokenRecord> },
   ): Promise<TokenRecord | null> {
-    const record = this.records.find((item) => this.matches(item, query));
+    const record = this.records.find(item => this.matches(item, query));
     if (!record) {
       return null;
     }
@@ -148,15 +144,9 @@ class InMemoryOtpModel {
       sort: () => ({
         exec: async () =>
           [...this.records]
-            .filter((record) => {
-              const activeByExpiry = query.expiresAt?.$gt
-                ? record.expiresAt > query.expiresAt.$gt
-                : true;
-              return (
-                record.email === query.email &&
-                record.isUsed === query.isUsed &&
-                activeByExpiry
-              );
+            .filter(record => {
+              const activeByExpiry = query.expiresAt?.$gt ? record.expiresAt > query.expiresAt.$gt : true;
+              return record.email === query.email && record.isUsed === query.isUsed && activeByExpiry;
             })
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null,
       }),
@@ -164,7 +154,7 @@ class InMemoryOtpModel {
   }
 
   async updateOne(query: { _id: string }, update: Partial<OtpRecord>) {
-    const record = this.records.find((item) => String(item._id) === query._id);
+    const record = this.records.find(item => String(item._id) === query._id);
     if (record) {
       Object.assign(record, update);
     }
@@ -175,10 +165,8 @@ class InMemoryOtpModel {
     update: { $set: Partial<OtpRecord> },
   ): Promise<OtpRecord | null> {
     const record = this.records.find(
-      (item) =>
-        String(item._id) === String(query._id) &&
-        item.isUsed === query.isUsed &&
-        item.expiresAt > query.expiresAt.$gt,
+      item =>
+        String(item._id) === String(query._id) && item.isUsed === query.isUsed && item.expiresAt > query.expiresAt.$gt,
     );
     if (!record) {
       return null;
@@ -227,30 +215,23 @@ describe('Auth security flows (integration)', () => {
   });
 
   it('rotates refresh tokens and revokes the family on reused old refresh token', async () => {
-    const initial = await tokenService.createAndSaveTokens(
-      userId,
-      'user@example.com',
-      GLOBAL_ROLES.USER,
-    );
+    const initial = await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
     const rotated = await tokenService.refreshAccessToken(initial.refreshToken);
 
     expect(rotated.refreshToken).not.toBe(initial.refreshToken);
     expect(
-      tokenModel.records.find((record) => record.token === tokenService.hashToken(initial.refreshToken))
-        ?.status,
+      tokenModel.records.find(record => record.token === tokenService.hashToken(initial.refreshToken))?.status,
     ).toBe(false);
 
-    const oldRefresh = tokenModel.records.find(
-      (record) => record.token === tokenService.hashToken(initial.refreshToken),
-    );
+    const oldRefresh = tokenModel.records.find(record => record.token === tokenService.hashToken(initial.refreshToken));
     if (!oldRefresh) {
       throw new Error('Expected old refresh token record');
     }
     oldRefresh.updatedAt = new Date(Date.now() - 20_000);
 
     await expect(tokenService.refreshAccessToken(initial.refreshToken)).rejects.toThrow();
-    const familyRecords = tokenModel.records.filter((record) => record.familyId === oldRefresh.familyId);
-    expect(familyRecords.every((record) => record.status === false)).toBe(true);
+    const familyRecords = tokenModel.records.filter(record => record.familyId === oldRefresh.familyId);
+    expect(familyRecords.every(record => record.status === false)).toBe(true);
   });
 
   it('accepts only active OTPs and excludes them after consume or expiry', async () => {
@@ -321,9 +302,7 @@ describe('Auth security flows (integration)', () => {
     await expect(tokenService.consumeResetGrant('invalid-grant')).rejects.toThrow();
 
     const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
-    const record = tokenModel.records.find(
-      (item) => item.token === tokenService.hashToken(resetGrant),
-    );
+    const record = tokenModel.records.find(item => item.token === tokenService.hashToken(resetGrant));
     if (!record) {
       throw new Error('Expected reset grant record');
     }
@@ -360,7 +339,7 @@ describe('Auth security flows (integration)', () => {
       newPassword: 'NewPassword1!',
     });
 
-    expect(tokenModel.records.every((record) => record.status === false)).toBe(true);
+    expect(tokenModel.records.every(record => record.status === false)).toBe(true);
   });
 
   it('does not consume reset grant when new password matches current password', async () => {
@@ -392,9 +371,7 @@ describe('Auth security flows (integration)', () => {
       }),
     ).rejects.toThrow();
 
-    const grantRecord = tokenModel.records.find(
-      (record) => record.token === tokenService.hashToken(resetGrant),
-    );
+    const grantRecord = tokenModel.records.find(record => record.token === tokenService.hashToken(resetGrant));
     expect(grantRecord?.status).toBe(true);
     expect(usersService.updatePassword).not.toHaveBeenCalled();
 
@@ -449,10 +426,7 @@ describe('Auth security flows (integration)', () => {
       status: USER_STATUSES.PENDING_VERIFICATION,
     };
     const usersService = {
-      findByEmail: jest
-        .fn()
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(createdUser),
+      findByEmail: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(createdUser),
       createUser: jest.fn().mockResolvedValue(createdUser),
       updateUser: jest.fn().mockResolvedValue({ ...createdUser, status: USER_STATUSES.ACTIVE }),
     } as unknown as UsersService;
@@ -558,26 +532,21 @@ describe('Auth logout revoke path (e2e)', () => {
   });
 
   it('revokes access and refresh tokens supplied via cookies on logout', async () => {
-    const tokens = await tokenService.createAndSaveTokens(
-      userId,
-      'user@example.com',
-      GLOBAL_ROLES.USER,
-    );
+    const tokens = await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
 
     await request(app.getHttpServer())
       .post('/auth/logout')
-      .set('Cookie', [
-        `access_token=${tokens.accessToken}`,
-        `refresh_token=${tokens.refreshToken}`,
-      ])
+      .set('Cookie', [`access_token=${tokens.accessToken}`, `refresh_token=${tokens.refreshToken}`])
       .expect(200);
 
     expect(
-      tokenModel.records.filter((record) =>
-        [tokenService.hashToken(tokens.accessToken), tokenService.hashToken(tokens.refreshToken)].includes(
-          record.token,
-        ),
-      ).every((record) => record.status === false),
+      tokenModel.records
+        .filter(record =>
+          [tokenService.hashToken(tokens.accessToken), tokenService.hashToken(tokens.refreshToken)].includes(
+            record.token,
+          ),
+        )
+        .every(record => record.status === false),
     ).toBe(true);
   });
 });

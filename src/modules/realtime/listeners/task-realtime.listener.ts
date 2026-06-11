@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { DOMAIN_EVENT_TYPES, DomainEventType } from '../../../shared/events/domain-events';
+import {
+  DOMAIN_EVENT_TYPES,
+  DomainEventType,
+} from '../../../shared/events/domain-events';
 import {
   BaseTaskEvent,
   TaskArchivedEventData,
@@ -100,7 +103,10 @@ export class TaskRealtimeListener {
     event: BaseTaskEvent<DomainEventType, TData>,
   ): RealtimeEnvelope<TData> {
     return {
-      eventId: event.eventId ?? event.data.eventId ?? `${type}:${event.data.taskId}:${event.occurredAt.getTime()}`,
+      eventId:
+        event.eventId ??
+        event.data.eventId ??
+        `${type}:${event.data.taskId}:${event.occurredAt.getTime()}`,
       type,
       correlationId: event.correlationId ?? event.data.correlationId,
       causationId: event.causationId ?? event.data.causationId,

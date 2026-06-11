@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workspace, WorkspaceDocument } from '../schemas/workspace.schema';
-import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
+import {
+  CreateWorkspaceDto,
+  UpdateWorkspaceDto,
+} from '../dtos/create-workspace.dto';
 
 @Injectable()
 export class WorkspacesRepository {
@@ -56,15 +59,14 @@ export class WorkspacesRepository {
     return this.workspaceModel
       .find({
         deletedAt: null,
-        $or: [
-          { ownerId: objectUserId },
-          { 'members.userId': objectUserId },
-        ],
+        $or: [{ ownerId: objectUserId }, { 'members.userId': objectUserId }],
       })
       .exec();
   }
 
-  async findActiveForUserOverview(userId: string): Promise<WorkspaceDocument[]> {
+  async findActiveForUserOverview(
+    userId: string,
+  ): Promise<WorkspaceDocument[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
     }
@@ -73,12 +75,11 @@ export class WorkspacesRepository {
       .find({
         status: 'active',
         deletedAt: null,
-        $or: [
-          { ownerId: objectUserId },
-          { 'members.userId': objectUserId },
-        ],
+        $or: [{ ownerId: objectUserId }, { 'members.userId': objectUserId }],
       })
-      .select('_id name description slug key type ownerId members status createdAt updatedAt')
+      .select(
+        '_id name description slug key type ownerId members status createdAt updatedAt',
+      )
       .sort({ updatedAt: -1 })
       .exec();
   }
@@ -131,7 +132,10 @@ export class WorkspacesRepository {
     userId: string,
     role: string,
   ): Promise<WorkspaceDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(userId)
+    ) {
       return null;
     }
     return this.workspaceModel
@@ -149,7 +153,10 @@ export class WorkspacesRepository {
     workspaceId: string,
     userId: string,
   ): Promise<WorkspaceDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(userId)
+    ) {
       return null;
     }
     return this.workspaceModel
@@ -166,7 +173,10 @@ export class WorkspacesRepository {
     userId: string,
     role: string,
   ): Promise<WorkspaceDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(userId)
+    ) {
       return null;
     }
     return this.workspaceModel

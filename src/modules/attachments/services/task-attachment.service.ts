@@ -130,13 +130,17 @@ export class TaskAttachmentService {
     );
 
     if (!attachment) {
-      throw new NotFoundException(`Attachment with ID ${attachmentId} not found`);
+      throw new NotFoundException(
+        `Attachment with ID ${attachmentId} not found`,
+      );
     }
 
     const uploadedById =
       attachment.uploadedBy instanceof Types.ObjectId
         ? attachment.uploadedBy.toString()
-        : (attachment.uploadedBy as { _id?: Types.ObjectId | string })?._id?.toString();
+        : (
+            attachment.uploadedBy as { _id?: Types.ObjectId | string }
+          )?._id?.toString();
 
     if (uploadedById !== userId) {
       throw new ForbiddenException('You can only delete your own attachments');
@@ -291,7 +295,9 @@ export class TaskAttachmentService {
     );
 
     if (!attachment) {
-      throw new NotFoundException(`Attachment with ID ${attachmentId} not found`);
+      throw new NotFoundException(
+        `Attachment with ID ${attachmentId} not found`,
+      );
     }
 
     return attachment;
@@ -313,7 +319,9 @@ export class TaskAttachmentService {
         mimeType ??
         this.resolveMimeType(
           attachment.mimeType,
-          attachment.originalName || attachment.filename || attachment.storageKey,
+          attachment.originalName ||
+            attachment.filename ||
+            attachment.storageKey,
         ),
       originalName: attachment.originalName,
       size: attachment.size,
@@ -404,7 +412,10 @@ export class TaskAttachmentService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
@@ -416,7 +427,9 @@ export class TaskAttachmentService {
 
   private validateObjectId(value: string, label: string): void {
     if (!Types.ObjectId.isValid(value)) {
-      throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
+      throw new BadRequestException(
+        `${label} must be a valid MongoDB ObjectId`,
+      );
     }
   }
 }

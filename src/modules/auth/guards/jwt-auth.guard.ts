@@ -67,13 +67,21 @@ export class JwtAuthGuard implements CanActivate {
     if (decoded.type && decoded.type !== 'access') {
       this.logger.warn(`Wrong token type: ${decoded.type}`);
       this.logUnauthorized(request, 'Wrong token type', decoded.userId);
-      throw new UnauthorizedException('Chỉ sử dụng access token cho endpoint này');
+      throw new UnauthorizedException(
+        'Chỉ sử dụng access token cho endpoint này',
+      );
     }
 
     const activeToken = await this.tokenService.findActiveAccessToken(token);
     if (!activeToken) {
-      this.logger.warn(`Access token revoked or not found: userId ${decoded.userId}`);
-      this.logUnauthorized(request, AUTH_ERROR_CODES.TOKEN_REVOKED, decoded.userId);
+      this.logger.warn(
+        `Access token revoked or not found: userId ${decoded.userId}`,
+      );
+      this.logUnauthorized(
+        request,
+        AUTH_ERROR_CODES.TOKEN_REVOKED,
+        decoded.userId,
+      );
       throw new UnauthorizedException({
         statusCode: 401,
         error: AUTH_ERROR_CODES.TOKEN_REVOKED,

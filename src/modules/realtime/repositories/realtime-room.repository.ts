@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
-import { Workspace, WorkspaceDocument } from '../../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '../../workspaces/schemas/workspace.schema';
 
 @Injectable()
 export class RealtimeRoomRepository {
@@ -18,7 +21,10 @@ export class RealtimeRoomRepository {
     workspaceId: string,
     userId: string,
   ): Promise<boolean> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(userId)
+    ) {
       return false;
     }
 
@@ -37,7 +43,10 @@ export class RealtimeRoomRepository {
     taskId: string,
     workspaceId: string,
   ): Promise<boolean> {
-    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
+    if (
+      !Types.ObjectId.isValid(taskId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
       return false;
     }
 

@@ -1,4 +1,11 @@
-import {ForbiddenException,Inject,Injectable,Logger,NotFoundException,forwardRef} from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Channel, ChannelDocument } from '../schemas/channel.schema';
@@ -12,7 +19,8 @@ export class ChannelsService {
   private readonly logger = new Logger(ChannelsService.name);
 
   constructor(
-    @InjectModel(Channel.name) private readonly channelModel: Model<ChannelDocument>,
+    @InjectModel(Channel.name)
+    private readonly channelModel: Model<ChannelDocument>,
     @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
     private readonly workspaceMemberService: WorkspaceMemberService,
@@ -40,7 +48,9 @@ export class ChannelsService {
     }
 
     // #announcements
-    const announcements = await this.channelModel.findOne({ type: 'announcement' });
+    const announcements = await this.channelModel.findOne({
+      type: 'announcement',
+    });
     if (!announcements) {
       this.logger.log('Initializing #announcements channel');
       await this.channelModel.create({
@@ -57,13 +67,15 @@ export class ChannelsService {
     const allWorkspaces = await this.workspacesService.findAll();
     for (const workspace of allWorkspaces) {
       const workspaceId = workspace._id.toString();
-      const channel = await this.channelModel.findOne({ 
+      const channel = await this.channelModel.findOne({
         workspaceId: new Types.ObjectId(workspaceId),
-        type: 'workspace' 
+        type: 'workspace',
       });
 
       if (!channel) {
-        this.logger.log(`Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`);
+        this.logger.log(
+          `Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`,
+        );
         await this.channelModel.create({
           name: workspace.name,
           type: 'workspace',
@@ -76,9 +88,15 @@ export class ChannelsService {
     }
   }
 
-  async createWorkspaceChannel(workspaceId: string, createdBy: string): Promise<ChannelDocument> {
+  async createWorkspaceChannel(
+    workspaceId: string,
+    createdBy: string,
+  ): Promise<ChannelDocument> {
     this.logger.log(`Creating workspace channel for workspace: ${workspaceId}`);
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(createdBy)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(createdBy)
+    ) {
       throw new Error('Invalid IDs');
     }
 
@@ -117,19 +135,24 @@ export class ChannelsService {
     const userWorkspaces = await this.workspacesService.findByUserId(userId);
     const userWorkspaceIds = userWorkspaces.map(w => w._id);
 
-    const channels = await this.channelModel.find({
-      $or: [
-        { type: 'general' },
-        { type: 'announcement' },
-        { workspaceId: { $in: userWorkspaceIds } },
-      ]
-    }).exec();
+    const channels = await this.channelModel
+      .find({
+        $or: [
+          { type: 'general' },
+          { type: 'announcement' },
+          { workspaceId: { $in: userWorkspaceIds } },
+        ],
+      })
+      .exec();
 
     this.logger.log(`Found ${channels.length} channels for user: ${userId}`);
-    
+
     return Promise.all(
-      channels.map(async (channel) => {
-        const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
+      channels.map(async channel => {
+        const unreadCount = await this.messagesService.countUnread(
+          channel._id.toString(),
+          userId,
+        );
         return {
           ...channel.toObject(),
           unreadCount,
@@ -146,14 +169,20 @@ export class ChannelsService {
     await this.messagesService.markAsRead(channelId, userId);
   }
 
-  async getOrCreateDM(userAId: string, userBId: string): Promise<ChannelDocument> {
+  async getOrCreateDM(
+    userAId: string,
+    userBId: string,
+  ): Promise<ChannelDocument> {
     const members = [userAId, userBId].sort();
-    
+
     // Find existing DM with exactly these two members
-    const existing = await this.channelModel.findOne({
-      type: 'dm',
-      members: { $all: members, $size: 2 }
-    }).populate('members', '_id fullName avatar email').exec();
+    const existing = await this.channelModel
+      .findOne({
+        type: 'dm',
+        members: { $all: members, $size: 2 },
+      })
+      .populate('members', '_id fullName avatar email')
+      .exec();
 
     if (existing) return existing;
 
@@ -171,38 +200,56 @@ export class ChannelsService {
   }
 
   async getRecentDMs(userId: string): Promise<any[]> {
-    const channels = await this.channelModel.find({
-      type: 'dm',
-      members: new Types.ObjectId(userId)
-    })
-    .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
-    .limit(20)
-    .populate('members', '_id fullName avatar email')
-    .exec();
+    const channels = await this.channelModel
+      .find({
+        type: 'dm',
+        members: new Types.ObjectId(userId),
+      })
+      .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
+      .limit(20)
+      .populate('members', '_id fullName avatar email')
+      .exec();
 
     // Add unread count
     return Promise.all(
-      channels.map(async (channel) => {
-        const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
+      channels.map(async channel => {
+        const unreadCount = await this.messagesService.countUnread(
+          channel._id.toString(),
+          userId,
+        );
         return {
           ...channel.toObject(),
           unreadCount,
         };
-      })
+      }),
     );
   }
 
-  async updateLastMessage(channelId: string, message: { content: string; senderId: any; senderName: string; sentAt: Date }) {
-    return this.channelModel.findByIdAndUpdate(channelId, {
-      $set: {
-        lastMessage: {
-          content: message.content,
-          senderId: new Types.ObjectId(message.senderId.toString()),
-          senderName: message.senderName,
-          sentAt: message.sentAt,
-        }
-      }
-    }, { new: true }).exec();
+  async updateLastMessage(
+    channelId: string,
+    message: {
+      content: string;
+      senderId: any;
+      senderName: string;
+      sentAt: Date;
+    },
+  ) {
+    return this.channelModel
+      .findByIdAndUpdate(
+        channelId,
+        {
+          $set: {
+            lastMessage: {
+              content: message.content,
+              senderId: new Types.ObjectId(message.senderId.toString()),
+              senderName: message.senderName,
+              sentAt: message.sentAt,
+            },
+          },
+        },
+        { new: true },
+      )
+      .exec();
   }
 
   async searchUsers(query: string, excludeUserId: string) {
@@ -212,16 +259,21 @@ export class ChannelsService {
   /** Lightweight version of findByUser to be used during Socket connection */
   async findMyChannelIds(userId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(userId)) return [];
-    
+
     // Use a direct query instead of workspacesService to avoid heavy counting logic
-    const channels = await this.channelModel.find({
-      $or: [
-        { type: 'general' },
-        { type: 'announcement' },
-        { workspaceId: { $in: await this.getUserWorkspaceIds(userId) } },
-        { type: 'dm', members: new Types.ObjectId(userId) }
-      ]
-    }, { _id: 1 }).exec();
+    const channels = await this.channelModel
+      .find(
+        {
+          $or: [
+            { type: 'general' },
+            { type: 'announcement' },
+            { workspaceId: { $in: await this.getUserWorkspaceIds(userId) } },
+            { type: 'dm', members: new Types.ObjectId(userId) },
+          ],
+        },
+        { _id: 1 },
+      )
+      .exec();
 
     return channels.map(c => c._id.toString());
   }
@@ -235,29 +287,50 @@ export class ChannelsService {
     if (!Types.ObjectId.isValid(workspaceId)) {
       return [];
     }
-    const channels = await this.channelModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
-    this.logger.log(`Found ${channels.length} channels for workspace: ${workspaceId}`);
+    const channels = await this.channelModel
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .exec();
+    this.logger.log(
+      `Found ${channels.length} channels for workspace: ${workspaceId}`,
+    );
     return channels;
   }
 
-  async validateUserAccess(channelId: string, userId: string): Promise<boolean> {
+  async validateUserAccess(
+    channelId: string,
+    userId: string,
+  ): Promise<boolean> {
     if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
       return false;
     }
-    
+
     const channel = await this.findById(channelId);
-    this.logger.log(`Validating access for user ${userId} to channel: ${channel.name} (${channelId})`);
-    
+    this.logger.log(
+      `Validating access for user ${userId} to channel: ${channel.name} (${channelId})`,
+    );
+
     if (channel.type === 'general' || channel.type === 'announcement') {
       return true;
     }
 
     if (channel.type === 'workspace' && channel.workspaceId) {
-      const isMember = await this.workspaceMemberService.isMember(channel.workspaceId.toString(), userId);
+      const isMember = await this.workspaceMemberService.isMember(
+        channel.workspaceId.toString(),
+        userId,
+      );
       if (!isMember) {
-        this.logger.warn(`Access denied: User ${userId} is not a member of workspace ${channel.workspaceId} for channel ${channel.name}`);
+        this.logger.warn(
+          `Access denied: User ${userId} is not a member of workspace ${channel.workspaceId} for channel ${channel.name}`,
+        );
       }
       return isMember;
+    }
+
+    if (channel.type === 'dm') {
+      const isMember = channel.members?.some(
+        memberId => memberId.toString() === userId,
+      );
+      return !!isMember;
     }
 
     return false;

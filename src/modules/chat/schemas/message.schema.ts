@@ -22,10 +22,17 @@ export class Message {
   @Prop({ required: true, maxlength: 4000 })
   content!: string;
 
-  @Prop({ type: String, enum: ['text', 'file', 'image', 'system'], default: 'text' })
+  @Prop({
+    type: String,
+    enum: ['text', 'file', 'image', 'system'],
+    default: 'text',
+  })
   type!: string;
 
-  @Prop({ type: [SchemaFactory.createForClass(MessageAttachment)], default: [] })
+  @Prop({
+    type: [SchemaFactory.createForClass(MessageAttachment)],
+    default: [],
+  })
   attachments!: MessageAttachment[];
 
   @Prop({ type: Types.ObjectId, ref: 'Message', default: null })

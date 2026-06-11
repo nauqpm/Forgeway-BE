@@ -31,11 +31,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Get('all')
-  async getAllUsersForSearch(
-    @Request() req,
-    @Query('search') search?: string,
-  ) {
-    this.logger.log(`Fetching all users for search. Query: ${search}, User: ${req.user.userId}`);
+  async getAllUsersForSearch(@Request() req, @Query('search') search?: string) {
+    this.logger.log(
+      `Fetching all users for search. Query: ${search}, User: ${req.user.userId}`,
+    );
     if (search) {
       return await this.usersService.searchUsers(search, req.user.userId);
     }

@@ -48,7 +48,10 @@ export class TaskActivitiesRepository {
     filterDto: FilterTaskActivityDto = {},
   ): Promise<TaskActivityPaginatedResult> {
     const { page, limit, skip } = this.normalizePagination(filterDto);
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(taskId)
+    ) {
       return { activities: [], total: 0, page, limit };
     }
 

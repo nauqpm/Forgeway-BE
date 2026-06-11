@@ -40,9 +40,13 @@ export class TaskCommentController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Create a comment on a task' })
   @ApiResponse({ status: HttpStatus.CREATED, type: CommentDto })
-  @ApiBadRequestResponse({ description: 'Invalid IDs or archived task is read-only' })
+  @ApiBadRequestResponse({
+    description: 'Invalid IDs or archived task is read-only',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
-  @ApiNotFoundResponse({ description: 'Workspace, task, or parent comment not found' })
+  @ApiNotFoundResponse({
+    description: 'Workspace, task, or parent comment not found',
+  })
   async createTaskComment(
     @Param('workspaceId') workspaceId: string,
     @Param('taskId') taskId: string,
@@ -75,8 +79,12 @@ export class TaskCommentController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Update a task comment' })
   @ApiResponse({ status: HttpStatus.OK, type: CommentDto })
-  @ApiBadRequestResponse({ description: 'Invalid IDs or archived task is read-only' })
-  @ApiForbiddenResponse({ description: 'Workspace access denied or not comment author' })
+  @ApiBadRequestResponse({
+    description: 'Invalid IDs or archived task is read-only',
+  })
+  @ApiForbiddenResponse({
+    description: 'Workspace access denied or not comment author',
+  })
   @ApiNotFoundResponse({ description: 'Workspace, task, or comment not found' })
   async updateTaskComment(
     @Param('workspaceId') workspaceId: string,
@@ -99,8 +107,12 @@ export class TaskCommentController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Soft delete a task comment' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
-  @ApiBadRequestResponse({ description: 'Invalid IDs or archived task is read-only' })
-  @ApiForbiddenResponse({ description: 'Workspace access denied or not comment author' })
+  @ApiBadRequestResponse({
+    description: 'Invalid IDs or archived task is read-only',
+  })
+  @ApiForbiddenResponse({
+    description: 'Workspace access denied or not comment author',
+  })
   @ApiNotFoundResponse({ description: 'Workspace, task, or comment not found' })
   async deleteTaskComment(
     @Param('workspaceId') workspaceId: string,

@@ -1,7 +1,13 @@
 // dto/page-publish.dto.ts
-import { IsMongoId } from 'class-validator';
+import { IsMongoId, IsString } from 'class-validator';
 
 export class PagePublishDto {
   @IsMongoId()
   pageId!: string;
+
+  @IsString()
+  title!: string;
+
+  @IsString()
+  content!: string;
 }

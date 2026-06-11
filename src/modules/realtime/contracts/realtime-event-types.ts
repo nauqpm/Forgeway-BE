@@ -12,6 +12,8 @@ export const REALTIME_EVENT_TYPES = {
   MEETING_USER_AUDIO_CHANGED: 'meeting.user.audio_changed',
   MEETING_USER_VIDEO_CHANGED: 'meeting.user.video_changed',
   MEETING_ENDED: 'meeting.ended',
+  MEETING_CAPACITY_WARNING: 'meeting.capacity_warning',
+  MEETING_STARTED: 'meeting.started',
 
   // WebRTC signaling
   RTC_OFFER: 'rtc.offer',
@@ -60,4 +62,5 @@ export const REALTIME_EVENT_TYPES = {
   PAGE_YJS_UPDATE: 'page.yjs-update',
 } as const;
 
-export type RealtimeEventType = typeof REALTIME_EVENT_TYPES[keyof typeof REALTIME_EVENT_TYPES];
+export type RealtimeEventType =
+  (typeof REALTIME_EVENT_TYPES)[keyof typeof REALTIME_EVENT_TYPES];

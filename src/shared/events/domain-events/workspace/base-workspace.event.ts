@@ -7,8 +7,7 @@ import { WorkspaceEventContext } from './workspace-event-payloads';
 export abstract class BaseWorkspaceEvent<
   TType extends DomainEventType,
   TData extends WorkspaceEventContext,
-> implements DomainEvent<TType, TData>
-{
+> implements DomainEvent<TType, TData> {
   readonly eventId?: string;
   readonly correlationId?: string;
   readonly causationId?: string;

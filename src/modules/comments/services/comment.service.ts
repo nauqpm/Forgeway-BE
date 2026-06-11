@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateCommentDto } from '../dtos/create-comment.dto';
@@ -14,8 +19,13 @@ export class CommentService {
     private readonly commentModel: Model<CommentDocument>,
   ) {}
 
-  async create(dto: CreateCommentDto, userId: string): Promise<CommentDocument> {
-    this.logger.log(`Creating comment for ${dto.targetType}:${dto.targetId} by user ${userId}`);
+  async create(
+    dto: CreateCommentDto,
+    userId: string,
+  ): Promise<CommentDocument> {
+    this.logger.log(
+      `Creating comment for ${dto.targetType}:${dto.targetId} by user ${userId}`,
+    );
 
     const comment = new this.commentModel({
       content: dto.content,
@@ -23,7 +33,7 @@ export class CommentService {
       targetType: dto.targetType,
       targetId: dto.targetId,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
-      mentions: dto.mentions?.map((id) => new Types.ObjectId(id)) || [],
+      mentions: dto.mentions?.map(id => new Types.ObjectId(id)) || [],
     });
 
     const savedComment = await comment.save();
@@ -47,7 +57,10 @@ export class CommentService {
     return comment;
   }
 
-  async findByTarget(targetType: string, targetId: string): Promise<CommentDocument[]> {
+  async findByTarget(
+    targetType: string,
+    targetId: string,
+  ): Promise<CommentDocument[]> {
     this.logger.debug(`Finding comments for ${targetType}:${targetId}`);
 
     return this.commentModel
@@ -60,7 +73,9 @@ export class CommentService {
     targetType: string,
     targetId: string,
   ): Promise<CommentDocument[]> {
-    this.logger.debug(`Finding threaded comments for ${targetType}:${targetId}`);
+    this.logger.debug(
+      `Finding threaded comments for ${targetType}:${targetId}`,
+    );
 
     const comments = await this.commentModel
       .find({ targetType, targetId, isDeleted: { $ne: true } })
@@ -70,11 +85,11 @@ export class CommentService {
     const commentMap = new Map<string, CommentDocument>();
     const rootComments: CommentDocument[] = [];
 
-    comments.forEach((comment) => {
+    comments.forEach(comment => {
       commentMap.set(comment._id.toString(), comment);
     });
 
-    comments.forEach((comment) => {
+    comments.forEach(comment => {
       if (comment.parentId) {
         const parent = commentMap.get(comment.parentId.toString());
         if (parent) {
@@ -99,7 +114,10 @@ export class CommentService {
     }
 
     return this.commentModel
-      .find({ parentId: new Types.ObjectId(parentId), isDeleted: { $ne: true } })
+      .find({
+        parentId: new Types.ObjectId(parentId),
+        isDeleted: { $ne: true },
+      })
       .sort({ createdAt: 1 })
       .exec();
   }

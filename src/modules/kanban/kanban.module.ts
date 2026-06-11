@@ -6,7 +6,10 @@ import { KanbanController } from './controllers/kanban.controller';
 import { KanbanService } from './services/kanban.service';
 import { AuthModule } from '../auth/auth.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
-import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { RealtimeModule } from '../realtime/realtime.module';
 
@@ -25,4 +28,4 @@ import { RealtimeModule } from '../realtime/realtime.module';
   providers: [KanbanService, WorkspaceRoleGuard],
   exports: [KanbanService],
 })
-export class KanbanModule { }
+export class KanbanModule {}

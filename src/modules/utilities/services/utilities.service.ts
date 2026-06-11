@@ -47,7 +47,10 @@ export class UtilitiesService {
       .exec();
   }
 
-  async update(id: string, updateAmenityDto: UpdateAmenityDto): Promise<Amenity> {
+  async update(
+    id: string,
+    updateAmenityDto: UpdateAmenityDto,
+  ): Promise<Amenity> {
     const amenity = await this.amenityModel
       .findByIdAndUpdate(id, updateAmenityDto, { new: true })
       .exec();

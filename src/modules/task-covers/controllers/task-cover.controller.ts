@@ -52,7 +52,9 @@ export class TaskCoverController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Set task cover' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskCoverDto })
-  @ApiBadRequestResponse({ description: 'Invalid cover payload or archived task is read-only' })
+  @ApiBadRequestResponse({
+    description: 'Invalid cover payload or archived task is read-only',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Workspace or task not found' })
   async setTaskCover(
@@ -61,7 +63,12 @@ export class TaskCoverController {
     @Body() dto: SetTaskCoverDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<TaskCoverDto> {
-    return this.taskCoverService.setCover(workspaceId, taskId, dto, user.userId);
+    return this.taskCoverService.setCover(
+      workspaceId,
+      taskId,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete()

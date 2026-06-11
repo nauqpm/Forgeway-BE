@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Permission, PermissionDocument } from '../schemas/permission.schema';
-import { UserPermission, UserPermissionDocument } from '../schemas/user-permission.schema';
+import {
+  UserPermission,
+  UserPermissionDocument,
+} from '../schemas/user-permission.schema';
 import { CreatePermissionDto } from '../dtos/create-permission.dto';
 import { UpdateUserPermissionsDto } from '../dtos/update-user-permissions.dto';
 
@@ -28,9 +31,11 @@ interface PopulatedUserPermission {
 @Injectable()
 export class PermissionsService {
   constructor(
-    @InjectModel(Permission.name) private permissionModel: Model<PermissionDocument>,
-    @InjectModel(UserPermission.name) private userPermissionModel: Model<UserPermissionDocument>,
-  ) { }
+    @InjectModel(Permission.name)
+    private permissionModel: Model<PermissionDocument>,
+    @InjectModel(UserPermission.name)
+    private userPermissionModel: Model<UserPermissionDocument>,
+  ) {}
 
   async findAll(): Promise<PermissionDocument[]> {
     return this.permissionModel.find().exec();
@@ -53,12 +58,14 @@ export class PermissionsService {
         .lean<PopulatedUserPermission[]>()
         .exec();
 
-      const allPermissions: PermissionWithSource[] = userPermissions.map(up => ({
-        _id: up.permissionId._id,
-        resource: up.permissionId.resource,
-        action: up.permissionId.action,
-        source: 'direct' as const
-      }));
+      const allPermissions: PermissionWithSource[] = userPermissions.map(
+        up => ({
+          _id: up.permissionId._id,
+          resource: up.permissionId.resource,
+          action: up.permissionId.action,
+          source: 'direct' as const,
+        }),
+      );
 
       console.log('Combined permissions:', allPermissions);
       return allPermissions;
@@ -68,16 +75,23 @@ export class PermissionsService {
     }
   }
 
-  async checkUserPermission(userId: string, resource: string, action: string): Promise<boolean> {
+  async checkUserPermission(
+    userId: string,
+    resource: string,
+    action: string,
+  ): Promise<boolean> {
     try {
       const allPermissions = await this.getUserPermissions(userId);
 
       // Check if any permission matches the required resource and action
-      const hasPermission = allPermissions.some(permission =>
-        permission.resource === resource && permission.action === action
+      const hasPermission = allPermissions.some(
+        permission =>
+          permission.resource === resource && permission.action === action,
       );
 
-      console.log(`Checking permission for ${resource}:${action} - Result: ${hasPermission}`);
+      console.log(
+        `Checking permission for ${resource}:${action} - Result: ${hasPermission}`,
+      );
       return hasPermission;
     } catch (error) {
       console.error('Error checking user permission:', error);
@@ -85,10 +99,14 @@ export class PermissionsService {
     }
   }
 
-  async updateUserPermissions(updateDto: UpdateUserPermissionsDto): Promise<UserPermissionDocument[]> {
+  async updateUserPermissions(
+    updateDto: UpdateUserPermissionsDto,
+  ): Promise<UserPermissionDocument[]> {
     try {
       if (!updateDto.userId || !Array.isArray(updateDto.permissionIds)) {
-        throw new Error('Invalid input: userId is required and permissionIds must be an array');
+        throw new Error(
+          'Invalid input: userId is required and permissionIds must be an array',
+        );
       }
 
       const userId = new Types.ObjectId(updateDto.userId);
@@ -101,12 +119,17 @@ export class PermissionsService {
       });
 
       console.log('Updating permissions for user:', userId.toString());
-      console.log('New permission IDs:', permissionIds.map(id => id.toString()));
+      console.log(
+        'New permission IDs:',
+        permissionIds.map(id => id.toString()),
+      );
 
       // Validate that all permission IDs exist
-      const existingPermissions = await this.permissionModel.find({
-        _id: { $in: permissionIds }
-      }).exec();
+      const existingPermissions = await this.permissionModel
+        .find({
+          _id: { $in: permissionIds },
+        })
+        .exec();
 
       if (existingPermissions.length !== permissionIds.length) {
         throw new Error('Some permission IDs do not exist');
@@ -137,7 +160,10 @@ export class PermissionsService {
     } catch (error) {
       const err = error as Error;
       console.error('Error updating user permissions:', error);
-      if (err.message.includes('Invalid input') || err.message.includes('Invalid permission ID format')) {
+      if (
+        err.message.includes('Invalid input') ||
+        err.message.includes('Invalid permission ID format')
+      ) {
         throw new Error(`Bad Request: ${err.message}`);
       }
       throw error;

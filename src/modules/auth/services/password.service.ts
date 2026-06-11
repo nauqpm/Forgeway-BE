@@ -7,7 +7,10 @@ export class PasswordService {
     return bcrypt.hash(password, 10);
   }
 
-  verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+  verifyPassword(
+    plainPassword: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
 }

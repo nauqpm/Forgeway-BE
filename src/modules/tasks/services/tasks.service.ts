@@ -6,6 +6,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { BoardColumn } from '../../kanban/schemas/kanban-board.schema';
+import { KanbanService } from '../../kanban/services/kanban.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
@@ -35,6 +37,7 @@ export class TasksService {
     private readonly taskCounterService: TaskCounterService,
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
+    private readonly kanbanService: KanbanService,
     private readonly transformerService: TaskDataTransformerService,
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
@@ -204,8 +207,9 @@ export class TasksService {
       workspaceId,
       filterDto,
     );
+    const tasks = this.taskMapper.mapToDtos(result.tasks);
     return {
-      tasks: this.taskMapper.mapToDtos(result.tasks),
+      tasks: await this.applyArchivedColumnNames(workspaceId, tasks),
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -459,7 +463,10 @@ export class TasksService {
 
     const task = await this.tasksRepository.update(
       id,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
+      this.transformerService.transformUpdateInput(
+        normalizedUpdateDto,
+        existing,
+      ),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
@@ -515,7 +522,10 @@ export class TasksService {
     const task = await this.tasksRepository.updateInWorkspace(
       resolvedTaskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
+      this.transformerService.transformUpdateInput(
+        normalizedUpdateDto,
+        existing,
+      ),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -566,7 +576,10 @@ export class TasksService {
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
+      this.transformerService.transformUpdateInput(
+        normalizedUpdateDto,
+        existing,
+      ),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
@@ -913,14 +926,14 @@ export class TasksService {
       await this.tasksRepository.findTimelineByWorkspace(workspaceId);
     const dtos = this.taskMapper.mapToDtos(allTasks);
 
-    const epics = dtos.filter((t) => t.type === 'epic');
-    const epicIdSet = new Set(epics.map((e) => e.id));
+    const epics = dtos.filter(t => t.type === 'epic');
+    const epicIdSet = new Set(epics.map(e => e.id));
 
     const children = dtos.filter(
-      (t) => (t as any).epicId && epicIdSet.has((t as any).epicId),
+      t => (t as any).epicId && epicIdSet.has((t as any).epicId),
     );
     const standalones = dtos.filter(
-      (t) => t.type !== 'epic' && !(t as any).epicId,
+      t => t.type !== 'epic' && !(t as any).epicId,
     );
 
     return { epics, children, standalones };
@@ -947,11 +960,13 @@ export class TasksService {
         : { workspaceId, columnId: dto.columnId };
     const tasks = await this.tasksRepository.findTasksInRankScope(scope);
     const lastTask = tasks
-      .filter((task) => Boolean(task.rank))
+      .filter(task => Boolean(task.rank))
       .sort((left, right) => {
         const rankDiff = compareRanks(left.rank, right.rank);
         if (rankDiff !== 0) return rankDiff;
-        return this.toTimestamp(left.createdAt) - this.toTimestamp(right.createdAt);
+        return (
+          this.toTimestamp(left.createdAt) - this.toTimestamp(right.createdAt)
+        );
       })
       .at(-1);
 
@@ -968,6 +983,35 @@ export class TasksService {
 
   private toId(value: any): string {
     return value?._id?.toString?.() ?? value?.toString?.() ?? '';
+  }
+
+  private async applyArchivedColumnNames(
+    workspaceId: string,
+    tasks: TaskDto[],
+  ): Promise<TaskDto[]> {
+    if (tasks.length === 0) {
+      return tasks;
+    }
+
+    const boards = await this.kanbanService.findByWorkspaceId(workspaceId);
+    const columnsById = new Map<string, BoardColumn>();
+
+    boards.forEach(board => {
+      (board.columns || []).forEach(column => {
+        columnsById.set(column.id, column);
+      });
+    });
+
+    return tasks.map(task => {
+      const column = task.columnId ? columnsById.get(task.columnId) : undefined;
+
+      return column
+        ? {
+            ...task,
+            status: column.name,
+          }
+        : task;
+    });
   }
 
   private toTimestamp(value: unknown): number {
@@ -1069,7 +1113,7 @@ export class TasksService {
 
   private assertMetadataUpdateOnly(updateTaskDto: UpdateTaskDto): void {
     const moveFields = ['columnId', 'status', 'sprintId'] as const;
-    const requestedMoveFields = moveFields.filter((field) =>
+    const requestedMoveFields = moveFields.filter(field =>
       Object.prototype.hasOwnProperty.call(updateTaskDto, field),
     );
 

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersRepository } from '../repositories/users.repository';
@@ -36,7 +32,7 @@ export class AdminSeedService implements OnModuleInit {
       } else {
         this.logger.warn(
           `User ${adminEmail} exists but has role "${existing.role}". ` +
-          `To promote to super_admin, update the role manually in the database.`,
+            `To promote to super_admin, update the role manually in the database.`,
         );
       }
       return;

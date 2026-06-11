@@ -42,7 +42,9 @@ export class LabelsController {
   @ApiOperation({ summary: 'Create a workspace label' })
   @ApiResponse({ status: HttpStatus.CREATED, type: LabelDto })
   @ApiBadRequestResponse({ description: 'Invalid workspace ID or payload' })
-  @ApiConflictResponse({ description: 'Label name already exists in workspace' })
+  @ApiConflictResponse({
+    description: 'Label name already exists in workspace',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Workspace not found' })
   async createLabel(
@@ -71,7 +73,9 @@ export class LabelsController {
   @ApiOperation({ summary: 'Update a workspace label' })
   @ApiResponse({ status: HttpStatus.OK, type: LabelDto })
   @ApiBadRequestResponse({ description: 'Invalid IDs or payload' })
-  @ApiConflictResponse({ description: 'Label name already exists in workspace' })
+  @ApiConflictResponse({
+    description: 'Label name already exists in workspace',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Workspace or label not found' })
   async updateLabel(
@@ -86,7 +90,9 @@ export class LabelsController {
   @Delete(':labelId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
-  @ApiOperation({ summary: 'Soft delete a workspace label and remove it from tasks' })
+  @ApiOperation({
+    summary: 'Soft delete a workspace label and remove it from tasks',
+  })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
   @ApiBadRequestResponse({ description: 'Invalid IDs' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })

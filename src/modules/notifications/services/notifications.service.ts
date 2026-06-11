@@ -1,9 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
-import {
-  NotificationDto,
-  NotificationListDto,
-} from '../dtos/notification.dto';
+import { NotificationDto, NotificationListDto } from '../dtos/notification.dto';
 import {
   CommentNotificationInput,
   CreateNotificationInput,
@@ -26,9 +23,13 @@ export class NotificationsService {
     private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
   ) {}
 
-  async create(input: CreateNotificationInput): Promise<NotificationDto | null> {
+  async create(
+    input: CreateNotificationInput,
+  ): Promise<NotificationDto | null> {
     if (!this.isValidRecipient(input.recipientId)) {
-      this.logger.warn(`Skip notification with invalid recipient ${input.recipientId}`);
+      this.logger.warn(
+        `Skip notification with invalid recipient ${input.recipientId}`,
+      );
       return null;
     }
 
@@ -42,7 +43,7 @@ export class NotificationsService {
   async createMany(
     inputs: CreateNotificationInput[],
   ): Promise<NotificationDto[]> {
-    const validInputs = inputs.filter((input) =>
+    const validInputs = inputs.filter(input =>
       this.isValidRecipient(input.recipientId),
     );
     if (!validInputs.length) {
@@ -51,7 +52,7 @@ export class NotificationsService {
 
     const notifications =
       await this.notificationsRepository.createMany(validInputs);
-    const notificationDtos = notifications.map((notification) =>
+    const notificationDtos = notifications.map(notification =>
       this.notificationMapper.mapToDto(notification),
     );
     this.notificationDomainEventPublisher.publishManyCreated(notificationDtos);
@@ -76,7 +77,7 @@ export class NotificationsService {
   async notifyCommentMentioned(input: CommentNotificationInput): Promise<void> {
     const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
     await this.createMany(
-      recipientIds.map((recipientId) =>
+      recipientIds.map(recipientId =>
         this.notificationFactory.buildCommentMentioned({
           ...input,
           recipientId,
@@ -90,7 +91,7 @@ export class NotificationsService {
   ): Promise<void> {
     const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
     await this.createMany(
-      recipientIds.map((recipientId) =>
+      recipientIds.map(recipientId =>
         this.notificationFactory.buildTaskCommentCreated({
           ...input,
           recipientId,
@@ -189,9 +190,9 @@ export class NotificationsService {
     return Array.from(
       new Set(
         recipients
-          .filter((recipientId) => Types.ObjectId.isValid(recipientId))
-          .map((recipientId) => recipientId.toString())
-          .filter((recipientId) => recipientId !== actor),
+          .filter(recipientId => Types.ObjectId.isValid(recipientId))
+          .map(recipientId => recipientId.toString())
+          .filter(recipientId => recipientId !== actor),
       ),
     );
   }

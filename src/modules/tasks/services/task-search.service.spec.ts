@@ -9,7 +9,7 @@ describe('TaskSearchService', () => {
 
   it.each([undefined, '', '   '])(
     'returns empty filter for empty search: %p',
-    (search) => {
+    search => {
       expect(service.buildSearchFilter(search)).toEqual({});
     },
   );

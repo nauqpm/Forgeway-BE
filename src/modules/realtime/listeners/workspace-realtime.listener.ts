@@ -61,7 +61,11 @@ export class WorkspaceRealtimeListener {
     const actorId = event.data.actorId;
     if (actorId) {
       // Emit strictly to the creator, because they are not yet in the workspace room
-      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_CREATED, event, RoomBuilder.user(actorId));
+      this.publishToRoom(
+        REALTIME_EVENT_TYPES.WORKSPACE_CREATED,
+        event,
+        RoomBuilder.user(actorId),
+      );
     }
   }
 
@@ -86,7 +90,11 @@ export class WorkspaceRealtimeListener {
     // Also emit to the actor's personal room so /workspaces page updates in realtime
     const actorId = event.data.actorId;
     if (actorId) {
-      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event, RoomBuilder.user(actorId));
+      this.publishToRoom(
+        REALTIME_EVENT_TYPES.WORKSPACE_DELETED,
+        event,
+        RoomBuilder.user(actorId),
+      );
     }
   }
 
@@ -118,7 +126,8 @@ export class WorkspaceRealtimeListener {
     type: RealtimeEventType,
     event: WorkspaceRealtimeDomainEvent,
   ): void {
-    const recipientId = (event.data as WorkspaceInviteCreatedEventData).recipientId;
+    const recipientId = (event.data as WorkspaceInviteCreatedEventData)
+      .recipientId;
 
     if (!recipientId) {
       this.logger.debug(
@@ -134,7 +143,11 @@ export class WorkspaceRealtimeListener {
     type: RealtimeEventType,
     event: WorkspaceRealtimeDomainEvent,
   ): void {
-    this.publishToRoom(type, event, RoomBuilder.workspace(event.data.workspaceId));
+    this.publishToRoom(
+      type,
+      event,
+      RoomBuilder.workspace(event.data.workspaceId),
+    );
   }
 
   private publishWorkspaceMemberEvent(

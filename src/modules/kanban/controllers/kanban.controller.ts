@@ -1,5 +1,22 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiBody,
+  ApiResponse,
+  ApiParam,
+} from '@nestjs/swagger';
 import { KanbanService } from '../services/kanban.service';
 import {
   KanbanBoardColumnDto,
@@ -40,7 +57,8 @@ export class KanbanController {
     @Param('workspaceId') workspaceId: string,
     @Body() columns: KanbanBoardColumnDto[],
   ) {
-    const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+    const board =
+      await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
     return this.kanbanService.replaceColumns(board._id.toString(), columns);
   }
 
@@ -54,7 +72,8 @@ export class KanbanController {
     @Param('workspaceId') workspaceId: string,
     @Body() dto: CreateColumnDto,
   ) {
-    const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+    const board =
+      await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
     return this.kanbanService.addColumn(board._id.toString(), dto);
   }
 
@@ -70,7 +89,8 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: UpdateColumnDto,
   ) {
-    const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+    const board =
+      await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
     return this.kanbanService.updateColumn(board._id.toString(), columnId, dto);
   }
 
@@ -86,8 +106,13 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: UpdateWipLimitDto,
   ) {
-    const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
-    return this.kanbanService.updateWipLimit(board._id.toString(), columnId, dto.wipLimit);
+    const board =
+      await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+    return this.kanbanService.updateWipLimit(
+      board._id.toString(),
+      columnId,
+      dto.wipLimit,
+    );
   }
 
   @Patch('columns/:columnId/move')
@@ -102,14 +127,17 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: MoveColumnDto,
   ) {
-    const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+    const board =
+      await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
     return this.kanbanService.moveColumn(board._id.toString(), columnId, dto);
   }
 
   @Delete('columns/:columnId')
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
-  @ApiOperation({ summary: 'Delete column from board (migrate tasks if needed)' })
+  @ApiOperation({
+    summary: 'Delete column from board (migrate tasks if needed)',
+  })
   @ApiParam({ name: 'columnId', description: 'Column ID to delete' })
   @ApiBody({ type: DeleteColumnDto, required: false })
   @ApiResponse({ status: 200, description: 'Board after column deletion' })
@@ -118,7 +146,12 @@ export class KanbanController {
     @Param('columnId') columnId: string,
     @Body() dto: DeleteColumnDto,
   ) {
-    const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
-    return this.kanbanService.deleteColumn(board._id.toString(), columnId, dto.targetColumnId);
+    const board =
+      await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+    return this.kanbanService.deleteColumn(
+      board._id.toString(),
+      columnId,
+      dto.targetColumnId,
+    );
   }
 }

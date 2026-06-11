@@ -18,11 +18,15 @@ export class DashboardService {
   ) {}
 
   async getWorkspaceOverview(workspaceId: string, userId: string) {
-    this.logger.log(`Getting workspace overview for workspaceId: ${workspaceId}, userId: ${userId}`);
+    this.logger.log(
+      `Getting workspace overview for workspaceId: ${workspaceId}, userId: ${userId}`,
+    );
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
 
-    const workspace = await this.workspaceModel.findById(workspaceObjectId, { _id: 1 });
+    const workspace = await this.workspaceModel.findById(workspaceObjectId, {
+      _id: 1,
+    });
     const workspaceIds = workspace ? [workspace._id] : [];
 
     // Get total tasks across all Workspaces
@@ -173,7 +177,7 @@ export class DashboardService {
         0,
       );
       const completedPoints = sprintTasks
-        .filter((task) => task.columnId === 'done')
+        .filter(task => task.columnId === 'done')
         .reduce((sum, task) => sum + (task.storyPoints || 0), 0);
 
       sprintProgress = {
@@ -182,7 +186,9 @@ export class DashboardService {
         totalStoryPoints: totalPoints,
         completedStoryPoints: completedPoints,
         completionPercentage:
-          totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0,
+          totalPoints > 0
+            ? Math.round((completedPoints / totalPoints) * 100)
+            : 0,
       };
     }
 
@@ -235,7 +241,9 @@ export class DashboardService {
       })
       .sort({ updatedAt: -1 })
       .limit(20)
-      .select('title key columnId type priority workspaceId createdAt updatedAt createdBy updatedBy')
+      .select(
+        'title key columnId type priority workspaceId createdAt updatedAt createdBy updatedBy',
+      )
       .exec();
 
     return {
@@ -264,13 +272,13 @@ export class DashboardService {
       .exec();
 
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => t.columnId === 'done').length;
+    const completedTasks = tasks.filter(t => t.columnId === 'done').length;
     const totalStoryPoints = tasks.reduce(
       (sum, task) => sum + (task.storyPoints || 0),
       0,
     );
     const completedStoryPoints = tasks
-      .filter((task) => task.columnId === 'done')
+      .filter(task => task.columnId === 'done')
       .reduce((sum, task) => sum + (task.storyPoints || 0), 0);
 
     const tasksByStatus = await this.taskModel.aggregate([
@@ -297,7 +305,7 @@ export class DashboardService {
           ? Math.round((completedStoryPoints / totalStoryPoints) * 100)
           : 0,
       tasksByStatus,
-      tasks: tasks.map((task) => ({
+      tasks: tasks.map(task => ({
         _id: task._id,
         title: task.title,
         key: task.key,

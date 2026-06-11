@@ -51,20 +51,27 @@ export class TaskMoveService {
   ): Promise<TaskMoveResult> {
     this.ensureMoveHasMutation(dto);
 
-    const workspace = await this.validationService.getWorkspaceById(workspaceId);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 
-    const task = await this.tasksRepository.findByIdInWorkspace(taskId, workspaceId, {
-      includeArchived: true,
-      includeDeleted: true,
-    });
+    const task = await this.tasksRepository.findByIdInWorkspace(
+      taskId,
+      workspaceId,
+      {
+        includeArchived: true,
+        includeDeleted: true,
+      },
+    );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
     if (dto.sprintId && workspace.type !== 'scrum') {
-      throw new BadRequestException('Only Scrum tasks can be moved into a sprint');
+      throw new BadRequestException(
+        'Only Scrum tasks can be moved into a sprint',
+      );
     }
 
     const currentSprint = task.sprintId

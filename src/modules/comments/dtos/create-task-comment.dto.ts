@@ -1,4 +1,10 @@
-import { IsArray, IsMongoId, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTaskCommentDto {
@@ -7,7 +13,9 @@ export class CreateTaskCommentDto {
   @MaxLength(5000)
   content!: string;
 
-  @ApiPropertyOptional({ description: 'Parent comment id when replying to a comment.' })
+  @ApiPropertyOptional({
+    description: 'Parent comment id when replying to a comment.',
+  })
   @IsOptional()
   @IsMongoId()
   parentId?: string;

@@ -74,7 +74,8 @@ export class OAuthController {
       }
 
       // ✅ Phase 3: Nhận đủ access + refresh token (đồng nhất với login thường)
-      const { user, accessToken, refreshToken } = await this.oauthService.validateGoogleUser(req.user);
+      const { user, accessToken, refreshToken } =
+        await this.oauthService.validateGoogleUser(req.user);
 
       if (!user) {
         throw new BadRequestException('Xác thực Google thất bại');
@@ -90,9 +91,16 @@ export class OAuthController {
         metadata: { role: user.role },
       });
 
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-      const dashboardUrl = this.configService.get<string>('FRONTEND_DASHBOARD_URL') || `${frontendUrl}/dashboard`;
-      const redirectUrl = user.role === GLOBAL_ROLES.SUPER_ADMIN ? dashboardUrl : `${frontendUrl}/`;
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3000';
+      const dashboardUrl =
+        this.configService.get<string>('FRONTEND_DASHBOARD_URL') ||
+        `${frontendUrl}/dashboard`;
+      const redirectUrl =
+        user.role === GLOBAL_ROLES.SUPER_ADMIN
+          ? dashboardUrl
+          : `${frontendUrl}/`;
 
       return res.redirect(redirectUrl);
     } catch (error) {
@@ -102,7 +110,9 @@ export class OAuthController {
         severity: 'WARN',
         metadata: { reason: (error as Error).message },
       });
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3000';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }

@@ -16,7 +16,8 @@ import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 @Injectable()
 export class SprintTaskMovementService {
   constructor(
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
+    @InjectModel(Sprint.name)
+    private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
   ) {}
 
@@ -49,9 +50,12 @@ export class SprintTaskMovementService {
       throw new BadRequestException('Cant move tasks into completed sprint');
     }
 
-    const taskObjectIds = taskIds.map((taskId) => new Types.ObjectId(taskId));
+    const taskObjectIds = taskIds.map(taskId => new Types.ObjectId(taskId));
     if (!isSuperAdmin) {
-      await this.ensureNoTasksFromCompletedSprint(workspaceObjectId, taskObjectIds);
+      await this.ensureNoTasksFromCompletedSprint(
+        workspaceObjectId,
+        taskObjectIds,
+      );
     }
 
     const result = await this.taskModel
@@ -79,9 +83,12 @@ export class SprintTaskMovementService {
     await this.ensureTaskWorkspaceOwnership(workspaceId, taskIds);
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
-    const taskObjectIds = taskIds.map((taskId) => new Types.ObjectId(taskId));
+    const taskObjectIds = taskIds.map(taskId => new Types.ObjectId(taskId));
     if (!isSuperAdmin) {
-      await this.ensureNoTasksFromCompletedSprint(workspaceObjectId, taskObjectIds);
+      await this.ensureNoTasksFromCompletedSprint(
+        workspaceObjectId,
+        taskObjectIds,
+      );
     }
 
     const result = await this.taskModel
@@ -109,7 +116,9 @@ export class SprintTaskMovementService {
   ): Promise<void> {
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const uniqueTaskIds = [...new Set(taskIds)];
-    const taskObjectIds = uniqueTaskIds.map((taskId) => new Types.ObjectId(taskId));
+    const taskObjectIds = uniqueTaskIds.map(
+      taskId => new Types.ObjectId(taskId),
+    );
 
     const count = await this.taskModel
       .countDocuments({
@@ -142,8 +151,8 @@ export class SprintTaskMovementService {
       .exec();
 
     const sprintIds = [
-      ...new Set(tasks.map((task) => task.sprintId?.toString()).filter(Boolean)),
-    ].map((id) => new Types.ObjectId(id));
+      ...new Set(tasks.map(task => task.sprintId?.toString()).filter(Boolean)),
+    ].map(id => new Types.ObjectId(id));
 
     if (!sprintIds.length) {
       return;

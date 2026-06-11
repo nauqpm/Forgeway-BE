@@ -22,7 +22,12 @@ import { UpdateProfileDto } from '../dtos/auth.dto';
 import { Request as ExpressRequest } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+  ApiResponse,
+} from '@nestjs/swagger';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -42,9 +47,7 @@ interface AuthError extends Error {
 export class UserManagementController {
   private readonly logger = new Logger(UserManagementController.name);
 
-  constructor(
-    private readonly userService: UsersService,
-  ) {}
+  constructor(private readonly userService: UsersService) {}
 
   // 📋 List all users
   @Get('users')
@@ -73,14 +76,14 @@ export class UserManagementController {
       },
     },
   })
-  async getAllUsers(
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
-  ) {
+  async getAllUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
     try {
-      const result = await this.userService.getUsersPage(Number(page), Number(limit));
+      const result = await this.userService.getUsersPage(
+        Number(page),
+        Number(limit),
+      );
       return {
-        data: result.data.map((user) => ({
+        data: result.data.map(user => ({
           id: String(user._id),
           email: user.email,
           role: user.role,
@@ -144,7 +147,9 @@ export class UserManagementController {
     try {
       const validRoles = ['user', 'super_admin'];
       if (!validRoles.includes(body.role)) {
-        throw new BadRequestException(`Role must be one of: ${validRoles.join(', ')}`);
+        throw new BadRequestException(
+          `Role must be one of: ${validRoles.join(', ')}`,
+        );
       }
       return await this.userService.updateUserRole(userId, body.role);
     } catch (error) {
@@ -166,9 +171,16 @@ export class UserManagementController {
     @Body() body: { status: string },
   ) {
     try {
-      const validStatuses = ['active', 'inactive', 'pending_verification', 'suspended'];
+      const validStatuses = [
+        'active',
+        'inactive',
+        'pending_verification',
+        'suspended',
+      ];
       if (!validStatuses.includes(body.status)) {
-        throw new BadRequestException(`Status must be one of: ${validStatuses.join(', ')}`);
+        throw new BadRequestException(
+          `Status must be one of: ${validStatuses.join(', ')}`,
+        );
       }
       return await this.userService.updateUserStatus(userId, body.status);
     } catch (error) {

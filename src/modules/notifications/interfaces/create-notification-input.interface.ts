@@ -38,6 +38,7 @@ export interface WorkspaceInviteNotificationInput {
   recipientId: string;
   actorId: string;
   workspaceId: string;
+  workspaceKey?: string;
   workspaceName: string;
   inviteId: string;
   role: string;

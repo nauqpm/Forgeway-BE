@@ -1,5 +1,10 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { SearchService } from '../services/search.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
@@ -8,14 +13,29 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('search')
 export class SearchController {
-  constructor(private readonly searchService: SearchService) { }
+  constructor(private readonly searchService: SearchService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Global search across tasks, workspaces, and pages' })
+  @ApiOperation({
+    summary: 'Global search across tasks, workspaces, and pages',
+  })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'types', required: false, description: 'Comma-separated list of types to search (task,workspace,page)' })
-  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Maximum results per type' })
+  @ApiQuery({
+    name: 'types',
+    required: false,
+    description:
+      'Comma-separated list of types to search (task,workspace,page)',
+  })
+  @ApiQuery({
+    name: 'workspaceId',
+    required: false,
+    description: 'Filter by workspace ID',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Maximum results per type',
+  })
   async search(
     @Query('q') query: string,
     @Query('types') types?: string,
@@ -29,7 +49,7 @@ export class SearchController {
     const options: any = {};
 
     if (types) {
-      options.types = types.split(',').map((t) => t.trim());
+      options.types = types.split(',').map(t => t.trim());
     }
 
     if (workspaceId) {
@@ -46,8 +66,15 @@ export class SearchController {
   @Get('tasks')
   @ApiOperation({ summary: 'Search tasks only' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by Workspace ID' })
-  async searchTasks(@Query('q') query: string, @Query('workspaceId') workspaceId?: string) {
+  @ApiQuery({
+    name: 'workspaceId',
+    required: false,
+    description: 'Filter by Workspace ID',
+  })
+  async searchTasks(
+    @Query('q') query: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
     if (!query) {
       return [];
     }
@@ -57,16 +84,30 @@ export class SearchController {
   @Get('workspaces')
   @ApiOperation({ summary: 'Search workspaces only' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
-  async searchWorkspaces(@Query('q') query: string, @Query('workspaceId') workspaceId?: string) {
+  @ApiQuery({
+    name: 'workspaceId',
+    required: false,
+    description: 'Filter by workspace ID',
+  })
+  async searchWorkspaces(
+    @Query('q') query: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
     return this.searchService.searchWorkspaces(query, workspaceId);
   }
 
   @Get('pages')
   @ApiOperation({ summary: 'Search pages only' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'spaceId', required: false, description: 'Filter by space ID' })
-  async searchPages(@Query('q') query: string, @Query('spaceId') spaceId?: string) {
+  @ApiQuery({
+    name: 'spaceId',
+    required: false,
+    description: 'Filter by space ID',
+  })
+  async searchPages(
+    @Query('q') query: string,
+    @Query('spaceId') spaceId?: string,
+  ) {
     return this.searchService.searchPages(query, spaceId);
   }
 }

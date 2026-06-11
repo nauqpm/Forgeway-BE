@@ -46,7 +46,7 @@ export const ScopedRoleGuard = (
         throw new NotFoundException('Workspace not found');
       }
 
-      let resourceId =
+      const resourceId =
         request.params?.id || routeWorkspaceId || request.body?.workspaceId;
 
       if (!resourceId) {
@@ -94,7 +94,7 @@ export const ScopedRoleGuard = (
       if (targetWorkspaceId) {
         const workspace = await workspacesService.findById(targetWorkspaceId);
         const member = workspace.members.find(
-          (m) => m.userId.toString() === user.userId,
+          m => m.userId.toString() === user.userId,
         );
         userRoleInResource =
           workspace.ownerId.toString() === user.userId

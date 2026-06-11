@@ -111,11 +111,16 @@ describe('TaskAttachmentService', () => {
       uploadedBy: new Types.ObjectId(userId),
       originalName: file.originalname,
     };
-    const mapped = { id: attachment._id.toString(), originalName: file.originalname };
+    const mapped = {
+      id: attachment._id.toString(),
+      originalName: file.originalname,
+    };
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
     workspaceMemberService.isMember.mockResolvedValue(true);
-    taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
+    taskModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(task),
+    });
     attachmentService.create.mockResolvedValue(attachment as any);
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
@@ -189,7 +194,9 @@ describe('TaskAttachmentService', () => {
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
     workspaceMemberService.isMember.mockResolvedValue(true);
-    taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
+    taskModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(task),
+    });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue(attachment),
@@ -238,7 +245,9 @@ describe('TaskAttachmentService', () => {
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
     workspaceMemberService.isMember.mockResolvedValue(true);
-    taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
+    taskModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(task),
+    });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue(attachment),
@@ -261,7 +270,9 @@ describe('TaskAttachmentService', () => {
     });
   });
   it('falls back to attachment url when legacy storage key points at uploads root', async () => {
-    mkdirSync(resolve(uploadsDir, 'tasks', '2026', '06', '08'), { recursive: true });
+    mkdirSync(resolve(uploadsDir, 'tasks', '2026', '06', '08'), {
+      recursive: true,
+    });
     writeFileSync(nestedStoredFilePath, 'hello attachment');
 
     const task = {
@@ -286,7 +297,9 @@ describe('TaskAttachmentService', () => {
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
     workspaceMemberService.isMember.mockResolvedValue(true);
-    taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
+    taskModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(task),
+    });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue(attachment),
@@ -329,7 +342,9 @@ describe('TaskAttachmentService', () => {
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
     workspaceMemberService.isMember.mockResolvedValue(true);
-    taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
+    taskModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(task),
+    });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue(attachment),
@@ -337,7 +352,12 @@ describe('TaskAttachmentService', () => {
     });
 
     await expect(
-      service.getPreviewStream(workspaceId, taskId, attachment._id.toString(), userId),
+      service.getPreviewStream(
+        workspaceId,
+        taskId,
+        attachment._id.toString(),
+        userId,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 });

@@ -87,7 +87,9 @@ describe('TaskDetailService', () => {
     expect(repository.findDetailByKeyInWorkspace).toHaveBeenCalledWith(
       'TESKB-2',
       workspaceId,
-      { includeArchived: true },
+      {
+        includeArchived: true,
+      },
     );
   });
 

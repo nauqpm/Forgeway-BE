@@ -1,9 +1,19 @@
-import { Inject, forwardRef, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Inject,
+  forwardRef,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Message, MessageDocument } from '../schemas/message.schema';
 import { Reaction, ReactionDocument } from '../schemas/reaction.schema';
-import { ChannelReadMarker, ChannelReadMarkerDocument } from '../schemas/channel-read-marker.schema';
+import {
+  ChannelReadMarker,
+  ChannelReadMarkerDocument,
+} from '../schemas/channel-read-marker.schema';
 import { ChannelsService } from './channels.service';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
@@ -17,9 +27,12 @@ export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
 
   constructor(
-    @InjectModel(Message.name) private readonly messageModel: Model<MessageDocument>,
-    @InjectModel(Reaction.name) private readonly reactionModel: Model<ReactionDocument>,
-    @InjectModel(ChannelReadMarker.name) private readonly readMarkerModel: Model<ChannelReadMarkerDocument>,
+    @InjectModel(Message.name)
+    private readonly messageModel: Model<MessageDocument>,
+    @InjectModel(Reaction.name)
+    private readonly reactionModel: Model<ReactionDocument>,
+    @InjectModel(ChannelReadMarker.name)
+    private readonly readMarkerModel: Model<ChannelReadMarkerDocument>,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
     @Inject(forwardRef(() => UsersService))
@@ -57,7 +70,11 @@ export class MessagesService {
     );
   }
 
-  async toggleReaction(messageId: string, userId: string, emoji: string): Promise<any> {
+  async toggleReaction(
+    messageId: string,
+    userId: string,
+    emoji: string,
+  ): Promise<any> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');
     }
@@ -97,7 +114,10 @@ export class MessagesService {
 
     const channel = await this.channelsService.findById(channelId);
 
-    const hasAccess = await this.channelsService.validateUserAccess(channelId, senderId);
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      senderId,
+    );
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
     }
@@ -106,7 +126,9 @@ export class MessagesService {
     if (channel.type === 'announcement') {
       const user = await this.usersService.getUserById(senderId);
       if (user?.role !== GLOBAL_ROLES.SUPER_ADMIN) {
-        throw new ForbiddenException('Only Super Admin can post in Announcements');
+        throw new ForbiddenException(
+          'Only Super Admin can post in Announcements',
+        );
       }
     }
 
@@ -116,7 +138,9 @@ export class MessagesService {
       }
       const parentMessage = await this.messageModel.findById(dto.replyToId);
       if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
-        throw new ForbiddenException('Cannot reply to message in a different channel');
+        throw new ForbiddenException(
+          'Cannot reply to message in a different channel',
+        );
       }
     }
 
@@ -138,7 +162,10 @@ export class MessagesService {
       throw new NotFoundException('Invalid Channel ID');
     }
 
-    const hasAccess = await this.channelsService.validateUserAccess(channelId, userId);
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      userId,
+    );
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
     }
@@ -161,12 +188,18 @@ export class MessagesService {
       .exec();
 
     const nextCursor =
-      messages.length === limit ? messages[messages.length - 1]._id.toString() : null;
+      messages.length === limit
+        ? messages[messages.length - 1]._id.toString()
+        : null;
 
     return { messages, nextCursor };
   }
 
-  async edit(messageId: string, userId: string, content: string): Promise<MessageDocument> {
+  async edit(
+    messageId: string,
+    userId: string,
+    content: string,
+  ): Promise<MessageDocument> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');
     }
@@ -196,14 +229,16 @@ export class MessagesService {
     }
 
     const user = await this.usersService.getUserById(userId);
-    const channel = await this.channelsService.findById(message.channelId.toString());
+    const channel = await this.channelsService.findById(
+      message.channelId.toString(),
+    );
 
     let canDelete = false;
 
     // 1. Super Admin can delete anything
     if (user?.role === GLOBAL_ROLES.SUPER_ADMIN) {
       canDelete = true;
-    } 
+    }
     // 2. Sender can delete their own
     else if (message.senderId.toString() === userId) {
       canDelete = true;
@@ -212,7 +247,7 @@ export class MessagesService {
     else if (channel.type === 'workspace' && channel.workspaceId) {
       const wsRole = await this.workspaceMemberService.getMemberRole(
         channel.workspaceId.toString(),
-        userId
+        userId,
       );
       if (wsRole === SPACE_ROLES.WORKSPACE_ADMIN) {
         canDelete = true;
@@ -220,7 +255,9 @@ export class MessagesService {
     }
 
     if (!canDelete) {
-      throw new ForbiddenException('You do not have permission to delete this message');
+      throw new ForbiddenException(
+        'You do not have permission to delete this message',
+      );
     }
 
     message.content = '[Message deleted]';
@@ -232,7 +269,10 @@ export class MessagesService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid Message ID');
     }
-    const message = await this.messageModel.findById(id).populate('senderId', 'fullName avatar email').exec();
+    const message = await this.messageModel
+      .findById(id)
+      .populate('senderId', 'fullName avatar email')
+      .exec();
     if (!message) {
       throw new NotFoundException('Message not found');
     }

@@ -12,11 +12,15 @@ import { MessagesService } from './services/messages.service';
 import { MeetingService } from './services/meeting.service';
 import { ChatGateway } from './gateways/chat.gateway';
 import { ChannelsController } from './controllers/channels.controller';
+import { MeetingsController } from './controllers/meetings.controller';
 import { Channel, ChannelSchema } from './schemas/channel.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { Meeting, MeetingSchema } from './schemas/meeting.schema';
 import { Reaction, ReactionSchema } from './schemas/reaction.schema';
-import { ChannelReadMarker, ChannelReadMarkerSchema } from './schemas/channel-read-marker.schema';
+import {
+  ChannelReadMarker,
+  ChannelReadMarkerSchema,
+} from './schemas/channel-read-marker.schema';
 
 @Module({
   imports: [
@@ -35,7 +39,7 @@ import { ChannelReadMarker, ChannelReadMarkerSchema } from './schemas/channel-re
     RealtimeModule,
     RedisModule,
   ],
-  controllers: [ChannelsController],
+  controllers: [ChannelsController, MeetingsController],
   providers: [ChannelsService, MessagesService, MeetingService, ChatGateway],
   exports: [ChannelsService],
 })

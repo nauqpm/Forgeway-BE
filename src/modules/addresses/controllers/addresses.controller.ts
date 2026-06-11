@@ -19,7 +19,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class AddressesController {
-  constructor(private readonly addressesService: AddressesService) { }
+  constructor(private readonly addressesService: AddressesService) {}
 
   @Get()
   async findAll(@CurrentUser('userId') userId: string) {
@@ -52,10 +52,7 @@ export class AddressesController {
   }
 
   @Delete(':id')
-  async delete(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-  ) {
+  async delete(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     await this.addressesService.delete(id, userId);
     return { message: 'Address deleted successfully' };
   }
