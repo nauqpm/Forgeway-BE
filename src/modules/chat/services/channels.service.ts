@@ -144,7 +144,7 @@ export class ChannelsService {
       this.logger.debug(`Channel not found: ${id}`);
       throw new NotFoundException('Channel not found');
     }
-    this.logger.log(`Found channel: ${channel.name} (${id})`);
+    this.logger.debug(`Found channel: ${channel.name} (${id})`);
     return channel;
   }
 
@@ -331,7 +331,7 @@ export class ChannelsService {
       return [];
     }
     const channels = await this.channelModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
-    this.logger.log(`Found ${channels.length} channels for workspace: ${workspaceId}`);
+    this.logger.debug(`Found ${channels.length} channels for workspace: ${workspaceId}`);
     return channels;
   }
 
@@ -341,7 +341,7 @@ export class ChannelsService {
     }
     
     const channel = await this.findById(channelId);
-    this.logger.log(`Validating access for user ${userId} to channel: ${channel.name} (${channelId})`);
+    this.logger.debug(`Validating access for user ${userId} to channel: ${channel.name} (${channelId})`);
     
     if (channel.type === 'general' || channel.type === 'announcement') {
       return true;
