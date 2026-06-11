@@ -7,14 +7,9 @@ import { Board, BoardDocument } from '../../kanban/schemas/kanban-board.schema';
 
 @Injectable()
 export class BoardStatusService {
-  constructor(
-    @InjectModel(Board.name) private readonly boardModel: Model<BoardDocument>,
-  ) {}
+  constructor(@InjectModel(Board.name) private readonly boardModel: Model<BoardDocument>) {}
 
-  async getCompletedStatuses(
-    workspaceId: Types.ObjectId,
-    session?: ClientSession,
-  ): Promise<string[]> {
+  async getCompletedStatuses(workspaceId: Types.ObjectId, session?: ClientSession): Promise<string[]> {
     const boardQuery = this.boardModel.findOne({ workspaceId }).lean();
     const board = await (session ? boardQuery.session(session) : boardQuery).exec();
 
@@ -24,15 +19,11 @@ export class BoardStatusService {
         return (
           column.isDone === true ||
           column.id?.toLowerCase?.() === 'done' ||
-          mappedStatuses.some(
-            (status: string) => status?.toLowerCase?.() === 'done',
-          )
+          mappedStatuses.some((status: string) => status?.toLowerCase?.() === 'done')
         );
       }) ?? [];
 
-    const statuses = doneColumns
-      .flatMap((column: any) => column.mappedStatuses ?? [])
-      .filter(Boolean);
+    const statuses = doneColumns.flatMap((column: any) => column.mappedStatuses ?? []).filter(Boolean);
 
     return statuses.length > 0 ? statuses : ['done'];
   }

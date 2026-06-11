@@ -76,7 +76,7 @@ UserSchema.set('toJSON', {
     delete ret.failedLoginAttempts;
     delete ret.lockoutUntil;
     delete ret.password; // Exclude password from JSON responses
-    
+
     if (ret.googleId) {
       ret.ssoProvider = 'google';
     }

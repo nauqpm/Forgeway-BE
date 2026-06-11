@@ -36,17 +36,17 @@ const storage = diskStorage({
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    
+
     // Lấy module type từ body hoặc query hoặc mặc định là 'others'
     const moduleType = req.body?.type || req.query?.type || req.body?.targetType || req.query?.targetType || 'others';
-    
+
     const uploadPath = join('uploads', moduleType, String(year), month, day);
-    
+
     // Tạo folder nếu chưa tồn tại
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
-    
+
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
@@ -118,8 +118,8 @@ export class ImagesController {
     const image = await this.imagesService.create(dto, file, userId);
     return {
       success: true,
-      message: image.url.includes('cloudinary') 
-        ? 'Avatar uploaded to Cloudinary successfully' 
+      message: image.url.includes('cloudinary')
+        ? 'Avatar uploaded to Cloudinary successfully'
         : 'Image uploaded successfully',
       data: image,
     };
@@ -157,11 +157,7 @@ export class ImagesController {
     const userId = req.user.userId;
 
     // The service now handles Cloudinary upload automatically if type is AVATAR
-    const image = await this.imagesService.create(
-      { type: ImageType.AVATAR, targetId: userId },
-      file,
-      userId,
-    );
+    const image = await this.imagesService.create({ type: ImageType.AVATAR, targetId: userId }, file, userId);
 
     return {
       success: true,
@@ -170,7 +166,6 @@ export class ImagesController {
       data: image,
     };
   }
-
 
   @Post('upload/multiple')
   @UseGuards(JwtAuthGuard)

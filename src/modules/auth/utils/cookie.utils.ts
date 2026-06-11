@@ -1,10 +1,7 @@
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { CookieOptions, Response } from 'express';
 
-import {
-  getAccessCookieOptions,
-  getRefreshCookieOptions,
-} from '../../../config/cookie.config';
+import { getAccessCookieOptions, getRefreshCookieOptions } from '../../../config/cookie.config';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 
 export function setAccessTokenCookie(res: Response, configService: ConfigService, accessToken: string): void {
@@ -29,10 +26,10 @@ export function setAuthCookies(
  */
 export function clearAuthCookies(res: Response, configService: ConfigService): void {
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
-  const clearOptions = {
+  const clearOptions: CookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+    sameSite: isProduction ? 'strict' : 'lax',
     path: '/',
   };
 

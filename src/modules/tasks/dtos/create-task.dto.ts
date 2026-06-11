@@ -1,5 +1,1 @@
-export {
-  CreateTaskDto,
-  UpdateTaskDto,
-  FilterTaskDto,
-} from './requests/create-task.dto';
+export { CreateTaskDto, UpdateTaskDto, FilterTaskDto } from './requests/create-task.dto';

@@ -37,7 +37,7 @@ describe('TaskCommentService', () => {
 
   beforeEach(async () => {
     const saveMock = jest.fn();
-    commentModel = jest.fn().mockImplementation((data) => ({
+    commentModel = jest.fn().mockImplementation(data => ({
       ...data,
       _id: new Types.ObjectId(),
       save: saveMock.mockResolvedValue({ ...data, _id: new Types.ObjectId() }),
@@ -123,9 +123,7 @@ describe('TaskCommentService', () => {
       workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
       workspaceMemberService.isMember.mockResolvedValue(true);
       workspaceMemberService.filterNonMembers.mockResolvedValue([]);
-      workspaceMemberService.filterMembers.mockImplementation(
-        (_wsId: string, ids: string[]) => Promise.resolve(ids),
-      );
+      workspaceMemberService.filterMembers.mockImplementation((_wsId: string, ids: string[]) => Promise.resolve(ids));
       taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
       commentModel.findOne.mockReturnValue({
         populate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(populatedComment) }),
@@ -136,9 +134,7 @@ describe('TaskCommentService', () => {
     it('creates task comment scoped to workspace and records activity', async () => {
       mockSuccess();
 
-      const result = await service.createForTask(
-        workspaceId, taskId, { content: 'Looks good' }, userId,
-      );
+      const result = await service.createForTask(workspaceId, taskId, { content: 'Looks good' }, userId);
 
       expect(result).toEqual(mapped);
       expect(commentModel).toHaveBeenCalledWith(
@@ -149,9 +145,7 @@ describe('TaskCommentService', () => {
           content: 'Looks good',
         }),
       );
-      expect(taskActivitiesService.recordCommentAdded).toHaveBeenCalledWith(
-        task, userId, expect.any(String),
-      );
+      expect(taskActivitiesService.recordCommentAdded).toHaveBeenCalledWith(task, userId, expect.any(String));
     });
 
     it('rejects creating comment on archived task', async () => {
@@ -165,9 +159,9 @@ describe('TaskCommentService', () => {
         }),
       });
 
-      await expect(
-        service.createForTask(workspaceId, taskId, { content: 'Nope' }, userId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createForTask(workspaceId, taskId, { content: 'Nope' }, userId)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(taskActivitiesService.recordCommentAdded).not.toHaveBeenCalled();
     });
@@ -179,16 +173,10 @@ describe('TaskCommentService', () => {
       taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
 
       await expect(
-        service.createForTask(
-          workspaceId, taskId,
-          { content: 'Hello @outsider', mentions: [nonMemberId] },
-          userId,
-        ),
+        service.createForTask(workspaceId, taskId, { content: 'Hello @outsider', mentions: [nonMemberId] }, userId),
       ).rejects.toThrow('Mentioned users must be members of this workspace');
 
-      expect(workspaceMemberService.filterNonMembers).toHaveBeenCalledWith(
-        workspaceId, [nonMemberId],
-      );
+      expect(workspaceMemberService.filterNonMembers).toHaveBeenCalledWith(workspaceId, [nonMemberId]);
       expect(commentModel).not.toHaveBeenCalled();
     });
 
@@ -197,15 +185,14 @@ describe('TaskCommentService', () => {
       workspaceMemberService.filterNonMembers.mockResolvedValue([]);
 
       const result = await service.createForTask(
-        workspaceId, taskId,
+        workspaceId,
+        taskId,
         { content: 'Hello @member', mentions: [memberId] },
         userId,
       );
 
       expect(result).toEqual(mapped);
-      expect(workspaceMemberService.filterNonMembers).toHaveBeenCalledWith(
-        workspaceId, [memberId],
-      );
+      expect(workspaceMemberService.filterNonMembers).toHaveBeenCalledWith(workspaceId, [memberId]);
       expect(commentModel).toHaveBeenCalledWith(
         expect.objectContaining({
           content: 'Hello @member',
@@ -217,9 +204,7 @@ describe('TaskCommentService', () => {
     it('accepts empty mentions array', async () => {
       mockSuccess();
 
-      await service.createForTask(
-        workspaceId, taskId, { content: 'No mentions', mentions: [] }, userId,
-      );
+      await service.createForTask(workspaceId, taskId, { content: 'No mentions', mentions: [] }, userId);
 
       expect(workspaceMemberService.filterNonMembers).not.toHaveBeenCalled();
     });
@@ -227,9 +212,7 @@ describe('TaskCommentService', () => {
     it('accepts undefined mentions', async () => {
       mockSuccess();
 
-      await service.createForTask(
-        workspaceId, taskId, { content: 'No mentions' }, userId,
-      );
+      await service.createForTask(workspaceId, taskId, { content: 'No mentions' }, userId);
 
       expect(workspaceMemberService.filterNonMembers).not.toHaveBeenCalled();
     });

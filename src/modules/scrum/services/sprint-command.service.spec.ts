@@ -29,8 +29,8 @@ describe('SprintCommandService', () => {
         {
           provide: MongoTransactionService,
           useValue: {
-            withTransaction: jest.fn().mockImplementation((fn) => fn(mockSession)),
-            withSession: jest.fn().mockImplementation((query) => query),
+            withTransaction: jest.fn().mockImplementation(fn => fn(mockSession)),
+            withSession: jest.fn().mockImplementation(query => query),
           },
         },
         {
@@ -69,14 +69,14 @@ describe('SprintCommandService', () => {
     sprintModel.countDocuments.mockReturnValue({
       exec: jest.fn().mockResolvedValue(2),
     });
-    
+
     // Define mock class for Sprint model constructor
     const mockSprintInstance = function (this: any, data: any) {
       Object.assign(this, data);
       this.save = jest.fn().mockResolvedValue(this);
     };
     Object.assign(mockSprintInstance, sprintModel);
-    
+
     // Replace injected model token with mock constructor
     service = new SprintCommandService(
       module.get(MongoTransactionService),
@@ -84,7 +84,7 @@ describe('SprintCommandService', () => {
       module.get(getModelToken(Task.name)),
       sprintDomainEventPublisher as any,
     );
-    
+
     // Save reference to mock constructor for test validation
     sprintModel = mockSprintInstance;
     taskModel = module.get(getModelToken(Task.name));
@@ -96,7 +96,7 @@ describe('SprintCommandService', () => {
     it('creates sprint with auto-generated name if omitted', async () => {
       const dto = { goal: 'Test goals' };
       const result = await service.createSprint(workspaceId, dto as any);
-      
+
       expect(sprintModel.countDocuments).toHaveBeenCalledWith({
         workspaceId: new Types.ObjectId(workspaceId),
         deletedAt: null,
@@ -104,22 +104,16 @@ describe('SprintCommandService', () => {
       expect(result.name).toBe('Sprint 3'); // 2 existing + 1
       expect(result.status).toBe('planning');
       expect(result.workspaceId).toEqual(new Types.ObjectId(workspaceId));
-      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
-        result,
-        undefined,
-      );
+      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(result, undefined);
     });
 
     it('creates sprint with specified name', async () => {
       const dto = { name: 'Custom Sprint Name', goal: 'Test goals' };
       const actorId = new Types.ObjectId().toString();
       const result = await service.createSprint(workspaceId, dto, actorId);
-      
+
       expect(result.name).toBe('Custom Sprint Name');
-      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(
-        result,
-        actorId,
-      );
+      expect(sprintDomainEventPublisher.publishCreated).toHaveBeenCalledWith(result, actorId);
     });
   });
 
@@ -129,9 +123,7 @@ describe('SprintCommandService', () => {
 
     it('throws NotFoundException if sprint not found', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
-      await expect(service.updateSprint(workspaceId, sprintId, {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.updateSprint(workspaceId, sprintId, {})).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when updating a completed sprint', async () => {
@@ -164,7 +156,9 @@ describe('SprintCommandService', () => {
         status: 'planning',
         startDate: new Date('2026-06-10'),
         endDate: new Date('2026-06-20'),
-        save: jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); }),
+        save: jest.fn().mockImplementation(function (this: any) {
+          return Promise.resolve(this);
+        }),
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
@@ -174,7 +168,9 @@ describe('SprintCommandService', () => {
     });
 
     it('successfully updates planning sprint details', async () => {
-      const saveSpy = jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); });
+      const saveSpy = jest.fn().mockImplementation(function (this: any) {
+        return Promise.resolve(this);
+      });
       const mockSprint: any = {
         _id: new Types.ObjectId(sprintId),
         status: 'planning',
@@ -199,9 +195,7 @@ describe('SprintCommandService', () => {
 
     it('throws NotFoundException when deleting non-existent sprint', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
-      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when deleting a non-planning sprint', async () => {
@@ -211,9 +205,7 @@ describe('SprintCommandService', () => {
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
-      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.deleteSprint(workspaceId, sprintId)).rejects.toThrow(BadRequestException);
     });
 
     it('successfully deletes planning sprint and resets its tasks to backlog', async () => {
@@ -241,10 +233,7 @@ describe('SprintCommandService', () => {
         },
         { session: mockSession },
       );
-      expect(sprintModel.deleteOne).toHaveBeenCalledWith(
-        { _id: mockSprint._id },
-        { session: mockSession },
-      );
+      expect(sprintModel.deleteOne).toHaveBeenCalledWith({ _id: mockSprint._id }, { session: mockSession });
     });
   });
 

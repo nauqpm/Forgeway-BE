@@ -26,7 +26,7 @@ type UserUpdatePayload =
 
 @Injectable()
 export class UsersRepository {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
   async findById(id: string): Promise<User | null> {
     return this.userModel.findById(id).exec();
@@ -41,46 +41,23 @@ export class UsersRepository {
     return newUser.save();
   }
 
-  async update(
-    userId: string,
-    updateData: UserUpdatePayload,
-  ): Promise<User | null> {
-    return await this.userModel
-      .findByIdAndUpdate(userId, updateData, { new: true })
-      .exec();
+  async update(userId: string, updateData: UserUpdatePayload): Promise<User | null> {
+    return await this.userModel.findByIdAndUpdate(userId, updateData, { new: true }).exec();
   }
 
   async incrementFailedLoginAttempts(userId: string): Promise<User | null> {
-    return this.userModel
-      .findByIdAndUpdate(
-        userId,
-        { $inc: { failedLoginAttempts: 1 } },
-        { new: true },
-      )
-      .exec();
+    return this.userModel.findByIdAndUpdate(userId, { $inc: { failedLoginAttempts: 1 } }, { new: true }).exec();
   }
 
   async setLockout(userId: string, lockoutUntil: Date): Promise<User | null> {
-    return this.userModel
-      .findByIdAndUpdate(
-        userId,
-        { $set: { lockoutUntil } },
-        { new: true },
-      )
-      .exec();
+    return this.userModel.findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true }).exec();
   }
 
   /**
    * Partial update using $set to avoid overwriting unrelated fields.
    */
   async updatePassword(userId: string, hashedPassword: string): Promise<User | null> {
-    return this.userModel
-      .findByIdAndUpdate(
-        userId,
-        { $set: { password: hashedPassword } },
-        { new: true },
-      )
-      .exec();
+    return this.userModel.findByIdAndUpdate(userId, { $set: { password: hashedPassword } }, { new: true }).exec();
   }
 
   // 📢 Thêm hàm `findAll` để trả về tất cả người dùng

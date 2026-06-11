@@ -10,10 +10,7 @@ import { ModuleRef, Reflector } from '@nestjs/core';
 import { Types } from 'mongoose';
 import { GLOBAL_ROLES } from '../constants/global-role.constants';
 import { SPACE_ROLES } from '../constants/space-role.constants';
-import {
-  WorkspacePermission,
-  getPermissionsForWorkspaceRole,
-} from '../constants/workspace-permissions.constants';
+import { WorkspacePermission, getPermissionsForWorkspaceRole } from '../constants/workspace-permissions.constants';
 import { REQUIRED_WORKSPACE_PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
 import { PagesService } from '../../modules/pages/services/pages.service';
 import { WorkspacesService } from '../../modules/workspaces/services/workspaces.service';
@@ -41,10 +38,10 @@ export class WorkspaceRoleGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermissions =
-      this.reflector.getAllAndOverride<WorkspacePermission[]>(
-        REQUIRED_WORKSPACE_PERMISSIONS_KEY,
-        [context.getHandler(), context.getClass()],
-      ) ?? [];
+      this.reflector.getAllAndOverride<WorkspacePermission[]>(REQUIRED_WORKSPACE_PERMISSIONS_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? [];
 
     if (requiredPermissions.length === 0) {
       return true;
@@ -66,36 +63,23 @@ export class WorkspaceRoleGuard implements CanActivate {
       return true;
     }
 
-    const workspaceAuth =
-      request.workspaceAuth ?? (await this.resolveWorkspaceAuth(request, user.userId));
+    const workspaceAuth = request.workspaceAuth ?? (await this.resolveWorkspaceAuth(request, user.userId));
     request.workspaceAuth = workspaceAuth;
 
-    const allowed = requiredPermissions.every((permission) =>
-      workspaceAuth.permissions.includes(permission),
-    );
+    const allowed = requiredPermissions.every(permission => workspaceAuth.permissions.includes(permission));
 
     if (!allowed) {
-      throw new ForbiddenException(
-        `Missing workspace permission: ${requiredPermissions.join(', ')}`,
-      );
+      throw new ForbiddenException(`Missing workspace permission: ${requiredPermissions.join(', ')}`);
     }
 
     return true;
   }
 
-  private async resolveWorkspaceAuth(
-    request: RequestWithWorkspaceAuth,
-    userId: string,
-  ): Promise<WorkspaceAuthContext> {
+  private async resolveWorkspaceAuth(request: RequestWithWorkspaceAuth, userId: string): Promise<WorkspaceAuthContext> {
     const workspaceId = await this.resolveWorkspaceId(request);
     const workspace = await this.getWorkspacesService().findById(workspaceId);
-    const member = workspace.members.find(
-      (item) => item.userId.toString() === userId,
-    );
-    const role =
-      workspace.ownerId.toString() === userId
-        ? SPACE_ROLES.WORKSPACE_ADMIN
-        : member?.role;
+    const member = workspace.members.find(item => item.userId.toString() === userId);
+    const role = workspace.ownerId.toString() === userId ? SPACE_ROLES.WORKSPACE_ADMIN : member?.role;
 
     if (!role) {
       throw new ForbiddenException('Workspace membership required');
@@ -108,9 +92,7 @@ export class WorkspaceRoleGuard implements CanActivate {
     };
   }
 
-  private async resolveWorkspaceId(
-    request: RequestWithWorkspaceAuth,
-  ): Promise<string> {
+  private async resolveWorkspaceId(request: RequestWithWorkspaceAuth): Promise<string> {
     const routeWorkspaceId = this.getStringValue(request.params?.workspaceId);
     if (routeWorkspaceId) {
       if (Types.ObjectId.isValid(routeWorkspaceId)) {
@@ -121,8 +103,7 @@ export class WorkspaceRoleGuard implements CanActivate {
     }
 
     const directWorkspaceId =
-      this.getStringValue(request.query?.workspaceId) ??
-      this.getStringValue(request.body?.workspaceId);
+      this.getStringValue(request.query?.workspaceId) ?? this.getStringValue(request.body?.workspaceId);
 
     if (directWorkspaceId && Types.ObjectId.isValid(directWorkspaceId)) {
       return directWorkspaceId;

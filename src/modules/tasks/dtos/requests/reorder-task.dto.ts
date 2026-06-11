@@ -31,7 +31,8 @@ export class ReorderTaskDto {
   sprintId?: string | null;
 
   @ApiPropertyOptional({
-    description: 'Rank scope used for ordering. Board reorder is scoped by column; sprint reorder is scoped by sprint/backlog list.',
+    description:
+      'Rank scope used for ordering. Board reorder is scoped by column; sprint reorder is scoped by sprint/backlog list.',
     enum: ['board', 'sprint'],
     default: 'board',
   })

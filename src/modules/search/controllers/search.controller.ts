@@ -8,12 +8,16 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('search')
 export class SearchController {
-  constructor(private readonly searchService: SearchService) { }
+  constructor(private readonly searchService: SearchService) {}
 
   @Get()
   @ApiOperation({ summary: 'Global search across tasks, workspaces, and pages' })
   @ApiQuery({ name: 'q', required: true, description: 'Search query' })
-  @ApiQuery({ name: 'types', required: false, description: 'Comma-separated list of types to search (task,workspace,page)' })
+  @ApiQuery({
+    name: 'types',
+    required: false,
+    description: 'Comma-separated list of types to search (task,workspace,page)',
+  })
   @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter by workspace ID' })
   @ApiQuery({ name: 'limit', required: false, description: 'Maximum results per type' })
   async search(
@@ -29,7 +33,7 @@ export class SearchController {
     const options: any = {};
 
     if (types) {
-      options.types = types.split(',').map((t) => t.trim());
+      options.types = types.split(',').map(t => t.trim());
     }
 
     if (workspaceId) {

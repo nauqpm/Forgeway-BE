@@ -1,4 +1,13 @@
-import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException, mixin, Type } from '@nestjs/common';
+import {
+  BadRequestException,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  mixin,
+  Type,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workspace, WorkspaceDocument } from '@/modules/workspaces/schemas/workspace.schema';
@@ -6,9 +15,7 @@ import { Workspace, WorkspaceDocument } from '@/modules/workspaces/schemas/works
 export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanActivate> => {
   @Injectable()
   class WorkspaceTypeGuardMixin implements CanActivate {
-    constructor(
-      @InjectModel(Workspace.name) private readonly workspaceModel: Model<WorkspaceDocument>,
-    ) {}
+    constructor(@InjectModel(Workspace.name) private readonly workspaceModel: Model<WorkspaceDocument>) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
@@ -33,9 +40,7 @@ export const WorkspaceTypeGuard = (requiredType: 'scrum' | 'kanban'): Type<CanAc
       }
 
       if (!workspace.type || workspace.type !== requiredType) {
-        throw new ForbiddenException(
-          `This operation requires a ${requiredType} workspace`,
-        );
+        throw new ForbiddenException(`This operation requires a ${requiredType} workspace`);
       }
 
       return true;

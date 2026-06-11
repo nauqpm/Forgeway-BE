@@ -29,7 +29,7 @@ export class WorkflowsController {
   @ApiResponse({ status: 200, description: 'List of workflows' })
   async findAll(@Query('workspaceId') workspaceId?: string) {
     if (workspaceId) {
-      return this.workflowsService.findByWorkspace(workspaceId).then(w => w ? [w] : []);
+      return this.workflowsService.findByWorkspace(workspaceId).then(w => (w ? [w] : []));
     }
     return [];
   }

@@ -10,14 +10,14 @@ export const INVITE_STATUS = {
   EXPIRED: 'expired',
 } as const;
 
-export type InviteStatusValue = typeof INVITE_STATUS[keyof typeof INVITE_STATUS];
+export type InviteStatusValue = (typeof INVITE_STATUS)[keyof typeof INVITE_STATUS];
 
 export const INVITE_TYPES = {
   EMAIL: 'email',
   LINK: 'link',
 } as const;
 
-export type InviteTypeValue = typeof INVITE_TYPES[keyof typeof INVITE_TYPES];
+export type InviteTypeValue = (typeof INVITE_TYPES)[keyof typeof INVITE_TYPES];
 
 @Schema({ timestamps: true })
 export class Invite {

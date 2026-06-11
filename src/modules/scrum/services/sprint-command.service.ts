@@ -3,12 +3,7 @@
 // - cập nhật sprint
 // - xóa sprint
 // - xóa sprint theo workspace.
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
@@ -28,11 +23,7 @@ export class SprintCommandService {
     private readonly sprintDomainEventPublisher: SprintDomainEventPublisher,
   ) {}
 
-  async createSprint(
-    workspaceId: string,
-    dto: CreateSprintDto,
-    actorId?: string,
-  ): Promise<SprintDocument> {
+  async createSprint(workspaceId: string, dto: CreateSprintDto, actorId?: string): Promise<SprintDocument> {
     this.logger.log(`Creating Sprint for Workspace: ${workspaceId}`);
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
@@ -87,16 +78,11 @@ export class SprintCommandService {
         throw new BadRequestException('Cannot edit completed sprint');
       }
 
-      if (
-        sprint.status !== 'planning' &&
-        (dto.startDate !== undefined || dto.endDate !== undefined)
-      ) {
+      if (sprint.status !== 'planning' && (dto.startDate !== undefined || dto.endDate !== undefined)) {
         this.logger.error(
           `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: Cannot change dates of active or completed sprint`,
         );
-        throw new BadRequestException(
-          'Cannot change dates of active or completed sprint',
-        );
+        throw new BadRequestException('Cannot change dates of active or completed sprint');
       }
 
       const oldValues = {
@@ -119,11 +105,7 @@ export class SprintCommandService {
         if (dto.endDate !== undefined) nextEndDate = new Date(dto.endDate);
       }
 
-      if (
-        nextStartDate &&
-        nextEndDate &&
-        new Date(nextEndDate).getTime() <= new Date(nextStartDate).getTime()
-      ) {
+      if (nextStartDate && nextEndDate && new Date(nextEndDate).getTime() <= new Date(nextStartDate).getTime()) {
         throw new BadRequestException('EndDate must be greater than StartDate');
       }
 
@@ -157,26 +139,17 @@ export class SprintCommandService {
       this.sprintDomainEventPublisher.publishUpdated(updatedSprint, actorId);
       return updatedSprint;
     } catch (error) {
-      if (
-        !(error instanceof NotFoundException) &&
-        !(error instanceof BadRequestException)
-      ) {
-        this.logger.error(
-          `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: ${error}`,
-        );
+      if (!(error instanceof NotFoundException) && !(error instanceof BadRequestException)) {
+        this.logger.error(`[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: ${error}`);
       }
       throw error;
     }
   }
 
-  async deleteSprint(
-    workspaceId: string,
-    sprintId: string,
-    actorId?: string,
-  ): Promise<void> {
+  async deleteSprint(workspaceId: string, sprintId: string, actorId?: string): Promise<void> {
     let deletedSprint: SprintDocument | null = null;
 
-    await this.mongoTransactionService.withTransaction(async (session) => {
+    await this.mongoTransactionService.withTransaction(async session => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
 
@@ -218,9 +191,7 @@ export class SprintCommandService {
         )
         .exec();
 
-      await this.sprintModel
-        .deleteOne({ _id: sprint._id }, { session: session ?? undefined })
-        .exec();
+      await this.sprintModel.deleteOne({ _id: sprint._id }, { session: session ?? undefined }).exec();
     });
 
     if (deletedSprint) {

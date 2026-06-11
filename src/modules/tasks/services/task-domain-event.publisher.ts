@@ -36,11 +36,7 @@ export class TaskDomainEventPublisher {
     );
   }
 
-  publishUpdated(
-    previousTask: TaskDocument | any,
-    updatedTask: TaskDocument | any,
-    actorId: string,
-  ): void {
+  publishUpdated(previousTask: TaskDocument | any, updatedTask: TaskDocument | any, actorId: string): void {
     const changes = this.buildFieldChanges(previousTask, updatedTask);
     if (changes.length === 0) {
       return;
@@ -56,11 +52,7 @@ export class TaskDomainEventPublisher {
     );
   }
 
-  publishMoved(
-    previousTask: TaskDocument | any,
-    movedTask: TaskDocument | any,
-    actorId: string,
-  ): void {
+  publishMoved(previousTask: TaskDocument | any, movedTask: TaskDocument | any, actorId: string): void {
     const context = this.getTaskContext(movedTask, actorId);
     this.emit(
       new TaskMovedEvent({
@@ -142,9 +134,7 @@ export class TaskDomainEventPublisher {
     try {
       this.eventEmitter.emit(event.type, event);
     } catch (error) {
-      this.logger.warn(
-        `Failed to publish task domain event. type=${event.type}, reason=${(error as Error).message}`,
-      );
+      this.logger.warn(`Failed to publish task domain event. type=${event.type}, reason=${(error as Error).message}`);
     }
   }
 
@@ -178,10 +168,7 @@ export class TaskDomainEventPublisher {
     };
   }
 
-  private buildFieldChanges(
-    previousTask: TaskDocument | any,
-    updatedTask: TaskDocument | any,
-  ): TaskFieldChange[] {
+  private buildFieldChanges(previousTask: TaskDocument | any, updatedTask: TaskDocument | any): TaskFieldChange[] {
     const fields = [
       'title',
       'description',
@@ -207,10 +194,7 @@ export class TaskDomainEventPublisher {
     }, []);
   }
 
-  private valueForField(
-    task: TaskDocument | any,
-    field: string,
-  ): TaskChangeValue {
+  private valueForField(task: TaskDocument | any, field: string): TaskChangeValue {
     const value = task?.[field];
 
     if (field.endsWith('Id')) {

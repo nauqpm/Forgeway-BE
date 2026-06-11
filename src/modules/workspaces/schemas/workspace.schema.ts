@@ -24,7 +24,10 @@ export class Workspace {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   ownerId!: Types.ObjectId;
 
-  @Prop({ type: [{ userId: { type: Types.ObjectId, ref: 'User' }, role: { type: String, enum: Object.values(SPACE_ROLES) } }], default: [] })
+  @Prop({
+    type: [{ userId: { type: Types.ObjectId, ref: 'User' }, role: { type: String, enum: Object.values(SPACE_ROLES) } }],
+    default: [],
+  })
   members!: { userId: Types.ObjectId; role: string }[];
 
   @Prop({ type: Object, default: {} })

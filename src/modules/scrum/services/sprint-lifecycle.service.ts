@@ -1,12 +1,7 @@
 // Xử lý vòng đời sprint: start sprint và complete sprint.
 // File này kiểm tra trạng thái sprint, kiểm tra active sprint hiện tại,
 // validate target sprint khi đóng sprint, move incomplete tasks.
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
@@ -36,7 +31,7 @@ export class SprintLifecycleService {
   ): Promise<SprintDocument> {
     this.logger.log(`Bắt đầu một sprint: ${sprintId} cho workspace: ${workspaceId}`);
 
-    const startedSprint = await this.mongoTransactionService.withTransaction(async (session) => {
+    const startedSprint = await this.mongoTransactionService.withTransaction(async session => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
 
@@ -72,9 +67,7 @@ export class SprintLifecycleService {
         .exec();
 
       if (activeSprint) {
-        throw new BadRequestException(
-          'Cannot start sprint: There is already an active sprint in this workspace.',
-        );
+        throw new BadRequestException('Cannot start sprint: There is already an active sprint in this workspace.');
       }
 
       sprint.status = 'active';
@@ -89,31 +82,24 @@ export class SprintLifecycleService {
     return startedSprint;
   }
 
-  async completeSprint(
-    workspaceId: string,
-    sprintId: string,
-    dto: CompleteSprintDto,
-    actorId?: string,
-  ): Promise<any> {
+  async completeSprint(workspaceId: string, sprintId: string, dto: CompleteSprintDto, actorId?: string): Promise<any> {
     this.logger.log(`Completing sprint: ${sprintId} for workspace: ${workspaceId}`);
 
     let completedSprint: SprintDocument | null = null;
     let incompleteTasksMovedTo: string | null = null;
 
-    const result = await this.mongoTransactionService.withTransaction(async (session) => {
+    const result = await this.mongoTransactionService.withTransaction(async session => {
       const workspaceObjectId = new Types.ObjectId(workspaceId);
       const sprintObjectId = new Types.ObjectId(sprintId);
-      const moveToSprintObjectId = dto.moveToSprintId
-        ? new Types.ObjectId(dto.moveToSprintId)
-        : null;
+      const moveToSprintObjectId = dto.moveToSprintId ? new Types.ObjectId(dto.moveToSprintId) : null;
 
       const sprint = await this.mongoTransactionService
         .withSession(
-            this.sprintModel.findOne({
-              _id: sprintObjectId,
-              workspaceId: workspaceObjectId,
-              deletedAt: null,
-            }),
+          this.sprintModel.findOne({
+            _id: sprintObjectId,
+            workspaceId: workspaceObjectId,
+            deletedAt: null,
+          }),
           session,
         )
         .exec();
@@ -187,11 +173,7 @@ export class SprintLifecycleService {
     });
 
     if (completedSprint) {
-      this.sprintDomainEventPublisher.publishCompleted(
-        completedSprint,
-        actorId,
-        incompleteTasksMovedTo,
-      );
+      this.sprintDomainEventPublisher.publishCompleted(completedSprint, actorId, incompleteTasksMovedTo);
     }
 
     return result;

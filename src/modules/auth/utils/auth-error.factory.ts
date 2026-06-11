@@ -21,8 +21,7 @@ export class AuthErrorFactory {
 
   static accountLocked(lockedUntil: string): AuthErrorPayload {
     return {
-      message:
-        'Account has been temporarily locked due to too many failed password attempts.',
+      message: 'Account has been temporarily locked due to too many failed password attempts.',
       code: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
       details: {
         lockedUntil,
