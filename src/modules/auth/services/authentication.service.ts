@@ -1,8 +1,8 @@
-import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InviteService } from '@/modules/workspaces/services/invite.service';
 import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
-import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 import { UsersService } from '../../users/services/users.service';
 import { VerifyType } from '../../verify/dtos/verify.dto';
@@ -13,8 +13,9 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
 @Injectable()
-export class AuthenticationService {
+export class AuthenticationService implements OnModuleInit {
   private readonly logger = new Logger(AuthenticationService.name);
+  private dummyPasswordHash = '';
 
   constructor(
     private readonly usersService: UsersService,
@@ -23,6 +24,21 @@ export class AuthenticationService {
     private readonly verifyService: VerifyService,
     private readonly inviteService: InviteService,
   ) {}
+
+  async onModuleInit() {
+    this.dummyPasswordHash = await this.passwordService.hashPassword(randomUUID());
+  }
+
+  private async runDummyPasswordCompare(password: string) {
+    if (!this.dummyPasswordHash) {
+      this.dummyPasswordHash = await this.passwordService.hashPassword(randomUUID());
+    }
+    await this.passwordService.verifyPassword(password, this.dummyPasswordHash);
+  }
+
+  private throwPublicLoginFailure(): never {
+    throw new UnauthorizedException(AuthErrorFactory.publicLoginFailure());
+  }
 
   async register(registerDto: RegisterDto) {
     this.logger.log(`Starting registration flow for email: ${registerDto.email}`);
@@ -84,23 +100,24 @@ export class AuthenticationService {
       // Return same response shape as a real wrong password to prevent user enumeration.
       if (!user) {
         this.logger.warn(`Login failed: Email ${loginDto.email} was not found.`);
-        const fakeRemaining = PASSWORD_POLICY.maxFailedAttempts - 1;
-        throw new UnauthorizedException(AuthErrorFactory.invalidCredentials(fakeRemaining));
+        await this.runDummyPasswordCompare(loginDto.password);
+        this.throwPublicLoginFailure();
       }
 
       // === Handle OAuth (no password) user ===
       // Return generic invalid credentials to prevent OAuth account enumeration.
       if (!user.password) {
         this.logger.warn(`Login failed: Account ${loginDto.email} has no password (OAuth).`);
-        const fakeRemaining = PASSWORD_POLICY.maxFailedAttempts - 1;
-        throw new UnauthorizedException(AuthErrorFactory.invalidCredentials(fakeRemaining));
+        await this.runDummyPasswordCompare(loginDto.password);
+        this.throwPublicLoginFailure();
       }
 
       // === Handle locked account ===
       const now = new Date();
       if (user.lockoutUntil && user.lockoutUntil.getTime() > now.getTime()) {
         this.logger.warn(`Login temporarily locked for email ${loginDto.email}.`);
-        throw new UnauthorizedException(AuthErrorFactory.accountLocked(user.lockoutUntil.toISOString()));
+        await this.runDummyPasswordCompare(loginDto.password);
+        this.throwPublicLoginFailure();
       }
 
       // === Reset expired lockout ===
@@ -116,10 +133,10 @@ export class AuthenticationService {
         const failureState = await this.usersService.registerFailedLoginAttempt(user._id.toString());
 
         if (failureState.isLocked) {
-          throw new UnauthorizedException(AuthErrorFactory.accountLocked(failureState.lockedUntil!));
+          this.throwPublicLoginFailure();
         }
 
-        throw new UnauthorizedException(AuthErrorFactory.invalidCredentials(failureState.remainingAttempts));
+        this.throwPublicLoginFailure();
       }
 
       // === Handle non-active status ===
