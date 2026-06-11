@@ -1,4 +1,4 @@
-// Service xử lý chuyển đổi giữa các định dạng tài liệu, bao gồm xuất tài liệu online sang DOCX và nhập nội dung từ file DOCX.
+// Service handling document format conversions, including exporting online documents to DOCX and importing from DOCX files.
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as JSZip from 'jszip';

@@ -1,4 +1,4 @@
-// Service quản lý các phiên bản của tài liệu online, bao gồm tạo mới, liệt kê và khôi phục phiên bản.
+// Service managing online document versions, including creating, listing, and restoring versions.
 import {
   BadRequestException,
   Injectable,

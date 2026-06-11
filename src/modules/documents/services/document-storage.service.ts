@@ -1,4 +1,4 @@
-// Service quản lý lưu trữ file tài liệu, bao gồm lưu trữ file đã upload và nội dung HTML đã render, cũng như xóa file khi cần thiết.
+// Service managing document file storage, including uploaded files, rendered HTML content, and deletions.
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
@@ -133,8 +133,8 @@ export class DocumentStorageService {
     try {
       await fs.unlink(storagePath);
     } catch {
-      // File có thể đã bị xóa trước đó.
-      // DB soft delete vẫn là nguồn dữ liệu chính.
+      // File may have been deleted before.
+      // DB soft delete is still the main source.
     }
   }
 }

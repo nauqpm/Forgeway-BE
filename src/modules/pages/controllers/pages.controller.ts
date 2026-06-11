@@ -104,7 +104,7 @@ class UpdateLabelsBodyDto {
 @ApiTags('Pages')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('pages') // endpoint độc lập với workspace
+@Controller('pages') // independent endpoint
 @ApiExtraModels(PageResponseDto, PaginatedPagesResponseDto)
 @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT token' })
 @ApiForbiddenResponse({ description: 'Insufficient role for this resource' })
@@ -440,12 +440,12 @@ export class PagesController {
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
-    summary: 'Tạo phiên bản mới có tên',
-    description: 'Lưu trạng thái hiện tại của tài liệu (yjsState, content, contentJson) thành một phiên bản có tên.',
+    summary: 'Create a new named version',
+    description: 'Saves current document state (yjsState, content, contentJson) as a named version.',
   })
-  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
   @ApiBody({ type: CreateVersionDto })
-  @ApiCreatedResponse({ description: 'Phiên bản mới được tạo thành công' })
+  @ApiCreatedResponse({ description: 'New version successfully created' })
   async createVersion(
     @Param('id') id: string,
     @Body() dto: CreateVersionDto,
@@ -459,11 +459,11 @@ export class PagesController {
   // -------------------------------------------------------------------------
   @Get(':id/versions')
   @ApiOperation({
-    summary: 'Lấy danh sách các phiên bản của tài liệu',
-    description: 'Trả về danh sách các phiên bản đã lưu của tài liệu, sắp xếp theo thời gian tạo mới nhất.',
+    summary: 'Get document version list',
+    description: 'Returns a list of saved versions of the document, sorted by newest creation time.',
   })
-  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
-  @ApiOkResponse({ description: 'Danh sách các phiên bản' })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiOkResponse({ description: 'List of versions' })
   async getVersions(@Param('id') id: string) {
     return this.pagesService.getVersions(id);
   }
@@ -473,12 +473,12 @@ export class PagesController {
   // -------------------------------------------------------------------------
   @Get(':id/versions/:versionId')
   @ApiOperation({
-    summary: 'Lấy chi tiết một phiên bản tài liệu',
-    description: 'Trả về thông tin chi tiết và nội dung snapshot của phiên bản.',
+    summary: 'Get details of a document version',
+    description: 'Returns details and snapshot content of the version.',
   })
-  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
-  @ApiParam({ name: 'versionId', description: 'ID của phiên bản' })
-  @ApiOkResponse({ description: 'Chi tiết phiên bản' })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiParam({ name: 'versionId', description: 'Version ID' })
+  @ApiOkResponse({ description: 'Version details' })
   async getVersionById(
     @Param('id') id: string,
     @Param('versionId') versionId: string,
@@ -493,12 +493,12 @@ export class PagesController {
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
-    summary: 'Khôi phục tài liệu về phiên bản chỉ định',
-    description: 'Khôi phục nội dung và trạng thái Yjs của tài liệu về phiên bản đã lưu.',
+    summary: 'Restore document to specified version',
+    description: 'Restores document content and Yjs state to saved version.',
   })
-  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
-  @ApiParam({ name: 'versionId', description: 'ID của phiên bản' })
-  @ApiOkResponse({ description: 'Tài liệu đã được khôi phục thành công' })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiParam({ name: 'versionId', description: 'Version ID' })
+  @ApiOkResponse({ description: 'Document successfully restored' })
   async restoreVersion(
     @Param('id') id: string,
     @Param('versionId') versionId: string,
@@ -506,7 +506,7 @@ export class PagesController {
   ) {
     const page = await this.pagesService.restoreVersion(id, versionId, req.user.userId);
     
-    // Phát thông báo realtime tới toàn bộ các client đang kết nối trong page room
+    // Broadcast real-time notification to all connected clients in the page room
     this.realtimeService.emitPageVersionRestored(
       page._id.toString(),
       page.yjsState,
@@ -523,10 +523,10 @@ export class PagesController {
   @Get(':id/export/docx')
   @UseGuards(WorkspaceRoleGuard)
   @ApiOperation({
-    summary: 'Xuất tài liệu thành tệp Word (.docx)',
-    description: 'Chuyển đổi nội dung HTML của trang tài liệu hiện tại thành tệp Word (.docx) và tải xuống.',
+    summary: 'Export document as Word file (.docx)',
+    description: 'Converts HTML of the current document to Word file (.docx) for download.',
   })
-  @ApiParam({ name: 'id', description: 'ID của trang tài liệu' })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
   async exportDocx(@Param('id') id: string, @Res() res: any) {
     const { buffer, filename } = await this.pagesService.exportToDocx(id);
 
@@ -548,19 +548,19 @@ export class PagesController {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
       fileFilter: (req: any, file: any, cb: any) => {
         if (!file.originalname.match(/\.(docx)$/)) {
-          return cb(new BadRequestException('Chỉ cho phép tải lên tệp .docx'), false);
+          return cb(new BadRequestException('Only .docx files are allowed'), false);
         }
         cb(null, true);
       },
     }),
   )
   @ApiOperation({
-    summary: 'Nhập nội dung từ tệp Word (.docx)',
-    description: 'Chuyển đổi tệp Word (.docx) tải lên thành chuỗi HTML sạch để chèn vào trình soạn thảo.',
+    summary: 'Import content from Word file (.docx)',
+    description: 'Converts uploaded Word file (.docx) to clean HTML to insert into editor.',
   })
   async importDocx(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-      throw new BadRequestException('Vui lòng tải lên tệp Word (.docx)');
+      throw new BadRequestException('Please upload a Word (.docx) file');
     }
     const html = await this.pagesService.importFromDocx(file.buffer);
     return { html };

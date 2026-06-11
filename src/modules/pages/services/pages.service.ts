@@ -761,7 +761,7 @@ export class PagesService {
     page.versionHistory.push({
       editedBy: new Types.ObjectId(userId),
       editedAt: new Date(),
-      changes: `Khôi phục phiên bản: ${version.label} (v${version.version})`,
+      changes: `Restored version: ${version.label} (v${version.version})`,
     });
 
     return page.save();

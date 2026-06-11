@@ -74,7 +74,7 @@ export class DocumentsController {
     return this.documentsService.listMine(userId);
   }
 
-  // Super admin: lấy tất cả documents
+  // Super admin: get all documents
   @Get('admin/all')
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)

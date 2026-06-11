@@ -1,4 +1,4 @@
-// Service fadecade của documents module, kết hợp các service nhỏ hơn để xử lý logic nghiệp vụ chính của tài liệu.
+// Facade service for documents module, integrating helper services to handle core business logic.
 import {
   BadRequestException,
   ForbiddenException,

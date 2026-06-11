@@ -3,8 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateVersionDto {
   @ApiProperty({
-    example: 'Bản thảo lần 1',
-    description: 'Tên phiên bản do người dùng đặt. Tối đa 100 ký tự.',
+    example: 'Draft 1',
+    description: 'Version name defined by user. Max 100 characters.',
   })
   @IsString()
   @MaxLength(100)

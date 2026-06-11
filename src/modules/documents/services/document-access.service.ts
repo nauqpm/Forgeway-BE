@@ -1,4 +1,4 @@
-// Service quản lý quyền truy cập tài liệu, bao gồm kiểm tra quyền truy cập của người dùng đối với tài liệu và workspace liên quan, cũng như xác định xem tài liệu có thể tải xuống hay không.
+// Service managing document access permissions, checking user access to documents and workspaces, and checking downloadability.
 import {
   BadRequestException,
   ForbiddenException,

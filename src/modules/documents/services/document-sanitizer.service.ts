@@ -1,4 +1,4 @@
-// Service xử lý làm sạch nội dung HTML của tài liệu online, đảm bảo an toàn và loại bỏ các phần tử không mong muốn.
+// Service cleaning up online document HTML, securing and filtering unwanted elements.
 import { Injectable } from '@nestjs/common';
 import sanitizeHtml = require('sanitize-html');
 
