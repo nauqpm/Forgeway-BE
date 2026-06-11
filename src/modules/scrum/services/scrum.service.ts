@@ -27,19 +27,19 @@ export class ScrumService {
   }
 
   updateSprint(workspaceId: string, sprintId: string, dto: UpdateSprintDto, actorId?: string): Promise<SprintDocument> {
-    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto, actorId);
+    return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
   }
 
   deleteSprint(workspaceId: string, sprintId: string, actorId?: string): Promise<void> {
-    return this.sprintCommandService.deleteSprint(workspaceId, sprintId, actorId);
+    return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
   }
 
   startSprint(workspaceId: string, sprintId: string, dto: StartSprintDto, actorId?: string): Promise<SprintDocument> {
-    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto, actorId);
+    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
   }
 
   completeSprint(workspaceId: string, sprintId: string, dto: CompleteSprintDto, actorId?: string): Promise<unknown> {
-    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto, actorId);
+    return this.sprintLifecycleService.completeSprint(workspaceId, sprintId, dto);
   }
 
   getBacklog(workspaceId: string, grouped = false): Promise<unknown> {

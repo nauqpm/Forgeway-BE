@@ -11,7 +11,6 @@ import { ScrumController } from './controllers/scrum.controller';
 import { Sprint, SprintSchema } from './schemas/sprint.schema';
 import { BacklogService } from './services/backlog.service';
 import { BoardStatusService } from './services/board-status.service';
-import { MongoTransactionService } from './services/mongo-transaction.service';
 import { ScrumService } from './services/scrum.service';
 import { SprintCommandService } from './services/sprint-command.service';
 import { SprintDomainEventPublisher } from './services/sprint-domain-event.publisher';
@@ -41,7 +40,6 @@ import { SprintTaskMovementService } from './services/sprint-task-movement.servi
     SprintTaskMovementService,
     BacklogService,
     BoardStatusService,
-    MongoTransactionService,
     WorkspaceRoleGuard,
   ],
   exports: [ScrumService],

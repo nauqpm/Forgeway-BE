@@ -3,7 +3,6 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SprintCommandService } from './sprint-command.service';
-import { MongoTransactionService } from './mongo-transaction.service';
 import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 import { Sprint } from '../schemas/sprint.schema';
 import { Task } from '../../tasks/schemas/task.schema';
@@ -13,8 +12,6 @@ describe('SprintCommandService', () => {
   let sprintModel: any;
   let taskModel: any;
   let sprintDomainEventPublisher: { publishCreated: jest.Mock };
-
-  const mockSession = {};
 
   const mockQuery = (val: any) => ({
     exec: jest.fn().mockResolvedValue(val),
@@ -26,13 +23,6 @@ describe('SprintCommandService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SprintCommandService,
-        {
-          provide: MongoTransactionService,
-          useValue: {
-            withTransaction: jest.fn().mockImplementation(fn => fn(mockSession)),
-            withSession: jest.fn().mockImplementation(query => query),
-          },
-        },
         {
           provide: getModelToken(Sprint.name),
           useValue: {
@@ -79,7 +69,6 @@ describe('SprintCommandService', () => {
 
     // Replace injected model token with mock constructor
     service = new SprintCommandService(
-      module.get(MongoTransactionService),
       mockSprintInstance as any,
       module.get(getModelToken(Task.name)),
       sprintDomainEventPublisher as any,
@@ -231,9 +220,8 @@ describe('SprintCommandService', () => {
             status: 'todo',
           },
         },
-        { session: mockSession },
       );
-      expect(sprintModel.deleteOne).toHaveBeenCalledWith({ _id: mockSprint._id }, { session: mockSession });
+      expect(sprintModel.deleteOne).toHaveBeenCalledWith({ _id: mockSprint._id });
     });
   });
 

@@ -3,7 +3,6 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SprintLifecycleService } from './sprint-lifecycle.service';
-import { MongoTransactionService } from './mongo-transaction.service';
 import { BoardStatusService } from './board-status.service';
 import { Sprint } from '../schemas/sprint.schema';
 import { Task } from '../../tasks/schemas/task.schema';
@@ -13,8 +12,6 @@ describe('SprintLifecycleService', () => {
   let sprintModel: any;
   let taskModel: any;
   let boardStatusService: jest.Mocked<BoardStatusService>;
-
-  const mockSession = {};
 
   const mockQuery = (val: any) => ({
     exec: jest.fn().mockResolvedValue(val),
@@ -26,13 +23,6 @@ describe('SprintLifecycleService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SprintLifecycleService,
-        {
-          provide: MongoTransactionService,
-          useValue: {
-            withTransaction: jest.fn().mockImplementation(fn => fn(mockSession)),
-            withSession: jest.fn().mockImplementation(query => query),
-          },
-        },
         {
           provide: BoardStatusService,
           useValue: {
@@ -123,7 +113,7 @@ describe('SprintLifecycleService', () => {
       expect(mockSprint.startDate).toBeInstanceOf(Date);
       expect(mockSprint.endDate).toBeInstanceOf(Date);
       expect(mockSprint.startedAt).toBeInstanceOf(Date);
-      expect(saveSpy).toHaveBeenCalledWith({ session: mockSession });
+      expect(saveSpy).toHaveBeenCalledWith();
       expect(result).toBeDefined();
     });
   });
@@ -204,9 +194,8 @@ describe('SprintLifecycleService', () => {
             status: 'todo',
           },
         },
-        { session: mockSession },
       );
-      expect(saveSpy).toHaveBeenCalledWith({ session: mockSession });
+      expect(saveSpy).toHaveBeenCalledWith();
       expect(result.incompleteTasksMovedTo).toBeNull();
     });
 
@@ -252,7 +241,6 @@ describe('SprintLifecycleService', () => {
             sprintId: new Types.ObjectId(moveToSprintId),
           },
         },
-        { session: mockSession },
       );
       expect(result.incompleteTasksMovedTo).toEqual(new Types.ObjectId(moveToSprintId));
     });
