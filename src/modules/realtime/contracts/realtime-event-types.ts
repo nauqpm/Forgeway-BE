@@ -5,6 +5,7 @@ export const REALTIME_EVENT_TYPES = {
   CHAT_MESSAGE_DELETED: 'chat.message.deleted',
   CHAT_USER_TYPING: 'chat.user.typing',
   CHAT_REACTION_UPDATED: 'chat.reaction.updated',
+  CHAT_UNREAD_UPDATE: 'chat.unread_update',
 
   // Meeting events
   MEETING_USER_JOINED: 'meeting.user.joined',

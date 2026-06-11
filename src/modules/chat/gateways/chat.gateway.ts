@@ -180,12 +180,16 @@ export class ChatGateway implements OnGatewayConnection {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId || !payload.emoji) return { ok: false };
 
+    // Persist reaction into the database
+    await this.messagesService.toggleReaction(payload.messageId, userId, payload.emoji);
+    // Get updated reactions map for the message
+    const updatedReactions = await this.messagesService.getReactions(payload.messageId);
+
     const room = RoomBuilder.channel(payload.channelId);
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_REACTION_UPDATED, {
       messageId: payload.messageId,
-      userId,
-      emoji: payload.emoji,
       channelId: payload.channelId,
+      reactions: updatedReactions,
     });
 
     return { ok: true };
@@ -201,6 +205,13 @@ export class ChatGateway implements OnGatewayConnection {
     if (!userId || !body.channelId) return { ok: false };
 
     await this.channelsService.markAsRead(body.channelId, userId);
+    
+    // Notify all other connections/tabs of this user that the channel unread count is now 0
+    this.server.to(RoomBuilder.user(userId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE || 'chat.unread_update', {
+      channelId: body.channelId,
+      unreadCount: 0,
+    });
+    
     return { ok: true };
   }
 
