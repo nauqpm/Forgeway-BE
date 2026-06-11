@@ -85,6 +85,23 @@ export class InviteController {
   getInviteById(@Param('inviteId') inviteId: string, @CurrentUser() user: any) {
     return this.inviteService.getInviteByIdForUser(inviteId, user.userId, user.email);
   }
+  @ApiOperation({ summary: 'Accept authenticated invite by invite id' })
+  @ApiParam({ name: 'inviteId', description: 'Invite id', type: String })
+  @ApiBearerAuth()
+  @Post('invites/id/:inviteId/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptInviteById(@Param('inviteId') inviteId: string, @CurrentUser() user: any) {
+    return this.inviteService.acceptInviteByIdForUser(inviteId, user.userId, user.email);
+  }
+
+  @ApiOperation({ summary: 'Decline authenticated invite by invite id' })
+  @ApiParam({ name: 'inviteId', description: 'Invite id', type: String })
+  @ApiBearerAuth()
+  @Post('invites/id/:inviteId/decline')
+  @UseGuards(JwtAuthGuard)
+  declineInviteById(@Param('inviteId') inviteId: string, @CurrentUser() user: any) {
+    return this.inviteService.declineInviteByIdForUser(inviteId, user.userId, user.email);
+  }
   @ApiOperation({ summary: 'Lấy thông tin lời mời bằng token' })
   @ApiParam({ name: 'token', description: 'Token của lời mời', type: String })
   @Get('invites/:token')

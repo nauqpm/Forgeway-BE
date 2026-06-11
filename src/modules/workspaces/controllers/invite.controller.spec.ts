@@ -24,6 +24,8 @@ describe('InviteController', () => {
             cancelInvite: jest.fn(),
             getInviteByToken: jest.fn(),
             getInviteByIdForUser: jest.fn(),
+            acceptInviteByIdForUser: jest.fn(),
+            declineInviteByIdForUser: jest.fn(),
             acceptInvite: jest.fn(),
           },
         },
@@ -81,6 +83,29 @@ describe('InviteController', () => {
     await controller.getInviteById('inviteId', mockUser as any);
 
     expect(service.getInviteByIdForUser).toHaveBeenCalledWith(
+      'inviteId',
+      mockUser.userId,
+      mockUser.email,
+    );
+  });
+  it('acceptInviteById calls service with inviteId, userId, userEmail', async () => {
+    service.acceptInviteByIdForUser.mockResolvedValue(undefined);
+
+    await controller.acceptInviteById('inviteId', mockUser as any);
+
+    expect(service.acceptInviteByIdForUser).toHaveBeenCalledWith(
+      'inviteId',
+      mockUser.userId,
+      mockUser.email,
+    );
+  });
+
+  it('declineInviteById calls service with inviteId, userId, userEmail', async () => {
+    service.declineInviteByIdForUser.mockResolvedValue(undefined);
+
+    await controller.declineInviteById('inviteId', mockUser as any);
+
+    expect(service.declineInviteByIdForUser).toHaveBeenCalledWith(
       'inviteId',
       mockUser.userId,
       mockUser.email,

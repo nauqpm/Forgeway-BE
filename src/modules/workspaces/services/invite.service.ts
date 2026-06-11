@@ -166,29 +166,20 @@ export class InviteService {
     const invite = await this.inviteRepository.findByToken(token);
     if (!invite) throw new NotFoundException('Invite not found');
 
-    if (invite.status !== INVITE_STATUS.PENDING || (invite.expiresAt && invite.expiresAt < new Date())) {
-      throw new GoneException('Invite has expired or already been used');
-    }
+    await this.acceptInviteRecord(invite, userId, userEmail, { allowLinkInvite: true });
+  }
 
-    const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
-    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== userEmail.toLowerCase()) {
-      throw new ForbiddenException('This invite was sent to a different email address');
-    }
+  async acceptInviteByIdForUser(inviteId: string, userId: string, userEmail: string): Promise<void> {
+    const invite = await this.findInviteByIdOrThrow(inviteId);
+    await this.acceptInviteRecord(invite, userId, userEmail);
+  }
 
-    const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
-    if (!workspace) throw new NotFoundException('Workspace not found');
+  async declineInviteByIdForUser(inviteId: string, userId: string, userEmail: string): Promise<void> {
+    const invite = await this.findInviteByIdOrThrow(inviteId);
+    this.assertInviteCanBeActioned(invite);
+    this.assertInviteRecipient(invite, userId, userEmail);
 
-    const alreadyMember = workspace.members.some((m) => m.userId.toString() === userId);
-    if (alreadyMember) throw new ConflictException('You are already a member of this workspace');
-
-    await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
-    if (inviteType === INVITE_TYPES.LINK) {
-      await this.inviteRepository.addAcceptedBy((invite as any)._id.toString(), userId);
-    } else {
-      await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
-    }
-
-    this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
+    await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.DECLINED);
   }
 
   async getInviteByToken(token: string): Promise<{
@@ -292,6 +283,78 @@ export class InviteService {
     );
   }
 
+  private async findInviteByIdOrThrow(inviteId: string): Promise<Invite> {
+    if (!Types.ObjectId.isValid(inviteId)) {
+      throw new BadRequestException('Invalid invite id');
+    }
+
+    const invite = await this.inviteRepository.findById(inviteId);
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    return invite;
+  }
+
+  private assertInviteCanBeActioned(invite: Invite): void {
+    if (invite.status === INVITE_STATUS.ACCEPTED) {
+      throw new GoneException('This invitation has already been accepted.');
+    }
+
+    if (invite.status === INVITE_STATUS.DECLINED) {
+      throw new GoneException('This invitation has already been declined.');
+    }
+
+    if (invite.status !== INVITE_STATUS.PENDING) {
+      throw new GoneException('This invitation is no longer available.');
+    }
+
+    if (invite.expiresAt && invite.expiresAt < new Date()) {
+      throw new GoneException('This invitation has expired.');
+    }
+  }
+
+  private assertInviteRecipient(invite: Invite, userId: string, userEmail: string): void {
+    const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
+    const normalizedEmail = userEmail.toLowerCase();
+
+    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== normalizedEmail) {
+      throw new ForbiddenException('This invite was sent to a different email address');
+    }
+
+    if (inviteType === INVITE_TYPES.LINK) {
+      const acceptedBy = ((invite as any).acceptedBy ?? []).map((id: any) => id.toString());
+      if (!acceptedBy.includes(userId)) {
+        throw new ForbiddenException('This invite is not available for this user');
+      }
+    }
+  }
+
+  private async acceptInviteRecord(
+    invite: Invite,
+    userId: string,
+    userEmail: string,
+    options: { allowLinkInvite?: boolean } = {},
+  ): Promise<void> {
+    this.assertInviteCanBeActioned(invite);
+    const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
+    if (inviteType !== INVITE_TYPES.LINK || !options.allowLinkInvite) {
+      this.assertInviteRecipient(invite, userId, userEmail);
+    }
+
+    const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
+    if (!workspace) throw new NotFoundException('Workspace not found');
+
+    const alreadyMember = workspace.members.some((m) => m.userId.toString() === userId);
+    if (alreadyMember) throw new ConflictException('You are already a member of this workspace');
+
+    await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
+    if (inviteType === INVITE_TYPES.LINK) {
+      await this.inviteRepository.addAcceptedBy((invite as any)._id.toString(), userId);
+    } else {
+      await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
+    }
+
+    this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
+  }
   private publishWorkspaceInviteCreatedEvent(
     workspace: any,
     invite: Invite,

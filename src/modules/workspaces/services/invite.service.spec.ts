@@ -264,22 +264,32 @@ describe('InviteService', () => {
         .rejects.toThrow(NotFoundException);
     });
 
-    it('throws GoneException when invite is expired by date', async () => {
+    it('throws clear GoneException when invite is expired by date', async () => {
       inviteRepo.findByToken.mockResolvedValue({
         ...mockInvite,
         expiresAt: new Date(Date.now() - 86400000),
       } as any);
       await expect(service.acceptInvite(mockToken, userId, userEmail))
-        .rejects.toThrow(GoneException);
+        .rejects.toThrow('This invitation has expired.');
     });
 
-    it('throws GoneException when invite status is not pending', async () => {
+    it('throws clear GoneException when invite has already been accepted', async () => {
       inviteRepo.findByToken.mockResolvedValue({
         ...mockInvite,
         status: INVITE_STATUS.ACCEPTED,
       } as any);
       await expect(service.acceptInvite(mockToken, userId, userEmail))
-        .rejects.toThrow(GoneException);
+        .rejects.toThrow('This invitation has already been accepted.');
+    });
+
+    it('prefers accepted message over expired message when accepted invite is also past expiry', async () => {
+      inviteRepo.findByToken.mockResolvedValue({
+        ...mockInvite,
+        status: INVITE_STATUS.ACCEPTED,
+        expiresAt: new Date(Date.now() - 86400000),
+      } as any);
+      await expect(service.acceptInvite(mockToken, userId, userEmail))
+        .rejects.toThrow('This invitation has already been accepted.');
     });
 
     it('throws ForbiddenException when authenticated user email does not match invite', async () => {
@@ -434,6 +444,66 @@ describe('InviteService', () => {
         }),
       );
       expect(result).not.toHaveProperty('token');
+    });
+  });
+  describe('acceptInviteByIdForUser', () => {
+    const inviteId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const userId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+    const userEmail = 'invitee@example.com';
+    const mockInvite = {
+      _id: inviteId,
+      workspaceId: mockWorkspace._id,
+      invitedEmail: userEmail,
+      role: SPACE_ROLES.MEMBER,
+      status: INVITE_STATUS.PENDING,
+      expiresAt: null,
+    };
+
+    it('adds the authenticated invite recipient to the workspace and marks invite accepted', async () => {
+      inviteRepo.findById.mockResolvedValue(mockInvite as any);
+      workspacesRepo.findById.mockResolvedValue({ ...mockWorkspace, members: [] } as any);
+      workspacesRepo.addMember.mockResolvedValue({} as any);
+      inviteRepo.updateStatus.mockResolvedValue({ status: INVITE_STATUS.ACCEPTED } as any);
+
+      await service.acceptInviteByIdForUser(inviteId, userId, userEmail);
+
+      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
+        mockWorkspace._id.toString(),
+        userId,
+        SPACE_ROLES.MEMBER,
+      );
+      expect(inviteRepo.updateStatus).toHaveBeenCalledWith(inviteId, INVITE_STATUS.ACCEPTED);
+    });
+
+    it('throws ForbiddenException when authenticated user email does not match invite', async () => {
+      inviteRepo.findById.mockResolvedValue({ ...mockInvite, invitedEmail: 'other@example.com' } as any);
+
+      await expect(
+        service.acceptInviteByIdForUser(inviteId, userId, userEmail),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('declineInviteByIdForUser', () => {
+    const inviteId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const userId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+    const userEmail = 'invitee@example.com';
+
+    it('marks authenticated invite as declined', async () => {
+      inviteRepo.findById.mockResolvedValue({
+        _id: inviteId,
+        workspaceId: mockWorkspace._id,
+        invitedEmail: userEmail,
+        role: SPACE_ROLES.MEMBER,
+        status: INVITE_STATUS.PENDING,
+        expiresAt: null,
+      } as any);
+      inviteRepo.updateStatus.mockResolvedValue({ status: INVITE_STATUS.DECLINED } as any);
+
+      await service.declineInviteByIdForUser(inviteId, userId, userEmail);
+
+      expect(inviteRepo.updateStatus).toHaveBeenCalledWith(inviteId, INVITE_STATUS.DECLINED);
+      expect(workspacesRepo.addMember).not.toHaveBeenCalled();
     });
   });
   describe('processPostRegisterInvites', () => {

@@ -7,6 +7,7 @@ export type InviteDocument = Invite & Document;
 export const INVITE_STATUS = {
   PENDING: 'pending',
   ACCEPTED: 'accepted',
+  DECLINED: 'declined',
   EXPIRED: 'expired',
 } as const;
 
