@@ -77,6 +77,14 @@ export class InviteController {
     return this.inviteService.cancelInvite(workspaceId, inviteId);
   }
 
+  @ApiOperation({ summary: 'Get authenticated invite detail by invite id' })
+  @ApiParam({ name: 'inviteId', description: 'Invite id', type: String })
+  @ApiBearerAuth()
+  @Get('invites/id/:inviteId')
+  @UseGuards(JwtAuthGuard)
+  getInviteById(@Param('inviteId') inviteId: string, @CurrentUser() user: any) {
+    return this.inviteService.getInviteByIdForUser(inviteId, user.userId, user.email);
+  }
   @ApiOperation({ summary: 'Lấy thông tin lời mời bằng token' })
   @ApiParam({ name: 'token', description: 'Token của lời mời', type: String })
   @Get('invites/:token')

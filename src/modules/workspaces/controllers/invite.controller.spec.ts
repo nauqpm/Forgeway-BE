@@ -23,6 +23,7 @@ describe('InviteController', () => {
             getInvites: jest.fn(),
             cancelInvite: jest.fn(),
             getInviteByToken: jest.fn(),
+            getInviteByIdForUser: jest.fn(),
             acceptInvite: jest.fn(),
           },
         },
@@ -74,6 +75,17 @@ describe('InviteController', () => {
     expect(service.cancelInvite).toHaveBeenCalledWith('workspaceId', 'inviteId');
   });
 
+  it('getInviteById calls service with inviteId, userId, userEmail', async () => {
+    service.getInviteByIdForUser.mockResolvedValue({ workspaceName: 'Test' } as any);
+
+    await controller.getInviteById('inviteId', mockUser as any);
+
+    expect(service.getInviteByIdForUser).toHaveBeenCalledWith(
+      'inviteId',
+      mockUser.userId,
+      mockUser.email,
+    );
+  });
   it('getInviteByToken calls service with token', async () => {
     service.getInviteByToken.mockResolvedValue({ workspaceName: 'Test' } as any);
 

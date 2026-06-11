@@ -55,6 +55,14 @@ export class InviteRepository {
     return this.inviteModel.findById(inviteId).lean().exec();
   }
 
+  async findByIdWithInviter(inviteId: string): Promise<Invite | null> {
+    return this.inviteModel
+      .findById(inviteId)
+      .populate('invitedBy', 'fullName email avatar')
+      .lean()
+      .exec();
+  }
+
   async updateStatus(inviteId: string, status: string): Promise<Invite | null> {
     return this.inviteModel
       .findByIdAndUpdate(inviteId, { status }, { new: true })

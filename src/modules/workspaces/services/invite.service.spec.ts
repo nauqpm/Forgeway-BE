@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   BadRequestException,
   ConflictException,
@@ -54,6 +55,7 @@ describe('InviteService', () => {
             findByToken: jest.fn(),
             findPendingValidByEmail: jest.fn(),
             findById: jest.fn(),
+            findByIdWithInviter: jest.fn(),
             updateStatus: jest.fn(),
             addAcceptedBy: jest.fn(),
           },
@@ -80,6 +82,10 @@ describe('InviteService', () => {
         {
           provide: NotificationsService,
           useValue: { notifyWorkspaceInvited: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();
@@ -130,7 +136,7 @@ describe('InviteService', () => {
       workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
       usersService.findByEmail.mockResolvedValue(null);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue(null);
-      inviteRepo.create.mockResolvedValue({ token: 'mock-token', status: INVITE_STATUS.PENDING } as any);
+      inviteRepo.create.mockResolvedValue({ _id: 'inviteObjectId', token: 'mock-token', workspaceId: mockWorkspace._id, invitedEmail: dto.email.toLowerCase(), invitedBy: new Types.ObjectId(invitedByUserId), role: dto.role, status: INVITE_STATUS.PENDING } as any);
 
       const result = await service.createInvite(workspaceId, invitedByUserId, dto);
 
@@ -151,7 +157,7 @@ describe('InviteService', () => {
       workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
       usersService.findByEmail.mockResolvedValue(null);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue(null);
-      inviteRepo.create.mockResolvedValue({ token: 'mock-token' } as any);
+      inviteRepo.create.mockResolvedValue({ _id: 'inviteObjectId', token: 'mock-token', workspaceId: mockWorkspace._id, invitedEmail: dto.email.toLowerCase(), invitedBy: new Types.ObjectId(invitedByUserId), role: dto.role, status: INVITE_STATUS.PENDING } as any);
       mailerService.sendMail.mockRejectedValue(new Error('SMTP error'));
 
       await expect(service.createInvite(workspaceId, invitedByUserId, dto)).resolves.toBeDefined();
@@ -383,6 +389,53 @@ describe('InviteService', () => {
     });
   });
 
+  describe('getInviteByIdForUser', () => {
+    const inviteId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const userId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+    const userEmail = 'invitee@example.com';
+
+    it('throws ForbiddenException when authenticated user email does not match invite', async () => {
+      inviteRepo.findByIdWithInviter.mockResolvedValue({
+        _id: inviteId,
+        workspaceId: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+        invitedEmail: 'other@example.com',
+        role: SPACE_ROLES.MEMBER,
+        status: INVITE_STATUS.PENDING,
+      } as any);
+
+      await expect(
+        service.getInviteByIdForUser(inviteId, userId, userEmail),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('returns invite status without exposing token for matching authenticated user', async () => {
+      inviteRepo.findByIdWithInviter.mockResolvedValue({
+        _id: inviteId,
+        token: 'secret-token',
+        workspaceId: mockWorkspace._id,
+        invitedEmail: userEmail,
+        invitedBy: { fullName: 'Admin', email: 'admin@example.com', avatar: null },
+        role: SPACE_ROLES.MEMBER,
+        status: INVITE_STATUS.PENDING,
+        expiresAt: null,
+      } as any);
+      workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
+
+      const result = await service.getInviteByIdForUser(inviteId, userId, userEmail);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: inviteId,
+          workspaceId: mockWorkspace._id.toString(),
+          workspaceName: mockWorkspace.name,
+          workspaceKey: mockWorkspace.key,
+          invitedEmail: userEmail,
+          status: INVITE_STATUS.PENDING,
+        }),
+      );
+      expect(result).not.toHaveProperty('token');
+    });
+  });
   describe('processPostRegisterInvites', () => {
     it('auto-joins all pending valid workspaces for email', async () => {
       const email = 'new@example.com';

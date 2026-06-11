@@ -10,6 +10,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
+import { Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { InviteRepository } from '../repositories/invite.repository';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
@@ -219,6 +220,55 @@ export class InviteService {
     };
   }
 
+  async getInviteByIdForUser(inviteId: string, userId: string, userEmail: string): Promise<{
+    id: string;
+    workspaceId: string;
+    workspaceName: string;
+    workspaceKey: string;
+    invitedEmail: string | null;
+    invitedBy: any;
+    role: string;
+    type: string;
+    status: string;
+    expiresAt: Date | null;
+  }> {
+    if (!Types.ObjectId.isValid(inviteId)) {
+      throw new BadRequestException('Invalid invite id');
+    }
+
+    const invite = await this.inviteRepository.findByIdWithInviter(inviteId);
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    const inviteType = (invite as any).type ?? INVITE_TYPES.EMAIL;
+    const normalizedEmail = userEmail.toLowerCase();
+
+    if (inviteType === INVITE_TYPES.EMAIL && invite.invitedEmail !== normalizedEmail) {
+      throw new ForbiddenException('This invite was sent to a different email address');
+    }
+
+    if (inviteType === INVITE_TYPES.LINK) {
+      const acceptedBy = ((invite as any).acceptedBy ?? []).map((id: any) => id.toString());
+      if (!acceptedBy.includes(userId)) {
+        throw new ForbiddenException('This invite is not available for this user');
+      }
+    }
+
+    const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
+    if (!workspace) throw new NotFoundException('Workspace not found');
+
+    return {
+      id: (invite as any)._id.toString(),
+      workspaceId: invite.workspaceId.toString(),
+      workspaceName: workspace.name,
+      workspaceKey: (workspace as any).key ?? '',
+      invitedEmail: invite.invitedEmail ?? null,
+      invitedBy: (invite as any).invitedBy,
+      role: invite.role,
+      type: inviteType,
+      status: invite.status,
+      expiresAt: invite.expiresAt ?? null,
+    };
+  }
   async processPostRegisterInvites(email: string, userId: string): Promise<void> {
     const pendingInvites = await this.inviteRepository.findPendingValidByEmail(email);
     await Promise.all(
