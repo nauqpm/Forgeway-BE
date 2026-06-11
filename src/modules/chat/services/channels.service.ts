@@ -1,4 +1,4 @@
-import {ForbiddenException,Inject,Injectable,Logger,NotFoundException,forwardRef} from '@nestjs/common';
+import { BadRequestException,ForbiddenException,Inject,Injectable,Logger,NotFoundException,forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Channel, ChannelDocument } from '../schemas/channel.schema';
@@ -10,6 +10,8 @@ import { UsersService } from '../../users/services/users.service';
 @Injectable()
 export class ChannelsService {
   private readonly logger = new Logger(ChannelsService.name);
+  private initializationPromise: Promise<void> | null = null;
+  private syncPromise: Promise<void> | null = null;
 
   constructor(
     @InjectModel(Channel.name) private readonly channelModel: Model<ChannelDocument>,
@@ -22,58 +24,95 @@ export class ChannelsService {
     private readonly usersService: UsersService,
   ) {}
 
-  async createGeneralChannel(): Promise<void> {
-    const systemId = new Types.ObjectId('000000000000000000000000');
+  async onModuleInit() {
+    await this.ensureGlobalChannels();
+    await this.syncWorkspaceChannels();
+  }
 
-    // #general
-    const general = await this.channelModel.findOne({ type: 'general' });
-    if (!general) {
-      this.logger.log('Initializing #general channel');
-      await this.channelModel.create({
-        name: 'general',
-        type: 'general',
-        description: 'General discussion for all members.',
-        workspaceId: null,
-        isPrivate: false,
-        createdBy: systemId,
-      });
+  async ensureGlobalChannels(): Promise<void> {
+    // Nếu đang có một quá trình khởi tạo diễn ra, đợi nó xong
+    if (this.initializationPromise) {
+      this.logger.debug('ensureGlobalChannels: Waiting for existing initialization to complete...');
+      return this.initializationPromise;
     }
 
-    // #announcements
-    const announcements = await this.channelModel.findOne({ type: 'announcement' });
-    if (!announcements) {
-      this.logger.log('Initializing #announcements channel');
-      await this.channelModel.create({
-        name: 'announcements',
-        type: 'announcement',
-        description: 'Official system-wide announcements.',
-        workspaceId: null,
-        isPrivate: false,
-        createdBy: systemId,
-      });
-    }
+    // Tạo một promise mới để các request khác có thể đợi
+    this.initializationPromise = (async () => {
+      try {
+        const systemId = new Types.ObjectId('000000000000000000000000');
 
-    // Sync: Ensure all existing workspaces have a channel
-    const allWorkspaces = await this.workspacesService.findAll();
-    for (const workspace of allWorkspaces) {
-      const workspaceId = workspace._id.toString();
-      const channel = await this.channelModel.findOne({ 
-        workspaceId: new Types.ObjectId(workspaceId),
-        type: 'workspace' 
-      });
+        // Check #general
+        const general = await this.channelModel.findOne({ type: 'general' });
+        if (!general) {
+          this.logger.log('Self-healing: Initializing missing #general channel');
+          await this.channelModel.create({
+            name: 'general',
+            type: 'general',
+            description: 'General discussion for all members.',
+            workspaceId: null,
+            isPrivate: false,
+            createdBy: systemId,
+          });
+        }
 
-      if (!channel) {
-        this.logger.log(`Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`);
-        await this.channelModel.create({
-          name: workspace.name,
-          type: 'workspace',
-          description: `Discussion channel for the ${workspace.name} workspace.`,
-          workspaceId: new Types.ObjectId(workspaceId),
-          isPrivate: false,
-          createdBy: workspace.ownerId || systemId,
-        });
+        // Check #announcements
+        const announcements = await this.channelModel.findOne({ type: 'announcement' });
+        if (!announcements) {
+          this.logger.log('Self-healing: Initializing missing #announcements channel');
+          await this.channelModel.create({
+            name: 'announcements',
+            type: 'announcement',
+            description: 'Official system-wide announcements.',
+            workspaceId: null,
+            isPrivate: false,
+            createdBy: systemId,
+          });
+        }
+      } finally {
+        // Reset promise để lần gọi sau (nếu cần) có thể chạy lại
+        this.initializationPromise = null;
       }
+    })();
+
+    return this.initializationPromise;
+  }
+
+  async syncWorkspaceChannels(): Promise<void> {
+    if (this.syncPromise) {
+      this.logger.debug('syncWorkspaceChannels: Waiting for existing sync to complete...');
+      return this.syncPromise;
     }
+
+    this.syncPromise = (async () => {
+      try {
+        const systemId = new Types.ObjectId('000000000000000000000000');
+        const allWorkspaces = await this.workspacesService.findAll();
+        
+        for (const workspace of allWorkspaces) {
+          const workspaceId = workspace._id.toString();
+          const channel = await this.channelModel.findOne({ 
+            workspaceId: new Types.ObjectId(workspaceId),
+            type: 'workspace' 
+          });
+
+          if (!channel) {
+            this.logger.log(`Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`);
+            await this.channelModel.create({
+              name: workspace.name,
+              type: 'workspace',
+              description: `Discussion channel for the ${workspace.name} workspace.`,
+              workspaceId: new Types.ObjectId(workspaceId),
+              isPrivate: false,
+              createdBy: workspace.ownerId || systemId,
+            });
+          }
+        }
+      } finally {
+        this.syncPromise = null;
+      }
+    })();
+
+    return this.syncPromise;
   }
 
   async createWorkspaceChannel(workspaceId: string, createdBy: string): Promise<ChannelDocument> {
@@ -114,24 +153,48 @@ export class ChannelsService {
       return [];
     }
 
+    // Self-healing: Always ensure global channels exist before fetching
+    await this.ensureGlobalChannels();
+
     const userWorkspaces = await this.workspacesService.findByUserId(userId);
     const userWorkspaceIds = userWorkspaces.map(w => w._id);
 
-    const channels = await this.channelModel.find({
+    let channels = await this.channelModel.find({
       $or: [
         { type: 'general' },
         { type: 'announcement' },
         { workspaceId: { $in: userWorkspaceIds } },
+        { type: 'dm', members: new Types.ObjectId(userId) }
       ]
     }).exec();
+
+    // If still missing workspace channels, trigger a sync (happens once if DB was wiped)
+    if (channels.length < (userWorkspaceIds.length + 2)) {
+      this.logger.log(`Missing channels detected for user ${userId}, triggering sync...`);
+      await this.syncWorkspaceChannels();
+      // Re-fetch after sync
+      channels = await this.channelModel.find({
+        $or: [
+          { type: 'general' },
+          { type: 'announcement' },
+          { workspaceId: { $in: userWorkspaceIds } },
+          { type: 'dm', members: new Types.ObjectId(userId) }
+        ]
+      }).exec();
+    }
 
     this.logger.log(`Found ${channels.length} channels for user: ${userId}`);
     
     return Promise.all(
       channels.map(async (channel) => {
         const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
+        
+        // Manual Populate members for all channels (important for DM to show other user)
+        const userInfos = await this.usersService.getUsersByIds(channel.members.map(m => m.toString()));
+
         return {
           ...channel.toObject(),
+          members: userInfos,
           unreadCount,
         };
       }),
@@ -146,28 +209,57 @@ export class ChannelsService {
     await this.messagesService.markAsRead(channelId, userId);
   }
 
-  async getOrCreateDM(userAId: string, userBId: string): Promise<ChannelDocument> {
+  async getOrCreateDM(userAId: string, userBId: string): Promise<any> {
+    if (!Types.ObjectId.isValid(userBId)) {
+      throw new BadRequestException('Invalid target user ID');
+    }
+
+    if (userAId === userBId) {
+      throw new BadRequestException('Cannot create a DM with yourself');
+    }
+
     const members = [userAId, userBId].sort();
+    const memberObjectIds = members.map(id => new Types.ObjectId(id));
     
-    // Find existing DM with exactly these two members
-    const existing = await this.channelModel.findOne({
+    // 1. Tìm kênh cũ bằng .lean()
+    let channel: any = await this.channelModel.findOne({
       type: 'dm',
-      members: { $all: members, $size: 2 }
-    }).populate('members', '_id fullName avatar email').exec();
+      members: { $all: memberObjectIds, $size: 2 }
+    })
+    .lean()
+    .exec();
 
-    if (existing) return existing;
+    // 2. Nếu không thấy, tạo kênh mới
+    if (!channel) {
+      try {
+        const created = await this.channelModel.create({
+          type: 'dm',
+          name: 'Direct Message',
+          members: memberObjectIds,
+          isPrivate: true,
+          createdBy: new Types.ObjectId(userAId),
+          workspaceId: null,
+        });
+        channel = created.toObject();
+      } catch (error) {
+        this.logger.error(`Failed to create DM channel: ${error.message}`, error.stack);
+        throw new Error('Could not create DM channel');
+      }
+    }
 
-    // Create new DM channel
-    const newChannel = await this.channelModel.create({
-      type: 'dm',
-      name: '', // Frontend will render name from other member
-      members: members.map(id => new Types.ObjectId(id)),
-      isPrivate: true,
-      createdBy: new Types.ObjectId(userAId),
-      workspaceId: null,
-    });
+    if (!channel) {
+      throw new Error('Failed to retrieve or create DM channel');
+    }
 
-    return newChannel.populate('members', '_id fullName avatar email');
+    // 3. MANUAL POPULATE: Lấy thông tin user thủ công để đảm bảo 100% thành công
+    const userInfos = await this.usersService.getUsersByIds(members);
+    const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userAId);
+
+    return {
+      ...channel,
+      members: userInfos, // Ghi đè mảng ID bằng mảng Object
+      unreadCount,
+    };
   }
 
   async getRecentDMs(userId: string): Promise<any[]> {
@@ -177,19 +269,59 @@ export class ChannelsService {
     })
     .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
     .limit(20)
-    .populate('members', '_id fullName avatar email')
+    .lean()
     .exec();
 
-    // Add unread count
+    // Add unread count AND Manual Populate members
     return Promise.all(
       channels.map(async (channel) => {
         const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
+        const userInfos = await this.usersService.getUsersByIds(channel.members.map(m => m.toString()));
+        
         return {
-          ...channel.toObject(),
+          ...channel,
+          members: userInfos,
           unreadCount,
         };
       })
     );
+  }
+
+  async getRecentDMUsers(userId: string): Promise<any[]> {
+    // 1. Lấy danh sách channel DM gần đây (chỉ lấy member IDs)
+    const channels = await this.channelModel.find({
+      type: 'dm',
+      members: new Types.ObjectId(userId)
+    })
+    .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
+    .limit(20)
+    .select('members')
+    .lean()
+    .exec();
+
+    // 2. Trích xuất ID của người đối phương
+    const otherUserIds = channels.map(channel => 
+      channel.members.find(m => m.toString() !== userId)?.toString()
+    ).filter(id => !!id) as string[];
+
+    if (otherUserIds.length === 0) return [];
+
+    // 3. Lấy thông tin user một lần duy nhất
+    const userInfos = await this.usersService.getUsersByIds(otherUserIds);
+    
+    // Ánh xạ lại để đảm bảo thứ tự và có trường id
+    const userIdToInfo = new Map(userInfos.map(u => [u._id.toString(), u]));
+    
+    return otherUserIds.map(id => {
+      const u = userIdToInfo.get(id);
+      if (u) {
+        return {
+          ...u,
+          id: u._id.toString(),
+        };
+      }
+      return null;
+    }).filter(u => !!u);
   }
 
   async updateLastMessage(channelId: string, message: { content: string; senderId: any; senderName: string; sentAt: Date }) {
@@ -256,6 +388,14 @@ export class ChannelsService {
       const isMember = await this.workspaceMemberService.isMember(channel.workspaceId.toString(), userId);
       if (!isMember) {
         this.logger.warn(`Access denied: User ${userId} is not a member of workspace ${channel.workspaceId} for channel ${channel.name}`);
+      }
+      return isMember;
+    }
+
+    if (channel.type === 'dm') {
+      const isMember = channel.members.some(m => m.toString() === userId);
+      if (!isMember) {
+        this.logger.warn(`Access denied: User ${userId} is not a member of DM channel ${channelId}`);
       }
       return isMember;
     }
