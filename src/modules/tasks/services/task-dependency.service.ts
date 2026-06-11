@@ -1,15 +1,7 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import {
-  DependencyType,
-  TaskDependency,
-  TaskDependencyDocument,
-} from '../schemas/task-dependency.schema';
+import { DependencyType, TaskDependency, TaskDependencyDocument } from '../schemas/task-dependency.schema';
 
 export interface TaskDependencyDto {
   id: string;
@@ -35,10 +27,7 @@ export class TaskDependencyService {
     return docs.map(this.toDto);
   }
 
-  async findByTask(
-    workspaceId: string,
-    taskId: string,
-  ): Promise<TaskDependencyDto[]> {
+  async findByTask(workspaceId: string, taskId: string): Promise<TaskDependencyDto[]> {
     const wId = new Types.ObjectId(workspaceId);
     const tId = new Types.ObjectId(taskId);
     const docs = await this.depModel

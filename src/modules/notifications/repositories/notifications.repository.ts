@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateNotificationInput } from '../interfaces/create-notification-input.interface';
-import {
-  Notification,
-  NotificationDocument,
-} from '../schemas/notification.schema';
+import { Notification, NotificationDocument } from '../schemas/notification.schema';
 
 @Injectable()
 export class NotificationsRepository {
@@ -18,16 +15,12 @@ export class NotificationsRepository {
     return new this.notificationModel(this.toPersistence(input)).save();
   }
 
-  async createMany(
-    inputs: CreateNotificationInput[],
-  ): Promise<NotificationDocument[]> {
+  async createMany(inputs: CreateNotificationInput[]): Promise<NotificationDocument[]> {
     if (!inputs.length) {
       return [];
     }
 
-    const notifications = await this.notificationModel.insertMany(
-      inputs.map((input) => this.toPersistence(input)),
-    );
+    const notifications = await this.notificationModel.insertMany(inputs.map(input => this.toPersistence(input)));
 
     return notifications as unknown as NotificationDocument[];
   }
@@ -68,10 +61,7 @@ export class NotificationsRepository {
       .exec();
   }
 
-  async findByIdForRecipient(
-    notificationId: string,
-    recipientId: string,
-  ): Promise<NotificationDocument | null> {
+  async findByIdForRecipient(notificationId: string, recipientId: string): Promise<NotificationDocument | null> {
     if (!Types.ObjectId.isValid(notificationId)) {
       return null;
     }
@@ -85,10 +75,7 @@ export class NotificationsRepository {
       .exec();
   }
 
-  async markAsReadForRecipient(
-    notificationId: string,
-    recipientId: string,
-  ): Promise<NotificationDocument | null> {
+  async markAsReadForRecipient(notificationId: string, recipientId: string): Promise<NotificationDocument | null> {
     if (!Types.ObjectId.isValid(notificationId)) {
       return null;
     }
@@ -106,10 +93,7 @@ export class NotificationsRepository {
       .exec();
   }
 
-  async markAllAsReadForRecipient(
-    recipientId: string,
-    readAt = new Date(),
-  ): Promise<{ modifiedCount: number }> {
+  async markAllAsReadForRecipient(recipientId: string, readAt = new Date()): Promise<{ modifiedCount: number }> {
     const result = await this.notificationModel
       .updateMany(
         {
@@ -127,9 +111,7 @@ export class NotificationsRepository {
     return {
       recipientId: new Types.ObjectId(input.recipientId),
       actorId: input.actorId ? new Types.ObjectId(input.actorId) : undefined,
-      workspaceId: input.workspaceId
-        ? new Types.ObjectId(input.workspaceId)
-        : undefined,
+      workspaceId: input.workspaceId ? new Types.ObjectId(input.workspaceId) : undefined,
       type: input.type,
       title: input.title,
       message: input.message,

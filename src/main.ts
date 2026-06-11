@@ -42,17 +42,17 @@ async function bootstrap() {
       process.env.FRONTEND_URL,
       ...(process.env.CORS_ORIGINS ?? '')
         .split(',')
-        .map((origin) => origin.trim())
+        .map(origin => origin.trim())
         .filter(Boolean),
     ];
 
     const allowedOrigins = [
       ...configuredOrigins,
       `http://localhost:${PORT}`,
-      'http://localhost:5173',      // Vite dev server (Admin FE)
-      'http://localhost:5174',      // Vite alternative
+      'http://localhost:5173', // Vite dev server (Admin FE)
+      'http://localhost:5174', // Vite alternative
       'http://localhost:5175',
-      'http://localhost:3000',      // Next.js/React default
+      'http://localhost:3000', // Next.js/React default
       'http://localhost:3001',
     ].filter(Boolean);
 
@@ -80,8 +80,8 @@ async function bootstrap() {
     );
 
     // Static assets
-   app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads',
+    app.useStaticAssets(join(process.cwd(), 'uploads'), {
+      prefix: '/uploads',
     });
 
     // ======================

@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InviteService } from '@/modules/workspaces/services/invite.service';
 import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
@@ -59,9 +53,7 @@ export class AuthenticationService {
 
       this.inviteService
         .processPostRegisterInvites(registerDto.email, newUser._id.toString())
-        .catch((err: Error) =>
-          this.logger.error('processPostRegisterInvites failed', err.stack),
-        );
+        .catch((err: Error) => this.logger.error('processPostRegisterInvites failed', err.stack));
 
       return {
         success: true,
@@ -72,10 +64,7 @@ export class AuthenticationService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
       if (!(error instanceof ConflictException)) {
-        this.logger.error(
-          `Unexpected error during registration (${registerDto.email}): ${message}`,
-          stack,
-        );
+        this.logger.error(`Unexpected error during registration (${registerDto.email}): ${message}`, stack);
       }
       throw error;
     }
@@ -96,9 +85,7 @@ export class AuthenticationService {
       if (!user) {
         this.logger.warn(`Login failed: Email ${loginDto.email} was not found.`);
         const fakeRemaining = PASSWORD_POLICY.maxFailedAttempts - 1;
-        throw new UnauthorizedException(
-          AuthErrorFactory.invalidCredentials(fakeRemaining),
-        );
+        throw new UnauthorizedException(AuthErrorFactory.invalidCredentials(fakeRemaining));
       }
 
       // === Handle OAuth (no password) user ===
@@ -106,18 +93,14 @@ export class AuthenticationService {
       if (!user.password) {
         this.logger.warn(`Login failed: Account ${loginDto.email} has no password (OAuth).`);
         const fakeRemaining = PASSWORD_POLICY.maxFailedAttempts - 1;
-        throw new UnauthorizedException(
-          AuthErrorFactory.invalidCredentials(fakeRemaining),
-        );
+        throw new UnauthorizedException(AuthErrorFactory.invalidCredentials(fakeRemaining));
       }
 
       // === Handle locked account ===
       const now = new Date();
       if (user.lockoutUntil && user.lockoutUntil.getTime() > now.getTime()) {
         this.logger.warn(`Login temporarily locked for email ${loginDto.email}.`);
-        throw new UnauthorizedException(
-          AuthErrorFactory.accountLocked(user.lockoutUntil.toISOString()),
-        );
+        throw new UnauthorizedException(AuthErrorFactory.accountLocked(user.lockoutUntil.toISOString()));
       }
 
       // === Reset expired lockout ===
@@ -126,33 +109,22 @@ export class AuthenticationService {
       }
 
       // === Verify password ===
-      const isPasswordValid = await this.passwordService.verifyPassword(
-        loginDto.password,
-        user.password,
-      );
+      const isPasswordValid = await this.passwordService.verifyPassword(loginDto.password, user.password);
 
       if (!isPasswordValid) {
         this.logger.warn(`Login failed: Incorrect password for email ${loginDto.email}.`);
-        const failureState = await this.usersService.registerFailedLoginAttempt(
-          user._id.toString(),
-        );
+        const failureState = await this.usersService.registerFailedLoginAttempt(user._id.toString());
 
         if (failureState.isLocked) {
-          throw new UnauthorizedException(
-            AuthErrorFactory.accountLocked(failureState.lockedUntil!),
-          );
+          throw new UnauthorizedException(AuthErrorFactory.accountLocked(failureState.lockedUntil!));
         }
 
-        throw new UnauthorizedException(
-          AuthErrorFactory.invalidCredentials(failureState.remainingAttempts),
-        );
+        throw new UnauthorizedException(AuthErrorFactory.invalidCredentials(failureState.remainingAttempts));
       }
 
       // === Handle non-active status ===
       if (user.status !== USER_STATUSES.ACTIVE) {
-        this.logger.warn(
-          `Login failed: Account ${loginDto.email} is not active (status: ${user.status}).`,
-        );
+        this.logger.warn(`Login failed: Account ${loginDto.email} is not active (status: ${user.status}).`);
 
         if (user.status === USER_STATUSES.PENDING_VERIFICATION) {
           throw new UnauthorizedException(AuthErrorFactory.emailNotVerified());

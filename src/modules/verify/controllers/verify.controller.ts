@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  Res,
-  HttpStatus,
-  HttpCode,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, HttpStatus, HttpCode, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { VerifyService } from '../services/verify.service';
@@ -60,10 +50,7 @@ export class VerifyController {
   @ApiOperation({ summary: 'Confirm email verification (redirect to frontend)' })
   @ApiQuery({ name: 'token', required: true, description: 'Verification token' })
   @ApiResponse({ status: 302, description: 'Redirect to frontend' })
-  async confirmEmail(
-    @Query('token') token: string,
-    @Res() res: Response,
-  ) {
+  async confirmEmail(@Query('token') token: string, @Res() res: Response) {
     if (!token) {
       throw new BadRequestException('Token is required');
     }
@@ -77,10 +64,7 @@ export class VerifyController {
   @ApiQuery({ name: 'email', required: true })
   @ApiQuery({ name: 'type', required: true, enum: ['verification', 'password-reset'] })
   @ApiResponse({ status: 200, description: 'Verification code resent' })
-  async resendCode(
-    @Query('email') email: string,
-    @Query('type') type: string,
-  ) {
+  async resendCode(@Query('email') email: string, @Query('type') type: string) {
     if (type === 'verification') {
       await this.verifyService.sendVerificationEmail(email);
     } else if (type === 'password-reset') {

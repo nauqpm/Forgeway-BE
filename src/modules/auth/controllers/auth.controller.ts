@@ -28,12 +28,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthenticationService } from '../services/authentication.service';
 import { TokenService } from '../services/token.service';
 import { UsersService } from '../../users/services/users.service';
-import {
-  RegisterDto,
-  LoginDto,
-  VerifyEmailDto,
-  ResendVerificationDto,
-} from '../dtos/auth.dto';
+import { RegisterDto, LoginDto, VerifyEmailDto, ResendVerificationDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
@@ -272,11 +267,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(
-    @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-    @Req() req: ExpressRequest,
-  ) {
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response, @Req() req: ExpressRequest) {
     this.logger.log('Processing login request...');
 
     try {
@@ -323,10 +314,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(
-    @Request() req: RequestWithUser,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Request() req: RequestWithUser, @Res({ passthrough: true }) res: Response) {
     const userId = req.user?.userId;
 
     const accessTokenFromCookie = req.cookies?.[COOKIE_NAMES.ACCESS];

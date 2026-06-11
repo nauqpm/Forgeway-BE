@@ -1,9 +1,4 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsString,
-  Matches,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';

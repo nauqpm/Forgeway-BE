@@ -30,22 +30,12 @@ export class TaskCounterService {
     return initializedCounter.taskSequence;
   }
 
-  private async incrementExistingCounter(
-    workspaceId: Types.ObjectId,
-  ): Promise<TaskCounterDocument | null> {
-    return this.taskCounterModel
-      .findOneAndUpdate(
-        { workspaceId },
-        { $inc: { taskSequence: 1 } },
-        { new: true },
-      )
-      .exec();
+  private async incrementExistingCounter(workspaceId: Types.ObjectId): Promise<TaskCounterDocument | null> {
+    return this.taskCounterModel.findOneAndUpdate({ workspaceId }, { $inc: { taskSequence: 1 } }, { new: true }).exec();
   }
 
   private async initializeCounter(workspaceId: Types.ObjectId): Promise<void> {
-    const existingTaskCount = await this.taskModel
-      .countDocuments({ workspaceId })
-      .exec();
+    const existingTaskCount = await this.taskModel.countDocuments({ workspaceId }).exec();
 
     try {
       await this.taskCounterModel.create({

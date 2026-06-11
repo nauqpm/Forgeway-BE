@@ -48,7 +48,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return {
         userId: payload.userId,
         email: payload.email,
-        role: payload.role
+        role: payload.role,
       };
     } catch (error) {
       const err = error as Error;

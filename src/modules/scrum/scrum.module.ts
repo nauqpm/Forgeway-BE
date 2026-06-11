@@ -18,7 +18,6 @@ import { SprintLifecycleService } from './services/sprint-lifecycle.service';
 import { SprintQueryService } from './services/sprint-query.service';
 import { SprintTaskMovementService } from './services/sprint-task-movement.service';
 
-
 @Module({
   imports: [
     MongooseModule.forFeature([

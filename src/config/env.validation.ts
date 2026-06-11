@@ -1,10 +1,6 @@
 type Env = Record<string, string | undefined>;
 
-const REQUIRED_ENV_VARS = [
-  'DB_CONNECTION_STRING',
-  'JWT_SECRET',
-  'REFRESH_TOKEN_SECRET',
-] as const;
+const REQUIRED_ENV_VARS = ['DB_CONNECTION_STRING', 'JWT_SECRET', 'REFRESH_TOKEN_SECRET'] as const;
 
 const MIN_SECRET_LENGTH = 32;
 

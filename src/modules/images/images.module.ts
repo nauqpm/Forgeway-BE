@@ -22,12 +22,12 @@ import { CloudinaryService } from './services/cloudinary.service';
           const year = now.getFullYear();
           const month = String(now.getMonth() + 1).padStart(2, '0');
           const day = String(now.getDate()).padStart(2, '0');
-          
+
           let moduleType = 'others';
           const url = req.url || '';
           if (url.includes('avatar')) moduleType = 'avatars';
           else if (req.body?.type) moduleType = req.body.type;
-          
+
           const uploadPath = join('uploads', moduleType, String(year), month, day);
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });

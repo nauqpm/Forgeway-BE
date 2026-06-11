@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UtilitiesService } from '../services/utilities.service';
@@ -16,7 +7,7 @@ import { CreateAmenityDto, UpdateAmenityDto } from '../dtos/create-amenity.dto';
 @ApiTags('Utilities')
 @Controller('amenitiesapi')
 export class UtilitiesController {
-  constructor(private readonly utilitiesService: UtilitiesService) { }
+  constructor(private readonly utilitiesService: UtilitiesService) {}
 
   @Get()
   async findAll() {
@@ -43,10 +34,7 @@ export class UtilitiesController {
   @Put(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  async update(
-    @Param('id') id: string,
-    @Body() updateAmenityDto: UpdateAmenityDto,
-  ) {
+  async update(@Param('id') id: string, @Body() updateAmenityDto: UpdateAmenityDto) {
     return this.utilitiesService.update(id, updateAmenityDto);
   }
 

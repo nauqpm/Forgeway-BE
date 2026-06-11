@@ -124,10 +124,6 @@ describe('InviteController', () => {
 
     await controller.acceptInvite('some-token', mockUser as any);
 
-    expect(service.acceptInvite).toHaveBeenCalledWith(
-      'some-token',
-      mockUser.userId,
-      mockUser.email,
-    );
+    expect(service.acceptInvite).toHaveBeenCalledWith('some-token', mockUser.userId, mockUser.email);
   });
 });

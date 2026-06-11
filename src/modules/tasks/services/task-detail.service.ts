@@ -13,19 +13,11 @@ export class TaskDetailService {
     private readonly validationService: TaskCreationValidationService,
   ) {}
 
-  async getDetailByIdInWorkspaceKey(
-    workspaceKey: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDetailDto> {
+  async getDetailByIdInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDetailDto> {
     const workspaceId = await this.resolveWorkspaceId(workspaceKey, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 
-    const task = await this.tasksRepository.findDetailByIdInWorkspace(
-      taskId,
-      workspaceId,
-      { includeArchived: true },
-    );
+    const task = await this.tasksRepository.findDetailByIdInWorkspace(taskId, workspaceId, { includeArchived: true });
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
@@ -33,22 +25,16 @@ export class TaskDetailService {
     return this.taskMapper.mapToDetailDto(task);
   }
 
-  async getDetailByKeyInWorkspaceKey(
-    workspaceKey: string,
-    taskKey: string,
-    userId: string,
-  ): Promise<TaskDetailDto> {
+  async getDetailByKeyInWorkspaceKey(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDetailDto> {
     const workspaceId = await this.resolveWorkspaceId(workspaceKey, userId);
     const normalizedTaskKey = normalizeTaskKey(taskKey);
     if (!normalizedTaskKey) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
-    const task = await this.tasksRepository.findDetailByKeyInWorkspace(
-      normalizedTaskKey,
-      workspaceId,
-      { includeArchived: true },
-    );
+    const task = await this.tasksRepository.findDetailByKeyInWorkspace(normalizedTaskKey, workspaceId, {
+      includeArchived: true,
+    });
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -56,10 +42,7 @@ export class TaskDetailService {
     return this.taskMapper.mapToDetailDto(task);
   }
 
-  private async resolveWorkspaceId(
-    workspaceKey: string,
-    userId: string,
-  ): Promise<string> {
+  private async resolveWorkspaceId(workspaceKey: string, userId: string): Promise<string> {
     const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.validationService.validateWorkspaceMember(workspaceId, userId);

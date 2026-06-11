@@ -8,13 +8,11 @@ import { AuthModule } from '../modules/auth/auth.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Auth.name, schema: AuthSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Auth.name, schema: AuthSchema }]),
     forwardRef(() => PermissionsModule),
     forwardRef(() => AuthModule),
   ],
   providers: [RolesGuard, WorkspaceRoleGuard],
   exports: [MongooseModule, RolesGuard, WorkspaceRoleGuard],
 })
-export class CommonModule { }
+export class CommonModule {}

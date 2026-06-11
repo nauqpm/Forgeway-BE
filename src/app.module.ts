@@ -82,7 +82,7 @@ import { RedisModule } from './infra/redis/redis.module';
           const year = now.getFullYear();
           const month = String(now.getMonth() + 1).padStart(2, '0');
           const day = String(now.getDate()).padStart(2, '0');
-          
+
           // Try to determine module type from URL
           let moduleType = 'others';
           const url = req.url || '';
@@ -90,22 +90,18 @@ import { RedisModule } from './infra/redis/redis.module';
           else if (url.includes('documents')) moduleType = 'documents';
           else if (url.includes('comments')) moduleType = 'comments';
           else if (url.includes('imagesapi')) moduleType = req.body?.type || 'others';
-          
+
           const uploadPath = join('uploads', moduleType, String(year), month, day);
-          
+
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }
-          
+
           cb(null, uploadPath);
         },
         filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(
-            null,
-            `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
-          );
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
     }),

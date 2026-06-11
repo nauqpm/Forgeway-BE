@@ -10,8 +10,8 @@ export type PermissionDocument = Permission & Document;
       ret.id = ret._id.toString();
       ret._id = ret._id.toString();
       return ret;
-    }
-  }
+    },
+  },
 })
 export class Permission {
   @Prop({ required: true })
