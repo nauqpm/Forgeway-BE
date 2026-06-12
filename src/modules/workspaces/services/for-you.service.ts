@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 import { ForYouResponseDto, ForYouWorkspaceDto } from '../dtos/for-you.dto';
@@ -23,9 +19,7 @@ export class ForYouService {
 
     this.logger.debug(`Fetching for-you workspaces for user ${userId}`);
     const workspaces = await this.workspacesRepository.findActiveForUserOverview(userId);
-    const workspaceDtos = workspaces.map((workspace) =>
-      this.mapWorkspaceToForYouDto(workspace, userId),
-    );
+    const workspaceDtos = workspaces.map(workspace => this.mapWorkspaceToForYouDto(workspace, userId));
 
     this.logger.log(`Retrieved ${workspaceDtos.length} for-you workspaces for user ${userId}`);
     return {
@@ -34,12 +28,9 @@ export class ForYouService {
     };
   }
 
-  private mapWorkspaceToForYouDto(
-    workspace: WorkspaceDocument,
-    userId: string,
-  ): ForYouWorkspaceDto {
+  private mapWorkspaceToForYouDto(workspace: WorkspaceDocument, userId: string): ForYouWorkspaceDto {
     const isOwner = workspace.ownerId.toString() === userId;
-    const member = workspace.members.find((item) => item.userId.toString() === userId);
+    const member = workspace.members.find(item => item.userId.toString() === userId);
 
     return {
       id: workspace._id.toString(),
@@ -48,7 +39,7 @@ export class ForYouService {
       key: workspace.key,
       type: workspace.type,
       status: workspace.status,
-      role: isOwner ? SPACE_ROLES.WORKSPACE_ADMIN : member?.role ?? SPACE_ROLES.VIEWER,
+      role: isOwner ? SPACE_ROLES.WORKSPACE_ADMIN : (member?.role ?? SPACE_ROLES.VIEWER),
       relationship: isOwner ? 'owner' : 'member',
       ownershipLabel: isOwner ? 'Owner' : 'Member',
       createdAt: workspace.createdAt,

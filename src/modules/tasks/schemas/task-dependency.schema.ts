@@ -3,11 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type TaskDependencyDocument = TaskDependency & Document;
 
-export const DEPENDENCY_TYPES = [
-  'blocks',
-  'is_blocked_by',
-  'relates_to',
-] as const;
+export const DEPENDENCY_TYPES = ['blocks', 'is_blocked_by', 'relates_to'] as const;
 export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
 
 @Schema({ timestamps: true })
@@ -29,11 +25,7 @@ export class TaskDependency {
   readonly updatedAt!: Date;
 }
 
-export const TaskDependencySchema =
-  SchemaFactory.createForClass(TaskDependency);
+export const TaskDependencySchema = SchemaFactory.createForClass(TaskDependency);
 
 // Prevent exact duplicate links
-TaskDependencySchema.index(
-  { workspaceId: 1, fromTaskId: 1, toTaskId: 1, type: 1 },
-  { unique: true },
-);
+TaskDependencySchema.index({ workspaceId: 1, fromTaskId: 1, toTaskId: 1, type: 1 }, { unique: true });

@@ -1,26 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import {
-  DOMAIN_EVENT_TYPES,
-  DomainEventType,
-} from '../../../shared/events/domain-events';
+import { DOMAIN_EVENT_TYPES, DomainEventType } from '../../../shared/events/domain-events';
 import {
   BaseSprintEvent,
+  SprintCompletedEventData,
   SprintCreatedEventData,
+  SprintDeletedEventData,
   SprintEventContext,
+  SprintStartedEventData,
+  SprintUpdatedEventData,
 } from '../../../shared/events/domain-events/sprint';
-import {
-  REALTIME_EVENT_TYPES,
-  RealtimeEnvelope,
-  RealtimeEventType,
-  RoomBuilder,
-} from '../contracts';
+import { REALTIME_EVENT_TYPES, RealtimeEnvelope, RealtimeEventType, RoomBuilder } from '../contracts';
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type SprintRealtimeDomainEvent = BaseSprintEvent<
   DomainEventType,
-  SprintCreatedEventData
+  | SprintCreatedEventData
+  | SprintUpdatedEventData
+  | SprintDeletedEventData
+  | SprintStartedEventData
+  | SprintCompletedEventData
 >;
 
 @Injectable()
@@ -34,10 +34,27 @@ export class SprintRealtimeListener {
     this.publishSprintEvent(REALTIME_EVENT_TYPES.SPRINT_CREATED, event);
   }
 
-  private publishSprintEvent(
-    type: RealtimeEventType,
-    event: SprintRealtimeDomainEvent,
-  ): void {
+  @OnEvent(DOMAIN_EVENT_TYPES.SPRINT_UPDATED, { async: true })
+  handleSprintUpdated(event: SprintRealtimeDomainEvent): void {
+    this.publishSprintEvent(REALTIME_EVENT_TYPES.SPRINT_UPDATED, event);
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.SPRINT_DELETED, { async: true })
+  handleSprintDeleted(event: SprintRealtimeDomainEvent): void {
+    this.publishSprintEvent(REALTIME_EVENT_TYPES.SPRINT_DELETED, event);
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.SPRINT_STARTED, { async: true })
+  handleSprintStarted(event: SprintRealtimeDomainEvent): void {
+    this.publishSprintEvent(REALTIME_EVENT_TYPES.SPRINT_STARTED, event);
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.SPRINT_COMPLETED, { async: true })
+  handleSprintCompleted(event: SprintRealtimeDomainEvent): void {
+    this.publishSprintEvent(REALTIME_EVENT_TYPES.SPRINT_COMPLETED, event);
+  }
+
+  private publishSprintEvent(type: RealtimeEventType, event: SprintRealtimeDomainEvent): void {
     try {
       const room = RoomBuilder.workspace(event.data.workspaceId);
       const envelope = this.buildEnvelope(type, event);
@@ -58,10 +75,7 @@ export class SprintRealtimeListener {
     event: BaseSprintEvent<DomainEventType, TData>,
   ): RealtimeEnvelope<TData> {
     return {
-      eventId:
-        event.eventId ??
-        event.data.eventId ??
-        `${type}:${event.data.sprintId}:${event.occurredAt.getTime()}`,
+      eventId: event.eventId ?? event.data.eventId ?? `${type}:${event.data.sprintId}:${event.occurredAt.getTime()}`,
       type,
       correlationId: event.correlationId ?? event.data.correlationId,
       causationId: event.causationId ?? event.data.causationId,

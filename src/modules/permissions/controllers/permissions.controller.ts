@@ -14,7 +14,7 @@ import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('permissionsapi')
 export class PermissionsController {
-  constructor(private readonly permissionsService: PermissionsService) { }
+  constructor(private readonly permissionsService: PermissionsService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
@@ -27,8 +27,8 @@ export class PermissionsController {
       permissions: permissions.map(p => ({
         id: (p as any).id || (p as any)._id.toString(),
         resource: p.resource,
-        action: p.action
-      }))
+        action: p.action,
+      })),
     };
   }
 
@@ -43,8 +43,8 @@ export class PermissionsController {
       permission: {
         id: (permission as any).id || (permission as any)._id.toString(),
         resource: permission.resource,
-        action: permission.action
-      }
+        action: permission.action,
+      },
     };
   }
 
@@ -60,8 +60,8 @@ export class PermissionsController {
         id: p._id.toString(),
         resource: p.resource,
         action: p.action,
-        source: p.source
-      }))
+        source: p.source,
+      })),
     };
   }
 
@@ -69,10 +69,7 @@ export class PermissionsController {
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'update')
-  async updateUserPermissions(
-    @Param('userId') userId: string,
-    @Body() updateDto: UpdateUserPermissionsDto
-  ) {
+  async updateUserPermissions(@Param('userId') userId: string, @Body() updateDto: UpdateUserPermissionsDto) {
     try {
       console.log('Updating permissions for user:', userId);
       console.log('With data:', updateDto);
@@ -90,7 +87,7 @@ export class PermissionsController {
       // Ensure userId in DTO matches URL parameter
       const updatedPermissions = await this.permissionsService.updateUserPermissions({
         userId: userId, // Use userId from URL parameter
-        permissionIds: updateDto.permissionIds
+        permissionIds: updateDto.permissionIds,
       });
 
       return {
@@ -101,15 +98,16 @@ export class PermissionsController {
           return {
             id: permissionDoc._id.toString(),
             userId: permissionDoc.userId.toString(),
-            permissionId: permissionDoc.permissionId && typeof permissionDoc.permissionId === 'object'
-              ? {
-                id: permissionDoc.permissionId._id.toString(),
-                resource: permissionDoc.permissionId.resource,
-                action: permissionDoc.permissionId.action
-              }
-              : permissionDoc.permissionId.toString()
+            permissionId:
+              permissionDoc.permissionId && typeof permissionDoc.permissionId === 'object'
+                ? {
+                    id: permissionDoc.permissionId._id.toString(),
+                    resource: permissionDoc.permissionId.resource,
+                    action: permissionDoc.permissionId.action,
+                  }
+                : permissionDoc.permissionId.toString(),
           };
-        })
+        }),
       };
     } catch (error) {
       const err = error as Error;
@@ -118,7 +116,7 @@ export class PermissionsController {
       return {
         success: false,
         message: err.message || 'Failed to update user permissions',
-        error: err.message
+        error: err.message,
       };
     }
   }
@@ -131,7 +129,7 @@ export class PermissionsController {
     await this.permissionsService.initializeDefaultPermissions();
     return {
       success: true,
-      message: 'Default permissions initialized successfully'
+      message: 'Default permissions initialized successfully',
     };
   }
 
@@ -152,7 +150,7 @@ export class PermissionsController {
 
       return await this.permissionsService.updateUserPermissions({
         userId,
-        permissionIds
+        permissionIds,
       });
     } catch (error) {
       console.error('Error assigning super admin permissions:', error);

@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { getModelToken } from '@nestjs/mongoose';
@@ -7,6 +8,7 @@ import { Types } from 'mongoose';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { AttachmentMapper } from '../mappers/attachment.mapper';
 import { Attachment } from '../schemas/attachment.schema';
 import { AttachmentService } from './attachment.service';
@@ -17,9 +19,12 @@ describe('TaskAttachmentService', () => {
   let attachmentModel: any;
   let taskModel: { findOne: jest.Mock };
   let workspacesService: jest.Mocked<WorkspacesService>;
+  let workspaceMemberService: jest.Mocked<WorkspaceMemberService>;
   let attachmentService: jest.Mocked<AttachmentService>;
   let attachmentMapper: jest.Mocked<AttachmentMapper>;
   let taskActivitiesService: jest.Mocked<TaskActivitiesService>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
+  let cwdSpy: jest.SpyInstance<string, []>;
 
   const workspaceId = new Types.ObjectId().toString();
   const taskId = new Types.ObjectId().toString();
@@ -30,19 +35,25 @@ describe('TaskAttachmentService', () => {
     mimetype: 'image/png',
     size: 1234,
   };
-  const uploadsDir = resolve(process.cwd(), 'uploads');
+  const testCwd = resolve('C:/tmp/al-task-attachment-service-tests');
+  const uploadsDir = resolve(testCwd, 'uploads');
   const storedFileName = 'test-stream-attachment.txt';
   const storedFilePath = resolve(uploadsDir, storedFileName);
+  const nestedStorageKey = `tasks/2026/06/08/${storedFileName}`;
+  const nestedStoredFilePath = resolve(uploadsDir, nestedStorageKey);
 
   beforeEach(async () => {
+    cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(testCwd);
     attachmentModel = jest.fn();
     attachmentModel.findOne = jest.fn();
     attachmentModel.find = jest.fn();
     taskModel = { findOne: jest.fn() };
     workspacesService = {
       findById: jest.fn(),
-      isMember: jest.fn(),
     } as unknown as jest.Mocked<WorkspacesService>;
+    workspaceMemberService = {
+      isMember: jest.fn(),
+    } as unknown as jest.Mocked<WorkspaceMemberService>;
     attachmentService = {
       create: jest.fn(),
     } as unknown as jest.Mocked<AttachmentService>;
@@ -53,6 +64,9 @@ describe('TaskAttachmentService', () => {
     taskActivitiesService = {
       recordAttachmentAdded: jest.fn(),
     } as unknown as jest.Mocked<TaskActivitiesService>;
+    eventEmitter = {
+      emit: jest.fn(),
+    } as unknown as jest.Mocked<EventEmitter2>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,9 +74,11 @@ describe('TaskAttachmentService', () => {
         { provide: getModelToken(Attachment.name), useValue: attachmentModel },
         { provide: getModelToken(Task.name), useValue: taskModel },
         { provide: WorkspacesService, useValue: workspacesService },
+        { provide: WorkspaceMemberService, useValue: workspaceMemberService },
         { provide: AttachmentService, useValue: attachmentService },
         { provide: AttachmentMapper, useValue: attachmentMapper },
         { provide: TaskActivitiesService, useValue: taskActivitiesService },
+        { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
 
@@ -73,6 +89,10 @@ describe('TaskAttachmentService', () => {
     if (existsSync(storedFilePath)) {
       unlinkSync(storedFilePath);
     }
+    if (existsSync(nestedStoredFilePath)) {
+      unlinkSync(nestedStoredFilePath);
+    }
+    cwdSpy.mockRestore();
   });
 
   it('uploads task attachment scoped to workspace and records activity', async () => {
@@ -94,7 +114,7 @@ describe('TaskAttachmentService', () => {
     const mapped = { id: attachment._id.toString(), originalName: file.originalname };
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
-    workspacesService.isMember.mockResolvedValue(true);
+    workspaceMemberService.isMember.mockResolvedValue(true);
     taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
     attachmentService.create.mockResolvedValue(attachment as any);
     attachmentModel.findOne.mockReturnValue({
@@ -104,9 +124,7 @@ describe('TaskAttachmentService', () => {
     });
     attachmentMapper.mapToDto.mockReturnValue(mapped as any);
 
-    await expect(
-      service.uploadForTask(workspaceId, taskId, file, userId),
-    ).resolves.toEqual(mapped);
+    await expect(service.uploadForTask(workspaceId, taskId, file, userId)).resolves.toEqual(mapped);
 
     expect(attachmentService.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,7 +146,7 @@ describe('TaskAttachmentService', () => {
 
   it('rejects uploading attachment on archived task', async () => {
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
-    workspacesService.isMember.mockResolvedValue(true);
+    workspaceMemberService.isMember.mockResolvedValue(true);
     taskModel.findOne.mockReturnValue({
       exec: jest.fn().mockResolvedValue({
         _id: new Types.ObjectId(taskId),
@@ -137,9 +155,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    await expect(
-      service.uploadForTask(workspaceId, taskId, file, userId),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.uploadForTask(workspaceId, taskId, file, userId)).rejects.toThrow(BadRequestException);
 
     expect(attachmentService.create).not.toHaveBeenCalled();
     expect(taskActivitiesService.recordAttachmentAdded).not.toHaveBeenCalled();
@@ -168,7 +184,7 @@ describe('TaskAttachmentService', () => {
     };
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
-    workspacesService.isMember.mockResolvedValue(true);
+    workspaceMemberService.isMember.mockResolvedValue(true);
     taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
@@ -176,12 +192,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    const result = await service.getDownloadStream(
-      workspaceId,
-      taskId,
-      attachment._id.toString(),
-      userId,
-    );
+    const result = await service.getDownloadStream(workspaceId, taskId, attachment._id.toString(), userId);
 
     expect(result.mimeType).toBe('text/plain');
     expect(result.originalName).toBe('hello.txt');
@@ -217,7 +228,7 @@ describe('TaskAttachmentService', () => {
     };
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
-    workspacesService.isMember.mockResolvedValue(true);
+    workspaceMemberService.isMember.mockResolvedValue(true);
     taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
@@ -225,12 +236,7 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    const result = await service.getPreviewStream(
-      workspaceId,
-      taskId,
-      attachment._id.toString(),
-      userId,
-    );
+    const result = await service.getPreviewStream(workspaceId, taskId, attachment._id.toString(), userId);
 
     expect(result.mimeType).toBe('image/jpeg');
     expect(result.originalName).toBe('anh-test.jpg');
@@ -240,6 +246,50 @@ describe('TaskAttachmentService', () => {
       result.stream.resume();
     });
   });
+  it('falls back to attachment url when legacy storage key points at uploads root', async () => {
+    mkdirSync(resolve(uploadsDir, 'tasks', '2026', '06', '08'), { recursive: true });
+    writeFileSync(nestedStoredFilePath, 'hello attachment');
+
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      isArchived: false,
+    };
+    const attachment = {
+      _id: new Types.ObjectId(),
+      workspaceId: new Types.ObjectId(workspaceId),
+      targetType: 'task',
+      targetId: taskId,
+      uploadedBy: new Types.ObjectId(userId),
+      originalName: 'hello.txt',
+      mimeType: 'text/plain',
+      size: 16,
+      storageKey: storedFileName,
+      url: `/uploads/${nestedStorageKey}`,
+      downloadCount: 0,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
+    workspaceMemberService.isMember.mockResolvedValue(true);
+    taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
+    attachmentModel.findOne.mockReturnValue({
+      populate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(attachment),
+      }),
+    });
+
+    const result = await service.getDownloadStream(workspaceId, taskId, attachment._id.toString(), userId);
+
+    expect(result.originalName).toBe('hello.txt');
+    expect(attachment.downloadCount).toBe(1);
+    await new Promise<void>((resolvePromise, rejectPromise) => {
+      result.stream.on('end', resolvePromise);
+      result.stream.on('error', rejectPromise);
+      result.stream.resume();
+    });
+  });
+
   it('rejects preview for unsupported mime type', async () => {
     const task = {
       _id: new Types.ObjectId(taskId),
@@ -259,7 +309,7 @@ describe('TaskAttachmentService', () => {
     };
 
     workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
-    workspacesService.isMember.mockResolvedValue(true);
+    workspaceMemberService.isMember.mockResolvedValue(true);
     taskModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(task) });
     attachmentModel.findOne.mockReturnValue({
       populate: jest.fn().mockReturnValue({
@@ -267,8 +317,8 @@ describe('TaskAttachmentService', () => {
       }),
     });
 
-    await expect(
-      service.getPreviewStream(workspaceId, taskId, attachment._id.toString(), userId),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.getPreviewStream(workspaceId, taskId, attachment._id.toString(), userId)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });

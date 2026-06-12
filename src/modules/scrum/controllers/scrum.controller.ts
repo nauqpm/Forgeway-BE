@@ -11,13 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -75,8 +69,9 @@ export class ScrumController {
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: UpdateSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.updateSprint(workspaceId, sprintId, dto);
+    return this.scrumService.updateSprint(workspaceId, sprintId, dto, user.userId);
   }
 
   @Delete('sprints/:sprintId')
@@ -89,8 +84,9 @@ export class ScrumController {
   async deleteSprint(
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
+    @CurrentUser() user: JwtPayload,
   ) {
-    await this.scrumService.deleteSprint(workspaceId, sprintId);
+    await this.scrumService.deleteSprint(workspaceId, sprintId, user.userId);
   }
 
   @Post('sprints/:sprintId/start')
@@ -104,8 +100,9 @@ export class ScrumController {
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: StartSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.startSprint(workspaceId, sprintId, dto);
+    return this.scrumService.startSprint(workspaceId, sprintId, dto, user.userId);
   }
 
   @Post('sprints/:sprintId/complete')
@@ -119,8 +116,9 @@ export class ScrumController {
     @Param('workspaceId') workspaceId: string,
     @Param('sprintId', ParseObjectIdPipe) sprintId: string,
     @Body() dto: CompleteSprintDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.completeSprint(workspaceId, sprintId, dto);
+    return this.scrumService.completeSprint(workspaceId, sprintId, dto, user.userId);
   }
 
   @Get('backlog')
@@ -133,10 +131,7 @@ export class ScrumController {
     type: Boolean,
     description: 'Group backlog items by priority/status when supported',
   })
-  async getBacklog(
-    @Param('workspaceId') workspaceId: string,
-    @Query('grouped') grouped?: string,
-  ) {
+  async getBacklog(@Param('workspaceId') workspaceId: string, @Query('grouped') grouped?: string) {
     return this.scrumService.getBacklog(workspaceId, grouped === 'true');
   }
 
@@ -161,12 +156,7 @@ export class ScrumController {
     @Body() dto: MoveTasksToSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.moveTasksToSprint(
-      workspaceId,
-      sprintId,
-      dto.taskIds,
-      user.role === 'super_admin',
-    );
+    return this.scrumService.moveTasksToSprint(workspaceId, sprintId, dto.taskIds, user.role === 'super_admin');
   }
 
   @Post('backlog/tasks')
@@ -180,11 +170,7 @@ export class ScrumController {
     @Body() dto: MoveTasksToSprintDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.scrumService.moveTasksToBacklog(
-      workspaceId,
-      dto.taskIds,
-      user.role === 'super_admin',
-    );
+    return this.scrumService.moveTasksToBacklog(workspaceId, dto.taskIds, user.role === 'super_admin');
   }
 
   @Get('sprints/:sprintId/tasks')

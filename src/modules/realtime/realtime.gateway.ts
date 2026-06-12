@@ -11,11 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import {
-  AuthenticatedSocket,
-  REALTIME_EVENT_TYPES,
-  RoomBuilder,
-} from './contracts';
+import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contracts';
 import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
@@ -52,9 +48,7 @@ const socketValidationPipe = new ValidationPipe({
   pingInterval: 10_000,
   pingTimeout: 5_000,
 })
-export class RealtimeGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -81,13 +75,9 @@ export class RealtimeGateway
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
-      this.logger.debug(
-        `Realtime client connected: ${client.id}, userId: ${user.userId}`,
-      );
+      this.logger.debug(`Realtime client connected: ${client.id}, userId: ${user.userId}`);
     } catch (error) {
-      this.logger.warn(
-        `Rejected realtime connection ${client.id}: ${(error as Error).message}`,
-      );
+      this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
     }
   }
@@ -149,8 +139,13 @@ export class RealtimeGateway
     return this.roomManagerService.leaveTask(client, body);
   }
 
-  // ── Page collaboration events ─────────────────────────────
+  // page-collab
+  // ── Page collaboration (Yjs CRDT) ──────────────────────────────
 
+  /**
+   * page:join — client enters edit mode for a page.
+   * Returns full Yjs state so the client can bootstrap its Y.Doc.
+   */
   @SubscribeMessage('page:join')
   @UsePipes(socketValidationPipe)
   async joinPage(
@@ -183,36 +178,50 @@ export class RealtimeGateway
     };
   }
 
+  /**
+   * page:leave — client exits edit mode.
+   * Schedules memory eviction when the room becomes empty.
+   */
   @SubscribeMessage('page:leave')
   @UsePipes(socketValidationPipe)
   async leavePage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: JoinPageRoomDto,
+    @MessageBody() body: LeavePageRoomDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client)) {
-      return { ok: false };
-    }
+    if (!this.consumeClientEvent(client)) return { ok: false };
 
     const pageRoom = RoomBuilder.page(body.pageId);
     await client.leave(pageRoom);
 
-    // Check if room is now empty and flush if so
-    const roomSockets = await this.server.in(pageRoom).fetchSockets();
-    await this.pageCollabService.flushDraftIfRoomEmpty(
-      body.pageId,
-      roomSockets.length,
-    );
+    const remaining = await this.server.in(pageRoom).fetchSockets();
+    if (remaining.length === 0) {
+      // Room is empty — schedule timed eviction (not immediate, to handle
+      // fast page-reloads gracefully)
+      this.pageCollabService.scheduleRoomEmpty(body.pageId);
+    }
 
     return { ok: true };
   }
 
-  @SubscribeMessage('page:update')
-  @UsePipes(socketValidationPipe)
-  async updatePage(
+  /**
+   * page:yjs-update — incremental Yjs update from one client.
+   * Applies to server Y.Doc then relays to all other room members.
+   *
+   * NOTE: @UsePipes is intentionally omitted here.
+   * The update field is a raw number[] that cannot be validated by
+   * class-validator without custom logic. We validate size manually
+   * inside PageCollabService.applyUpdate().
+   */
+  @SubscribeMessage('page:yjs-update')
+  async handleYjsUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: PageUpdateDto,
+    @MessageBody() body: PageYjsUpdateDto,
   ): Promise<{ ok: boolean }> {
-    if (!this.consumeClientEvent(client)) {
+    const user = client.data.user;
+    if (!user) return { ok: false };
+
+    if (!body.update?.length) {
+      this.logger.warn(`Empty yjs-update from ${user.userId} for page ${body.pageId}`);
       return { ok: false };
     }
 
@@ -228,12 +237,10 @@ export class RealtimeGateway
       body.content,
     );
 
-    // Broadcast to all OTHER clients in the page room (not the sender)
-    const pageRoom = RoomBuilder.page(body.pageId);
-    client.to(pageRoom).emit(REALTIME_EVENT_TYPES.PAGE_UPDATED, {
+    // Relay raw bytes to all OTHER clients in the page room
+    client.to(RoomBuilder.page(body.pageId)).emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
       pageId: body.pageId,
-      content: body.content,
-      editedBy: user.userId,
+      update: body.update,
     });
 
     return { ok: true };

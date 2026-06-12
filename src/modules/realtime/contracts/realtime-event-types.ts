@@ -8,12 +8,21 @@ export const REALTIME_EVENT_TYPES = {
   TASK_DELETED: 'task.deleted',
 
   SPRINT_CREATED: 'sprint.created',
+  SPRINT_UPDATED: 'sprint.updated',
+  SPRINT_DELETED: 'sprint.deleted',
+  SPRINT_STARTED: 'sprint.started',
+  SPRINT_COMPLETED: 'sprint.completed',
 
   NOTIFICATION_CREATED: 'notification.created',
   NOTIFICATION_READ: 'notification.read',
   NOTIFICATION_READ_ALL: 'notification.read_all',
 
+  WORKSPACE_CREATED: 'workspace.created',
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
+  WORKSPACE_UPDATED: 'workspace.updated',
+  WORKSPACE_ARCHIVED: 'workspace.archived',
+  WORKSPACE_RESTORED: 'workspace.restored',
+  WORKSPACE_DELETED: 'workspace.deleted',
   WORKSPACE_MEMBER_JOINED: 'workspace.member.joined',
   WORKSPACE_MEMBER_REMOVED: 'workspace.member.removed',
   WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
@@ -28,7 +37,7 @@ export const REALTIME_EVENT_TYPES = {
   TASK_ACTIVITY_CREATED: 'task.activity.created',
 
   PAGE_UPDATED: 'page.updated',
+  PAGE_YJS_UPDATE: 'page.yjs-update',
 } as const;
 
-export type RealtimeEventType =
-  (typeof REALTIME_EVENT_TYPES)[keyof typeof REALTIME_EVENT_TYPES];
+export type RealtimeEventType = (typeof REALTIME_EVENT_TYPES)[keyof typeof REALTIME_EVENT_TYPES];

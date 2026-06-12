@@ -17,7 +17,7 @@ describe('CreateInviteLinkDto', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.some((error) => error.property === 'role')).toBe(true);
+    expect(errors.some(error => error.property === 'role')).toBe(true);
   });
 
   it('rejects an unsupported role', async () => {
@@ -26,6 +26,6 @@ describe('CreateInviteLinkDto', () => {
 
     const errors = await validate(dto);
 
-    expect(errors.some((error) => error.property === 'role')).toBe(true);
+    expect(errors.some(error => error.property === 'role')).toBe(true);
   });
 });

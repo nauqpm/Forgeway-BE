@@ -42,9 +42,7 @@ interface AuthError extends Error {
 export class UserManagementController {
   private readonly logger = new Logger(UserManagementController.name);
 
-  constructor(
-    private readonly userService: UsersService,
-  ) {}
+  constructor(private readonly userService: UsersService) {}
 
   // 📋 List all users
   @Get('users')
@@ -73,14 +71,11 @@ export class UserManagementController {
       },
     },
   })
-  async getAllUsers(
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
-  ) {
+  async getAllUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
     try {
       const result = await this.userService.getUsersPage(Number(page), Number(limit));
       return {
-        data: result.data.map((user) => ({
+        data: result.data.map(user => ({
           id: String(user._id),
           email: user.email,
           role: user.role,
@@ -116,10 +111,7 @@ export class UserManagementController {
   })
   @Put('update')
   @UseGuards(JwtAuthGuard)
-  async updateUser(
-    @Request() req: RequestWithUser,
-    @Body() updateUserDto: UpdateProfileDto,
-  ) {
+  async updateUser(@Request() req: RequestWithUser, @Body() updateUserDto: UpdateProfileDto) {
     const userId = req.user.userId;
     try {
       return await this.userService.updateUser(userId, updateUserDto);
@@ -137,10 +129,7 @@ export class UserManagementController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Super admin: Update user role' })
   @ApiResponse({ status: 200, description: 'Role updated successfully' })
-  async updateUserRole(
-    @Param('userId') userId: string,
-    @Body() body: { role: string },
-  ) {
+  async updateUserRole(@Param('userId') userId: string, @Body() body: { role: string }) {
     try {
       const validRoles = ['user', 'super_admin'];
       if (!validRoles.includes(body.role)) {
@@ -161,10 +150,7 @@ export class UserManagementController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Super admin: Update user status' })
   @ApiResponse({ status: 200, description: 'Status updated successfully' })
-  async updateUserStatus(
-    @Param('userId') userId: string,
-    @Body() body: { status: string },
-  ) {
+  async updateUserStatus(@Param('userId') userId: string, @Body() body: { status: string }) {
     try {
       const validStatuses = ['active', 'inactive', 'pending_verification', 'suspended'];
       if (!validStatuses.includes(body.status)) {

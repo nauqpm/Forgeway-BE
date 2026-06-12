@@ -36,10 +36,7 @@ export class KanbanController {
   @ApiOperation({ summary: 'Replace all board columns' })
   @ApiBody({ type: [KanbanBoardColumnDto] })
   @ApiResponse({ status: 200, description: 'Board after column replacement' })
-  async updateColumns(
-    @Param('workspaceId') workspaceId: string,
-    @Body() columns: KanbanBoardColumnDto[],
-  ) {
+  async updateColumns(@Param('workspaceId') workspaceId: string, @Body() columns: KanbanBoardColumnDto[]) {
     const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
     return this.kanbanService.replaceColumns(board._id.toString(), columns);
   }
@@ -50,10 +47,7 @@ export class KanbanController {
   @ApiOperation({ summary: 'Add a new column to the board' })
   @ApiBody({ type: CreateColumnDto })
   @ApiResponse({ status: 201, description: 'Board with the new column' })
-  async addColumn(
-    @Param('workspaceId') workspaceId: string,
-    @Body() dto: CreateColumnDto,
-  ) {
+  async addColumn(@Param('workspaceId') workspaceId: string, @Body() dto: CreateColumnDto) {
     const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
     return this.kanbanService.addColumn(board._id.toString(), dto);
   }

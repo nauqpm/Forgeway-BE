@@ -5,9 +5,7 @@ import { CommentAuthorDto, CommentDto } from '../dtos/comment.dto';
 @Injectable()
 export class CommentMapper {
   mapToDto(comment: CommentDocument): CommentDto {
-    const value = typeof comment.toObject === 'function'
-      ? comment.toObject()
-      : comment;
+    const value = typeof comment.toObject === 'function' ? comment.toObject() : comment;
     const plain = value as Record<string, any>;
 
     return {
@@ -37,7 +35,7 @@ export class CommentMapper {
   }
 
   mapToDtos(comments: CommentDocument[]): CommentDto[] {
-    return comments.map((comment) => this.mapToDto(comment));
+    return comments.map(comment => this.mapToDto(comment));
   }
 
   private mapAuthor(value: unknown): CommentAuthorDto | undefined {

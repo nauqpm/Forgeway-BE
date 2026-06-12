@@ -125,7 +125,7 @@ export class PagesController {
     summary: 'Create a new page',
     description:
       'Creates a page inside a workspace. `content` should be the raw HTML string ' +
-      'returned by TipTap\'s `editor.getHTML()`. If `slug` is omitted, a unique slug ' +
+      "returned by TipTap's `editor.getHTML()`. If `slug` is omitted, a unique slug " +
       'is auto-generated from the title.',
   })
   @ApiCreatedResponse({
@@ -218,11 +218,7 @@ export class PagesController {
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
   @ApiOkResponse({ description: 'Page updated successfully', type: PageResponseDto })
   @ApiNotFoundResponse({ description: 'Page not found' })
-  async update(
-    @Param('id') id: string,
-    @Body() updatePageDto: UpdatePageDto,
-    @Request() req: any,
-  ) {
+  async update(@Param('id') id: string, @Body() updatePageDto: UpdatePageDto, @Request() req: any) {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
   }
 
@@ -295,10 +291,7 @@ export class PagesController {
   })
   @ApiOkResponse({ description: 'Page moved successfully', type: PageResponseDto })
   @ApiNotFoundResponse({ description: 'Page or new parent not found' })
-  async moveToParent(
-    @Param('id') id: string,
-    @Body('parentId') parentId: string | null,
-  ) {
+  async moveToParent(@Param('id') id: string, @Body('parentId') parentId: string | null) {
     return this.pagesService.moveToParent(id, parentId);
   }
 
@@ -377,7 +370,8 @@ export class PagesController {
   // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
   @ApiOperation({
     summary: 'Get direct children of a page',
-    description: 'Returns the immediate child pages sorted by title. Not recursive — call repeatedly to walk the tree lazily.',
+    description:
+      'Returns the immediate child pages sorted by title. Not recursive — call repeatedly to walk the tree lazily.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the parent page' })
   @ApiOkResponse({ description: 'Child pages', type: [PageResponseDto] })

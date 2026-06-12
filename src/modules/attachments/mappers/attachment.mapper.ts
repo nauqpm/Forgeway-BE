@@ -5,9 +5,7 @@ import { AttachmentDocument } from '../schemas/attachment.schema';
 @Injectable()
 export class AttachmentMapper {
   mapToDto(attachment: AttachmentDocument): AttachmentDto {
-    const value = typeof attachment.toObject === 'function'
-      ? attachment.toObject()
-      : attachment;
+    const value = typeof attachment.toObject === 'function' ? attachment.toObject() : attachment;
     const plain = value as Record<string, any>;
 
     return {
@@ -29,7 +27,7 @@ export class AttachmentMapper {
   }
 
   mapToDtos(attachments: AttachmentDocument[]): AttachmentDto[] {
-    return attachments.map((attachment) => this.mapToDto(attachment));
+    return attachments.map(attachment => this.mapToDto(attachment));
   }
 
   private mapUser(value: unknown): AttachmentUserDto | undefined {

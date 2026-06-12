@@ -59,11 +59,7 @@ export class SearchService {
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
-      $or: [
-        { title: searchRegex },
-        { description: searchRegex },
-        { key: searchRegex },
-      ],
+      $or: [{ title: searchRegex }, { description: searchRegex }, { key: searchRegex }],
     };
 
     if (workspaceId) {
@@ -82,22 +78,14 @@ export class SearchService {
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
-      $or: [
-        { name: searchRegex },
-        { key: searchRegex },
-        { description: searchRegex },
-      ],
+      $or: [{ name: searchRegex }, { key: searchRegex }, { description: searchRegex }],
     };
 
     if (workspaceId) {
       matchQuery._id = new Types.ObjectId(workspaceId);
     }
 
-    return this.workspaceModel
-      .find(matchQuery)
-      .select('_id name key type status createdAt')
-      .limit(20)
-      .exec();
+    return this.workspaceModel.find(matchQuery).select('_id name key type status createdAt').limit(20).exec();
   }
 
   async searchPages(query: string, spaceId?: string): Promise<any[]> {
@@ -105,21 +93,13 @@ export class SearchService {
 
     const searchRegex = { $regex: query, $options: 'i' };
     const matchQuery: any = {
-      $or: [
-        { title: searchRegex },
-        { content: searchRegex },
-        { slug: searchRegex },
-      ],
+      $or: [{ title: searchRegex }, { content: searchRegex }, { slug: searchRegex }],
     };
 
     if (spaceId) {
       matchQuery.spaceId = new Types.ObjectId(spaceId);
     }
 
-    return this.pageModel
-      .find(matchQuery)
-      .select('_id title slug spaceId status authorId createdAt')
-      .limit(20)
-      .exec();
+    return this.pageModel.find(matchQuery).select('_id title slug spaceId status authorId createdAt').limit(20).exec();
   }
 }

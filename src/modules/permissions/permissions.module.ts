@@ -34,4 +34,4 @@ import { User, UserSchema } from '../users/schemas/users.schema';
   providers: [PermissionsService, ConfigService],
   exports: [PermissionsService, MongooseModule],
 })
-export class PermissionsModule { }
+export class PermissionsModule {}

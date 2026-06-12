@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsEnum } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsEnum, IsUrl } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWorkspaceDto {
@@ -13,6 +13,14 @@ export class CreateWorkspaceDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @ApiPropertyOptional({
+    example:
+      'https://res.cloudinary.com/sdlcplatform/image/upload/sdlc-platform/sample%20avater%20workspace/viewavatar-1.png',
+  })
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  avatar?: string;
 
   @ApiPropertyOptional({ example: 'my-company' })
   @IsOptional()
@@ -50,6 +58,14 @@ export class UpdateWorkspaceDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @ApiPropertyOptional({
+    example:
+      'https://res.cloudinary.com/sdlcplatform/image/upload/sdlc-platform/sample%20avater%20workspace/viewavatar-1.png',
+  })
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  avatar?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -15,7 +15,7 @@ export class SetTaskCoverDto {
   type!: TaskCoverType;
 
   @ApiPropertyOptional({ example: '#0052CC' })
-  @ValidateIf((dto) => dto.type === TASK_COVER_TYPES.COLOR)
+  @ValidateIf(dto => dto.type === TASK_COVER_TYPES.COLOR)
   @IsString()
   @Matches(TASK_COVER_COLOR_PATTERN, {
     message: 'color must be a valid hex color',
@@ -23,7 +23,7 @@ export class SetTaskCoverDto {
   color?: string;
 
   @ApiPropertyOptional({ example: 'https://images.unsplash.com/photo-example' })
-  @ValidateIf((dto) => dto.type === TASK_COVER_TYPES.IMAGE)
+  @ValidateIf(dto => dto.type === TASK_COVER_TYPES.IMAGE)
   @IsUrl({ require_protocol: true })
   imageUrl?: string;
 

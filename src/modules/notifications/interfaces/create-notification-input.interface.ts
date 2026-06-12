@@ -1,7 +1,4 @@
-import {
-  NotificationEntityType,
-  NotificationType,
-} from '../constants/notification.constants';
+import { NotificationEntityType, NotificationType } from '../constants/notification.constants';
 
 export interface CreateNotificationInput {
   recipientId: string;
@@ -38,6 +35,7 @@ export interface WorkspaceInviteNotificationInput {
   recipientId: string;
   actorId: string;
   workspaceId: string;
+  workspaceKey?: string;
   workspaceName: string;
   inviteId: string;
   role: string;

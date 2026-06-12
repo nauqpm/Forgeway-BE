@@ -333,11 +333,7 @@ export class DocumentsService {
     return this.conversionService.renderPreviewHtml(doc);
   }
 
-  private async ensureUniqueNameForUser(
-    userId: string,
-    name: string,
-    excludeId?: string,
-  ): Promise<void> {
+  private async ensureUniqueNameForUser(userId: string, name: string, excludeId?: string): Promise<void> {
     const query: Record<string, any> = {
       uploadedBy: new Types.ObjectId(userId),
       deletedAt: null,
@@ -356,9 +352,7 @@ export class DocumentsService {
     const existingDocument = await this.documentModel.exists(query).exec();
 
     if (existingDocument) {
-      throw new BadRequestException(
-        'A document with this name already exists in your library',
-      );
+      throw new BadRequestException('A document with this name already exists in your library');
     }
   }
 }

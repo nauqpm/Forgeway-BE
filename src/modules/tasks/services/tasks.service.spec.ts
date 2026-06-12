@@ -1,6 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
+import { KanbanService } from '../../kanban/services/kanban.service';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
@@ -9,6 +11,7 @@ import { TaskCreationValidationService } from './task-creation-validation.servic
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { TaskCounterService } from './task-counter.service';
 import { TaskDataTransformerService } from './task-data-transformer.service';
+import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
 import { TasksService } from './tasks.service';
@@ -24,6 +27,7 @@ describe('TasksService', () => {
   let taskCounterService: jest.Mocked<TaskCounterService>;
   let taskActivitiesService: jest.Mocked<TaskActivitiesService>;
   let scrumService: jest.Mocked<ScrumService>;
+  let kanbanService: jest.Mocked<KanbanService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -51,6 +55,7 @@ describe('TasksService', () => {
             restoreInWorkspace: jest.fn(),
             softDelete: jest.fn(),
             softDeleteInWorkspace: jest.fn(),
+            findTasksInRankScope: jest.fn(),
           },
         },
         {
@@ -113,12 +118,35 @@ describe('TasksService', () => {
             findByIdInWorkspace: jest.fn(),
           },
         },
+        {
+          provide: TaskDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+            publishUpdated: jest.fn(),
+            publishArchived: jest.fn(),
+            publishRestored: jest.fn(),
+            publishDeleted: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            notifyTaskAssigned: jest.fn(),
+          },
+        },
+        {
+          provide: KanbanService,
+          useValue: {
+            findByWorkspaceId: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<TasksService>(TasksService);
     repository = module.get(TasksRepository);
     mapper = module.get(TaskMapper);
+    repository.findTasksInRankScope.mockResolvedValue([]);
     keyService = module.get(TaskKeyService);
     taskCounterService = module.get(TaskCounterService);
     taskActivitiesService = module.get(TaskActivitiesService);
@@ -126,6 +154,7 @@ describe('TasksService', () => {
     normalizerService = module.get(TaskNormalizerService);
     transformerService = module.get(TaskDataTransformerService);
     scrumService = module.get(ScrumService);
+    kanbanService = module.get(KanbanService);
   });
 
   it('creates a task by delegating validation, normalization and transformation', async () => {
@@ -147,9 +176,7 @@ describe('TasksService', () => {
     const taskDto = { id: task._id.toString(), key: 'TESKB-1' };
 
     validationService.validateCreateRequest.mockResolvedValue(workspace as any);
-    normalizerService.normalizeForWorkspaceType.mockResolvedValue(
-      normalizedDto,
-    );
+    normalizerService.normalizeForWorkspaceType.mockResolvedValue(normalizedDto);
     taskCounterService.nextSequence.mockResolvedValue(1);
     keyService.create.mockReturnValue('TESKB-1');
     transformerService.transformCreateInput.mockReturnValue(taskData as any);
@@ -159,50 +186,28 @@ describe('TasksService', () => {
     const result = await service.create(createDto, userId);
 
     expect(result).toEqual(taskDto);
-    expect(validationService.validateCreateRequest).toHaveBeenCalledWith(
-      createDto,
-      workspaceId,
-      userId,
-    );
-    expect(normalizerService.normalizeForWorkspaceType).toHaveBeenCalledWith(
-      createDto,
-      workspace,
-    );
+    expect(validationService.validateCreateRequest).toHaveBeenCalledWith(createDto, workspaceId, userId);
+    expect(normalizerService.normalizeForWorkspaceType).toHaveBeenCalledWith(createDto, workspace);
     expect(taskCounterService.nextSequence).toHaveBeenCalledWith(workspaceId);
-    expect(transformerService.transformCreateInput).toHaveBeenCalledWith(
-      normalizedDto,
-      workspaceId,
-      userId,
-      'TESKB-1',
-    );
+    expect(transformerService.transformCreateInput).toHaveBeenCalledWith(normalizedDto, workspaceId, userId, 'TESKB-1');
     expect(repository.create).toHaveBeenCalledWith(taskData);
-    expect(taskActivitiesService.recordTaskCreated).toHaveBeenCalledWith(
-      task,
-      userId,
-    );
+    expect(taskActivitiesService.recordTaskCreated).toHaveBeenCalledWith(task, userId);
   });
 
   it('rejects create when workspaceId is missing', async () => {
-    await expect(service.create({ title: 'Task' }, 'user-id')).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(service.create({ title: 'Task' }, 'user-id')).rejects.toThrow(BadRequestException);
   });
 
   it('creates a task from workspace key', async () => {
     const workspaceId = new Types.ObjectId().toString();
     const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const createSpy = jest
-      .spyOn(service, 'create')
-      .mockResolvedValue({ key: 'TESKB-1' } as any);
+    const createSpy = jest.spyOn(service, 'create').mockResolvedValue({ key: 'TESKB-1' } as any);
 
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
 
     await service.createInWorkspaceKey('TESKB', { title: 'Task' }, 'user-id');
 
-    expect(createSpy).toHaveBeenCalledWith(
-      { title: 'Task', workspaceId },
-      'user-id',
-    );
+    expect(createSpy).toHaveBeenCalledWith({ title: 'Task', workspaceId }, 'user-id');
   });
 
   it('finds all tasks and maps pagination response', async () => {
@@ -219,10 +224,7 @@ describe('TasksService', () => {
 
     const result = await service.findAll({ workspaceId }, 'user-id');
 
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      'user-id',
-    );
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, 'user-id');
     expect(result).toEqual({
       tasks: [{ key: 'TESKB-1' }],
       total: 1,
@@ -251,20 +253,11 @@ describe('TasksService', () => {
       page: 1,
       limit: 20,
     });
-    mapper.mapToDtos.mockReturnValue([
-      { key: 'TESKB-1', status: 'todo' },
-    ] as any);
+    mapper.mapToDtos.mockReturnValue([{ key: 'TESKB-1', status: 'todo' }] as any);
 
-    const result = await service.findByWorkspaceKey(
-      'TESKB',
-      userId,
-      filters as any,
-    );
+    const result = await service.findByWorkspaceKey('TESKB', userId, filters as any);
 
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
     expect(repository.findAll).toHaveBeenCalledWith({
       ...filters,
       workspaceId,
@@ -275,6 +268,51 @@ describe('TasksService', () => {
       page: 1,
       limit: 20,
     });
+  });
+
+  it('uses current renamed column names for archived task statuses', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const userId = new Types.ObjectId().toString();
+    const task = {
+      _id: new Types.ObjectId(),
+      key: 'TESKB-1',
+      columnId: 'inprogress',
+      status: 'in-progress',
+      isArchived: true,
+    };
+
+    repository.findArchivedByWorkspace.mockResolvedValue({
+      tasks: [task] as any,
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+    kanbanService.findByWorkspaceId.mockResolvedValue([
+      {
+        columns: [
+          {
+            id: 'inprogress',
+            name: '1',
+            order: 1,
+            mappedStatuses: ['in-progress'],
+          },
+        ],
+      },
+    ] as any);
+    mapper.mapToDtos.mockImplementation((tasks) => tasks as any);
+
+    const result = await service.findArchivedByWorkspaceId(
+      workspaceId,
+      userId,
+    );
+
+    expect(kanbanService.findByWorkspaceId).toHaveBeenCalledWith(workspaceId);
+    expect(result.tasks).toEqual([
+      expect.objectContaining({
+        columnId: 'inprogress',
+        status: '1',
+      }),
+    ]);
   });
 
   it('finds Scrum backlog tasks by workspace key', async () => {
@@ -293,10 +331,7 @@ describe('TasksService', () => {
 
     const result = await service.findBacklogByWorkspaceKey('SCRUM', userId);
 
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
     expect(repository.findBacklogByWorkspace).toHaveBeenCalledWith(workspaceId);
     expect(result).toEqual([{ key: 'SCRUM-1' }]);
   });
@@ -320,16 +355,10 @@ describe('TasksService', () => {
     repository.findBySprintInWorkspace.mockResolvedValue(tasks as any);
     mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-2' }] as any);
 
-    const result = await service.findActiveSprintBoardByWorkspaceKey(
-      'SCRUM',
-      userId,
-    );
+    const result = await service.findActiveSprintBoardByWorkspaceKey('SCRUM', userId);
 
     expect(scrumService.getActiveSprint).toHaveBeenCalledWith(workspaceId);
-    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(
-      workspaceId,
-      sprintId,
-    );
+    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(workspaceId, sprintId);
     expect(result).toEqual([{ key: 'SCRUM-2' }]);
   });
 
@@ -348,25 +377,13 @@ describe('TasksService', () => {
       _id: new Types.ObjectId(sprintId),
       status: 'planning',
     } as any);
-    repository.findBySprintInWorkspace.mockResolvedValue([
-      { key: 'SCRUM-3' },
-    ] as any);
+    repository.findBySprintInWorkspace.mockResolvedValue([{ key: 'SCRUM-3' }] as any);
     mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-3' }] as any);
 
-    const result = await service.findTasksBySprintInWorkspaceKey(
-      'SCRUM',
-      sprintId,
-      userId,
-    );
+    const result = await service.findTasksBySprintInWorkspaceKey('SCRUM', sprintId, userId);
 
-    expect(scrumService.findByIdInWorkspace).toHaveBeenCalledWith(
-      workspaceId,
-      sprintId,
-    );
-    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(
-      workspaceId,
-      sprintId,
-    );
+    expect(scrumService.findByIdInWorkspace).toHaveBeenCalledWith(workspaceId, sprintId);
+    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(workspaceId, sprintId);
     expect(result).toEqual([{ key: 'SCRUM-3' }]);
   });
 
@@ -376,10 +393,7 @@ describe('TasksService', () => {
     mapper.mapToDto.mockReturnValue({ id: taskId } as any);
 
     await expect(service.findById(taskId)).resolves.toEqual({ id: taskId });
-    expect(validationService.validateObjectId).toHaveBeenCalledWith(
-      taskId,
-      'Task',
-    );
+    expect(validationService.validateObjectId).toHaveBeenCalledWith(taskId, 'Task');
   });
 
   it('finds a task key only inside the resolved workspace', async () => {
@@ -397,17 +411,9 @@ describe('TasksService', () => {
     repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
-    await expect(
-      service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId),
-    ).resolves.toEqual(taskDto);
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
-    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(
-      workspaceId,
-      'TESKB-1',
-    );
+    await expect(service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
+    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(workspaceId, 'TESKB-1');
   });
 
   it('throws when task is not found', async () => {
@@ -428,9 +434,7 @@ describe('TasksService', () => {
     };
 
     repository.findById.mockResolvedValue(existingTask as any);
-    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(
-      updateDto,
-    );
+    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(updateDto);
     transformerService.transformUpdateInput.mockReturnValue(updateData as any);
     repository.update.mockResolvedValue({
       _id: taskId,
@@ -442,13 +446,8 @@ describe('TasksService', () => {
       id: taskId,
       title: 'Updated',
     });
-    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(
-      updateDto,
-      workspaceId,
-    );
-    expect(
-      normalizerService.normalizeUpdateForWorkspaceType,
-    ).toHaveBeenCalledWith(updateDto, existingTask);
+    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(updateDto, workspaceId);
+    expect(normalizerService.normalizeUpdateForWorkspaceType).toHaveBeenCalledWith(updateDto, existingTask);
     expect(repository.update).toHaveBeenCalledWith(taskId, updateData);
   });
 
@@ -467,18 +466,9 @@ describe('TasksService', () => {
     repository.findByIdInWorkspace.mockResolvedValue(task as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
-    await expect(
-      service.findByIdInWorkspaceKey('TESKB', taskId, userId),
-    ).resolves.toEqual(taskDto);
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      {},
-    );
+    await expect(service.findByIdInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
+    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, {});
   });
 
   it('returns not found when scoped task lookup misses workspace boundary', async () => {
@@ -490,14 +480,8 @@ describe('TasksService', () => {
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(null);
 
-    await expect(
-      service.findByIdInWorkspaceKey('TESKB', taskId, userId),
-    ).rejects.toThrow(NotFoundException);
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      {},
-    );
+    await expect(service.findByIdInWorkspaceKey('TESKB', taskId, userId)).rejects.toThrow(NotFoundException);
+    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, {});
   });
 
   it('updates a task scoped to workspace key', async () => {
@@ -519,34 +503,16 @@ describe('TasksService', () => {
 
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
-    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(
-      updateDto,
-    );
+    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(updateDto);
     transformerService.transformUpdateInput.mockReturnValue(updateData as any);
     repository.updateInWorkspace.mockResolvedValue(updatedTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
-    await expect(
-      service.updateInWorkspaceKey('TESKB', taskId, updateDto, userId),
-    ).resolves.toEqual(taskDto);
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
-    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(
-      updateDto,
-      workspaceId,
-    );
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      { includeArchived: true },
-    );
-    expect(repository.updateInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      updateData,
-    );
+    await expect(service.updateInWorkspaceKey('TESKB', taskId, updateDto, userId)).resolves.toEqual(taskDto);
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
+    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(updateDto, workspaceId);
+    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, { includeArchived: true });
+    expect(repository.updateInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, updateData);
   });
 
   it('rejects sprint reassignment when task belongs to a completed sprint', async () => {
@@ -570,14 +536,9 @@ describe('TasksService', () => {
       status: 'completed',
     } as any);
 
-    await expect(
-      service.updateInWorkspaceKey(
-        'SCRUM',
-        taskId,
-        { sprintId: nextSprintId },
-        userId,
-      ),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.updateInWorkspaceKey('SCRUM', taskId, { sprintId: nextSprintId }, userId)).rejects.toThrow(
+      BadRequestException,
+    );
     expect(repository.updateInWorkspace).not.toHaveBeenCalled();
   });
 
@@ -599,14 +560,8 @@ describe('TasksService', () => {
     repository.archiveInWorkspace.mockResolvedValue(archivedTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
-    await expect(
-      service.archiveInWorkspaceKey('TESKB', taskId, userId),
-    ).resolves.toEqual(taskDto);
-    expect(repository.archiveInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      userId,
-    );
+    await expect(service.archiveInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
+    expect(repository.archiveInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, userId);
   });
 
   it('restores an archived task by workspace key', async () => {
@@ -627,13 +582,8 @@ describe('TasksService', () => {
     repository.restoreInWorkspace.mockResolvedValue(restoredTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
-    await expect(
-      service.restoreInWorkspaceKey('TESKB', taskId, userId),
-    ).resolves.toEqual(taskDto);
-    expect(repository.restoreInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-    );
+    await expect(service.restoreInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
+    expect(repository.restoreInWorkspace).toHaveBeenCalledWith(taskId, workspaceId);
   });
 
   it('soft deletes a task permanently when confirmation is valid', async () => {
@@ -654,29 +604,13 @@ describe('TasksService', () => {
     repository.softDeleteInWorkspace.mockResolvedValue(deletedTask as any);
     mapper.mapToDto.mockReturnValue(taskDto as any);
 
-    await expect(
-      service.deletePermanentlyInWorkspaceKey(
-        'TESKB',
-        taskId,
-        userId,
-        'delete',
-      ),
-    ).resolves.toEqual(taskDto);
-    expect(repository.softDeleteInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      userId,
-    );
+    await expect(service.deletePermanentlyInWorkspaceKey('TESKB', taskId, userId, 'delete')).resolves.toEqual(taskDto);
+    expect(repository.softDeleteInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, userId);
   });
 
   it('rejects permanent delete when confirmation is invalid', async () => {
-    await expect(
-      service.deletePermanentlyInWorkspaceKey(
-        'TESKB',
-        'task-id',
-        'user-id',
-        'wrong',
-      ),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.deletePermanentlyInWorkspaceKey('TESKB', 'task-id', 'user-id', 'wrong')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   BadRequestException,
   ConflictException,
@@ -22,9 +23,7 @@ const mockWorkspace = {
   name: 'Test Workspace',
   key: 'TEST',
   ownerId: new Types.ObjectId('bbbbbbbbbbbbbbbbbbbbbbbb'),
-  members: [
-    { userId: new Types.ObjectId('cccccccccccccccccccccccc'), role: SPACE_ROLES.MEMBER },
-  ],
+  members: [{ userId: new Types.ObjectId('cccccccccccccccccccccccc'), role: SPACE_ROLES.MEMBER }],
 };
 
 const mockExistingUser = {
@@ -54,6 +53,7 @@ describe('InviteService', () => {
             findByToken: jest.fn(),
             findPendingValidByEmail: jest.fn(),
             findById: jest.fn(),
+            findByIdWithInviter: jest.fn(),
             updateStatus: jest.fn(),
             addAcceptedBy: jest.fn(),
           },
@@ -81,6 +81,10 @@ describe('InviteService', () => {
           provide: NotificationsService,
           useValue: { notifyWorkspaceInvited: jest.fn().mockResolvedValue(undefined) },
         },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -98,16 +102,13 @@ describe('InviteService', () => {
 
     it('throws NotFoundException when workspace not found', async () => {
       workspacesRepo.findById.mockResolvedValue(null);
-      await expect(service.createInvite(workspaceId, invitedByUserId, dto))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.createInvite(workspaceId, invitedByUserId, dto)).rejects.toThrow(NotFoundException);
     });
 
     it('throws ConflictException when invitee is already a member', async () => {
       workspacesRepo.findById.mockResolvedValue({
         ...mockWorkspace,
-        members: [
-          { userId: new Types.ObjectId('dddddddddddddddddddddddd'), role: SPACE_ROLES.MEMBER },
-        ],
+        members: [{ userId: new Types.ObjectId('dddddddddddddddddddddddd'), role: SPACE_ROLES.MEMBER }],
       } as any);
       usersService.findByEmail.mockResolvedValue(mockExistingUser as any);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue(null);
@@ -122,15 +123,14 @@ describe('InviteService', () => {
       usersService.findByEmail.mockResolvedValue(null);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue({ _id: 'existingInvite' } as any);
 
-      await expect(service.createInvite(workspaceId, invitedByUserId, dto))
-        .rejects.toThrow(ConflictException);
+      await expect(service.createInvite(workspaceId, invitedByUserId, dto)).rejects.toThrow(ConflictException);
     });
 
     it('creates invite record and sends email for valid new invite', async () => {
       workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
       usersService.findByEmail.mockResolvedValue(null);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue(null);
-      inviteRepo.create.mockResolvedValue({ token: 'mock-token', status: INVITE_STATUS.PENDING } as any);
+      inviteRepo.create.mockResolvedValue({ _id: 'inviteObjectId', token: 'mock-token', workspaceId: mockWorkspace._id, invitedEmail: dto.email.toLowerCase(), invitedBy: new Types.ObjectId(invitedByUserId), role: dto.role, status: INVITE_STATUS.PENDING } as any);
 
       const result = await service.createInvite(workspaceId, invitedByUserId, dto);
 
@@ -141,9 +141,7 @@ describe('InviteService', () => {
           status: INVITE_STATUS.PENDING,
         }),
       );
-      expect(mailerService.sendMail).toHaveBeenCalledWith(
-        expect.objectContaining({ to: dto.email.toLowerCase() }),
-      );
+      expect(mailerService.sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: dto.email.toLowerCase() }));
       expect(result).toBeDefined();
     });
 
@@ -151,7 +149,7 @@ describe('InviteService', () => {
       workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
       usersService.findByEmail.mockResolvedValue(null);
       inviteRepo.findPendingByEmailAndWorkspace.mockResolvedValue(null);
-      inviteRepo.create.mockResolvedValue({ token: 'mock-token' } as any);
+      inviteRepo.create.mockResolvedValue({ _id: 'inviteObjectId', token: 'mock-token', workspaceId: mockWorkspace._id, invitedEmail: dto.email.toLowerCase(), invitedBy: new Types.ObjectId(invitedByUserId), role: dto.role, status: INVITE_STATUS.PENDING } as any);
       mailerService.sendMail.mockRejectedValue(new Error('SMTP error'));
 
       await expect(service.createInvite(workspaceId, invitedByUserId, dto)).resolves.toBeDefined();
@@ -165,11 +163,14 @@ describe('InviteService', () => {
     it('creates a multi-use invite link that expires in 10 minutes', async () => {
       const before = Date.now();
       workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
-      inviteRepo.create.mockImplementation(async (data) => ({
-        _id: 'linkInviteId',
-        token: 'mock-link-token',
-        ...data,
-      }) as any);
+      inviteRepo.create.mockImplementation(
+        async data =>
+          ({
+            _id: 'linkInviteId',
+            token: 'mock-link-token',
+            ...data,
+          }) as any,
+      );
 
       const result = await service.createInviteLink(workspaceId, invitedByUserId, {
         role: SPACE_ROLES.VIEWER,
@@ -219,9 +220,7 @@ describe('InviteService', () => {
         status: INVITE_STATUS.PENDING,
       } as any);
 
-      await expect(
-        service.cancelInvite('aaaaaaaaaaaaaaaaaaaaaaaa', 'inviteId'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.cancelInvite('aaaaaaaaaaaaaaaaaaaaaaaa', 'inviteId')).rejects.toThrow(BadRequestException);
     });
 
     it('marks invite as expired', async () => {
@@ -254,32 +253,40 @@ describe('InviteService', () => {
 
     it('throws NotFoundException when token not found', async () => {
       inviteRepo.findByToken.mockResolvedValue(null);
-      await expect(service.acceptInvite(mockToken, userId, userEmail))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.acceptInvite(mockToken, userId, userEmail)).rejects.toThrow(NotFoundException);
     });
 
-    it('throws GoneException when invite is expired by date', async () => {
+    it('throws clear GoneException when invite is expired by date', async () => {
       inviteRepo.findByToken.mockResolvedValue({
         ...mockInvite,
         expiresAt: new Date(Date.now() - 86400000),
       } as any);
       await expect(service.acceptInvite(mockToken, userId, userEmail))
-        .rejects.toThrow(GoneException);
+        .rejects.toThrow('This invitation has expired.');
     });
 
-    it('throws GoneException when invite status is not pending', async () => {
+    it('throws clear GoneException when invite has already been accepted', async () => {
       inviteRepo.findByToken.mockResolvedValue({
         ...mockInvite,
         status: INVITE_STATUS.ACCEPTED,
       } as any);
       await expect(service.acceptInvite(mockToken, userId, userEmail))
-        .rejects.toThrow(GoneException);
+        .rejects.toThrow('This invitation has already been accepted.');
+    });
+
+    it('prefers accepted message over expired message when accepted invite is also past expiry', async () => {
+      inviteRepo.findByToken.mockResolvedValue({
+        ...mockInvite,
+        status: INVITE_STATUS.ACCEPTED,
+        expiresAt: new Date(Date.now() - 86400000),
+      } as any);
+      await expect(service.acceptInvite(mockToken, userId, userEmail))
+        .rejects.toThrow('This invitation has already been accepted.');
     });
 
     it('throws ForbiddenException when authenticated user email does not match invite', async () => {
       inviteRepo.findByToken.mockResolvedValue(mockInvite as any);
-      await expect(service.acceptInvite(mockToken, userId, 'wrong@example.com'))
-        .rejects.toThrow(ForbiddenException);
+      await expect(service.acceptInvite(mockToken, userId, 'wrong@example.com')).rejects.toThrow(ForbiddenException);
     });
 
     it('throws ConflictException when user is already a member', async () => {
@@ -288,8 +295,7 @@ describe('InviteService', () => {
         ...mockWorkspace,
         members: [{ userId: new Types.ObjectId('eeeeeeeeeeeeeeeeeeeeeeee'), role: SPACE_ROLES.MEMBER }],
       } as any);
-      await expect(service.acceptInvite(mockToken, userId, userEmail))
-        .rejects.toThrow(ConflictException);
+      await expect(service.acceptInvite(mockToken, userId, userEmail)).rejects.toThrow(ConflictException);
     });
 
     it('adds user to workspace and marks invite accepted', async () => {
@@ -300,15 +306,8 @@ describe('InviteService', () => {
 
       await service.acceptInvite(mockToken, userId, userEmail);
 
-      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
-        mockInvite.workspaceId.toString(),
-        userId,
-        mockInvite.role,
-      );
-      expect(inviteRepo.updateStatus).toHaveBeenCalledWith(
-        'inviteObjectId',
-        INVITE_STATUS.ACCEPTED,
-      );
+      expect(workspacesRepo.addMember).toHaveBeenCalledWith(mockInvite.workspaceId.toString(), userId, mockInvite.role);
+      expect(inviteRepo.updateStatus).toHaveBeenCalledWith('inviteObjectId', INVITE_STATUS.ACCEPTED);
     });
 
     it('accepts link invite for any authenticated email and keeps token pending for reuse', async () => {
@@ -325,16 +324,9 @@ describe('InviteService', () => {
 
       await service.acceptInvite(mockToken, userId, 'anyone@example.com');
 
-      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
-        linkInvite.workspaceId.toString(),
-        userId,
-        linkInvite.role,
-      );
+      expect(workspacesRepo.addMember).toHaveBeenCalledWith(linkInvite.workspaceId.toString(), userId, linkInvite.role);
       expect(inviteRepo.addAcceptedBy).toHaveBeenCalledWith('inviteObjectId', userId);
-      expect(inviteRepo.updateStatus).not.toHaveBeenCalledWith(
-        'inviteObjectId',
-        INVITE_STATUS.ACCEPTED,
-      );
+      expect(inviteRepo.updateStatus).not.toHaveBeenCalledWith('inviteObjectId', INVITE_STATUS.ACCEPTED);
     });
   });
 
@@ -383,6 +375,113 @@ describe('InviteService', () => {
     });
   });
 
+  describe('getInviteByIdForUser', () => {
+    const inviteId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const userId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+    const userEmail = 'invitee@example.com';
+
+    it('throws ForbiddenException when authenticated user email does not match invite', async () => {
+      inviteRepo.findByIdWithInviter.mockResolvedValue({
+        _id: inviteId,
+        workspaceId: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+        invitedEmail: 'other@example.com',
+        role: SPACE_ROLES.MEMBER,
+        status: INVITE_STATUS.PENDING,
+      } as any);
+
+      await expect(
+        service.getInviteByIdForUser(inviteId, userId, userEmail),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('returns invite status without exposing token for matching authenticated user', async () => {
+      inviteRepo.findByIdWithInviter.mockResolvedValue({
+        _id: inviteId,
+        token: 'secret-token',
+        workspaceId: mockWorkspace._id,
+        invitedEmail: userEmail,
+        invitedBy: { fullName: 'Admin', email: 'admin@example.com', avatar: null },
+        role: SPACE_ROLES.MEMBER,
+        status: INVITE_STATUS.PENDING,
+        expiresAt: null,
+      } as any);
+      workspacesRepo.findById.mockResolvedValue(mockWorkspace as any);
+
+      const result = await service.getInviteByIdForUser(inviteId, userId, userEmail);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: inviteId,
+          workspaceId: mockWorkspace._id.toString(),
+          workspaceName: mockWorkspace.name,
+          workspaceKey: mockWorkspace.key,
+          invitedEmail: userEmail,
+          status: INVITE_STATUS.PENDING,
+        }),
+      );
+      expect(result).not.toHaveProperty('token');
+    });
+  });
+  describe('acceptInviteByIdForUser', () => {
+    const inviteId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const userId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+    const userEmail = 'invitee@example.com';
+    const mockInvite = {
+      _id: inviteId,
+      workspaceId: mockWorkspace._id,
+      invitedEmail: userEmail,
+      role: SPACE_ROLES.MEMBER,
+      status: INVITE_STATUS.PENDING,
+      expiresAt: null,
+    };
+
+    it('adds the authenticated invite recipient to the workspace and marks invite accepted', async () => {
+      inviteRepo.findById.mockResolvedValue(mockInvite as any);
+      workspacesRepo.findById.mockResolvedValue({ ...mockWorkspace, members: [] } as any);
+      workspacesRepo.addMember.mockResolvedValue({} as any);
+      inviteRepo.updateStatus.mockResolvedValue({ status: INVITE_STATUS.ACCEPTED } as any);
+
+      await service.acceptInviteByIdForUser(inviteId, userId, userEmail);
+
+      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
+        mockWorkspace._id.toString(),
+        userId,
+        SPACE_ROLES.MEMBER,
+      );
+      expect(inviteRepo.updateStatus).toHaveBeenCalledWith(inviteId, INVITE_STATUS.ACCEPTED);
+    });
+
+    it('throws ForbiddenException when authenticated user email does not match invite', async () => {
+      inviteRepo.findById.mockResolvedValue({ ...mockInvite, invitedEmail: 'other@example.com' } as any);
+
+      await expect(
+        service.acceptInviteByIdForUser(inviteId, userId, userEmail),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('declineInviteByIdForUser', () => {
+    const inviteId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const userId = 'eeeeeeeeeeeeeeeeeeeeeeee';
+    const userEmail = 'invitee@example.com';
+
+    it('marks authenticated invite as declined', async () => {
+      inviteRepo.findById.mockResolvedValue({
+        _id: inviteId,
+        workspaceId: mockWorkspace._id,
+        invitedEmail: userEmail,
+        role: SPACE_ROLES.MEMBER,
+        status: INVITE_STATUS.PENDING,
+        expiresAt: null,
+      } as any);
+      inviteRepo.updateStatus.mockResolvedValue({ status: INVITE_STATUS.DECLINED } as any);
+
+      await service.declineInviteByIdForUser(inviteId, userId, userEmail);
+
+      expect(inviteRepo.updateStatus).toHaveBeenCalledWith(inviteId, INVITE_STATUS.DECLINED);
+      expect(workspacesRepo.addMember).not.toHaveBeenCalled();
+    });
+  });
   describe('processPostRegisterInvites', () => {
     it('auto-joins all pending valid workspaces for email', async () => {
       const email = 'new@example.com';

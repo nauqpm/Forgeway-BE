@@ -122,13 +122,7 @@ export class TokenService {
     }
   }
 
-  private createAccessToken(
-    userId: string,
-    email: string,
-    role: string,
-    fullName?: string,
-    avatar?: string,
-  ): string {
+  private createAccessToken(userId: string, email: string, role: string, fullName?: string, avatar?: string): string {
     const payload = { userId, email, role, fullName, avatar, type: TOKEN_TYPES.ACCESS };
     return this.jwtService.sign(payload);
   }
@@ -151,9 +145,7 @@ export class TokenService {
     }
 
     try {
-      const hashedTokens = ([accessToken, refreshToken].filter(Boolean) as string[]).map((t) =>
-        this.hashToken(t),
-      );
+      const hashedTokens = ([accessToken, refreshToken].filter(Boolean) as string[]).map(t => this.hashToken(t));
 
       await this.tokenModel.updateMany({ token: { $in: hashedTokens } }, { status: false });
       return { message: 'Đăng xuất thành công' };
@@ -164,10 +156,7 @@ export class TokenService {
     }
   }
 
-  async createResetGrant(
-    userId: string,
-    email: string,
-  ): Promise<{ resetGrant: string; expiresInMs: number }> {
+  async createResetGrant(userId: string, email: string): Promise<{ resetGrant: string; expiresInMs: number }> {
     this.logger.debug(`Creating password reset grant for userId: ${userId}`);
 
     const expiresInMs = 10 * 60 * 1000;
@@ -244,7 +233,9 @@ export class TokenService {
    * SEC-8: Atomic consume + token family theft detection
    * Refresh token rotation with family reuse detection (behavior preserved)
    */
-  async refreshAccessToken(refreshToken: string): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
     try {
       const decoded = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
@@ -288,8 +279,7 @@ export class TokenService {
             throw new UnauthorizedException({
               statusCode: 401,
               error: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
-              message:
-                'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
+              message: 'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
             });
           }
 
@@ -440,13 +430,8 @@ export class TokenService {
       this.logger.log(`✅ Tất cả token của userId ${userId} đã bị hủy`);
     } catch (error) {
       const err = error as Error;
-      this.logger.error(
-        `❌ Lỗi khi hủy tất cả token của userId ${userId}: ${err.message}`,
-        err.stack,
-      );
-      throw new InternalServerErrorException(
-        'Không thể hủy tất cả token của người dùng.',
-      );
+      this.logger.error(`❌ Lỗi khi hủy tất cả token của userId ${userId}: ${err.message}`, err.stack);
+      throw new InternalServerErrorException('Không thể hủy tất cả token của người dùng.');
     }
   }
 }

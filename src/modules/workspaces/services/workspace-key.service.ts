@@ -24,10 +24,7 @@ export class WorkspaceKeyService {
     return slug;
   }
 
-  async generateUniqueKey(
-    source: string,
-    currentWorkspaceId?: string,
-  ): Promise<string> {
+  async generateUniqueKey(source: string, currentWorkspaceId?: string): Promise<string> {
     const baseKey = this.normalizeWorkspaceKey(source);
 
     let key = baseKey;

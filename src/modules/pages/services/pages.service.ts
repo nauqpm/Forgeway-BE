@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import axios from 'axios';
@@ -118,9 +113,7 @@ export class PagesService {
     if (dto.parentId) {
       const parentDepth = await this.getAncestorDepth(dto.parentId);
       if (parentDepth + 1 >= MAX_DEPTH) {
-        throw new BadRequestException(
-          `Cannot create page: maximum nesting depth of ${MAX_DEPTH} levels exceeded`,
-        );
+        throw new BadRequestException(`Cannot create page: maximum nesting depth of ${MAX_DEPTH} levels exceeded`);
       }
     }
 
@@ -132,9 +125,7 @@ export class PagesService {
     const page = new this.pageModel({
       title,
       content: dto.content || '',
-      workspaceId: dto.workspaceId
-        ? new Types.ObjectId(dto.workspaceId)
-        : undefined,
+      workspaceId: dto.workspaceId ? new Types.ObjectId(dto.workspaceId) : undefined,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       slug,
       authorId: new Types.ObjectId(userId),
@@ -157,10 +148,7 @@ export class PagesService {
       throw new NotFoundException(`Page with id ${id} not found`);
     }
 
-    const page = await this.pageModel
-      .findById(id)
-      .populate('lastEditedBy', 'fullName')
-      .exec();
+    const page = await this.pageModel.findById(id).populate('lastEditedBy', 'fullName').exec();
     if (!page) {
       throw new NotFoundException(`Page with id ${id} not found`);
     }
@@ -170,10 +158,7 @@ export class PagesService {
   async findBySlug(slug: string): Promise<PageDocument> {
     this.logger.debug(`Finding page by slug: ${slug}`);
 
-    const page = await this.pageModel
-      .findOne({ slug })
-      .populate('lastEditedBy', 'fullName')
-      .exec();
+    const page = await this.pageModel.findOne({ slug }).populate('lastEditedBy', 'fullName').exec();
     if (!page) {
       throw new NotFoundException(`Page with slug "${slug}" not found`);
     }
@@ -295,23 +280,14 @@ export class PagesService {
       .exec();
   }
 
-  async update(
-    id: string,
-    dto: UpdatePageDto,
-    userId: string,
-  ): Promise<PageDocument> {
+  async update(id: string, dto: UpdatePageDto, userId: string): Promise<PageDocument> {
     this.logger.debug(`Updating page ${id} by user ${userId}`);
 
     const page = await this.findById(id);
 
     if (dto.title !== undefined) {
       const title = dto.title.trim();
-      await this.ensureUniqueTitleInLocation(
-        title,
-        page.workspaceId.toString(),
-        page.parentId?.toString(),
-        id,
-      );
+      await this.ensureUniqueTitleInLocation(title, page.workspaceId.toString(), page.parentId?.toString(), id);
       page.title = title;
     }
     if (dto.content !== undefined) page.content = dto.content;
@@ -383,7 +359,7 @@ export class PagesService {
 
     const descendants = result[0]?.descendants ?? [];
 
-    const idsToDelete = descendants.map((x) => x._id);
+    const idsToDelete = descendants.map(x => x._id);
 
     if (idsToDelete.length > 0) {
       await this.pageModel.deleteMany({
@@ -392,19 +368,14 @@ export class PagesService {
     }
   }
 
-  async moveToParent(
-    pageId: string,
-    newParentId: string | null,
-  ): Promise<PageDocument> {
+  async moveToParent(pageId: string, newParentId: string | null): Promise<PageDocument> {
     this.logger.debug(`Moving page ${pageId} to parent ${newParentId}`);
 
     const page = await this.findById(pageId);
 
     if (newParentId) {
       if (!Types.ObjectId.isValid(newParentId)) {
-        throw new NotFoundException(
-          `Parent page with id ${newParentId} not found`,
-        );
+        throw new NotFoundException(`Parent page with id ${newParentId} not found`);
       }
 
       if (newParentId === pageId) {
@@ -414,9 +385,7 @@ export class PagesService {
       // ── Circular-reference check: newParent must NOT be a descendant of page ──
       const descendants = await this.getAllDescendantIds(pageId);
       if (descendants.includes(newParentId)) {
-        throw new BadRequestException(
-          'Cannot move a page into its own descendant (circular reference)',
-        );
+        throw new BadRequestException('Cannot move a page into its own descendant (circular reference)');
       }
 
       // ── Depth check: parentDepth + 1 (this page) + subtreeDepth ≤ MAX_DEPTH ──
@@ -458,9 +427,7 @@ export class PagesService {
   async incrementViewCount(id: string): Promise<PageDocument> {
     this.logger.debug(`Incrementing view count for page ${id}`);
 
-    const page = await this.pageModel
-      .findByIdAndUpdate(id, { $inc: { viewCount: 1 } }, { new: true })
-      .exec();
+    const page = await this.pageModel.findByIdAndUpdate(id, { $inc: { viewCount: 1 } }, { new: true }).exec();
 
     if (!page) {
       throw new NotFoundException(`Page with id ${id} not found`);
@@ -485,7 +452,7 @@ export class PagesService {
     this.logger.debug(`Removing label "${label}" from page ${pageId}`);
 
     const page = await this.findById(pageId);
-    page.labels = page.labels.filter((l) => l !== label);
+    page.labels = page.labels.filter(l => l !== label);
 
     return page.save();
   }
@@ -515,9 +482,7 @@ export class PagesService {
 
     const existingPage = await this.pageModel.exists(query).exec();
     if (existingPage) {
-      throw new BadRequestException(
-        'A document with this name already exists in this location',
-      );
+      throw new BadRequestException('A document with this name already exists in this location');
     }
   }
 
@@ -570,11 +535,7 @@ export class PagesService {
     let currentId = pageId;
 
     while (true) {
-      const page = await this.pageModel
-        .findById(currentId)
-        .select('parentId')
-        .lean()
-        .exec();
+      const page = await this.pageModel.findById(currentId).select('parentId').lean().exec();
 
       if (!page || !page.parentId) break;
       depth++;

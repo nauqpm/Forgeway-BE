@@ -26,4 +26,4 @@ import { RealtimeModule } from '../realtime/realtime.module';
   providers: [PagesService, JwtAuthGuard, WorkspaceRoleGuard],
   exports: [PagesService, JwtAuthGuard, MongooseModule],
 })
-export class PagesModule { }
+export class PagesModule {}

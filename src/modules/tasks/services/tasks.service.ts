@@ -1,19 +1,10 @@
-import {
-  BadRequestException,
-  forwardRef,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BoardColumn } from '../../kanban/schemas/kanban-board.schema';
+import { KanbanService } from '../../kanban/services/kanban.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
-import {
-  CreateTaskDto,
-  FilterTaskDto,
-  UpdateTaskDto,
-} from '../dtos/requests/create-task.dto';
+import { CreateTaskDto, FilterTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TasksRepository } from '../repositories/tasks.repository';
@@ -23,6 +14,7 @@ import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
+import { compareRanks, generateRankBetween } from '../utils/rank.util';
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
@@ -34,6 +26,7 @@ export class TasksService {
     private readonly taskCounterService: TaskCounterService,
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
+    private readonly kanbanService: KanbanService,
     private readonly transformerService: TaskDataTransformerService,
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
@@ -45,23 +38,11 @@ export class TasksService {
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
     const workspaceId = this.getRequiredWorkspaceId(createTaskDto);
-    const workspace = await this.validationService.validateCreateRequest(
-      createTaskDto,
-      workspaceId,
-      userId,
-    );
-    const normalizedDto =
-      await this.normalizerService.normalizeForWorkspaceType(
-        createTaskDto,
-        workspace,
-      );
+    const workspace = await this.validationService.validateCreateRequest(createTaskDto, workspaceId, userId);
+    const normalizedDto = await this.normalizerService.normalizeForWorkspaceType(createTaskDto, workspace);
     const key = await this.createTaskKey(workspace);
-    const taskData = this.transformerService.transformCreateInput(
-      normalizedDto,
-      workspaceId,
-      userId,
-      key,
-    );
+    const taskData = this.transformerService.transformCreateInput(normalizedDto, workspaceId, userId, key);
+    taskData.rank = await this.createInitialRankForTask(workspace.type, workspaceId, normalizedDto);
 
     const task = await this.tasksRepository.create(taskData);
     await this.taskActivitiesService.recordTaskCreated(task, userId);
@@ -70,37 +51,18 @@ export class TasksService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async createInWorkspaceKey(
-    workspaceKey: string,
-    createTaskDto: CreateTaskDto,
-    userId: string,
-  ): Promise<TaskDto> {
-    const workspace =
-      await this.validationService.getWorkspaceById(workspaceKey);
-    return this.createInWorkspaceId(
-      workspace._id.toString(),
-      createTaskDto,
-      userId,
-    );
+  async createInWorkspaceKey(workspaceKey: string, createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
+    return this.createInWorkspaceId(workspace._id.toString(), createTaskDto, userId);
   }
 
-  async createInWorkspaceId(
-    workspaceId: string,
-    createTaskDto: CreateTaskDto,
-    userId: string,
-  ): Promise<TaskDto> {
+  async createInWorkspaceId(workspaceId: string, createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
     return this.create({ ...createTaskDto, workspaceId }, userId);
   }
 
-  async findAll(
-    filterDto: FilterTaskDto,
-    currentUserId?: string,
-  ): Promise<TaskListDto> {
+  async findAll(filterDto: FilterTaskDto, currentUserId?: string): Promise<TaskListDto> {
     if (filterDto.workspaceId && currentUserId) {
-      await this.validationService.validateWorkspaceMember(
-        filterDto.workspaceId,
-        currentUserId,
-      );
+      await this.validationService.validateWorkspaceMember(filterDto.workspaceId, currentUserId);
     }
 
     const result = await this.tasksRepository.findAll(filterDto);
@@ -112,16 +74,10 @@ export class TasksService {
     };
   }
 
-  async findByWorkspace(
-    workspaceId: string,
-    currentUserId?: string,
-  ): Promise<TaskDto[]> {
+  async findByWorkspace(workspaceId: string, currentUserId?: string): Promise<TaskDto[]> {
     this.validationService.validateObjectId(workspaceId, 'Workspace');
     if (currentUserId) {
-      await this.validationService.validateWorkspaceMember(
-        workspaceId,
-        currentUserId,
-      );
+      await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
     }
 
     const tasks = await this.tasksRepository.findByWorkspace(workspaceId);
@@ -133,13 +89,8 @@ export class TasksService {
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    const workspace =
-      await this.validationService.getWorkspaceById(workspaceKey);
-    return this.findByWorkspaceId(
-      workspace._id.toString(),
-      currentUserId,
-      filterDto,
-    );
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
+    return this.findByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
   }
 
   async findByWorkspaceId(
@@ -150,10 +101,7 @@ export class TasksService {
     this.validationService.validateObjectId(workspaceId, 'Workspace');
 
     if (currentUserId) {
-      await this.validationService.validateWorkspaceMember(
-        workspaceId,
-        currentUserId,
-      );
+      await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
     }
 
     const result = await this.tasksRepository.findAll({
@@ -174,13 +122,8 @@ export class TasksService {
     currentUserId: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    const workspace =
-      await this.validationService.getWorkspaceById(workspaceKey);
-    return this.findArchivedByWorkspaceId(
-      workspace._id.toString(),
-      currentUserId,
-      filterDto,
-    );
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
+    return this.findArchivedByWorkspaceId(workspace._id.toString(), currentUserId, filterDto);
   }
 
   async findArchivedByWorkspaceId(
@@ -189,61 +132,36 @@ export class TasksService {
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
     this.validationService.validateObjectId(workspaceId, 'Workspace');
-    await this.validationService.validateWorkspaceMember(
-      workspaceId,
-      currentUserId,
-    );
+    await this.validationService.validateWorkspaceMember(workspaceId, currentUserId);
 
-    const result = await this.tasksRepository.findArchivedByWorkspace(
-      workspaceId,
-      filterDto,
-    );
+    const result = await this.tasksRepository.findArchivedByWorkspace(workspaceId, filterDto);
+    const tasks = this.taskMapper.mapToDtos(result.tasks);
     return {
-      tasks: this.taskMapper.mapToDtos(result.tasks),
+      tasks: await this.applyArchivedColumnNames(workspaceId, tasks),
       total: result.total,
       page: result.page,
       limit: result.limit,
     };
   }
 
-  async findBacklogByWorkspaceKey(
-    workspaceKey: string,
-    currentUserId: string,
-  ): Promise<TaskDto[]> {
-    const { workspace, workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      currentUserId,
-    );
+  async findBacklogByWorkspaceKey(workspaceKey: string, currentUserId: string): Promise<TaskDto[]> {
+    const { workspace, workspaceId } = await this.getWorkspaceContext(workspaceKey, currentUserId);
     this.ensureScrumWorkspace(workspace);
 
-    const tasks =
-      await this.tasksRepository.findBacklogByWorkspace(workspaceId);
+    const tasks = await this.tasksRepository.findBacklogByWorkspace(workspaceId);
     return this.taskMapper.mapToDtos(tasks);
   }
 
-  async findBacklogByWorkspaceId(
-    workspaceId: string,
-    currentUserId: string,
-  ): Promise<TaskDto[]> {
-    const { workspace } = await this.getWorkspaceContextById(
-      workspaceId,
-      currentUserId,
-    );
+  async findBacklogByWorkspaceId(workspaceId: string, currentUserId: string): Promise<TaskDto[]> {
+    const { workspace } = await this.getWorkspaceContextById(workspaceId, currentUserId);
     this.ensureScrumWorkspace(workspace);
 
-    const tasks =
-      await this.tasksRepository.findBacklogByWorkspace(workspaceId);
+    const tasks = await this.tasksRepository.findBacklogByWorkspace(workspaceId);
     return this.taskMapper.mapToDtos(tasks);
   }
 
-  async findActiveSprintBoardByWorkspaceKey(
-    workspaceKey: string,
-    currentUserId: string,
-  ): Promise<TaskDto[]> {
-    const { workspace, workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      currentUserId,
-    );
+  async findActiveSprintBoardByWorkspaceKey(workspaceKey: string, currentUserId: string): Promise<TaskDto[]> {
+    const { workspace, workspaceId } = await this.getWorkspaceContext(workspaceKey, currentUserId);
     this.ensureScrumWorkspace(workspace);
 
     const activeSprint = await this.scrumService.getActiveSprint(workspaceId);
@@ -251,21 +169,12 @@ export class TasksService {
       return [];
     }
 
-    const tasks = await this.tasksRepository.findBySprintInWorkspace(
-      workspaceId,
-      activeSprint._id.toString(),
-    );
+    const tasks = await this.tasksRepository.findBySprintInWorkspace(workspaceId, activeSprint._id.toString());
     return this.taskMapper.mapToDtos(tasks);
   }
 
-  async findActiveSprintBoardByWorkspaceId(
-    workspaceId: string,
-    currentUserId: string,
-  ): Promise<TaskDto[]> {
-    const { workspace } = await this.getWorkspaceContextById(
-      workspaceId,
-      currentUserId,
-    );
+  async findActiveSprintBoardByWorkspaceId(workspaceId: string, currentUserId: string): Promise<TaskDto[]> {
+    const { workspace } = await this.getWorkspaceContextById(workspaceId, currentUserId);
     this.ensureScrumWorkspace(workspace);
 
     const activeSprint = await this.scrumService.getActiveSprint(workspaceId);
@@ -273,10 +182,7 @@ export class TasksService {
       return [];
     }
 
-    const tasks = await this.tasksRepository.findBySprintInWorkspace(
-      workspaceId,
-      activeSprint._id.toString(),
-    );
+    const tasks = await this.tasksRepository.findBySprintInWorkspace(workspaceId, activeSprint._id.toString());
     return this.taskMapper.mapToDtos(tasks);
   }
 
@@ -285,17 +191,11 @@ export class TasksService {
     sprintId: string,
     currentUserId: string,
   ): Promise<TaskDto[]> {
-    const { workspace, workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      currentUserId,
-    );
+    const { workspace, workspaceId } = await this.getWorkspaceContext(workspaceKey, currentUserId);
     this.ensureScrumWorkspace(workspace);
     await this.scrumService.findByIdInWorkspace(workspaceId, sprintId);
 
-    const tasks = await this.tasksRepository.findBySprintInWorkspace(
-      workspaceId,
-      sprintId,
-    );
+    const tasks = await this.tasksRepository.findBySprintInWorkspace(workspaceId, sprintId);
     return this.taskMapper.mapToDtos(tasks);
   }
 
@@ -304,17 +204,11 @@ export class TasksService {
     sprintId: string,
     currentUserId: string,
   ): Promise<TaskDto[]> {
-    const { workspace } = await this.getWorkspaceContextById(
-      workspaceId,
-      currentUserId,
-    );
+    const { workspace } = await this.getWorkspaceContextById(workspaceId, currentUserId);
     this.ensureScrumWorkspace(workspace);
     await this.scrumService.findByIdInWorkspace(workspaceId, sprintId);
 
-    const tasks = await this.tasksRepository.findBySprintInWorkspace(
-      workspaceId,
-      sprintId,
-    );
+    const tasks = await this.tasksRepository.findBySprintInWorkspace(workspaceId, sprintId);
     return this.taskMapper.mapToDtos(tasks);
   }
 
@@ -329,25 +223,14 @@ export class TasksService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async findByIdInWorkspaceKey(
-    workspaceKey: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+  async findByIdInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDto> {
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const task = await this.getTaskForWorkspace(taskId, workspaceId);
 
     return this.taskMapper.mapToDto(task);
   }
 
-  async findByIdInWorkspaceId(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDto> {
+  async findByIdInWorkspaceId(workspaceId: string, taskId: string, userId: string): Promise<TaskDto> {
     await this.getWorkspaceContextById(workspaceId, userId);
     const task = await this.getTaskForWorkspace(taskId, workspaceId);
 
@@ -376,19 +259,9 @@ export class TasksService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async findByKeyInWorkspaceKey(
-    workspaceKey: string,
-    taskKey: string,
-    userId: string,
-  ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
-    const task = await this.tasksRepository.findByWorkspaceAndKey(
-      workspaceId,
-      taskKey,
-    );
+  async findByKeyInWorkspaceKey(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    const task = await this.tasksRepository.findByWorkspaceAndKey(workspaceId, taskKey);
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -396,24 +269,13 @@ export class TasksService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async findByKeyInWorkspace(
-    workspaceKey: string,
-    taskKey: string,
-    userId: string,
-  ): Promise<TaskDto> {
+  async findByKeyInWorkspace(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
     return this.findByKeyInWorkspaceKey(workspaceKey, taskKey, userId);
   }
 
-  async findByKeyInWorkspaceId(
-    workspaceId: string,
-    taskKey: string,
-    userId: string,
-  ): Promise<TaskDto> {
+  async findByKeyInWorkspaceId(workspaceId: string, taskKey: string, userId: string): Promise<TaskDto> {
     await this.getWorkspaceContextById(workspaceId, userId);
-    const task = await this.tasksRepository.findByWorkspaceAndKey(
-      workspaceId,
-      taskKey,
-    );
+    const task = await this.tasksRepository.findByWorkspaceAndKey(workspaceId, taskKey);
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -436,20 +298,9 @@ export class TasksService {
     }
 
     const workspaceId = this.toId(existing.workspaceId);
-    await this.ensureCompletedSprintIsNotReassigned(
-      existing,
-      updateTaskDto,
-      workspaceId,
-    );
-    const normalizedUpdateDto =
-      await this.normalizerService.normalizeUpdateForWorkspaceType(
-        updateTaskDto,
-        existing,
-      );
-    await this.validationService.validateUpdateRequest(
-      normalizedUpdateDto,
-      workspaceId,
-    );
+    await this.ensureCompletedSprintIsNotReassigned(existing, updateTaskDto, workspaceId);
+    const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
+    await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
 
     const task = await this.tasksRepository.update(
       id,
@@ -469,10 +320,7 @@ export class TasksService {
     userId: string,
   ): Promise<TaskDto> {
     this.assertMetadataUpdateOnly(updateTaskDto);
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const existing = this.isObjectIdString(taskId)
       ? await this.getTaskForWorkspace(taskId, workspaceId, {
           includeArchived: true,
@@ -486,25 +334,10 @@ export class TasksService {
       throw new BadRequestException('Archived task cannot be updated');
     }
 
-    await this.ensureCompletedSprintIsNotReassigned(
-      existing,
-      updateTaskDto,
-      workspaceId,
-    );
-    const normalizedUpdateDto =
-      await this.normalizerService.normalizeUpdateForWorkspaceType(
-        updateTaskDto,
-        existing,
-      );
-    await this.validationService.validateUpdateRequest(
-      normalizedUpdateDto,
-      workspaceId,
-    );
-    await this.ensureCanMoveFromCurrentSprint(
-      existing,
-      normalizedUpdateDto,
-      undefined,
-    );
+    await this.ensureCompletedSprintIsNotReassigned(existing, updateTaskDto, workspaceId);
+    const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
+    await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
+    await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, undefined);
 
     const task = await this.tasksRepository.updateInWorkspace(
       resolvedTaskId,
@@ -537,25 +370,10 @@ export class TasksService {
       throw new BadRequestException('Archived task cannot be updated');
     }
 
-    await this.ensureCompletedSprintIsNotReassigned(
-      existing,
-      updateTaskDto,
-      workspaceId,
-    );
-    const normalizedUpdateDto =
-      await this.normalizerService.normalizeUpdateForWorkspaceType(
-        updateTaskDto,
-        existing,
-      );
-    await this.validationService.validateUpdateRequest(
-      normalizedUpdateDto,
-      workspaceId,
-    );
-    await this.ensureCanMoveFromCurrentSprint(
-      existing,
-      normalizedUpdateDto,
-      userRole,
-    );
+    await this.ensureCompletedSprintIsNotReassigned(existing, updateTaskDto, workspaceId);
+    const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
+    await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
+    await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, userRole);
 
     const task = await this.tasksRepository.updateInWorkspace(
       taskId,
@@ -592,24 +410,14 @@ export class TasksService {
       return;
     }
 
-    const currentSprint =
-      await this.scrumService.findSprintById(currentSprintId);
+    const currentSprint = await this.scrumService.findSprintById(currentSprintId);
     if (currentSprint?.status === 'completed') {
-      throw new BadRequestException(
-        'Cannot move tasks out of a completed sprint without super_admin role',
-      );
+      throw new BadRequestException('Cannot move tasks out of a completed sprint without super_admin role');
     }
   }
 
-  async archiveInWorkspaceKey(
-    workspaceKey: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+  async archiveInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDto> {
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
 
     const task = await this.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
@@ -618,11 +426,7 @@ export class TasksService {
       return this.taskMapper.mapToDto(task);
     }
 
-    const archived = await this.tasksRepository.archiveInWorkspace(
-      taskId,
-      workspaceId,
-      userId,
-    );
+    const archived = await this.tasksRepository.archiveInWorkspace(taskId, workspaceId, userId);
     if (!archived) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
@@ -633,15 +437,8 @@ export class TasksService {
     return this.taskMapper.mapToDto(archived);
   }
 
-  async archiveTaskKeyInWorkspace(
-    workspaceKey: string,
-    taskKey: string,
-    userId: string,
-  ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+  async archiveTaskKeyInWorkspace(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const task = await this.getTaskForWorkspaceKey(taskKey, workspaceId, {
       includeArchived: true,
     });
@@ -649,11 +446,7 @@ export class TasksService {
       return this.taskMapper.mapToDto(task);
     }
 
-    const archived = await this.tasksRepository.archiveInWorkspace(
-      this.toId(task._id),
-      workspaceId,
-      userId,
-    );
+    const archived = await this.tasksRepository.archiveInWorkspace(this.toId(task._id), workspaceId, userId);
     if (!archived) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -663,11 +456,7 @@ export class TasksService {
     return this.taskMapper.mapToDto(archived);
   }
 
-  async archiveInWorkspaceId(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDto> {
+  async archiveInWorkspaceId(workspaceId: string, taskId: string, userId: string): Promise<TaskDto> {
     await this.getWorkspaceContextById(workspaceId, userId);
 
     const task = await this.getTaskForWorkspace(taskId, workspaceId, {
@@ -677,11 +466,7 @@ export class TasksService {
       return this.taskMapper.mapToDto(task);
     }
 
-    const archived = await this.tasksRepository.archiveInWorkspace(
-      taskId,
-      workspaceId,
-      userId,
-    );
+    const archived = await this.tasksRepository.archiveInWorkspace(taskId, workspaceId, userId);
     if (!archived) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
@@ -691,24 +476,14 @@ export class TasksService {
     return this.taskMapper.mapToDto(archived);
   }
 
-  async restoreInWorkspaceKey(
-    workspaceKey: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+  async restoreInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDto> {
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
 
     await this.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
     });
 
-    const restored = await this.tasksRepository.restoreInWorkspace(
-      taskId,
-      workspaceId,
-    );
+    const restored = await this.tasksRepository.restoreInWorkspace(taskId, workspaceId);
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
     }
@@ -719,27 +494,15 @@ export class TasksService {
     return this.taskMapper.mapToDto(restored);
   }
 
-  async restoreTaskKeyInWorkspace(
-    workspaceKey: string,
-    taskKey: string,
-    userId: string,
-  ): Promise<TaskDto> {
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+  async restoreTaskKeyInWorkspace(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const task = await this.getTaskForWorkspaceKey(taskKey, workspaceId, {
       includeArchived: true,
     });
 
-    const restored = await this.tasksRepository.restoreInWorkspace(
-      this.toId(task._id),
-      workspaceId,
-    );
+    const restored = await this.tasksRepository.restoreInWorkspace(this.toId(task._id), workspaceId);
     if (!restored) {
-      throw new NotFoundException(
-        `Archived task with key ${taskKey} not found`,
-      );
+      throw new NotFoundException(`Archived task with key ${taskKey} not found`);
     }
 
     this.taskDomainEventPublisher.publishRestored(restored, userId);
@@ -747,21 +510,14 @@ export class TasksService {
     return this.taskMapper.mapToDto(restored);
   }
 
-  async restoreInWorkspaceId(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDto> {
+  async restoreInWorkspaceId(workspaceId: string, taskId: string, userId: string): Promise<TaskDto> {
     await this.getWorkspaceContextById(workspaceId, userId);
 
     await this.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
     });
 
-    const restored = await this.tasksRepository.restoreInWorkspace(
-      taskId,
-      workspaceId,
-    );
+    const restored = await this.tasksRepository.restoreInWorkspace(taskId, workspaceId);
     if (!restored) {
       throw new NotFoundException(`Archived task with ID ${taskId} not found`);
     }
@@ -778,21 +534,11 @@ export class TasksService {
     confirmText?: string,
   ): Promise<TaskDto> {
     if (confirmText !== 'delete') {
-      throw new BadRequestException(
-        'Type "delete" to permanently delete this task',
-      );
+      throw new BadRequestException('Type "delete" to permanently delete this task');
     }
 
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
-    return this.deletePermanentlyInWorkspaceId(
-      workspaceId,
-      taskId,
-      userId,
-      confirmText,
-    );
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
+    return this.deletePermanentlyInWorkspaceId(workspaceId, taskId, userId, confirmText);
   }
 
   async deleteTaskKeyPermanentlyInWorkspace(
@@ -802,24 +548,15 @@ export class TasksService {
     confirmText?: string,
   ): Promise<TaskDto> {
     if (confirmText !== 'delete') {
-      throw new BadRequestException(
-        'Type "delete" to permanently delete this task',
-      );
+      throw new BadRequestException('Type "delete" to permanently delete this task');
     }
 
-    const { workspaceId } = await this.getWorkspaceContext(
-      workspaceKey,
-      userId,
-    );
+    const { workspaceId } = await this.getWorkspaceContext(workspaceKey, userId);
     const task = await this.getTaskForWorkspaceKey(taskKey, workspaceId, {
       includeArchived: true,
     });
 
-    const deleted = await this.tasksRepository.softDeleteInWorkspace(
-      this.toId(task._id),
-      workspaceId,
-      userId,
-    );
+    const deleted = await this.tasksRepository.softDeleteInWorkspace(this.toId(task._id), workspaceId, userId);
     if (!deleted) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -836,9 +573,7 @@ export class TasksService {
     confirmText?: string,
   ): Promise<TaskDto> {
     if (confirmText !== 'delete') {
-      throw new BadRequestException(
-        'Type "delete" to permanently delete this task',
-      );
+      throw new BadRequestException('Type "delete" to permanently delete this task');
     }
 
     await this.getWorkspaceContextById(workspaceId, userId);
@@ -847,19 +582,12 @@ export class TasksService {
       includeArchived: true,
     });
 
-    const deleted = await this.tasksRepository.softDeleteInWorkspace(
-      taskId,
-      workspaceId,
-      userId,
-    );
+    const deleted = await this.tasksRepository.softDeleteInWorkspace(taskId, workspaceId, userId);
     if (!deleted) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    await this.taskActivitiesService.recordTaskPermanentlyDeleted(
-      deleted,
-      userId,
-    );
+    await this.taskActivitiesService.recordTaskPermanentlyDeleted(deleted, userId);
     this.taskDomainEventPublisher.publishDeleted(deleted, userId);
 
     return this.taskMapper.mapToDto(deleted);
@@ -883,11 +611,7 @@ export class TasksService {
     const endBuffer = new Date(endOfMonth);
     endBuffer.setDate(endBuffer.getDate() + 7);
 
-    const tasks = await this.tasksRepository.findCalendarByWorkspace(
-      workspaceId,
-      startBuffer,
-      endBuffer,
-    );
+    const tasks = await this.tasksRepository.findCalendarByWorkspace(workspaceId, startBuffer, endBuffer);
     return { tasks: this.taskMapper.mapToDtos(tasks) };
   }
 
@@ -903,19 +627,14 @@ export class TasksService {
   }> {
     await this.getWorkspaceContextById(workspaceId, userId);
 
-    const allTasks =
-      await this.tasksRepository.findTimelineByWorkspace(workspaceId);
+    const allTasks = await this.tasksRepository.findTimelineByWorkspace(workspaceId);
     const dtos = this.taskMapper.mapToDtos(allTasks);
 
-    const epics = dtos.filter((t) => t.type === 'epic');
-    const epicIdSet = new Set(epics.map((e) => e.id));
+    const epics = dtos.filter(t => t.type === 'epic');
+    const epicIdSet = new Set(epics.map(e => e.id));
 
-    const children = dtos.filter(
-      (t) => (t as any).epicId && epicIdSet.has((t as any).epicId),
-    );
-    const standalones = dtos.filter(
-      (t) => t.type !== 'epic' && !(t as any).epicId,
-    );
+    const children = dtos.filter(t => (t as any).epicId && epicIdSet.has((t as any).epicId));
+    const standalones = dtos.filter(t => t.type !== 'epic' && !(t as any).epicId);
 
     return { epics, children, standalones };
   }
@@ -924,10 +643,29 @@ export class TasksService {
     const workspaceId = workspace._id.toString();
     const taskNumber = await this.taskCounterService.nextSequence(workspaceId);
 
-    return this.taskKeyService.create(
-      workspace.key || workspace.name,
-      taskNumber,
-    );
+    return this.taskKeyService.create(workspace.key || workspace.name, taskNumber);
+  }
+
+  private async createInitialRankForTask(
+    workspaceType: string | undefined,
+    workspaceId: string,
+    dto: CreateTaskDto,
+  ): Promise<string> {
+    const scope =
+      workspaceType === 'scrum'
+        ? { workspaceId, sprintId: dto.sprintId ?? null }
+        : { workspaceId, columnId: dto.columnId };
+    const tasks = await this.tasksRepository.findTasksInRankScope(scope);
+    const lastTask = tasks
+      .filter(task => Boolean(task.rank))
+      .sort((left, right) => {
+        const rankDiff = compareRanks(left.rank, right.rank);
+        if (rankDiff !== 0) return rankDiff;
+        return this.toTimestamp(left.createdAt) - this.toTimestamp(right.createdAt);
+      })
+      .at(-1);
+
+    return generateRankBetween(undefined, lastTask?.rank);
   }
 
   private getRequiredWorkspaceId(dto: CreateTaskDto): string {
@@ -942,12 +680,42 @@ export class TasksService {
     return value?._id?.toString?.() ?? value?.toString?.() ?? '';
   }
 
+  private async applyArchivedColumnNames(workspaceId: string, tasks: TaskDto[]): Promise<TaskDto[]> {
+    if (tasks.length === 0) {
+      return tasks;
+    }
+
+    const boards = await this.kanbanService.findByWorkspaceId(workspaceId);
+    const columnsById = new Map<string, BoardColumn>();
+
+    boards.forEach(board => {
+      (board.columns || []).forEach(column => {
+        columnsById.set(column.id, column);
+      });
+    });
+
+    return tasks.map(task => {
+      const column = task.columnId ? columnsById.get(task.columnId) : undefined;
+
+      return column
+        ? {
+            ...task,
+            status: column.name,
+          }
+        : task;
+    });
+  }
+
+  private toTimestamp(value: unknown): number {
+    const timestamp = new Date(value as string | Date).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
   private async getWorkspaceContext(
     workspaceKey: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace =
-      await this.validationService.getWorkspaceById(workspaceKey);
+    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
@@ -958,8 +726,7 @@ export class TasksService {
     workspaceId: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace =
-      await this.validationService.getWorkspaceById(workspaceId);
+    const workspace = await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
     return { workspace, workspaceId };
@@ -972,11 +739,7 @@ export class TasksService {
   ): Promise<any> {
     this.validationService.validateObjectId(taskId, 'Task');
 
-    const task = await this.tasksRepository.findByIdInWorkspace(
-      taskId,
-      workspaceId,
-      options,
-    );
+    const task = await this.tasksRepository.findByIdInWorkspace(taskId, workspaceId, options);
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
@@ -989,11 +752,7 @@ export class TasksService {
     workspaceId: string,
     options: { includeArchived?: boolean } = {},
   ): Promise<any> {
-    const task = await this.tasksRepository.findByWorkspaceAndKey(
-      workspaceId,
-      taskKey,
-      options,
-    );
+    const task = await this.tasksRepository.findByWorkspaceAndKey(workspaceId, taskKey, options);
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -1007,9 +766,7 @@ export class TasksService {
 
   private ensureScrumWorkspace(workspace: any): void {
     if (workspace.type !== 'scrum') {
-      throw new BadRequestException(
-        'This endpoint is only available for Scrum workspaces',
-      );
+      throw new BadRequestException('This endpoint is only available for Scrum workspaces');
     }
   }
 
@@ -1022,23 +779,16 @@ export class TasksService {
       return;
     }
 
-    const currentSprint = await this.scrumService.findByIdInWorkspace(
-      workspaceId,
-      this.toId(existingTask.sprintId),
-    );
+    const currentSprint = await this.scrumService.findByIdInWorkspace(workspaceId, this.toId(existingTask.sprintId));
 
     if (currentSprint.status === 'completed') {
-      throw new BadRequestException(
-        'Task in a completed sprint cannot be reassigned to another sprint',
-      );
+      throw new BadRequestException('Task in a completed sprint cannot be reassigned to another sprint');
     }
   }
 
   private assertMetadataUpdateOnly(updateTaskDto: UpdateTaskDto): void {
     const moveFields = ['columnId', 'status', 'sprintId'] as const;
-    const requestedMoveFields = moveFields.filter((field) =>
-      Object.prototype.hasOwnProperty.call(updateTaskDto, field),
-    );
+    const requestedMoveFields = moveFields.filter(field => Object.prototype.hasOwnProperty.call(updateTaskDto, field));
 
     if (requestedMoveFields.length > 0) {
       throw new BadRequestException(
@@ -1070,9 +820,7 @@ export class TasksService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Failed to create task assigned notification: ${message}`,
-      );
+      this.logger.warn(`Failed to create task assigned notification: ${message}`);
     }
   }
 }

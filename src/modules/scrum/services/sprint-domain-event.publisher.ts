@@ -2,8 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import {
+  SprintCompletedEvent,
   SprintCreatedEvent,
+  SprintDeletedEvent,
+  SprintStartedEvent,
   SprintSummaryPayload,
+  SprintUpdatedEvent,
 } from '../../../shared/events/domain-events/sprint';
 import { SprintDocument } from '../schemas/sprint.schema';
 
@@ -25,13 +29,60 @@ export class SprintDomainEventPublisher {
     );
   }
 
+  publishUpdated(sprint: SprintDocument | any, actorId?: string): void {
+    this.emit(
+      new SprintUpdatedEvent({
+        workspaceId: this.toId(sprint.workspaceId),
+        sprintId: this.toId(sprint._id ?? sprint.id),
+        actorId,
+        version: this.toVersion(sprint.version ?? sprint.__v),
+        sprint: this.toSprintSummary(sprint),
+      }),
+    );
+  }
+
+  publishDeleted(sprint: SprintDocument | any, actorId?: string): void {
+    this.emit(
+      new SprintDeletedEvent({
+        workspaceId: this.toId(sprint.workspaceId),
+        sprintId: this.toId(sprint._id ?? sprint.id),
+        actorId,
+        version: this.toVersion(sprint.version ?? sprint.__v),
+        sprint: this.toSprintSummary(sprint),
+      }),
+    );
+  }
+
+  publishStarted(sprint: SprintDocument | any, actorId?: string): void {
+    this.emit(
+      new SprintStartedEvent({
+        workspaceId: this.toId(sprint.workspaceId),
+        sprintId: this.toId(sprint._id ?? sprint.id),
+        actorId,
+        version: this.toVersion(sprint.version ?? sprint.__v),
+        sprint: this.toSprintSummary(sprint),
+      }),
+    );
+  }
+
+  publishCompleted(sprint: SprintDocument | any, actorId?: string, incompleteTasksMovedTo?: string | null): void {
+    this.emit(
+      new SprintCompletedEvent({
+        workspaceId: this.toId(sprint.workspaceId),
+        sprintId: this.toId(sprint._id ?? sprint.id),
+        actorId,
+        version: this.toVersion(sprint.version ?? sprint.__v),
+        sprint: this.toSprintSummary(sprint),
+        incompleteTasksMovedTo: incompleteTasksMovedTo ?? null,
+      }),
+    );
+  }
+
   private emit(event: { type: string }): void {
     try {
       this.eventEmitter.emit(event.type, event);
     } catch (error) {
-      this.logger.warn(
-        `Failed to publish sprint domain event. type=${event.type}, reason=${(error as Error).message}`,
-      );
+      this.logger.warn(`Failed to publish sprint domain event. type=${event.type}, reason=${(error as Error).message}`);
     }
   }
 

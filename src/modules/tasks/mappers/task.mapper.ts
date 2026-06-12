@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TaskDocument } from '../schemas/task.schema';
 import { TaskDto, TaskUserSummaryDto } from '../dtos/responses/task.dto';
-import {
-  BoardSummaryDto,
-  SprintSummaryDto,
-  TaskDetailDto,
-} from '../dtos/responses/task-detail.dto';
+import { BoardSummaryDto, SprintSummaryDto, TaskDetailDto } from '../dtos/responses/task-detail.dto';
 
 @Injectable()
 export class TaskMapper {
@@ -14,8 +10,7 @@ export class TaskMapper {
       return task;
     }
 
-    const plainTask =
-      typeof task.toObject === 'function' ? task.toObject() : task;
+    const plainTask = typeof task.toObject === 'function' ? task.toObject() : task;
 
     return {
       id: this.toId(plainTask._id || plainTask.id),
@@ -52,12 +47,11 @@ export class TaskMapper {
   }
 
   mapToDtos(tasks: Array<TaskDocument | any>): TaskDto[] {
-    return tasks.map((task) => this.mapToDto(task));
+    return tasks.map(task => this.mapToDto(task));
   }
 
   mapToDetailDto(task: TaskDocument | any): TaskDetailDto {
-    const plainTask =
-      typeof task?.toObject === 'function' ? task.toObject() : task;
+    const plainTask = typeof task?.toObject === 'function' ? task.toObject() : task;
 
     return {
       id: this.toId(plainTask._id || plainTask.id),
@@ -142,16 +136,14 @@ export class TaskMapper {
       updatedAt: value.updatedAt,
     };
   }
-  private mapLabelSummaries(
-    values: any,
-  ): Array<{ id: string; name: string }> | undefined {
+  private mapLabelSummaries(values: any): Array<{ id: string; name: string }> | undefined {
     if (!Array.isArray(values) || values.length === 0) {
       return undefined;
     }
 
     return values
-      .filter((value) => value && value._id)
-      .map((value) => ({
+      .filter(value => value && value._id)
+      .map(value => ({
         id: this.toId(value),
         name: value.name,
       }));

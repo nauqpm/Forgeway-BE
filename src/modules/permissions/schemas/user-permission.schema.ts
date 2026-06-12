@@ -15,15 +15,15 @@ export type UserPermissionDocument = UserPermission & Document;
           ret.permissionId = {
             ...ret.permissionId,
             id: ret.permissionId._id.toString(),
-            _id: ret.permissionId._id.toString()
+            _id: ret.permissionId._id.toString(),
           };
         } else {
           ret.permissionId = ret.permissionId.toString();
         }
       }
       return ret;
-    }
-  }
+    },
+  },
 })
 export class UserPermission {
   @Prop({ type: Types.ObjectId, required: true, ref: 'User' })

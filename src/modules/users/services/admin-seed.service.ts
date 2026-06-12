@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersRepository } from '../repositories/users.repository';
@@ -23,9 +19,7 @@ export class AdminSeedService implements OnModuleInit {
     const adminFullName = this.configService.get<string>('ADMIN_FULL_NAME');
 
     if (!adminEmail || !adminPassword) {
-      this.logger.warn(
-        'ADMIN_EMAIL or ADMIN_PASSWORD not configured in .env. Skipping admin seed.',
-      );
+      this.logger.warn('ADMIN_EMAIL or ADMIN_PASSWORD not configured in .env. Skipping admin seed.');
       return;
     }
 
@@ -36,7 +30,7 @@ export class AdminSeedService implements OnModuleInit {
       } else {
         this.logger.warn(
           `User ${adminEmail} exists but has role "${existing.role}". ` +
-          `To promote to super_admin, update the role manually in the database.`,
+            `To promote to super_admin, update the role manually in the database.`,
         );
       }
       return;
@@ -54,9 +48,7 @@ export class AdminSeedService implements OnModuleInit {
         status: 'active',
       });
 
-      this.logger.log(
-        `Admin account created successfully: ${adminEmail} (role: ${GLOBAL_ROLES.SUPER_ADMIN})`,
-      );
+      this.logger.log(`Admin account created successfully: ${adminEmail} (role: ${GLOBAL_ROLES.SUPER_ADMIN})`);
     } catch (error) {
       this.logger.error(`Failed to create admin account: ${error}`);
     }

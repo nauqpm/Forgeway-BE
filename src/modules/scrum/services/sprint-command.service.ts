@@ -3,18 +3,12 @@
 // - cập nhật sprint
 // - xóa sprint
 // - xóa sprint theo workspace.
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { CreateSprintDto, UpdateSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
-import { MongoTransactionService } from './mongo-transaction.service';
 import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 
 @Injectable()
@@ -22,17 +16,12 @@ export class SprintCommandService {
   private readonly logger = new Logger(SprintCommandService.name);
 
   constructor(
-    private readonly mongoTransactionService: MongoTransactionService,
     @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
     private readonly sprintDomainEventPublisher: SprintDomainEventPublisher,
   ) {}
 
-  async createSprint(
-    workspaceId: string,
-    dto: CreateSprintDto,
-    actorId?: string,
-  ): Promise<SprintDocument> {
+  async createSprint(workspaceId: string, dto: CreateSprintDto, actorId?: string): Promise<SprintDocument> {
     this.logger.log(`Creating Sprint for Workspace: ${workspaceId}`);
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
@@ -56,11 +45,7 @@ export class SprintCommandService {
     return createdSprint;
   }
 
-  async updateSprint(
-    workspaceId: string,
-    sprintId: string,
-    dto: UpdateSprintDto,
-  ): Promise<SprintDocument> {
+  async updateSprint(workspaceId: string, sprintId: string, dto: UpdateSprintDto): Promise<SprintDocument> {
     const timestamp = new Date().toISOString();
 
     try {
@@ -86,16 +71,11 @@ export class SprintCommandService {
         throw new BadRequestException('Cannot edit completed sprint');
       }
 
-      if (
-        sprint.status !== 'planning' &&
-        (dto.startDate !== undefined || dto.endDate !== undefined)
-      ) {
+      if (sprint.status !== 'planning' && (dto.startDate !== undefined || dto.endDate !== undefined)) {
         this.logger.error(
           `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: Cannot change dates of active or completed sprint`,
         );
-        throw new BadRequestException(
-          'Cannot change dates of active or completed sprint',
-        );
+        throw new BadRequestException('Cannot change dates of active or completed sprint');
       }
 
       const oldValues = {
@@ -118,11 +98,7 @@ export class SprintCommandService {
         if (dto.endDate !== undefined) nextEndDate = new Date(dto.endDate);
       }
 
-      if (
-        nextStartDate &&
-        nextEndDate &&
-        new Date(nextEndDate).getTime() <= new Date(nextStartDate).getTime()
-      ) {
+      if (nextStartDate && nextEndDate && new Date(nextEndDate).getTime() <= new Date(nextStartDate).getTime()) {
         throw new BadRequestException('EndDate must be greater than StartDate');
       }
 
@@ -155,63 +131,50 @@ export class SprintCommandService {
 
       return updatedSprint;
     } catch (error) {
-      if (
-        !(error instanceof NotFoundException) &&
-        !(error instanceof BadRequestException)
-      ) {
-        this.logger.error(
-          `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: ${error}`,
-        );
+      if (!(error instanceof NotFoundException) && !(error instanceof BadRequestException)) {
+        this.logger.error(`[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: ${error}`);
       }
       throw error;
     }
   }
 
   async deleteSprint(workspaceId: string, sprintId: string): Promise<void> {
-    await this.mongoTransactionService.withTransaction(async (session) => {
-      const workspaceObjectId = new Types.ObjectId(workspaceId);
-      const sprintObjectId = new Types.ObjectId(sprintId);
+    const workspaceObjectId = new Types.ObjectId(workspaceId);
+    const sprintObjectId = new Types.ObjectId(sprintId);
 
-      const sprint = await this.mongoTransactionService
-        .withSession(
-          this.sprintModel.findOne({
-            _id: sprintObjectId,
-            workspaceId: workspaceObjectId,
-            deletedAt: null,
-          }),
-          session,
-        )
-        .exec();
+    const sprint = await this.sprintModel
+      .findOne({
+        _id: sprintObjectId,
+        workspaceId: workspaceObjectId,
+        deletedAt: null,
+      })
+      .exec();
 
-      if (!sprint) {
-        throw new NotFoundException('Sprint not exist');
-      }
+    if (!sprint) {
+      throw new NotFoundException('Sprint not exist');
+    }
 
-      if (sprint.status !== 'planning') {
-        throw new BadRequestException('Only planning sprints can be deleted');
-      }
+    if (sprint.status !== 'planning') {
+      throw new BadRequestException('Only planning sprints can be deleted');
+    }
 
-      await this.taskModel
-        .updateMany(
-          {
-            workspaceId: workspaceObjectId,
-            sprintId: sprint._id,
+    await this.taskModel
+      .updateMany(
+        {
+          workspaceId: workspaceObjectId,
+          sprintId: sprint._id,
+        },
+        {
+          $set: {
+            sprintId: null,
+            columnId: 'todo',
+            status: 'todo',
           },
-          {
-            $set: {
-              sprintId: null,
-              columnId: 'todo',
-              status: 'todo',
-            },
-          },
-          { session: session ?? undefined },
-        )
-        .exec();
+        },
+      )
+      .exec();
 
-      await this.sprintModel
-        .deleteOne({ _id: sprint._id }, { session: session ?? undefined })
-        .exec();
-    });
+    await this.sprintModel.deleteOne({ _id: sprint._id }).exec();
   }
 
   async deleteByWorkspace(workspaceId: string): Promise<void> {
