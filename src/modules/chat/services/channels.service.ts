@@ -365,4 +365,27 @@ export class ChannelsService {
 
     return false;
   }
+
+  async getChannelMemberIds(channelId: string): Promise<string[]> {
+    if (!Types.ObjectId.isValid(channelId)) return [];
+    
+    const channel = await this.findById(channelId);
+    if (!channel) return [];
+
+    if (channel.type === 'general' || channel.type === 'announcement') {
+      const allUsers = await this.usersService.getAllUsers();
+      return allUsers.map((u) => u._id.toString());
+    }
+
+    if (channel.type === 'workspace' && channel.workspaceId) {
+      const members = await this.workspaceMemberService.getMembers(channel.workspaceId.toString());
+      return members.map((m) => m.userId.toString());
+    }
+
+    if (channel.type === 'dm') {
+      return channel.members.map((m) => m.toString());
+    }
+
+    return [];
+  }
 }

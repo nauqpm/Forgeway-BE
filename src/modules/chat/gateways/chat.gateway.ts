@@ -50,14 +50,8 @@ export class ChatGateway implements OnGatewayConnection {
       // Join personal room
       await client.join(RoomBuilder.user(user.userId));
 
-      // Auto-join all accessible channels to receive real-time unread updates
-      const channels = await this.channelsService.findByUser(user.userId);
-      for (const channel of channels) {
-        await client.join(RoomBuilder.channel(channel._id.toString()));
-      }
-
       this.logger.log(
-        `Chat client connected: ${client.id} | User: ${userIdentifier} | Joined ${channels.length} channels`,
+        `Chat client connected: ${client.id} | User: ${userIdentifier}`,
       );
     } catch (error) {
       this.logger.warn(`Rejected chat connection ${client.id}: ${(error as Error).message}`);
@@ -93,7 +87,6 @@ export class ChatGateway implements OnGatewayConnection {
     await client.leave(RoomBuilder.channel(body.channelId));
   }
 
-  // 5.2 Text Chat Events
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_SEND)
   @SubscribeMessage('chat.send')
   async handleSend(
@@ -123,6 +116,24 @@ export class ChatGateway implements OnGatewayConnection {
     };
 
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT, envelope);
+
+    // Update unread count to all other channel members
+    try {
+      const memberIds = await this.channelsService.getChannelMemberIds(payload.channelId);
+      for (const memberId of memberIds) {
+        if (memberId === userId) continue;
+
+        const unreadCount = await this.messagesService.countUnread(payload.channelId, memberId);
+        this.server.to(RoomBuilder.user(memberId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE || 'chat.unread_update', {
+          channelId: payload.channelId,
+          unreadCount,
+          lastMessage: message,
+        });
+      }
+    } catch (err) {
+      this.logger.error(`Failed to broadcast unread updates: ${err.message}`, err.stack);
+    }
+
     return { ok: true };
   }
 
