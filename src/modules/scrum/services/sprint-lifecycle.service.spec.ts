@@ -3,7 +3,6 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SprintLifecycleService } from './sprint-lifecycle.service';
-import { MongoTransactionService } from './mongo-transaction.service';
 import { BoardStatusService } from './board-status.service';
 import { Sprint } from '../schemas/sprint.schema';
 import { Task } from '../../tasks/schemas/task.schema';
@@ -13,8 +12,6 @@ describe('SprintLifecycleService', () => {
   let sprintModel: any;
   let taskModel: any;
   let boardStatusService: jest.Mocked<BoardStatusService>;
-
-  const mockSession = {};
 
   const mockQuery = (val: any) => ({
     exec: jest.fn().mockResolvedValue(val),
@@ -26,13 +23,6 @@ describe('SprintLifecycleService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SprintLifecycleService,
-        {
-          provide: MongoTransactionService,
-          useValue: {
-            withTransaction: jest.fn().mockImplementation((fn) => fn(mockSession)),
-            withSession: jest.fn().mockImplementation((query) => query),
-          },
-        },
         {
           provide: BoardStatusService,
           useValue: {
@@ -74,9 +64,7 @@ describe('SprintLifecycleService', () => {
     it('throws NotFoundException when sprint does not exist', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
 
-      await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when sprint status is not planning', async () => {
@@ -86,9 +74,7 @@ describe('SprintLifecycleService', () => {
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
-      await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when there is already an active sprint in the workspace', async () => {
@@ -100,9 +86,7 @@ describe('SprintLifecycleService', () => {
         .mockReturnValueOnce(mockQuery(mockSprint)) // first call for target sprint
         .mockReturnValueOnce(mockQuery({ _id: new Types.ObjectId(), status: 'active' })); // second call for existing active sprint
 
-      await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('successfully starts the sprint', async () => {
@@ -129,7 +113,7 @@ describe('SprintLifecycleService', () => {
       expect(mockSprint.startDate).toBeInstanceOf(Date);
       expect(mockSprint.endDate).toBeInstanceOf(Date);
       expect(mockSprint.startedAt).toBeInstanceOf(Date);
-      expect(saveSpy).toHaveBeenCalledWith({ session: mockSession });
+      expect(saveSpy).toHaveBeenCalledWith();
       expect(result).toBeDefined();
     });
   });
@@ -141,9 +125,9 @@ describe('SprintLifecycleService', () => {
     it('throws NotFoundException when sprint does not exist', async () => {
       sprintModel.findOne.mockReturnValue(mockQuery(null));
 
-      await expect(
-        service.completeSprint(workspaceId, sprintId, { moveToSprintId: undefined }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.completeSprint(workspaceId, sprintId, { moveToSprintId: undefined })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws BadRequestException when sprint is not active', async () => {
@@ -153,9 +137,9 @@ describe('SprintLifecycleService', () => {
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
-      await expect(
-        service.completeSprint(workspaceId, sprintId, { moveToSprintId: undefined }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.completeSprint(workspaceId, sprintId, { moveToSprintId: undefined })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws BadRequestException when moveToSprintId does not exist or is not in planning', async () => {
@@ -169,9 +153,9 @@ describe('SprintLifecycleService', () => {
         .mockReturnValueOnce(mockQuery(mockSprint)) // target sprint
         .mockReturnValueOnce(mockQuery(null)); // invalid target sprint
 
-      await expect(
-        service.completeSprint(workspaceId, sprintId, { moveToSprintId }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.completeSprint(workspaceId, sprintId, { moveToSprintId })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('completes sprint and moves incomplete tasks back to backlog (moveToSprintId is undefined)', async () => {
@@ -210,9 +194,8 @@ describe('SprintLifecycleService', () => {
             status: 'todo',
           },
         },
-        { session: mockSession },
       );
-      expect(saveSpy).toHaveBeenCalledWith({ session: mockSession });
+      expect(saveSpy).toHaveBeenCalledWith();
       expect(result.incompleteTasksMovedTo).toBeNull();
     });
 
@@ -258,7 +241,6 @@ describe('SprintLifecycleService', () => {
             sprintId: new Types.ObjectId(moveToSprintId),
           },
         },
-        { session: mockSession },
       );
       expect(result.incompleteTasksMovedTo).toEqual(new Types.ObjectId(moveToSprintId));
     });

@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpStatus,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, HttpStatus, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -29,9 +22,7 @@ import { TaskActivitiesService } from '../services/task-activities.service';
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces/:key/board/:taskId/activities')
 export class TaskActivitiesController {
-  constructor(
-    private readonly taskActivitiesService: TaskActivitiesService,
-  ) {}
+  constructor(private readonly taskActivitiesService: TaskActivitiesService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
@@ -46,11 +37,6 @@ export class TaskActivitiesController {
     @Query() filterDto: FilterTaskActivityDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<TaskActivityListDto> {
-    return this.taskActivitiesService.findByTaskInWorkspaceKey(
-      key,
-      taskId,
-      user.userId,
-      filterDto,
-    );
+    return this.taskActivitiesService.findByTaskInWorkspaceKey(key, taskId, user.userId, filterDto);
   }
 }

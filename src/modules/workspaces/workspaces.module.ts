@@ -56,4 +56,4 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
   ],
   exports: [WorkspacesService, WorkspaceMemberService, ForYouService, InviteService],
 })
-export class WorkspacesModule { }
+export class WorkspacesModule {}

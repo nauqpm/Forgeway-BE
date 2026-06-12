@@ -25,4 +25,4 @@ import { RealtimeModule } from '../realtime/realtime.module';
   providers: [KanbanService, WorkspaceRoleGuard],
   exports: [KanbanService],
 })
-export class KanbanModule { }
+export class KanbanModule {}

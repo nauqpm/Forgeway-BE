@@ -30,7 +30,7 @@ export class PermissionsService {
   constructor(
     @InjectModel(Permission.name) private permissionModel: Model<PermissionDocument>,
     @InjectModel(UserPermission.name) private userPermissionModel: Model<UserPermissionDocument>,
-  ) { }
+  ) {}
 
   async findAll(): Promise<PermissionDocument[]> {
     return this.permissionModel.find().exec();
@@ -57,7 +57,7 @@ export class PermissionsService {
         _id: up.permissionId._id,
         resource: up.permissionId.resource,
         action: up.permissionId.action,
-        source: 'direct' as const
+        source: 'direct' as const,
       }));
 
       console.log('Combined permissions:', allPermissions);
@@ -73,8 +73,8 @@ export class PermissionsService {
       const allPermissions = await this.getUserPermissions(userId);
 
       // Check if any permission matches the required resource and action
-      const hasPermission = allPermissions.some(permission =>
-        permission.resource === resource && permission.action === action
+      const hasPermission = allPermissions.some(
+        permission => permission.resource === resource && permission.action === action,
       );
 
       console.log(`Checking permission for ${resource}:${action} - Result: ${hasPermission}`);
@@ -101,12 +101,17 @@ export class PermissionsService {
       });
 
       console.log('Updating permissions for user:', userId.toString());
-      console.log('New permission IDs:', permissionIds.map(id => id.toString()));
+      console.log(
+        'New permission IDs:',
+        permissionIds.map(id => id.toString()),
+      );
 
       // Validate that all permission IDs exist
-      const existingPermissions = await this.permissionModel.find({
-        _id: { $in: permissionIds }
-      }).exec();
+      const existingPermissions = await this.permissionModel
+        .find({
+          _id: { $in: permissionIds },
+        })
+        .exec();
 
       if (existingPermissions.length !== permissionIds.length) {
         throw new Error('Some permission IDs do not exist');
@@ -127,10 +132,7 @@ export class PermissionsService {
       }
 
       // Return updated permissions with populated data
-      const updatedPermissions = await this.userPermissionModel
-        .find({ userId })
-        .populate('permissionId')
-        .exec();
+      const updatedPermissions = await this.userPermissionModel.find({ userId }).populate('permissionId').exec();
 
       console.log('Updated permissions:', updatedPermissions);
       return updatedPermissions;

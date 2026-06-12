@@ -19,7 +19,7 @@ export class LabelMapper {
   }
 
   mapToDtos(labels: Array<LabelDocument | any>): LabelDto[] {
-    return labels.map((label) => this.mapToDto(label));
+    return labels.map(label => this.mapToDto(label));
   }
 
   private toId(value: any): string {

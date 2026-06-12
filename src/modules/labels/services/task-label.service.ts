@@ -25,12 +25,7 @@ export class TaskLabelService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async setTaskLabels(
-    workspaceId: string,
-    taskId: string,
-    dto: SetTaskLabelsDto,
-    userId: string,
-  ): Promise<TaskDto> {
+  async setTaskLabels(workspaceId: string, taskId: string, dto: SetTaskLabelsDto, userId: string): Promise<TaskDto> {
     const task = await this.getWritableTask(workspaceId, taskId, userId);
     const labelIds = [...new Set(dto.labelIds)];
 
@@ -40,7 +35,7 @@ export class TaskLabelService {
     }
 
     const beforeLabelIds = this.toIdList(task.labelIds || []);
-    task.labelIds = labelIds.map((labelId) => new Types.ObjectId(labelId));
+    task.labelIds = labelIds.map(labelId => new Types.ObjectId(labelId));
     task.version = (task.version ?? 0) + 1;
     await task.save();
 
@@ -63,12 +58,7 @@ export class TaskLabelService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    await this.taskActivitiesService.recordTaskLabelsChanged(
-      updatedTask,
-      userId,
-      beforeLabelIds,
-      labelIds,
-    );
+    await this.taskActivitiesService.recordTaskLabelsChanged(updatedTask, userId, beforeLabelIds, labelIds);
 
     const taskDto = this.taskMapper.mapToDto(updatedTask);
     this.publishLabelsUpdatedEvent(updatedTask, userId, labelIds, taskDto);
@@ -76,12 +66,7 @@ export class TaskLabelService {
     return taskDto;
   }
 
-  private publishLabelsUpdatedEvent(
-    task: TaskDocument,
-    actorId: string,
-    labelIds: string[],
-    taskDto: TaskDto,
-  ): void {
+  private publishLabelsUpdatedEvent(task: TaskDocument, actorId: string, labelIds: string[], taskDto: TaskDto): void {
     const event = new TaskLabelsUpdatedEvent({
       workspaceId: this.toId(task.workspaceId),
       taskId: task._id.toString(),
@@ -94,11 +79,7 @@ export class TaskLabelService {
 
     this.eventEmitter.emit(event.type, event);
   }
-  private async getWritableTask(
-    workspaceId: string,
-    taskId: string,
-    userId: string,
-  ): Promise<TaskDocument> {
+  private async getWritableTask(workspaceId: string, taskId: string, userId: string): Promise<TaskDocument> {
     this.validateObjectId(workspaceId, 'Workspace');
     this.validateObjectId(taskId, 'Task');
     await this.workspacesService.findById(workspaceId);

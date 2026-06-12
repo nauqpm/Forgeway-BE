@@ -1,10 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workflow, WorkflowDocument } from '../schemas/workflow.schema';
@@ -15,9 +9,7 @@ import { UpdateWorkflowDto } from '../dtos/update-workflow.dto';
 export class WorkflowsService implements OnModuleInit {
   private readonly logger = new Logger(WorkflowsService.name);
 
-  constructor(
-    @InjectModel(Workflow.name) private readonly workflowModel: Model<WorkflowDocument>,
-  ) {}
+  constructor(@InjectModel(Workflow.name) private readonly workflowModel: Model<WorkflowDocument>) {}
 
   async onModuleInit(): Promise<void> {
     await this.dropLegacyProjectIndex();
@@ -29,7 +21,7 @@ export class WorkflowsService implements OnModuleInit {
       throw new ConflictException('Workflow already exists for this Workspace');
     }
 
-    const statusesWithDefaults = dto.statuses.map((status) => ({
+    const statusesWithDefaults = dto.statuses.map(status => ({
       ...status,
       color: status.color || '#6b7280',
     }));
@@ -67,7 +59,7 @@ export class WorkflowsService implements OnModuleInit {
     if (dto.name !== undefined) workflow.name = dto.name;
     if (dto.defaultStatus !== undefined) workflow.defaultStatus = dto.defaultStatus;
     if (dto.statuses !== undefined) {
-      workflow.statuses = dto.statuses.map((status) => ({
+      workflow.statuses = dto.statuses.map(status => ({
         ...status,
         color: status.color || '#6b7280',
       })) as any;
@@ -142,15 +134,10 @@ export class WorkflowsService implements OnModuleInit {
 
       if (indexExists) {
         await collection.dropIndex('projectId_1');
-        this.logger.warn(
-          'Dropped legacy workflows.projectId_1 index; workflows now use workspaceId',
-        );
+        this.logger.warn('Dropped legacy workflows.projectId_1 index; workflows now use workspaceId');
       }
     } catch (error) {
-      this.logger.warn(
-        'Could not drop legacy workflows.projectId_1 index automatically',
-        error,
-      );
+      this.logger.warn('Could not drop legacy workflows.projectId_1 index automatically', error);
     }
   }
 }

@@ -43,13 +43,7 @@ import { GuardsModule } from './guards/guards.module';
       { name: Auth.name, schema: AuthSchema },
     ]),
   ],
-  controllers: [
-    AuthController,
-    OAuthController,
-    PasswordController,
-    PermissionController,
-    UserManagementController,
-  ],
+  controllers: [AuthController, OAuthController, PasswordController, PermissionController, UserManagementController],
   providers: [
     AuthenticationService,
     PasswordService,

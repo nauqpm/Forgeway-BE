@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { extname, resolve, join } from 'path';
@@ -24,7 +19,17 @@ import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
 import { UpdateDocumentWorkspacesDto } from '../dtos/update-document-workspaces.dto';
 
 const ALLOWED_EXTENSIONS = new Set([
-  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.webp',
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
 ]);
 
 @Injectable()
@@ -34,7 +39,7 @@ export class DocumentsService {
     private readonly documentModel: Model<DocumentDoc>,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
-  ) { }
+  ) {}
 
   private getDynamicPath(subfolder: string = 'documents'): string {
     const now = new Date();
@@ -63,7 +68,8 @@ export class DocumentsService {
     const isZip = startsWith(0x50, 0x4b, 0x03, 0x04);
     const isPng = startsWith(0x89, 0x50, 0x4e, 0x47);
     const isJpeg = startsWith(0xff, 0xd8, 0xff);
-    const isWebp = startsWith(0x52, 0x49, 0x46, 0x46) && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
+    const isWebp =
+      startsWith(0x52, 0x49, 0x46, 0x46) && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
     const isOle = startsWith(0xd0, 0xcf, 0x11, 0xe0);
 
     const valid =
@@ -84,8 +90,30 @@ export class DocumentsService {
   private sanitizeContent(html: string): string {
     return sanitizeHtml(html, {
       allowedTags: [
-        'h1', 'h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'u', 's', 'code', 'pre',
-        'blockquote', 'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'span',
+        'h1',
+        'h2',
+        'h3',
+        'p',
+        'ul',
+        'ol',
+        'li',
+        'strong',
+        'em',
+        'u',
+        's',
+        'code',
+        'pre',
+        'blockquote',
+        'a',
+        'img',
+        'table',
+        'thead',
+        'tbody',
+        'tr',
+        'th',
+        'td',
+        'br',
+        'span',
       ],
       allowedAttributes: {
         a: ['href', 'name', 'target'],
@@ -100,10 +128,7 @@ export class DocumentsService {
     const workspace = await this.workspaceModel.findOne({
       _id: new Types.ObjectId(workspaceId),
       deletedAt: null,
-      $or: [
-        { ownerId: new Types.ObjectId(userId) },
-        { 'members.userId': new Types.ObjectId(userId) },
-      ],
+      $or: [{ ownerId: new Types.ObjectId(userId) }, { 'members.userId': new Types.ObjectId(userId) }],
     });
     if (!workspace) {
       throw new ForbiddenException('Workspace is deleted or inactive');
@@ -117,7 +142,7 @@ export class DocumentsService {
     const extension = this.ensureAllowedType(file);
     const name = dto.name?.trim() || file.originalname;
 
-    const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
+    const workspaceIds = (dto.workspaceIds ?? []).map(id => new Types.ObjectId(id));
     for (const wsId of workspaceIds) {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
@@ -129,6 +154,10 @@ export class DocumentsService {
 
     const filename = `${randomUUID()}${extension}`;
     const storagePath = resolve(process.cwd(), relativePath, filename);
+    await fs.writeFile(storagePath, file.buffer);
+
+    await this.ensureUniqueNameForUser(userId, name);
+    await fs.mkdir(resolve(process.cwd(), 'uploads'), { recursive: true });
     await fs.writeFile(storagePath, file.buffer);
 
     const created = await this.documentModel.create({
@@ -153,7 +182,7 @@ export class DocumentsService {
     const sanitizedContent = this.sanitizeContent(rawContent);
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
 
-    const workspaceIds = (dto.workspaceIds ?? []).map((id) => new Types.ObjectId(id));
+    const workspaceIds = (dto.workspaceIds ?? []).map(id => new Types.ObjectId(id));
     for (const wsId of workspaceIds) {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
@@ -183,10 +212,12 @@ export class DocumentsService {
   }
 
   async listMine(userId: string) {
-    return this.documentModel.find({
-      uploadedBy: new Types.ObjectId(userId),
-      deletedAt: null,
-    }).sort({ createdAt: -1 });
+    return this.documentModel
+      .find({
+        uploadedBy: new Types.ObjectId(userId),
+        deletedAt: null,
+      })
+      .sort({ createdAt: -1 });
   }
 
   async listAll() {
@@ -207,15 +238,19 @@ export class DocumentsService {
     const name = dto.name.trim();
     await this.ensureUniqueNameForUser(userId, name, id);
 
-    const doc = await this.documentModel.findOneAndUpdate({
-      _id: new Types.ObjectId(id),
-      uploadedBy: new Types.ObjectId(userId),
-      deletedAt: null,
-    }, {
-      $set: { name },
-    }, {
-      new: true,
-    });
+    const doc = await this.documentModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        uploadedBy: new Types.ObjectId(userId),
+        deletedAt: null,
+      },
+      {
+        $set: { name },
+      },
+      {
+        new: true,
+      },
+    );
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
@@ -225,7 +260,7 @@ export class DocumentsService {
     await this.documentModel.updateOne({ _id: doc._id }, { $set: { deletedAt: new Date() } });
     try {
       await fs.unlink(doc.storagePath);
-    } catch { }
+    } catch {}
     return { success: true };
   }
 
@@ -252,7 +287,7 @@ export class DocumentsService {
 
   async updateWorkspaces(userId: string, id: string, dto: UpdateDocumentWorkspacesDto) {
     await this.getMineById(userId, id);
-    const objectIds = dto.workspaceIds.map((wsId) => new Types.ObjectId(wsId));
+    const objectIds = dto.workspaceIds.map(wsId => new Types.ObjectId(wsId));
     for (const wsId of objectIds) {
       await this.getActiveWorkspaceAndMember(wsId.toString(), userId);
     }
@@ -265,10 +300,12 @@ export class DocumentsService {
 
   async listByWorkspace(userId: string, workspaceId: string) {
     await this.getActiveWorkspaceAndMember(workspaceId, userId);
-    return this.documentModel.find({
-      workspaceIds: new Types.ObjectId(workspaceId),
-      deletedAt: null,
-    }).sort({ createdAt: -1 });
+    return this.documentModel
+      .find({
+        workspaceIds: new Types.ObjectId(workspaceId),
+        deletedAt: null,
+      })
+      .sort({ createdAt: -1 });
   }
 
   async resolveDownloadable(userId: string, id: string) {
@@ -283,10 +320,7 @@ export class DocumentsService {
     const activeMemberWorkspace = await this.workspaceModel.findOne({
       _id: { $in: doc.workspaceIds },
       deletedAt: null,
-      $or: [
-        { ownerId: new Types.ObjectId(userId) },
-        { 'members.userId': new Types.ObjectId(userId) },
-      ],
+      $or: [{ ownerId: new Types.ObjectId(userId) }, { 'members.userId': new Types.ObjectId(userId) }],
     });
 
     if (!activeMemberWorkspace) throw new ForbiddenException('You do not have access to this document');
@@ -320,20 +354,12 @@ export class DocumentsService {
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
     await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
 
-    const updated = await this.documentModel.findOneAndUpdate(
-      { _id: doc._id },
-      { $set: { size } },
-      { new: true },
-    );
+    const updated = await this.documentModel.findOneAndUpdate({ _id: doc._id }, { $set: { size } }, { new: true });
 
     return updated;
   }
 
-  private async ensureUniqueNameForUser(
-    userId: string,
-    name: string,
-    excludeId?: string,
-  ): Promise<void> {
+  private async ensureUniqueNameForUser(userId: string, name: string, excludeId?: string): Promise<void> {
     const query: Record<string, any> = {
       uploadedBy: new Types.ObjectId(userId),
       deletedAt: null,
@@ -346,9 +372,7 @@ export class DocumentsService {
 
     const existingDocument = await this.documentModel.exists(query).exec();
     if (existingDocument) {
-      throw new BadRequestException(
-        'A document with this name already exists in your library',
-      );
+      throw new BadRequestException('A document with this name already exists in your library');
     }
   }
 
@@ -399,7 +423,7 @@ export class DocumentsService {
 
     if (doc.extension === '.xlsx') {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
-      const sections = workbook.SheetNames.slice(0, 3).map((name) => {
+      const sections = workbook.SheetNames.slice(0, 3).map(name => {
         const sheet = workbook.Sheets[name];
         const html = XLSX.utils.sheet_to_html(sheet);
         return `<h3>${this.escapeHtml(name)}</h3>${html}`;
@@ -410,7 +434,7 @@ export class DocumentsService {
     if (doc.extension === '.pptx') {
       const zip = await JSZip.loadAsync(buffer);
       const slideFiles = Object.keys(zip.files)
-        .filter((key) => /^ppt\/slides\/slide\d+\.xml$/.test(key))
+        .filter(key => /^ppt\/slides\/slide\d+\.xml$/.test(key))
         .sort((a, b) => {
           const numA = Number(a.match(/slide(\d+)\.xml$/)?.[1] || '0');
           const numB = Number(b.match(/slide(\d+)\.xml$/)?.[1] || '0');
@@ -422,11 +446,11 @@ export class DocumentsService {
         const xml = await zip.files[slideFiles[i]].async('string');
         const matches = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)];
         const texts = matches
-          .map((m) => m[1])
+          .map(m => m[1])
           .filter(Boolean)
-          .map((t) => this.escapeHtml(t));
+          .map(t => this.escapeHtml(t));
         slidesHtml.push(
-          `<div class="slide"><h3>Slide ${i + 1}</h3>${texts.length ? texts.map((t) => `<p>${t}</p>`).join('') : '<p>(No text)</p>'}</div>`,
+          `<div class="slide"><h3>Slide ${i + 1}</h3>${texts.length ? texts.map(t => `<p>${t}</p>`).join('') : '<p>(No text)</p>'}</div>`,
         );
       }
 

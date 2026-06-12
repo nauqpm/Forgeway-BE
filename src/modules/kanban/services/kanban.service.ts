@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import type { Cache } from 'cache-manager';
@@ -14,12 +7,7 @@ import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { RealtimeService } from '@/modules/realtime/realtime.service';
 import { Workspace, WorkspaceDocument } from '@/modules/workspaces/schemas/workspace.schema';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
-import {
-  CreateColumnDto,
-  KanbanBoardColumnDto,
-  MoveColumnDto,
-  UpdateColumnDto,
-} from '../dtos/kanban.dto';
+import { CreateColumnDto, KanbanBoardColumnDto, MoveColumnDto, UpdateColumnDto } from '../dtos/kanban.dto';
 import { Board, BoardColumn, BoardDocument } from '../schemas/kanban-board.schema';
 
 type VersionedBoardDocument = BoardDocument & { __v?: number };
@@ -48,20 +36,22 @@ export class KanbanService {
   public async createDefaultBoard(workspaceId: string): Promise<BoardDocument> {
     this.logger.log(`Creating default Kanban board for Workspace: ${workspaceId}`);
 
-    const board = await this.boardModel.findOneAndUpdate(
-      { workspaceId: new Types.ObjectId(workspaceId) },
-      {
-        $setOnInsert: {
-          workspaceId: new Types.ObjectId(workspaceId),
-          name: 'Main Board',
-          columns: this.defaultColumns,
-          settings: {},
+    const board = await this.boardModel
+      .findOneAndUpdate(
+        { workspaceId: new Types.ObjectId(workspaceId) },
+        {
+          $setOnInsert: {
+            workspaceId: new Types.ObjectId(workspaceId),
+            name: 'Main Board',
+            columns: this.defaultColumns,
+            settings: {},
+          },
         },
-      },
-      { upsert: true, new: true },
-    ).exec();
+        { upsert: true, new: true },
+      )
+      .exec();
 
-    return board!;
+    return board;
   }
 
   public async findOrCreateByWorkspaceKey(workspaceKey: string): Promise<BoardDocument> {
@@ -106,9 +96,7 @@ export class KanbanService {
       throw new BadRequestException('Invalid workspace ID format');
     }
 
-    return this.boardModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
+    return this.boardModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
   }
 
   public async findById(id: string): Promise<BoardDocument> {
@@ -179,7 +167,7 @@ export class KanbanService {
       throw new NotFoundException(`Column "${columnId}" not found in board ${boardId}`);
     }
 
-    const nextColumns = columns.map((item) =>
+    const nextColumns = columns.map(item =>
       item.id === columnId
         ? {
             ...item,
@@ -216,7 +204,7 @@ export class KanbanService {
       throw new NotFoundException(`Column "${columnId}" not found in board ${boardId}`);
     }
 
-    const nextColumns = columns.map((item) =>
+    const nextColumns = columns.map(item =>
       item.id === columnId ? { ...item, wipLimit: wipLimit ?? undefined } : item,
     );
     const updated = await this.saveColumnsWithVersion(board, nextColumns);
@@ -233,11 +221,7 @@ export class KanbanService {
     return updated;
   }
 
-  public async deleteColumn(
-    boardId: string,
-    columnId: string,
-    targetColumnId?: string,
-  ): Promise<BoardDocument> {
+  public async deleteColumn(boardId: string, columnId: string, targetColumnId?: string): Promise<BoardDocument> {
     const board = await this.findById(boardId);
     const columns = this.toPlainColumns(board.columns);
     const columnIndex = columns.findIndex(c => c.id === columnId);
@@ -254,10 +238,27 @@ export class KanbanService {
     }
 
     const workspaceId = this.toId(board.workspaceId);
-    const taskCount = await this.taskModel.countDocuments({
-      workspaceId: new Types.ObjectId(workspaceId),
-      columnId,
-    }).exec();
+
+    const archivedTaskCount = await this.taskModel
+      .countDocuments({
+        workspaceId: new Types.ObjectId(workspaceId),
+        columnId,
+        isArchived: true,
+      })
+      .exec();
+
+    if (archivedTaskCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete this column because it still contains ${archivedTaskCount} archived task(s). Please permanently delete those tasks first.`,
+      );
+    }
+
+    const taskCount = await this.taskModel
+      .countDocuments({
+        workspaceId: new Types.ObjectId(workspaceId),
+        columnId,
+      })
+      .exec();
 
     if (taskCount > 0 && !targetColumnId) {
       throw new BadRequestException(
@@ -265,18 +266,20 @@ export class KanbanService {
       );
     }
 
-    const nextColumns = this.reindexColumns(columns.filter((col) => col.id !== columnId));
+    const nextColumns = this.reindexColumns(columns.filter(col => col.id !== columnId));
 
     try {
       const session = await this.connection.startSession();
       try {
         await session.withTransaction(async () => {
           if (taskCount > 0 && targetColumnId) {
-            await this.taskModel.updateMany(
-              { workspaceId: new Types.ObjectId(workspaceId), columnId },
-              { $set: { columnId: targetColumnId } },
-              { session },
-            ).exec();
+            await this.taskModel
+              .updateMany(
+                { workspaceId: new Types.ObjectId(workspaceId), columnId },
+                { $set: { columnId: targetColumnId } },
+                { session },
+              )
+              .exec();
           }
 
           await this.saveColumnsWithVersion(board, nextColumns, session);
@@ -294,10 +297,12 @@ export class KanbanService {
         this.logger.warn('MongoDB transaction not supported, falling back to sequential Kanban column delete');
 
         if (taskCount > 0 && targetColumnId) {
-          await this.taskModel.updateMany(
-            { workspaceId: new Types.ObjectId(workspaceId), columnId },
-            { $set: { columnId: targetColumnId } },
-          ).exec();
+          await this.taskModel
+            .updateMany(
+              { workspaceId: new Types.ObjectId(workspaceId), columnId },
+              { $set: { columnId: targetColumnId } },
+            )
+            .exec();
         }
         await this.saveColumnsWithVersion(board, nextColumns);
       } else {
@@ -367,10 +372,8 @@ export class KanbanService {
       return this.boardModel.hydrate(cached);
     }
 
-    const board = await this.boardModel
-      .findOne({ workspaceId: new Types.ObjectId(workspaceId) })
-      .exec();
-    const resolved = board ?? await this.createDefaultBoard(workspaceId);
+    const board = await this.boardModel.findOne({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
+    const resolved = board ?? (await this.createDefaultBoard(workspaceId));
 
     await this.cacheBoard(workspaceId, resolved);
     return resolved;
@@ -382,18 +385,20 @@ export class KanbanService {
     session?: ClientSession,
   ): Promise<BoardDocument> {
     const version = this.getVersion(board);
-    const updated = await this.boardModel.findOneAndUpdate(
-      { _id: board._id, __v: version },
-      {
-        $set: { columns },
-        $inc: { __v: 1 },
-      },
-      {
-        new: true,
-        runValidators: true,
-        session,
-      },
-    ).exec();
+    const updated = await this.boardModel
+      .findOneAndUpdate(
+        { _id: board._id, __v: version },
+        {
+          $set: { columns },
+          $inc: { __v: 1 },
+        },
+        {
+          new: true,
+          runValidators: true,
+          session,
+        },
+      )
+      .exec();
 
     if (!updated) {
       throw new ConflictException('Board was changed by another request. Refresh and retry.');
@@ -407,7 +412,7 @@ export class KanbanService {
   }
 
   private toPlainColumns(columns: BoardColumn[]): KanbanBoardColumnDto[] {
-    return columns.map((column) => ({
+    return columns.map(column => ({
       id: column.id,
       name: column.name,
       order: column.order,

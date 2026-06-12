@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -59,10 +48,7 @@ export class LabelsController {
   @ApiResponse({ status: HttpStatus.OK, type: [LabelDto] })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Workspace not found' })
-  async getLabels(
-    @Param('workspaceId') workspaceId: string,
-    @CurrentUser() user: JwtPayload,
-  ): Promise<LabelDto[]> {
+  async getLabels(@Param('workspaceId') workspaceId: string, @CurrentUser() user: JwtPayload): Promise<LabelDto[]> {
     return this.labelService.findByWorkspace(workspaceId, user.userId);
   }
 

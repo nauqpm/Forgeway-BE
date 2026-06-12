@@ -6,7 +6,7 @@ describe('AttachmentService', () => {
   let service: AttachmentService;
 
   beforeEach(() => {
-    attachmentModel = jest.fn().mockImplementation((payload) => ({
+    attachmentModel = jest.fn().mockImplementation(payload => ({
       ...payload,
       save: jest.fn().mockResolvedValue(payload),
     }));

@@ -23,6 +23,11 @@ import { WorkspaceKeyService } from './workspace-key.service';
 import { WorkspaceDomainEventPublisher } from './workspace-domain-event.publisher';
 import { ChannelsService } from '../../chat/services/channels.service';
 import { UsersService } from '../../users/services/users.service';
+import {
+  DEFAULT_WORKSPACE_AVATAR,
+  WORKSPACE_SAMPLE_AVATARS,
+  isWorkspaceSampleAvatar,
+} from '../constants/workspace-sample-avatars.constant';
 
 @Injectable()
 export class WorkspacesService {
@@ -52,6 +57,7 @@ export class WorkspacesService {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);
     const slug = dto.slug || (await this.workspaceKeyService.generateUniqueSlug(dto.name));
     const key = await this.workspaceKeyService.generateUniqueKey(dto.key || dto.name);
+    const avatar = this.resolveWorkspaceAvatar(dto.avatar);
 
     const existingSlug = await this.workspacesRepository.findAnyBySlug(slug);
     if (existingSlug) {
@@ -62,14 +68,13 @@ export class WorkspacesService {
       const workspace = await this.workspacesRepository.create({
         name: dto.name,
         description: dto.description,
+        avatar,
         slug,
         key,
         type: dto.type || 'kanban',
         access: dto.access || 'public',
         ownerId: new Types.ObjectId(userId),
-        members: [
-          { userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN },
-        ],
+        members: [{ userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN }],
         settings: {},
         status: 'active',
       });
@@ -77,10 +82,7 @@ export class WorkspacesService {
       try {
         await this.kanbanService.createDefaultBoard(workspace._id.toString());
       } catch (error) {
-        this.logger.error(
-          `Failed to create default board for workspace ${workspace._id}`,
-          error,
-        );
+        this.logger.error(`Failed to create default board for workspace ${workspace._id}`, error);
       }
 
       try {
@@ -89,10 +91,7 @@ export class WorkspacesService {
         if (error instanceof ConflictException) {
           this.logger.warn(`Default workflow already exists for workspace ${workspace._id}`);
         } else {
-          this.logger.error(
-            `Failed to create default workflow for workspace ${workspace._id}`,
-            error,
-          );
+          this.logger.error(`Failed to create default workflow for workspace ${workspace._id}`, error);
         }
       }
 
@@ -113,11 +112,13 @@ export class WorkspacesService {
   }
 
   async findAll(): Promise<any[]> {
-    return this.workspacesRepository.findAll();
+    const workspaces = await this.workspacesRepository.findAll();
+    return workspaces.map(workspace => this.withDefaultAvatar(workspace));
   }
 
   async findAllWithDeleted(): Promise<any[]> {
-    return this.workspacesRepository.findAllWithDeleted();
+    const workspaces = await this.workspacesRepository.findAllWithDeleted();
+    return workspaces.map(workspace => this.withDefaultAvatar(workspace));
   }
 
   async findById(id: string): Promise<any> {
@@ -125,7 +126,7 @@ export class WorkspacesService {
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${id}" not found`);
     }
-    return workspace;
+    return this.withDefaultAvatar(workspace);
   }
 
   async findBySlug(slug: string): Promise<any> {
@@ -133,11 +134,15 @@ export class WorkspacesService {
     if (!workspace) {
       throw new NotFoundException(`Workspace with slug "${slug}" not found`);
     }
-    return workspace;
+    return this.withDefaultAvatar(workspace);
   }
 
   async findByKey(_key: string): Promise<any> {
     throw new BadRequestException('Workspace key lookup is not supported; use workspaceId');
+  }
+
+  getAvatarSamples() {
+    return { avatars: WORKSPACE_SAMPLE_AVATARS };
   }
 
   async findByUserId(userId: string): Promise<any[]> {
@@ -147,7 +152,7 @@ export class WorkspacesService {
 
   private async withWorkspaceCounts(workspaces: any[]): Promise<any[]> {
     return Promise.all(
-      workspaces.map(async (workspace) => {
+      workspaces.map(async workspace => {
         const workspaceId = workspace._id;
         const [taskCount, pageCount, documentCount] = await Promise.all([
           this.taskModel.countDocuments({
@@ -161,9 +166,7 @@ export class WorkspacesService {
           }),
         ]);
         const docsCount = pageCount + documentCount;
-        const workspaceData = typeof workspace.toObject === 'function'
-          ? workspace.toObject()
-          : { ...workspace };
+        const workspaceData = this.withDefaultAvatar(workspace);
 
         return {
           ...workspaceData,
@@ -190,6 +193,7 @@ export class WorkspacesService {
 
     if (dto.name) workspace.name = dto.name;
     if (dto.description !== undefined) workspace.description = dto.description;
+    if (dto.avatar !== undefined) workspace.avatar = this.resolveWorkspaceAvatar(dto.avatar);
     if (dto.settings) workspace.settings = { ...workspace.settings, ...dto.settings };
     if (dto.key) workspace.key = await this.workspaceKeyService.generateUniqueKey(dto.key, id);
     if (dto.type) workspace.type = dto.type;
@@ -201,7 +205,7 @@ export class WorkspacesService {
       this.workspaceDomainEventPublisher.publishUpdated(updated, actorId);
     }
 
-    return updated;
+    return updated ? this.withDefaultAvatar(updated) : updated;
   }
 
   async delete(id: string, actorId?: string): Promise<void> {
@@ -243,7 +247,7 @@ export class WorkspacesService {
     }
 
     this.workspaceDomainEventPublisher.publishRestored(workspace, actorId);
-    return workspace;
+    return this.withDefaultAvatar(workspace);
   }
 
   async archive(id: string, actorId?: string): Promise<any> {
@@ -258,6 +262,27 @@ export class WorkspacesService {
       this.workspaceDomainEventPublisher.publishArchived(archived, actorId);
     }
 
-    return archived;
+    return archived ? this.withDefaultAvatar(archived) : archived;
+  }
+
+  private resolveWorkspaceAvatar(avatar?: string): string {
+    if (!avatar) {
+      return DEFAULT_WORKSPACE_AVATAR;
+    }
+
+    if (!isWorkspaceSampleAvatar(avatar)) {
+      throw new BadRequestException('Workspace avatar must be one of the sample avatars');
+    }
+
+    return avatar;
+  }
+
+  private withDefaultAvatar(workspace: any): any {
+    const workspaceData = typeof workspace?.toObject === 'function' ? workspace.toObject() : { ...workspace };
+
+    return {
+      ...workspaceData,
+      avatar: workspaceData.avatar || DEFAULT_WORKSPACE_AVATAR,
+    };
   }
 }

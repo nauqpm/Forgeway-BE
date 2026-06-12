@@ -12,10 +12,7 @@ import { Model, Document } from 'mongoose';
  * @param model - Mongoose model tương ứng với collection cần kiểm tra.
  * @returns Slug chuẩn SEO và duy nhất.
  */
-export async function generateUniqueSlug<T extends Document>(
-  input: string,
-  model: Model<T>,
-): Promise<string> {
+export async function generateUniqueSlug<T extends Document>(input: string, model: Model<T>): Promise<string> {
   const baseSlug = removeVietnameseTones(input);
   if (!baseSlug) throw new Error('Slug không thể rỗng');
 
