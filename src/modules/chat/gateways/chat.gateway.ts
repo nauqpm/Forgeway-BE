@@ -124,7 +124,7 @@ export class ChatGateway implements OnGatewayConnection {
         if (memberId === userId) continue;
 
         const unreadCount = await this.messagesService.countUnread(payload.channelId, memberId);
-        this.server.to(RoomBuilder.user(memberId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE || 'chat.unread_update', {
+        this.server.to(RoomBuilder.user(memberId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE, {
           channelId: payload.channelId,
           unreadCount,
           lastMessage: message,
@@ -218,7 +218,7 @@ export class ChatGateway implements OnGatewayConnection {
     await this.channelsService.markAsRead(body.channelId, userId);
     
     // Notify all other connections/tabs of this user that the channel unread count is now 0
-    this.server.to(RoomBuilder.user(userId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE || 'chat.unread_update', {
+    this.server.to(RoomBuilder.user(userId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE, {
       channelId: body.channelId,
       unreadCount: 0,
     });
