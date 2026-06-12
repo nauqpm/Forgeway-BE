@@ -388,4 +388,21 @@ export class ChannelsService {
 
     return [];
   }
+
+  async getChannelDetailsForUser(channelId: string, userId: string): Promise<any> {
+    const hasAccess = await this.validateUserAccess(channelId, userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const channel = await this.findById(channelId);
+    const unreadCount = await this.messagesService.countUnread(channelId, userId);
+    const userInfos = await this.usersService.getUsersByIds(channel.members.map(m => m.toString()));
+
+    return {
+      ...channel.toObject(),
+      members: userInfos,
+      unreadCount,
+    };
+  }
 }
