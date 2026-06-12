@@ -15,15 +15,13 @@ import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contra
 import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
+import { LeavePageRoomDto } from './dto/leave-page-room.dto';
 import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
-import { PageUpdateDto } from './dto/page-update.dto';
 import { PageYjsUpdateDto } from './dto/page-yjs-update.dto';
 import { PageAwarenessUpdateDto } from './dto/page-awareness-update.dto';
 import { PageCollabService } from './services/page-collab.service';
 import { LeaveWorkspaceRoomDto } from './dto/leave-workspace-room.dto';
-import { PresenceHeartbeatDto } from './dto/presence-heartbeat.dto';
 import { RealtimeService } from './realtime.service';
-import { PresenceService } from './services/presence.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
 import { InjectModel } from '@nestjs/mongoose';
@@ -61,7 +59,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     private readonly socketAuthService: SocketAuthService,
     private readonly roomManagerService: RoomManagerService,
     private readonly pageCollabService: PageCollabService,
-    private readonly presenceService: PresenceService,
     private readonly pagesService: PagesService,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
@@ -216,54 +213,34 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   async handleYjsUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: PageYjsUpdateDto,
-  ): Promise<{ ok: boolean }> {
+  ): Promise<{ ok: boolean; updateId?: string }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
     const user = client.data.user;
-    if (!user) return { ok: false };
+    if (!user) {
+      return { ok: false };
+    }
 
     if (!body.update?.length) {
       this.logger.warn(`Empty yjs-update from ${user.userId} for page ${body.pageId}`);
       return { ok: false };
     }
 
-    const user = client.data.user!;
     const isAllowed = await this.authorizePageEdit(user.userId, body.pageId);
     if (!isAllowed) {
       throw new WsException('Forbidden: You do not have permission to edit this page');
     }
 
-    await this.pageCollabService.handleUpdate(
-      user.userId,
+    await this.pageCollabService.applyUpdate(
       body.pageId,
-      body.content,
+      new Uint8Array(body.update),
+      user.userId,
     );
 
     // Relay raw bytes to all OTHER clients in the page room
     client.to(RoomBuilder.page(body.pageId)).emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
-      pageId: body.pageId,
-      update: body.update,
-    });
-
-    return { ok: true };
-  }
-
-  @SubscribeMessage('page:yjs-update')
-  @UsePipes(socketValidationPipe)
-  async handlePageYjsUpdate(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: PageYjsUpdateDto,
-  ): Promise<{ ok: boolean; updateId?: string }> {
-    if (!this.consumeClientEvent(client)) {
-      return { ok: false };
-    }
-
-    const user = client.data.user!;
-    const isAllowed = await this.authorizePageEdit(user.userId, body.pageId);
-    if (!isAllowed) {
-      throw new WsException('Forbidden: You do not have permission to edit this page');
-    }
-
-    const pageRoom = RoomBuilder.page(body.pageId);
-    client.to(pageRoom).emit('page.yjs-update', {
       pageId: body.pageId,
       update: body.update,
     });
