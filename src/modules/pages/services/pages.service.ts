@@ -118,7 +118,7 @@ export class PagesService {
     }
 
     const title = dto.title.trim();
-    await this.ensureUniqueTitleInLocation(title, dto.workspaceId, dto.parentId);
+    await this.ensureUniqueTitleInWorkspace(title, dto.workspaceId);
 
     const slug = dto.slug || (await this.generateUniqueSlug(title));
 
@@ -287,7 +287,11 @@ export class PagesService {
 
     if (dto.title !== undefined) {
       const title = dto.title.trim();
-      await this.ensureUniqueTitleInLocation(title, page.workspaceId.toString(), page.parentId?.toString(), id);
+      await this.ensureUniqueTitleInWorkspace(
+        title,
+        page.workspaceId.toString(),
+        id,
+      );
       page.title = title;
     }
     if (dto.content !== undefined) page.content = dto.content;
@@ -315,7 +319,15 @@ export class PagesService {
 
     const page = await this.findById(id);
 
-    if (dto.title !== undefined) page.title = dto.title;
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      await this.ensureUniqueTitleInWorkspace(
+        title,
+        page.workspaceId.toString(),
+        id,
+      );
+      page.title = title;
+    }
     if (dto.content !== undefined) page.content = dto.content;
     if (dto.contentJson !== undefined) page.contentJson = dto.contentJson;
     if (dto.plainTextSnapshot !== undefined) page.plainTextSnapshot = dto.plainTextSnapshot;
@@ -457,10 +469,9 @@ export class PagesService {
     return page.save();
   }
 
-  private async ensureUniqueTitleInLocation(
+  private async ensureUniqueTitleInWorkspace(
     title: string,
     workspaceId?: string,
-    parentId?: string,
     excludeId?: string,
   ): Promise<void> {
     if (!workspaceId) return;
@@ -470,19 +481,15 @@ export class PagesService {
       title: { $regex: `^${this.escapeRegex(title)}$`, $options: 'i' },
     };
 
-    if (parentId) {
-      query.parentId = new Types.ObjectId(parentId);
-    } else {
-      query.parentId = { $exists: false };
-    }
-
     if (excludeId) {
       query._id = { $ne: new Types.ObjectId(excludeId) };
     }
 
     const existingPage = await this.pageModel.exists(query).exec();
     if (existingPage) {
-      throw new BadRequestException('A document with this name already exists in this location');
+      throw new BadRequestException(
+        'A document with this name already exists in this workspace',
+      );
     }
   }
 
