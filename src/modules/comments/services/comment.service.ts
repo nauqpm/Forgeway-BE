@@ -22,6 +22,7 @@ export class CommentService {
       authorId: new Types.ObjectId(userId),
       targetType: dto.targetType,
       targetId: dto.targetId,
+      inlineId: dto.inlineId,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       mentions: dto.mentions?.map(id => new Types.ObjectId(id)) || [],
     });
@@ -133,5 +134,44 @@ export class CommentService {
     this.logger.debug(`Counting comments for ${targetType}:${targetId}`);
 
     return this.commentModel.countDocuments({ targetType, targetId, isDeleted: { $ne: true } }).exec();
+  }
+
+  async resolve(id: string, userId: string): Promise<CommentDocument> {
+    this.logger.log(`Resolving comment ${id} by user ${userId}`);
+
+    const comment = await this.findById(id);
+    comment.isResolved = true;
+    comment.resolvedBy = new Types.ObjectId(userId);
+    comment.resolvedAt = new Date();
+    return comment.save();
+  }
+
+  async unresolve(id: string, userId: string): Promise<CommentDocument> {
+    this.logger.log(`Unresolving comment ${id} by user ${userId}`);
+
+    const comment = await this.findById(id);
+    comment.isResolved = false;
+    comment.resolvedBy = undefined;
+    comment.resolvedAt = undefined;
+    return comment.save();
+  }
+
+  async findByInlineId(
+    targetType: string,
+    targetId: string,
+    inlineId: string,
+  ): Promise<CommentDocument[]> {
+    this.logger.debug(`Finding comments for inline ${inlineId} in ${targetType}:${targetId}`);
+
+    return this.commentModel
+      .find({
+        targetType,
+        targetId,
+        inlineId,
+        isDeleted: { $ne: true },
+        parentId: { $exists: false },
+      })
+      .sort({ createdAt: 1 })
+      .exec();
   }
 }
