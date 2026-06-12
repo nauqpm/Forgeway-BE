@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -47,12 +48,33 @@ export class DocumentsController {
     return this.documentsService.createOnline(userId, dto);
   }
 
+  @Post('import/docx')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.originalname.toLowerCase().endsWith('.docx')) {
+          return cb(new BadRequestException('Only .docx files are allowed'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async importDocx(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    const html = await this.documentsService.importDocx(file.buffer);
+    return { html };
+  }
+
   @Get()
   listMine(@CurrentUser('userId') userId: string) {
     return this.documentsService.listMine(userId);
   }
 
-  // Super admin: lấy tất cả documents
+  // Super admin: get all documents
   @Get('admin/all')
   @UseGuards(RolesGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
@@ -70,21 +92,39 @@ export class DocumentsController {
     return this.documentsService.getContent(userId, id);
   }
 
-  @Patch(':id')
-  updateMine(
+  @Post(':id/versions')
+  createVersion(
     @CurrentUser('userId') userId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateDocumentDto,
+    @Body('label') label: string,
   ) {
+    if (!label?.trim()) {
+      throw new BadRequestException('Version label is required');
+    }
+    return this.documentsService.createVersion(userId, id, label);
+  }
+
+  @Get(':id/versions')
+  getVersions(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.documentsService.getVersions(userId, id);
+  }
+
+  @Post(':id/versions/:versionId/restore')
+  restoreVersion(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.documentsService.restoreVersion(userId, id, versionId);
+  }
+
+  @Patch(':id')
+  updateMine(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: UpdateDocumentDto) {
     return this.documentsService.updateMine(userId, id, dto);
   }
 
   @Patch(':id/content')
-  updateContent(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateDocumentContentDto,
-  ) {
+  updateContent(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: UpdateDocumentContentDto) {
     return this.documentsService.updateContent(userId, id, dto);
   }
 
@@ -94,20 +134,12 @@ export class DocumentsController {
   }
 
   @Post(':id/attach')
-  attach(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: AttachDocumentDto,
-  ) {
+  attach(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: AttachDocumentDto) {
     return this.documentsService.attach(userId, id, dto);
   }
 
   @Post(':id/detach')
-  detach(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Body() dto: DetachDocumentDto,
-  ) {
+  detach(@CurrentUser('userId') userId: string, @Param('id') id: string, @Body() dto: DetachDocumentDto) {
     return this.documentsService.detach(userId, id, dto);
   }
 
@@ -121,44 +153,41 @@ export class DocumentsController {
   }
 
   @Get('workspace/:workspaceId')
-  listByWorkspace(
-    @CurrentUser('userId') userId: string,
-    @Param('workspaceId') workspaceId: string,
-  ) {
+  listByWorkspace(@CurrentUser('userId') userId: string, @Param('workspaceId') workspaceId: string) {
     return this.documentsService.listByWorkspace(userId, workspaceId);
   }
 
   @Get(':id/download')
-  async download(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async download(@CurrentUser('userId') userId: string, @Param('id') id: string, @Res() res: Response) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     return res.download(doc.storagePath, doc.originalName);
   }
 
-  @Get(':id/view')
-  async view(
+  @Get(':id/export/docx')
+  async exportDocx(
     @CurrentUser('userId') userId: string,
     @Param('id') id: string,
     @Res() res: Response,
   ) {
+    const { buffer, filename } = await this.documentsService.exportOnlineToDocx(userId, id);
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+      'Content-Length': buffer.length,
+    });
+    return res.end(buffer);
+  }
+
+  @Get(':id/view')
+  async view(@CurrentUser('userId') userId: string, @Param('id') id: string, @Res() res: Response) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     res.setHeader('Content-Type', doc.mimeType);
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${encodeURIComponent(doc.originalName)}"`,
-    );
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.originalName)}"`);
     return res.sendFile(doc.storagePath);
   }
 
   @Get(':id/preview')
-  async preview(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async preview(@CurrentUser('userId') userId: string, @Param('id') id: string, @Res() res: Response) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     const html = await this.documentsService.renderPreviewHtml(doc);
     if (!html) {

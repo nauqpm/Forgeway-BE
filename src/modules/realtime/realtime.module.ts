@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -7,10 +7,7 @@ import { RedisModule } from '../../infra/redis/redis.module';
 import { TokenModule } from '../auth/token.module';
 import { PagesModule } from '../pages/pages.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
-import {
-  Workspace,
-  WorkspaceSchema,
-} from '../workspaces/schemas/workspace.schema';
+import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
 import { NotificationRealtimeListener } from './listeners/notification-realtime.listener';
 import { TaskDetailRealtimeListener } from './listeners/task-detail-realtime.listener';
 import { SprintRealtimeListener } from './listeners/sprint-realtime.listener';
@@ -39,7 +36,7 @@ import { SocketAuthService } from './services/socket-auth.service';
       }),
     }),
     TokenModule,
-    PagesModule,
+    forwardRef(() => PagesModule),
     RedisModule,
   ],
   providers: [

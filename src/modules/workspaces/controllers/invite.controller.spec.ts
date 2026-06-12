@@ -23,6 +23,9 @@ describe('InviteController', () => {
             getInvites: jest.fn(),
             cancelInvite: jest.fn(),
             getInviteByToken: jest.fn(),
+            getInviteByIdForUser: jest.fn(),
+            acceptInviteByIdForUser: jest.fn(),
+            declineInviteByIdForUser: jest.fn(),
             acceptInvite: jest.fn(),
           },
         },
@@ -74,6 +77,40 @@ describe('InviteController', () => {
     expect(service.cancelInvite).toHaveBeenCalledWith('workspaceId', 'inviteId');
   });
 
+  it('getInviteById calls service with inviteId, userId, userEmail', async () => {
+    service.getInviteByIdForUser.mockResolvedValue({ workspaceName: 'Test' } as any);
+
+    await controller.getInviteById('inviteId', mockUser as any);
+
+    expect(service.getInviteByIdForUser).toHaveBeenCalledWith(
+      'inviteId',
+      mockUser.userId,
+      mockUser.email,
+    );
+  });
+  it('acceptInviteById calls service with inviteId, userId, userEmail', async () => {
+    service.acceptInviteByIdForUser.mockResolvedValue(undefined);
+
+    await controller.acceptInviteById('inviteId', mockUser as any);
+
+    expect(service.acceptInviteByIdForUser).toHaveBeenCalledWith(
+      'inviteId',
+      mockUser.userId,
+      mockUser.email,
+    );
+  });
+
+  it('declineInviteById calls service with inviteId, userId, userEmail', async () => {
+    service.declineInviteByIdForUser.mockResolvedValue(undefined);
+
+    await controller.declineInviteById('inviteId', mockUser as any);
+
+    expect(service.declineInviteByIdForUser).toHaveBeenCalledWith(
+      'inviteId',
+      mockUser.userId,
+      mockUser.email,
+    );
+  });
   it('getInviteByToken calls service with token', async () => {
     service.getInviteByToken.mockResolvedValue({ workspaceName: 'Test' } as any);
 
@@ -87,10 +124,6 @@ describe('InviteController', () => {
 
     await controller.acceptInvite('some-token', mockUser as any);
 
-    expect(service.acceptInvite).toHaveBeenCalledWith(
-      'some-token',
-      mockUser.userId,
-      mockUser.email,
-    );
+    expect(service.acceptInvite).toHaveBeenCalledWith('some-token', mockUser.userId, mockUser.email);
   });
 });

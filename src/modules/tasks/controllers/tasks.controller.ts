@@ -46,10 +46,7 @@ import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TaskReorderService } from '../services/task-reorder.service';
 import { TasksService } from '../services/tasks.service';
-import {
-  TaskDependencyService,
-  TaskDependencyDto,
-} from '../services/task-dependency.service';
+import { TaskDependencyService, TaskDependencyDto } from '../services/task-dependency.service';
 import { DependencyType } from '../schemas/task-dependency.schema';
 import { Request as ExpressRequest } from 'express';
 import { RealtimeService } from '@/modules/realtime/realtime.service';
@@ -83,15 +80,8 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskListDto> {
     try {
-      const result = await this.tasksService.findByWorkspaceId(
-        workspaceId,
-        user.userId,
-        filterDto,
-      );
-      const filterMetadata = this.getTaskFilterAuditMetadata(
-        filterDto,
-        result.total,
-      );
+      const result = await this.tasksService.findByWorkspaceId(workspaceId, user.userId, filterDto);
+      const filterMetadata = this.getTaskFilterAuditMetadata(filterDto, result.total);
       this.auditLogService.logRequest(req, {
         type:
           filterMetadata.filterCount > 0
@@ -139,11 +129,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.createInWorkspaceId(
-        workspaceId,
-        createTaskDto,
-        user.userId,
-      );
+      const task = await this.tasksService.createInWorkspaceId(workspaceId, createTaskDto, user.userId);
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_CREATE_SUCCESS,
@@ -167,19 +153,13 @@ export class TasksController {
 
       return task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_CREATE_FAILED,
-        error,
-        {
-          workspaceId,
-          requestedType: createTaskDto.type,
-          requestedStatus: createTaskDto.status,
-          requestedColumnId: createTaskDto.columnId,
-          requestedSprintId: createTaskDto.sprintId,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_CREATE_FAILED, error, {
+        workspaceId,
+        requestedType: createTaskDto.type,
+        requestedStatus: createTaskDto.status,
+        requestedColumnId: createTaskDto.columnId,
+        requestedSprintId: createTaskDto.sprintId,
+      });
       throw error;
     }
   }
@@ -198,11 +178,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDetailDto> {
     try {
-      const task = await this.tasksService.findByKeyInWorkspaceId(
-        workspaceId,
-        taskKey,
-        user.userId,
-      );
+      const task = await this.tasksService.findByKeyInWorkspaceId(workspaceId, taskKey, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_VIEWED,
         severity: 'INFO',
@@ -219,16 +195,10 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_VIEWED,
-        error,
-        {
-          workspaceId,
-          taskKey,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
+        workspaceId,
+        taskKey,
+      });
       throw error;
     }
   }
@@ -246,11 +216,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskListDto> {
     try {
-      const result = await this.tasksService.findArchivedByWorkspaceId(
-        workspaceId,
-        user.userId,
-        filterDto,
-      );
+      const result = await this.tasksService.findArchivedByWorkspaceId(workspaceId, user.userId, filterDto);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
@@ -265,16 +231,10 @@ export class TasksController {
       });
       return result;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
-        error,
-        {
-          workspaceId,
-          archived: true,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceId,
+        archived: true,
+      });
       throw error;
     }
   }
@@ -293,10 +253,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findBacklogByWorkspaceId(
-        workspaceId,
-        user.userId,
-      );
+      const tasks = await this.tasksService.findBacklogByWorkspaceId(workspaceId, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
@@ -309,16 +266,10 @@ export class TasksController {
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
-        error,
-        {
-          workspaceId,
-          queryScope: 'scrum_backlog',
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceId,
+        queryScope: 'scrum_backlog',
+      });
       throw error;
     }
   }
@@ -335,10 +286,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findActiveSprintBoardByWorkspaceId(
-        workspaceId,
-        user.userId,
-      );
+      const tasks = await this.tasksService.findActiveSprintBoardByWorkspaceId(workspaceId, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
@@ -351,16 +299,10 @@ export class TasksController {
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
-        error,
-        {
-          workspaceId,
-          queryScope: 'scrum_active_sprint_board',
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceId,
+        queryScope: 'scrum_active_sprint_board',
+      });
       throw error;
     }
   }
@@ -379,11 +321,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findTasksBySprintInWorkspaceId(
-        workspaceId,
-        sprintId,
-        user.userId,
-      );
+      const tasks = await this.tasksService.findTasksBySprintInWorkspaceId(workspaceId, sprintId, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
         severity: 'INFO',
@@ -397,17 +335,11 @@ export class TasksController {
       });
       return tasks;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
-        error,
-        {
-          workspaceId,
-          sprintId,
-          queryScope: 'scrum_sprint_tasks',
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
+        workspaceId,
+        sprintId,
+        queryScope: 'scrum_sprint_tasks',
+      });
       throw error;
     }
   }
@@ -426,20 +358,11 @@ export class TasksController {
     @Param('workspaceId') workspaceId: string,
     @Query('year', new DefaultValuePipe(new Date().getFullYear()), ParseIntPipe)
     year: number,
-    @Query(
-      'month',
-      new DefaultValuePipe(new Date().getMonth() + 1),
-      ParseIntPipe,
-    )
+    @Query('month', new DefaultValuePipe(new Date().getMonth() + 1), ParseIntPipe)
     month: number,
     @CurrentUser() user: JwtPayload,
   ): Promise<{ tasks: TaskDto[] }> {
-    return this.tasksService.findCalendarByWorkspaceId(
-      workspaceId,
-      year,
-      month,
-      user.userId,
-    );
+    return this.tasksService.findCalendarByWorkspaceId(workspaceId, year, month, user.userId);
   }
 
   // ─── Timeline hierarchy ────────────────────────────────────────────────────
@@ -460,10 +383,7 @@ export class TasksController {
     children: TaskDto[];
     standalones: TaskDto[];
   }> {
-    return this.tasksService.findTimelineHierarchyByWorkspaceId(
-      workspaceId,
-      user.userId,
-    );
+    return this.tasksService.findTimelineHierarchyByWorkspaceId(workspaceId, user.userId);
   }
 
   // ─── Workspace-level dependencies ─────────────────────────────────────────
@@ -471,9 +391,7 @@ export class TasksController {
   @Get('dependencies')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'List all task dependencies for this workspace' })
-  async getWorkspaceDependencies(
-    @Param('workspaceId') workspaceId: string,
-  ): Promise<TaskDependencyDto[]> {
+  async getWorkspaceDependencies(@Param('workspaceId') workspaceId: string): Promise<TaskDependencyDto[]> {
     return this.taskDependencyService.findByWorkspace(workspaceId);
   }
 
@@ -492,11 +410,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDetailDto> {
     try {
-      const task = await this.tasksService.findByIdInWorkspaceId(
-        workspaceId,
-        id,
-        user.userId,
-      );
+      const task = await this.tasksService.findByIdInWorkspaceId(workspaceId, id, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_VIEWED,
         severity: 'INFO',
@@ -510,26 +424,17 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_VIEWED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
+        workspaceId,
+        taskId: id,
+      });
       throw error;
     }
   }
 
   @Patch(':id')
   @UseGuards(WorkspaceRoleGuard)
-  @RequirePermissions(
-    WORKSPACE_PERMISSIONS.TASK_EDIT,
-    WORKSPACE_PERMISSIONS.TASK_MOVE,
-  )
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @ApiOperation({ summary: 'Update task/card' })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiBadRequestResponse({ description: 'Invalid task update payload' })
@@ -544,12 +449,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.updateInWorkspaceId(
-        workspaceId,
-        id,
-        updateTaskDto,
-        user.userId,
-      );
+      const task = await this.tasksService.updateInWorkspaceId(workspaceId, id, updateTaskDto, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_UPDATE_SUCCESS,
         severity: 'INFO',
@@ -565,23 +465,18 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-          changedFields: Object.keys(updateTaskDto),
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED, error, {
+        workspaceId,
+        taskId: id,
+        changedFields: Object.keys(updateTaskDto),
+      });
       throw error;
     }
   }
 
   @Patch(':id/reorder')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_MOVE)
   @ApiOperation({
     summary: 'Reorder task/card by relative neighbor tasks',
   })
@@ -600,12 +495,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const result = await this.taskReorderService.reorderInWorkspaceId(
-        workspaceId,
-        id,
-        reorderTaskDto,
-        user.userId,
-      );
+      const result = await this.taskReorderService.reorderInWorkspaceId(workspaceId, id, reorderTaskDto, user.userId);
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS,
@@ -624,28 +514,23 @@ export class TasksController {
 
       return result.task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_MOVE_FAILED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-          reorder: true,
-          requestedColumnId: reorderTaskDto.columnId,
-          requestedStatus: reorderTaskDto.status,
-          requestedSprintId: reorderTaskDto.sprintId,
-          beforeTaskId: reorderTaskDto.beforeTaskId,
-          afterTaskId: reorderTaskDto.afterTaskId,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
+        workspaceId,
+        taskId: id,
+        reorder: true,
+        requestedColumnId: reorderTaskDto.columnId,
+        requestedStatus: reorderTaskDto.status,
+        requestedSprintId: reorderTaskDto.sprintId,
+        beforeTaskId: reorderTaskDto.beforeTaskId,
+        afterTaskId: reorderTaskDto.afterTaskId,
+      });
       throw error;
     }
   }
 
   @Patch(':id/move')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('task', SPACE_ROLES.MEMBER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_MOVE)
   @ApiOperation({
     summary: 'Move task/card across board columns or Scrum sprint scopes',
   })
@@ -662,12 +547,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const result = await this.taskMoveService.moveInWorkspaceId(
-        workspaceId,
-        id,
-        moveTaskDto,
-        user.userId,
-      );
+      const result = await this.taskMoveService.moveInWorkspaceId(workspaceId, id, moveTaskDto, user.userId);
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS,
@@ -685,20 +565,14 @@ export class TasksController {
 
       return result.task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_MOVE_FAILED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-          requestedColumnId: moveTaskDto.columnId,
-          requestedStatus: moveTaskDto.status,
-          requestedSprintId: moveTaskDto.sprintId,
-          requestedRank: moveTaskDto.rank,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
+        workspaceId,
+        taskId: id,
+        requestedColumnId: moveTaskDto.columnId,
+        requestedStatus: moveTaskDto.status,
+        requestedSprintId: moveTaskDto.sprintId,
+        requestedRank: moveTaskDto.rank,
+      });
       throw error;
     }
   }
@@ -718,11 +592,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.archiveInWorkspaceId(
-        workspaceId,
-        id,
-        user.userId,
-      );
+      const task = await this.tasksService.archiveInWorkspaceId(workspaceId, id, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_ARCHIVE_SUCCESS,
         severity: 'WARN',
@@ -738,16 +608,10 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED, error, {
+        workspaceId,
+        taskId: id,
+      });
       throw error;
     }
   }
@@ -767,11 +631,7 @@ export class TasksController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.restoreInWorkspaceId(
-        workspaceId,
-        id,
-        user.userId,
-      );
+      const task = await this.tasksService.restoreInWorkspaceId(workspaceId, id, user.userId);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.TASK_RESTORE_SUCCESS,
         severity: 'INFO',
@@ -787,16 +647,10 @@ export class TasksController {
       });
       return task;
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED, error, {
+        workspaceId,
+        taskId: id,
+      });
       throw error;
     }
   }
@@ -839,16 +693,10 @@ export class TasksController {
         taskId: task.id,
       });
     } catch (error) {
-      this.auditTaskFailure(
-        req,
-        user.userId,
-        SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED,
-        error,
-        {
-          workspaceId,
-          taskId: id,
-        },
-      );
+      this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED, error, {
+        workspaceId,
+        taskId: id,
+      });
       throw error;
     }
   }
@@ -875,12 +723,7 @@ export class TasksController {
     @Param('taskId') taskId: string,
     @Body() body: { toTaskId: string; type?: DependencyType },
   ): Promise<TaskDependencyDto> {
-    return this.taskDependencyService.create(
-      workspaceId,
-      taskId,
-      body.toTaskId,
-      body.type ?? 'blocks',
-    );
+    return this.taskDependencyService.create(workspaceId, taskId, body.toTaskId, body.type ?? 'blocks');
   }
 
   @Delete(':taskId/dependencies/:depId')
@@ -888,10 +731,7 @@ export class TasksController {
   @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a task dependency' })
-  async deleteDependency(
-    @Param('workspaceId') workspaceId: string,
-    @Param('depId') depId: string,
-  ): Promise<void> {
+  async deleteDependency(@Param('workspaceId') workspaceId: string, @Param('depId') depId: string): Promise<void> {
     return this.taskDependencyService.delete(workspaceId, depId);
   }
 
@@ -914,9 +754,7 @@ export class TasksController {
     });
   }
 
-  private getAuditSafeTaskFilters(
-    filterDto: FilterTaskDto,
-  ): Record<string, unknown> {
+  private getAuditSafeTaskFilters(filterDto: FilterTaskDto): Record<string, unknown> {
     const {
       workspaceId,
       sprintId,

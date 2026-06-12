@@ -13,12 +13,7 @@ import {
   TaskRestoredEventData,
   TaskUpdatedEventData,
 } from '../../../shared/events/domain-events/task';
-import {
-  REALTIME_EVENT_TYPES,
-  RealtimeEnvelope,
-  RealtimeEventType,
-  RoomBuilder,
-} from '../contracts';
+import { REALTIME_EVENT_TYPES, RealtimeEnvelope, RealtimeEventType, RoomBuilder } from '../contracts';
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type TaskRealtimeEventData =
@@ -30,10 +25,7 @@ export type TaskRealtimeEventData =
   | TaskRestoredEventData
   | TaskDeletedEventData;
 
-export type TaskRealtimeDomainEvent = BaseTaskEvent<
-  DomainEventType,
-  TaskRealtimeEventData
->;
+export type TaskRealtimeDomainEvent = BaseTaskEvent<DomainEventType, TaskRealtimeEventData>;
 
 @Injectable()
 export class TaskRealtimeListener {
@@ -76,10 +68,7 @@ export class TaskRealtimeListener {
     this.publishTaskEvent(REALTIME_EVENT_TYPES.TASK_DELETED, event);
   }
 
-  private publishTaskEvent(
-    type: RealtimeEventType,
-    event: TaskRealtimeDomainEvent,
-  ): void {
+  private publishTaskEvent(type: RealtimeEventType, event: TaskRealtimeDomainEvent): void {
     try {
       const room = RoomBuilder.workspace(event.data.workspaceId);
       const envelope = this.buildEnvelope(type, event);

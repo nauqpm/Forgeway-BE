@@ -52,20 +52,11 @@ describe('TaskDetailService', () => {
     repository.findDetailByIdInWorkspace.mockResolvedValue(task as any);
     mapper.mapToDetailDto.mockReturnValue(detail as any);
 
-    await expect(
-      service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId),
-    ).resolves.toEqual(detail);
+    await expect(service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(detail);
 
     expect(validationService.getWorkspaceByKey).toHaveBeenCalledWith('TESKB');
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
-    expect(repository.findDetailByIdInWorkspace).toHaveBeenCalledWith(
-      taskId,
-      workspaceId,
-      { includeArchived: true },
-    );
+    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
+    expect(repository.findDetailByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, { includeArchived: true });
   });
 
   it('returns task detail by task key scoped to workspace key', async () => {
@@ -80,23 +71,19 @@ describe('TaskDetailService', () => {
     repository.findDetailByKeyInWorkspace.mockResolvedValue(task as any);
     mapper.mapToDetailDto.mockReturnValue(detail as any);
 
-    await expect(
-      service.getDetailByKeyInWorkspaceKey('TESKB', 'teskb-2', userId),
-    ).resolves.toEqual(detail);
+    await expect(service.getDetailByKeyInWorkspaceKey('TESKB', 'teskb-2', userId)).resolves.toEqual(detail);
 
-    expect(repository.findDetailByKeyInWorkspace).toHaveBeenCalledWith(
-      'TESKB-2',
-      workspaceId,
-      { includeArchived: true },
-    );
+    expect(repository.findDetailByKeyInWorkspace).toHaveBeenCalledWith('TESKB-2', workspaceId, {
+      includeArchived: true,
+    });
   });
 
   it('rejects invalid task id before repository lookup', async () => {
     validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
 
-    await expect(
-      service.getDetailByIdInWorkspaceKey('TESKB', 'invalid-id', userId),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.getDetailByIdInWorkspaceKey('TESKB', 'invalid-id', userId)).rejects.toThrow(
+      BadRequestException,
+    );
 
     expect(repository.findDetailByIdInWorkspace).not.toHaveBeenCalled();
   });
@@ -107,8 +94,6 @@ describe('TaskDetailService', () => {
     validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
     repository.findDetailByIdInWorkspace.mockResolvedValue(null);
 
-    await expect(
-      service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId)).rejects.toThrow(NotFoundException);
   });
 });

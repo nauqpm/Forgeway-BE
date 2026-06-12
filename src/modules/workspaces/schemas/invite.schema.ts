@@ -7,17 +7,18 @@ export type InviteDocument = Invite & Document;
 export const INVITE_STATUS = {
   PENDING: 'pending',
   ACCEPTED: 'accepted',
+  DECLINED: 'declined',
   EXPIRED: 'expired',
 } as const;
 
-export type InviteStatusValue = typeof INVITE_STATUS[keyof typeof INVITE_STATUS];
+export type InviteStatusValue = (typeof INVITE_STATUS)[keyof typeof INVITE_STATUS];
 
 export const INVITE_TYPES = {
   EMAIL: 'email',
   LINK: 'link',
 } as const;
 
-export type InviteTypeValue = typeof INVITE_TYPES[keyof typeof INVITE_TYPES];
+export type InviteTypeValue = (typeof INVITE_TYPES)[keyof typeof INVITE_TYPES];
 
 @Schema({ timestamps: true })
 export class Invite {

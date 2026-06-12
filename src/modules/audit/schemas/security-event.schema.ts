@@ -1,10 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-import type {
-  SecurityEventSeverityLiteral,
-  SecurityEventTypeLiteral,
-} from '../constants/audit.constants';
+import type { SecurityEventSeverityLiteral, SecurityEventTypeLiteral } from '../constants/audit.constants';
 
 export type SecurityEventDocument = SecurityEvent & Document;
 export type SecurityEventType = SecurityEventTypeLiteral;

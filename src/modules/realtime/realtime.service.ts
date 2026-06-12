@@ -37,12 +37,7 @@ export class RealtimeService {
     return this.server;
   }
 
-  emitBoardDelta<TPayload>(
-    workspaceId: string,
-    action: BoardDeltaAction,
-    payload: TPayload,
-    version?: number,
-  ): void {
+  emitBoardDelta<TPayload>(workspaceId: string, action: BoardDeltaAction, payload: TPayload, version?: number): void {
     if (!this.server) {
       return;
     }
@@ -60,5 +55,23 @@ export class RealtimeService {
 
   workspaceRoom(workspaceId: string): string {
     return RoomBuilder.workspace(workspaceId);
+  }
+
+  emitPageVersionRestored(
+    pageId: string,
+    yjsState?: Buffer,
+    content?: string,
+    contentJson?: string,
+  ): void {
+    if (!this.server) {
+      return;
+    }
+    const pageRoom = RoomBuilder.page(pageId);
+    this.server.to(pageRoom).emit('page.version-restored', {
+      pageId,
+      yjsState: yjsState ? Array.from(new Uint8Array(yjsState)) : undefined,
+      content,
+      contentJson,
+    });
   }
 }

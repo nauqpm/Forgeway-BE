@@ -7,8 +7,7 @@ import { TaskEventContext } from './task-event-payloads';
 export abstract class BaseTaskEvent<
   TType extends DomainEventType,
   TData extends TaskEventContext,
-> implements DomainEvent<TType, TData>
-{
+> implements DomainEvent<TType, TData> {
   readonly eventId?: string;
   readonly correlationId?: string;
   readonly causationId?: string;

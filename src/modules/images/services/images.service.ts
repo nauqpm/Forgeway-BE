@@ -22,13 +22,13 @@ export class ImagesService {
     }
 
     let url = '';
-    const isAvatar = 
-      dto.type === ImageType.AVATAR || 
-      dto.targetType === 'avatar' || 
-      file.fieldname === 'avatar' || 
+    const isAvatar =
+      dto.type === ImageType.AVATAR ||
+      dto.targetType === 'avatar' ||
+      file.fieldname === 'avatar' ||
       file.fieldname === 'avatars' ||
-      dto.type === 'avatars' as any;
-    
+      dto.type === ('avatars' as any);
+
     // Auto-route to Cloudinary if it's an avatar
     if (isAvatar && (file.path || file.buffer)) {
       let result;
@@ -36,7 +36,7 @@ export class ImagesService {
         // Case: Uploaded via diskStorage
         this.logger.log(`Uploading avatar to Cloudinary from path: ${file.path}`);
         result = await this.cloudinaryService.uploadImageFromPath(file.path, 'avatars');
-        
+
         // Cleanup local temp file
         try {
           await fs.unlink(file.path);
@@ -74,11 +74,7 @@ export class ImagesService {
     return image.save();
   }
 
-  async createMultiple(
-    dtos: CreateImageDto[],
-    files: Express.Multer.File[],
-    userId: string,
-  ): Promise<ImageDocument[]> {
+  async createMultiple(dtos: CreateImageDto[], files: Express.Multer.File[], userId: string): Promise<ImageDocument[]> {
     if (!files || files.length === 0) {
       throw new BadRequestException('Files are required');
     }
@@ -104,10 +100,7 @@ export class ImagesService {
   }
 
   async findByTarget(targetType: string, targetId: string): Promise<ImageDocument[]> {
-    return this.imageModel
-      .find({ type: targetType, targetId })
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.imageModel.find({ type: targetType, targetId }).sort({ createdAt: -1 }).exec();
   }
 
   async findByUser(userId: string): Promise<ImageDocument[]> {
@@ -164,9 +157,7 @@ export class ImagesService {
       throw new BadRequestException('Invalid image ID');
     }
 
-    const image = await this.imageModel
-      .findByIdAndUpdate(id, { $inc: { downloadCount: 1 } }, { new: true })
-      .exec();
+    const image = await this.imageModel.findByIdAndUpdate(id, { $inc: { downloadCount: 1 } }, { new: true }).exec();
 
     if (!image) {
       throw new NotFoundException('Image not found');
@@ -180,9 +171,7 @@ export class ImagesService {
       throw new BadRequestException('Invalid image ID');
     }
 
-    const image = await this.imageModel
-      .findByIdAndUpdate(id, updateData, { new: true })
-      .exec();
+    const image = await this.imageModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
 
     if (!image) {
       throw new NotFoundException('Image not found');

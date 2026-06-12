@@ -7,8 +7,7 @@ import { SprintEventContext } from './sprint-event-payloads';
 export abstract class BaseSprintEvent<
   TType extends DomainEventType,
   TData extends SprintEventContext,
-> implements DomainEvent<TType, TData>
-{
+> implements DomainEvent<TType, TData> {
   readonly eventId?: string;
   readonly correlationId?: string;
   readonly causationId?: string;

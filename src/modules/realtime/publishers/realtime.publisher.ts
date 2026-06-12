@@ -19,9 +19,7 @@ export class RealtimePublisher {
     try {
       server.to(room).emit(envelope.type, envelope);
     } catch (error) {
-      this.logger.warn(
-        `Realtime emit failed. room=${room}, type=${envelope.type}, reason=${(error as Error).message}`,
-      );
+      this.logger.warn(`Realtime emit failed. room=${room}, type=${envelope.type}, reason=${(error as Error).message}`);
     }
   }
 }

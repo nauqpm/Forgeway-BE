@@ -1,13 +1,6 @@
 // 📁 src/modules/auth/controllers/permission.controller.ts
 
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Request,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Request, Logger, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsService } from '../../permissions/services/permissions.service';
@@ -28,9 +21,7 @@ interface RequestWithUser extends ExpressRequest {
 export class PermissionController {
   private readonly logger = new Logger(PermissionController.name);
 
-  constructor(
-    private readonly permissionsService: PermissionsService,
-  ) {}
+  constructor(private readonly permissionsService: PermissionsService) {}
 
   // 🔒 Lấy quyền của người dùng đã đăng nhập
   @ApiOperation({ summary: 'Lấy danh sách quyền của người dùng hiện tại' })
@@ -40,9 +31,7 @@ export class PermissionController {
     schema: {
       example: {
         role: 'user',
-        permissions: [
-          { id: '...', resource: 'tasks', action: 'read', source: 'role' },
-        ],
+        permissions: [{ id: '...', resource: 'tasks', action: 'read', source: 'role' }],
         isAdmin: false,
       },
     },
@@ -92,9 +81,7 @@ export class PermissionController {
     schema: {
       example: {
         success: true,
-        permissions: [
-          { resource: 'tasks', action: 'read', source: 'role' },
-        ],
+        permissions: [{ resource: 'tasks', action: 'read', source: 'role' }],
       },
     },
   })
@@ -117,4 +104,3 @@ export class PermissionController {
     }
   }
 }
-
