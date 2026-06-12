@@ -39,11 +39,23 @@ export class CommentDto {
   @ApiPropertyOptional()
   parentId?: string;
 
+  @ApiPropertyOptional()
+  inlineId?: string;
+
   @ApiProperty({ type: [String] })
   mentions!: string[];
 
   @ApiProperty()
   isDeleted!: boolean;
+
+  @ApiProperty()
+  isResolved!: boolean;
+
+  @ApiPropertyOptional()
+  resolvedBy?: string;
+
+  @ApiPropertyOptional()
+  resolvedAt?: Date;
 
   @ApiPropertyOptional()
   editedAt?: Date;
@@ -53,4 +65,7 @@ export class CommentDto {
 
   @ApiPropertyOptional()
   updatedAt?: Date;
+
+  @ApiPropertyOptional({ type: [CommentDto] })
+  replies?: CommentDto[];
 }

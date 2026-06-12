@@ -12,6 +12,12 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Inject,
+  forwardRef,
+  Res,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,10 +40,14 @@ import { PagesService } from '../services/pages.service';
 import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
 import { FilterPageDto } from '../dtos/filter-page.dto';
+import { SyncPageDto } from '../dtos/sync-page.dto';
+import { CreateVersionDto } from '../dtos/create-version.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
+import { RealtimeService } from '../../realtime/realtime.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 // ---------------------------------------------------------------------------
 // Response shape DTOs (inline, for Swagger schema only — no runtime overhead)
@@ -94,12 +104,16 @@ class UpdateLabelsBodyDto {
 @ApiTags('Pages')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('pages') // endpoint độc lập với workspace
+@Controller('pages') // independent endpoint
 @ApiExtraModels(PageResponseDto, PaginatedPagesResponseDto)
 @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT token' })
 @ApiForbiddenResponse({ description: 'Insufficient role for this resource' })
 export class PagesController {
-  constructor(private readonly pagesService: PagesService) {}
+  constructor(
+    private readonly pagesService: PagesService,
+    @Inject(forwardRef(() => RealtimeService))
+    private readonly realtimeService: RealtimeService,
+  ) { }
 
   // -------------------------------------------------------------------------
   // POST /pages
@@ -139,6 +153,19 @@ export class PagesController {
   })
   async findAll(@Query() filterDto: FilterPageDto) {
     return this.pagesService.findAll(filterDto);
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/link-preview
+  // -------------------------------------------------------------------------
+  @Get('link-preview')
+  @ApiOperation({
+    summary: 'Get link preview metadata',
+    description: 'Fetch OpenGraph metadata securely via backend proxy',
+  })
+  @ApiQuery({ name: 'url', description: 'URL to preview' })
+  async getLinkPreview(@Query('url') url: string) {
+    return this.pagesService.getLinkPreview(url);
   }
 
   // -------------------------------------------------------------------------
@@ -193,6 +220,27 @@ export class PagesController {
   @ApiNotFoundResponse({ description: 'Page not found' })
   async update(@Param('id') id: string, @Body() updatePageDto: UpdatePageDto, @Request() req: any) {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
+  }
+
+  // -------------------------------------------------------------------------
+  // PATCH /pages/:id/sync
+  // -------------------------------------------------------------------------
+  @Patch(':id/sync')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @ApiOperation({
+    summary: 'Synchronize page Yjs state and document content snapshots',
+    description: 'Updates page yjsState, contentJson, content (HTML), and plainTextSnapshot.',
+  })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
+  @ApiOkResponse({ description: 'Page synchronized successfully', type: PageResponseDto })
+  @ApiNotFoundResponse({ description: 'Page not found' })
+  async sync(
+    @Param('id') id: string,
+    @Body() syncPageDto: SyncPageDto,
+    @Request() req: any,
+  ) {
+    return this.pagesService.sync(id, syncPageDto, req.user.userId);
   }
 
   // -------------------------------------------------------------------------
@@ -377,5 +425,138 @@ export class PagesController {
     }
 
     return this.pagesService.findById(id);
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /pages/:id/versions
+  // -------------------------------------------------------------------------
+  @Post(':id/versions')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @ApiOperation({
+    summary: 'Create a new named version',
+    description: 'Saves current document state (yjsState, content, contentJson) as a named version.',
+  })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiBody({ type: CreateVersionDto })
+  @ApiCreatedResponse({ description: 'New version successfully created' })
+  async createVersion(
+    @Param('id') id: string,
+    @Body() dto: CreateVersionDto,
+    @Request() req: any,
+  ) {
+    return this.pagesService.createVersion(id, dto.label, req.user.userId);
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/versions
+  // -------------------------------------------------------------------------
+  @Get(':id/versions')
+  @ApiOperation({
+    summary: 'Get document version list',
+    description: 'Returns a list of saved versions of the document, sorted by newest creation time.',
+  })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiOkResponse({ description: 'List of versions' })
+  async getVersions(@Param('id') id: string) {
+    return this.pagesService.getVersions(id);
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/versions/:versionId
+  // -------------------------------------------------------------------------
+  @Get(':id/versions/:versionId')
+  @ApiOperation({
+    summary: 'Get details of a document version',
+    description: 'Returns details and snapshot content of the version.',
+  })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiParam({ name: 'versionId', description: 'Version ID' })
+  @ApiOkResponse({ description: 'Version details' })
+  async getVersionById(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.pagesService.getVersionById(id, versionId);
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /pages/:id/versions/:versionId/restore
+  // -------------------------------------------------------------------------
+  @Post(':id/versions/:versionId/restore')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @ApiOperation({
+    summary: 'Restore document to specified version',
+    description: 'Restores document content and Yjs state to saved version.',
+  })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  @ApiParam({ name: 'versionId', description: 'Version ID' })
+  @ApiOkResponse({ description: 'Document successfully restored' })
+  async restoreVersion(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+    @Request() req: any,
+  ) {
+    const page = await this.pagesService.restoreVersion(id, versionId, req.user.userId);
+    
+    // Broadcast real-time notification to all connected clients in the page room
+    this.realtimeService.emitPageVersionRestored(
+      page._id.toString(),
+      page.yjsState,
+      page.content,
+      page.contentJson,
+    );
+
+    return page;
+  }
+
+  // -------------------------------------------------------------------------
+  // GET /pages/:id/export/docx
+  // -------------------------------------------------------------------------
+  @Get(':id/export/docx')
+  @UseGuards(WorkspaceRoleGuard)
+  @ApiOperation({
+    summary: 'Export document as Word file (.docx)',
+    description: 'Converts HTML of the current document to Word file (.docx) for download.',
+  })
+  @ApiParam({ name: 'id', description: 'Document page ID' })
+  async exportDocx(@Param('id') id: string, @Res() res: any) {
+    const { buffer, filename } = await this.pagesService.exportToDocx(id);
+
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+      'Content-Length': buffer.length,
+    });
+
+    res.end(buffer);
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /pages/import/docx
+  // -------------------------------------------------------------------------
+  @Post('import/docx')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+      fileFilter: (req: any, file: any, cb: any) => {
+        if (!file.originalname.match(/\.(docx)$/)) {
+          return cb(new BadRequestException('Only .docx files are allowed'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiOperation({
+    summary: 'Import content from Word file (.docx)',
+    description: 'Converts uploaded Word file (.docx) to clean HTML to insert into editor.',
+  })
+  async importDocx(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Please upload a Word (.docx) file');
+    }
+    const html = await this.pagesService.importFromDocx(file.buffer);
+    return { html };
   }
 }

@@ -17,11 +17,20 @@ export class CommentMapper {
       targetType: plain.targetType,
       targetId: String(plain.targetId),
       parentId: this.toOptionalId(plain.parentId),
-      mentions: Array.isArray(plain.mentions) ? plain.mentions.map(item => this.toId(item)).filter(Boolean) : [],
+      inlineId: plain.inlineId || undefined,
+      mentions: Array.isArray(plain.mentions)
+        ? plain.mentions.map((item) => this.toId(item)).filter(Boolean)
+        : [],
       isDeleted: Boolean(plain.isDeleted),
+      isResolved: Boolean(plain.isResolved),
+      resolvedBy: this.toOptionalId(plain.resolvedBy),
+      resolvedAt: plain.resolvedAt,
       editedAt: plain.editedAt,
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
+      replies: Array.isArray((plain as any).replies)
+        ? (plain as any).replies.map((r: any) => this.mapToDto(r))
+        : undefined,
     };
   }
 
