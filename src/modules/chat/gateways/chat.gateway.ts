@@ -123,10 +123,9 @@ export class ChatGateway implements OnGatewayConnection {
       for (const memberId of memberIds) {
         if (memberId === userId) continue;
 
-        const unreadCount = await this.messagesService.countUnread(payload.channelId, memberId);
         this.server.to(RoomBuilder.user(memberId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE, {
           channelId: payload.channelId,
-          unreadCount,
+          increment: 1,
           lastMessage: message,
         });
       }
