@@ -30,6 +30,12 @@ import { TaskNormalizerService } from './services/task-normalizer.service';
 import { TaskReorderService } from './services/task-reorder.service';
 import { TaskSearchService } from './services/task-search.service';
 import { TasksService } from './services/tasks.service';
+import { TaskAccessService } from './services/task-access.service';
+import { TaskAssignmentNotificationService } from './services/task-assignment-notification.service';
+import { TaskCreateService } from './services/task-create.service';
+import { TaskQueryService } from './services/task-query.service';
+import { TaskUpdateService } from './services/task-update.service';
+import { TaskLifecycleService } from './services/task-lifecycle.service';
 
 @Module({
   imports: [
@@ -66,6 +72,12 @@ import { TasksService } from './services/tasks.service';
     TaskDomainEventPublisher,
     TasksService,
     TaskDependencyService,
+    TaskAccessService,
+    TaskAssignmentNotificationService,
+    TaskCreateService,
+    TaskQueryService,
+    TaskUpdateService,
+    TaskLifecycleService,
     WorkspaceRoleGuard,
   ],
   exports: [
@@ -83,6 +95,12 @@ import { TasksService } from './services/tasks.service';
     TasksRepository,
     TaskMapper,
     TaskDependencyService,
+    TaskAccessService,
+    TaskAssignmentNotificationService,
+    TaskCreateService,
+    TaskQueryService,
+    TaskUpdateService,
+    TaskLifecycleService,
   ],
 })
 export class TasksModule {}

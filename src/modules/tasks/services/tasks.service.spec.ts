@@ -1,616 +1,349 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { KanbanService } from '../../kanban/services/kanban.service';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { ScrumService } from '../../scrum/services/scrum.service';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
-import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
-import { TaskCreationValidationService } from './task-creation-validation.service';
-import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
-import { TaskCounterService } from './task-counter.service';
-import { TaskDataTransformerService } from './task-data-transformer.service';
-import { TaskDomainEventPublisher } from './task-domain-event.publisher';
-import { TaskKeyService } from './task-key.service';
-import { TaskNormalizerService } from './task-normalizer.service';
 import { TasksService } from './tasks.service';
+import { TaskCreateService } from './task-create.service';
+import { TaskQueryService } from './task-query.service';
+import { TaskUpdateService } from './task-update.service';
+import { TaskLifecycleService } from './task-lifecycle.service';
 
 describe('TasksService', () => {
   let service: TasksService;
-  let repository: jest.Mocked<TasksRepository>;
-  let mapper: jest.Mocked<TaskMapper>;
-  let validationService: jest.Mocked<TaskCreationValidationService>;
-  let normalizerService: jest.Mocked<TaskNormalizerService>;
-  let transformerService: jest.Mocked<TaskDataTransformerService>;
-  let keyService: jest.Mocked<TaskKeyService>;
-  let taskCounterService: jest.Mocked<TaskCounterService>;
-  let taskActivitiesService: jest.Mocked<TaskActivitiesService>;
-  let scrumService: jest.Mocked<ScrumService>;
-  let kanbanService: jest.Mocked<KanbanService>;
+  let taskCreateService: jest.Mocked<TaskCreateService>;
+  let taskQueryService: jest.Mocked<TaskQueryService>;
+  let taskUpdateService: jest.Mocked<TaskUpdateService>;
+  let taskLifecycleService: jest.Mocked<TaskLifecycleService>;
+
+  const userId = new Types.ObjectId().toString();
+  const workspaceId = new Types.ObjectId().toString();
+  const taskId = new Types.ObjectId().toString();
+  const makeTaskDto = (overrides = {}) => ({
+    id: taskId,
+    workspaceId,
+    key: 'TESKB-1',
+    title: 'Test Task',
+    description: '',
+    type: 'task',
+    priority: 'medium',
+    status: 'todo',
+    rank: 'a0',
+    version: 1,
+    isArchived: false,
+    isDeleted: false,
+    reporterId: workspaceId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+
+  const taskDto = makeTaskDto();
+  const taskListDto = { tasks: [taskDto], total: 1, page: 1, limit: 20 };
 
   beforeEach(async () => {
+    taskCreateService = {
+      create: jest.fn(),
+      createInWorkspaceKey: jest.fn(),
+      createInWorkspaceId: jest.fn(),
+    } as unknown as jest.Mocked<TaskCreateService>;
+
+    taskQueryService = {
+      findAll: jest.fn(),
+      findByWorkspace: jest.fn(),
+      findByWorkspaceKey: jest.fn(),
+      findByWorkspaceId: jest.fn(),
+      findArchivedByWorkspaceKey: jest.fn(),
+      findArchivedByWorkspaceId: jest.fn(),
+      findBacklogByWorkspaceKey: jest.fn(),
+      findBacklogByWorkspaceId: jest.fn(),
+      findActiveSprintBoardByWorkspaceKey: jest.fn(),
+      findActiveSprintBoardByWorkspaceId: jest.fn(),
+      findTasksBySprintInWorkspaceKey: jest.fn(),
+      findTasksBySprintInWorkspaceId: jest.fn(),
+      findById: jest.fn(),
+      findByIdInWorkspaceKey: jest.fn(),
+      findByIdInWorkspaceId: jest.fn(),
+      findByIdForAccessCheck: jest.fn(),
+      findByKey: jest.fn(),
+      findByKeyInWorkspaceKey: jest.fn(),
+      findByKeyInWorkspace: jest.fn(),
+      findByKeyInWorkspaceId: jest.fn(),
+      findCalendarByWorkspaceId: jest.fn(),
+      findTimelineHierarchyByWorkspaceId: jest.fn(),
+    } as unknown as jest.Mocked<TaskQueryService>;
+
+    taskUpdateService = {
+      update: jest.fn(),
+      updateInWorkspaceKey: jest.fn(),
+      updateInWorkspaceId: jest.fn(),
+    } as unknown as jest.Mocked<TaskUpdateService>;
+
+    taskLifecycleService = {
+      archiveInWorkspaceKey: jest.fn(),
+      archiveTaskKeyInWorkspace: jest.fn(),
+      archiveInWorkspaceId: jest.fn(),
+      restoreInWorkspaceKey: jest.fn(),
+      restoreTaskKeyInWorkspace: jest.fn(),
+      restoreInWorkspaceId: jest.fn(),
+      deletePermanentlyInWorkspaceKey: jest.fn(),
+      deleteTaskKeyPermanentlyInWorkspace: jest.fn(),
+      deletePermanentlyInWorkspaceId: jest.fn(),
+    } as unknown as jest.Mocked<TaskLifecycleService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
-        {
-          provide: TasksRepository,
-          useValue: {
-            create: jest.fn(),
-            findById: jest.fn(),
-            findByKey: jest.fn(),
-            findByIdInWorkspace: jest.fn(),
-            findByKeyInWorkspace: jest.fn(),
-            findByWorkspaceAndKey: jest.fn(),
-            findAll: jest.fn(),
-            findByWorkspace: jest.fn(),
-            findArchivedByWorkspace: jest.fn(),
-            findBacklogByWorkspace: jest.fn(),
-            findBySprintInWorkspace: jest.fn(),
-            update: jest.fn(),
-            updateInWorkspace: jest.fn(),
-            archive: jest.fn(),
-            archiveInWorkspace: jest.fn(),
-            restore: jest.fn(),
-            restoreInWorkspace: jest.fn(),
-            softDelete: jest.fn(),
-            softDeleteInWorkspace: jest.fn(),
-            findTasksInRankScope: jest.fn(),
-          },
-        },
-        {
-          provide: TaskMapper,
-          useValue: {
-            mapToDto: jest.fn(),
-            mapToDtos: jest.fn(),
-          },
-        },
-        {
-          provide: TaskKeyService,
-          useValue: {
-            create: jest.fn(),
-          },
-        },
-        {
-          provide: TaskCounterService,
-          useValue: {
-            nextSequence: jest.fn(),
-          },
-        },
-        {
-          provide: TaskActivitiesService,
-          useValue: {
-            recordTaskCreated: jest.fn(),
-            recordTaskUpdated: jest.fn(),
-            recordTaskArchived: jest.fn(),
-            recordTaskRestored: jest.fn(),
-            recordTaskPermanentlyDeleted: jest.fn(),
-          },
-        },
-        {
-          provide: TaskCreationValidationService,
-          useValue: {
-            validateCreateRequest: jest.fn(),
-            validateUpdateRequest: jest.fn(),
-            validateWorkspaceMember: jest.fn(),
-            validateObjectId: jest.fn(),
-            getWorkspaceById: jest.fn(),
-          },
-        },
-        {
-          provide: TaskNormalizerService,
-          useValue: {
-            normalizeForWorkspaceType: jest.fn(),
-            normalizeUpdateForWorkspaceType: jest.fn(),
-          },
-        },
-        {
-          provide: TaskDataTransformerService,
-          useValue: {
-            transformCreateInput: jest.fn(),
-            transformUpdateInput: jest.fn(),
-          },
-        },
-        {
-          provide: ScrumService,
-          useValue: {
-            getActiveSprint: jest.fn(),
-            findByIdInWorkspace: jest.fn(),
-          },
-        },
-        {
-          provide: TaskDomainEventPublisher,
-          useValue: {
-            publishCreated: jest.fn(),
-            publishUpdated: jest.fn(),
-            publishArchived: jest.fn(),
-            publishRestored: jest.fn(),
-            publishDeleted: jest.fn(),
-          },
-        },
-        {
-          provide: NotificationsService,
-          useValue: {
-            notifyTaskAssigned: jest.fn(),
-          },
-        },
-        {
-          provide: KanbanService,
-          useValue: {
-            findByWorkspaceId: jest.fn(),
-          },
-        },
+        { provide: TaskCreateService, useValue: taskCreateService },
+        { provide: TaskQueryService, useValue: taskQueryService },
+        { provide: TaskUpdateService, useValue: taskUpdateService },
+        { provide: TaskLifecycleService, useValue: taskLifecycleService },
       ],
     }).compile();
 
     service = module.get<TasksService>(TasksService);
-    repository = module.get(TasksRepository);
-    mapper = module.get(TaskMapper);
-    repository.findTasksInRankScope.mockResolvedValue([]);
-    keyService = module.get(TaskKeyService);
-    taskCounterService = module.get(TaskCounterService);
-    taskActivitiesService = module.get(TaskActivitiesService);
-    validationService = module.get(TaskCreationValidationService);
-    normalizerService = module.get(TaskNormalizerService);
-    transformerService = module.get(TaskDataTransformerService);
-    scrumService = module.get(ScrumService);
-    kanbanService = module.get(KanbanService);
   });
 
-  it('creates a task by delegating validation, normalization and transformation', async () => {
-    const userId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const createDto: CreateTaskDto = { title: 'Task', workspaceId };
-    const workspace = {
-      _id: new Types.ObjectId(workspaceId),
-      key: 'TESKB',
-      type: 'kanban',
-    };
-    const normalizedDto = { ...createDto, columnId: 'todo' };
-    const taskData = {
-      title: 'Task',
-      key: 'TESKB-1',
-      workspaceId: new Types.ObjectId(workspaceId),
-    };
-    const task = { _id: new Types.ObjectId(), key: 'TESKB-1' };
-    const taskDto = { id: task._id.toString(), key: 'TESKB-1' };
+  // ─── Create delegation ──────────────────────────────────────────────────
 
-    validationService.validateCreateRequest.mockResolvedValue(workspace as any);
-    normalizerService.normalizeForWorkspaceType.mockResolvedValue(normalizedDto);
-    taskCounterService.nextSequence.mockResolvedValue(1);
-    keyService.create.mockReturnValue('TESKB-1');
-    transformerService.transformCreateInput.mockReturnValue(taskData as any);
-    repository.create.mockResolvedValue(task as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
-
-    const result = await service.create(createDto, userId);
-
-    expect(result).toEqual(taskDto);
-    expect(validationService.validateCreateRequest).toHaveBeenCalledWith(createDto, workspaceId, userId);
-    expect(normalizerService.normalizeForWorkspaceType).toHaveBeenCalledWith(createDto, workspace);
-    expect(taskCounterService.nextSequence).toHaveBeenCalledWith(workspaceId);
-    expect(transformerService.transformCreateInput).toHaveBeenCalledWith(normalizedDto, workspaceId, userId, 'TESKB-1');
-    expect(repository.create).toHaveBeenCalledWith(taskData);
-    expect(taskActivitiesService.recordTaskCreated).toHaveBeenCalledWith(task, userId);
+  it('delegates create to TaskCreateService', async () => {
+    const dto: CreateTaskDto = { title: 'Task', workspaceId };
+    taskCreateService.create.mockResolvedValue(taskDto as any);
+    await expect(service.create(dto, userId)).resolves.toEqual(taskDto);
+    expect(taskCreateService.create).toHaveBeenCalledWith(dto, userId);
   });
 
-  it('rejects create when workspaceId is missing', async () => {
-    await expect(service.create({ title: 'Task' }, 'user-id')).rejects.toThrow(BadRequestException);
+  it('delegates createInWorkspaceKey to TaskCreateService', async () => {
+    taskCreateService.createInWorkspaceKey.mockResolvedValue(taskDto as any);
+    await expect(service.createInWorkspaceKey('TESKB', { title: 'Task' }, userId)).resolves.toEqual(taskDto);
+    expect(taskCreateService.createInWorkspaceKey).toHaveBeenCalledWith('TESKB', { title: 'Task' }, userId);
   });
 
-  it('creates a task from workspace key', async () => {
-    const workspaceId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const createSpy = jest.spyOn(service, 'create').mockResolvedValue({ key: 'TESKB-1' } as any);
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-
-    await service.createInWorkspaceKey('TESKB', { title: 'Task' }, 'user-id');
-
-    expect(createSpy).toHaveBeenCalledWith({ title: 'Task', workspaceId }, 'user-id');
+  it('delegates createInWorkspaceId to TaskCreateService', async () => {
+    taskCreateService.createInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.createInWorkspaceId(workspaceId, { title: 'Task' }, userId)).resolves.toEqual(taskDto);
+    expect(taskCreateService.createInWorkspaceId).toHaveBeenCalledWith(workspaceId, { title: 'Task' }, userId);
   });
 
-  it('finds all tasks and maps pagination response', async () => {
-    const workspaceId = new Types.ObjectId().toString();
-    const tasks = [{ key: 'TESKB-1' }];
+  // ─── Query delegation ─────────────────────────────────══════════════════
 
-    repository.findAll.mockResolvedValue({
-      tasks: tasks as any,
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
-    mapper.mapToDtos.mockReturnValue([{ key: 'TESKB-1' }] as any);
-
-    const result = await service.findAll({ workspaceId }, 'user-id');
-
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, 'user-id');
-    expect(result).toEqual({
-      tasks: [{ key: 'TESKB-1' }],
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
+  it('delegates findAll to TaskQueryService', async () => {
+    taskQueryService.findAll.mockResolvedValue(taskListDto);
+    await expect(service.findAll({ workspaceId }, userId)).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findAll).toHaveBeenCalledWith({ workspaceId }, userId);
   });
 
-  it('finds workspace tasks by key with board filters', async () => {
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const tasks = [{ key: 'TESKB-1', status: 'todo' }];
-    const filters = {
-      status: ['todo', 'inprogress', 'testing'],
-      columnId: 'todo',
-      search: 'login',
-      backlog: false,
-      workspaceId: new Types.ObjectId().toString(),
-    };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findAll.mockResolvedValue({
-      tasks: tasks as any,
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
-    mapper.mapToDtos.mockReturnValue([{ key: 'TESKB-1', status: 'todo' }] as any);
-
-    const result = await service.findByWorkspaceKey('TESKB', userId, filters as any);
-
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(repository.findAll).toHaveBeenCalledWith({
-      ...filters,
-      workspaceId,
-    });
-    expect(result).toEqual({
-      tasks: [{ key: 'TESKB-1', status: 'todo' }],
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
+  it('delegates findByWorkspace to TaskQueryService', async () => {
+    taskQueryService.findByWorkspace.mockResolvedValue([taskDto] as any);
+    await expect(service.findByWorkspace(workspaceId, userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findByWorkspace).toHaveBeenCalledWith(workspaceId, userId);
   });
 
-  it('uses current renamed column names for archived task statuses', async () => {
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const task = {
-      _id: new Types.ObjectId(),
-      key: 'TESKB-1',
-      columnId: 'inprogress',
-      status: 'in-progress',
-      isArchived: true,
-    };
-
-    repository.findArchivedByWorkspace.mockResolvedValue({
-      tasks: [task] as any,
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
-    kanbanService.findByWorkspaceId.mockResolvedValue([
-      {
-        columns: [
-          {
-            id: 'inprogress',
-            name: '1',
-            order: 1,
-            mappedStatuses: ['in-progress'],
-          },
-        ],
-      },
-    ] as any);
-    mapper.mapToDtos.mockImplementation((tasks) => tasks as any);
-
-    const result = await service.findArchivedByWorkspaceId(
-      workspaceId,
-      userId,
-    );
-
-    expect(kanbanService.findByWorkspaceId).toHaveBeenCalledWith(workspaceId);
-    expect(result.tasks).toEqual([
-      expect.objectContaining({
-        columnId: 'inprogress',
-        status: '1',
-      }),
-    ]);
+  it('delegates findByWorkspaceKey to TaskQueryService', async () => {
+    const filters = { status: ['todo'] };
+    taskQueryService.findByWorkspaceKey.mockResolvedValue(taskListDto);
+    await expect(service.findByWorkspaceKey('TESKB', userId, filters as any)).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId, filters);
   });
 
-  it('finds Scrum backlog tasks by workspace key', async () => {
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = {
-      _id: new Types.ObjectId(workspaceId),
-      key: 'SCRUM',
-      type: 'scrum',
-    };
-    const tasks = [{ key: 'SCRUM-1', sprintId: null }];
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findBacklogByWorkspace.mockResolvedValue(tasks as any);
-    mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-1' }] as any);
-
-    const result = await service.findBacklogByWorkspaceKey('SCRUM', userId);
-
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(repository.findBacklogByWorkspace).toHaveBeenCalledWith(workspaceId);
-    expect(result).toEqual([{ key: 'SCRUM-1' }]);
+  it('delegates findByWorkspaceId to TaskQueryService', async () => {
+    taskQueryService.findByWorkspaceId.mockResolvedValue(taskListDto);
+    await expect(service.findByWorkspaceId(workspaceId, userId)).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId, {});
   });
 
-  it('finds tasks for the active Scrum sprint board', async () => {
-    const workspaceId = new Types.ObjectId().toString();
+  it('delegates findArchivedByWorkspaceKey to TaskQueryService', async () => {
+    taskQueryService.findArchivedByWorkspaceKey.mockResolvedValue(taskListDto);
+    await expect(service.findArchivedByWorkspaceKey('TESKB', userId)).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findArchivedByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId, {});
+  });
+
+  it('delegates findArchivedByWorkspaceId to TaskQueryService', async () => {
+    taskQueryService.findArchivedByWorkspaceId.mockResolvedValue(taskListDto);
+    await expect(service.findArchivedByWorkspaceId(workspaceId, userId)).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findArchivedByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId, {});
+  });
+
+  it('delegates findBacklogByWorkspaceKey to TaskQueryService', async () => {
+    taskQueryService.findBacklogByWorkspaceKey.mockResolvedValue([taskDto] as any);
+    await expect(service.findBacklogByWorkspaceKey('TESKB', userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findBacklogByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId);
+  });
+
+  it('delegates findBacklogByWorkspaceId to TaskQueryService', async () => {
+    taskQueryService.findBacklogByWorkspaceId.mockResolvedValue([taskDto] as any);
+    await expect(service.findBacklogByWorkspaceId(workspaceId, userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findBacklogByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+  });
+
+  it('delegates findActiveSprintBoardByWorkspaceKey to TaskQueryService', async () => {
+    taskQueryService.findActiveSprintBoardByWorkspaceKey.mockResolvedValue([taskDto] as any);
+    await expect(service.findActiveSprintBoardByWorkspaceKey('TESKB', userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findActiveSprintBoardByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId);
+  });
+
+  it('delegates findActiveSprintBoardByWorkspaceId to TaskQueryService', async () => {
+    taskQueryService.findActiveSprintBoardByWorkspaceId.mockResolvedValue([taskDto] as any);
+    await expect(service.findActiveSprintBoardByWorkspaceId(workspaceId, userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findActiveSprintBoardByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+  });
+
+  it('delegates findTasksBySprintInWorkspaceKey to TaskQueryService', async () => {
     const sprintId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = {
-      _id: new Types.ObjectId(workspaceId),
-      key: 'SCRUM',
-      type: 'scrum',
-    };
-    const tasks = [{ key: 'SCRUM-2', sprintId }];
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    scrumService.getActiveSprint.mockResolvedValue({
-      _id: new Types.ObjectId(sprintId),
-      status: 'active',
-    } as any);
-    repository.findBySprintInWorkspace.mockResolvedValue(tasks as any);
-    mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-2' }] as any);
-
-    const result = await service.findActiveSprintBoardByWorkspaceKey('SCRUM', userId);
-
-    expect(scrumService.getActiveSprint).toHaveBeenCalledWith(workspaceId);
-    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(workspaceId, sprintId);
-    expect(result).toEqual([{ key: 'SCRUM-2' }]);
+    taskQueryService.findTasksBySprintInWorkspaceKey.mockResolvedValue([taskDto] as any);
+    await expect(service.findTasksBySprintInWorkspaceKey('TESKB', sprintId, userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findTasksBySprintInWorkspaceKey).toHaveBeenCalledWith('TESKB', sprintId, userId);
   });
 
-  it('finds tasks by sprint in workspace key', async () => {
-    const workspaceId = new Types.ObjectId().toString();
+  it('delegates findTasksBySprintInWorkspaceId to TaskQueryService', async () => {
     const sprintId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = {
-      _id: new Types.ObjectId(workspaceId),
-      key: 'SCRUM',
-      type: 'scrum',
-    };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    scrumService.findByIdInWorkspace.mockResolvedValue({
-      _id: new Types.ObjectId(sprintId),
-      status: 'planning',
-    } as any);
-    repository.findBySprintInWorkspace.mockResolvedValue([{ key: 'SCRUM-3' }] as any);
-    mapper.mapToDtos.mockReturnValue([{ key: 'SCRUM-3' }] as any);
-
-    const result = await service.findTasksBySprintInWorkspaceKey('SCRUM', sprintId, userId);
-
-    expect(scrumService.findByIdInWorkspace).toHaveBeenCalledWith(workspaceId, sprintId);
-    expect(repository.findBySprintInWorkspace).toHaveBeenCalledWith(workspaceId, sprintId);
-    expect(result).toEqual([{ key: 'SCRUM-3' }]);
+    taskQueryService.findTasksBySprintInWorkspaceId.mockResolvedValue([taskDto] as any);
+    await expect(service.findTasksBySprintInWorkspaceId(workspaceId, sprintId, userId)).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findTasksBySprintInWorkspaceId).toHaveBeenCalledWith(workspaceId, sprintId, userId);
   });
 
-  it('finds task by id', async () => {
-    const taskId = new Types.ObjectId().toString();
-    repository.findById.mockResolvedValue({ _id: taskId } as any);
-    mapper.mapToDto.mockReturnValue({ id: taskId } as any);
-
-    await expect(service.findById(taskId)).resolves.toEqual({ id: taskId });
-    expect(validationService.validateObjectId).toHaveBeenCalledWith(taskId, 'Task');
+  it('delegates findById to TaskQueryService', async () => {
+    taskQueryService.findById.mockResolvedValue(taskDto as any);
+    await expect(service.findById(taskId)).resolves.toEqual(taskDto);
+    expect(taskQueryService.findById).toHaveBeenCalledWith(taskId);
   });
 
-  it('finds a task key only inside the resolved workspace', async () => {
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const task = {
-      _id: new Types.ObjectId(),
-      workspaceId: new Types.ObjectId(workspaceId),
-      key: 'TESKB-1',
-    };
-    const taskDto = { id: task._id.toString(), workspaceId, key: 'TESKB-1' };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByWorkspaceAndKey.mockResolvedValue(task as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
-
-    await expect(service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(repository.findByWorkspaceAndKey).toHaveBeenCalledWith(workspaceId, 'TESKB-1');
-  });
-
-  it('throws when task is not found', async () => {
-    const taskId = new Types.ObjectId().toString();
-    repository.findById.mockResolvedValue(null);
-
-    await expect(service.findById(taskId)).rejects.toThrow(NotFoundException);
-  });
-
-  it('updates a task', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const updateDto: UpdateTaskDto = { title: 'Updated' };
-    const updateData = { title: 'Updated' };
-    const existingTask = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-    };
-
-    repository.findById.mockResolvedValue(existingTask as any);
-    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(updateDto);
-    transformerService.transformUpdateInput.mockReturnValue(updateData as any);
-    repository.update.mockResolvedValue({
-      _id: taskId,
-      title: 'Updated',
-    } as any);
-    mapper.mapToDto.mockReturnValue({ id: taskId, title: 'Updated' } as any);
-
-    await expect(service.update(taskId, updateDto)).resolves.toEqual({
-      id: taskId,
-      title: 'Updated',
-    });
-    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(updateDto, workspaceId);
-    expect(normalizerService.normalizeUpdateForWorkspaceType).toHaveBeenCalledWith(updateDto, existingTask);
-    expect(repository.update).toHaveBeenCalledWith(taskId, updateData);
-  });
-
-  it('finds a task by id scoped to workspace key', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const task = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-    };
-    const taskDto = { id: taskId, workspaceId };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(task as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
-
+  it('delegates findByIdInWorkspaceKey to TaskQueryService', async () => {
+    taskQueryService.findByIdInWorkspaceKey.mockResolvedValue(taskDto as any);
     await expect(service.findByIdInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, {});
+    expect(taskQueryService.findByIdInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId);
   });
 
-  it('returns not found when scoped task lookup misses workspace boundary', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(null);
-
-    await expect(service.findByIdInWorkspaceKey('TESKB', taskId, userId)).rejects.toThrow(NotFoundException);
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, {});
+  it('delegates findByIdInWorkspaceId to TaskQueryService', async () => {
+    taskQueryService.findByIdInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.findByIdInWorkspaceId(workspaceId, taskId, userId)).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByIdInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
   });
 
-  it('updates a task scoped to workspace key', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const taskKey = 'TESKB-1';
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const updateDto: UpdateTaskDto = { title: 'Updated' };
-    const updateData = { title: 'Updated' };
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const existingTask = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-      key: taskKey,
-      isArchived: false,
-    };
-    const updatedTask = { ...existingTask, title: 'Updated' };
-    const taskDto = { id: taskId, key: taskKey, title: 'Updated' };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
-    normalizerService.normalizeUpdateForWorkspaceType.mockResolvedValue(updateDto);
-    transformerService.transformUpdateInput.mockReturnValue(updateData as any);
-    repository.updateInWorkspace.mockResolvedValue(updatedTask as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
-
-    await expect(service.updateInWorkspaceKey('TESKB', taskId, updateDto, userId)).resolves.toEqual(taskDto);
-    expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(validationService.validateUpdateRequest).toHaveBeenCalledWith(updateDto, workspaceId);
-    expect(repository.findByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, { includeArchived: true });
-    expect(repository.updateInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, updateData);
+  it('delegates findByIdForAccessCheck to TaskQueryService', async () => {
+    taskQueryService.findByIdForAccessCheck.mockResolvedValue(taskDto as any);
+    await expect(service.findByIdForAccessCheck(taskId)).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByIdForAccessCheck).toHaveBeenCalledWith(taskId);
   });
 
-  it('rejects sprint reassignment when task belongs to a completed sprint', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const currentSprintId = new Types.ObjectId().toString();
-    const nextSprintId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'SCRUM' };
-    const existingTask = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-      sprintId: new Types.ObjectId(currentSprintId),
-      isArchived: false,
-    };
-
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(existingTask as any);
-    scrumService.findByIdInWorkspace.mockResolvedValue({
-      _id: new Types.ObjectId(currentSprintId),
-      status: 'completed',
-    } as any);
-
-    await expect(service.updateInWorkspaceKey('SCRUM', taskId, { sprintId: nextSprintId }, userId)).rejects.toThrow(
-      BadRequestException,
-    );
-    expect(repository.updateInWorkspace).not.toHaveBeenCalled();
+  it('delegates findByKey to TaskQueryService', async () => {
+    taskQueryService.findByKey.mockResolvedValue(taskDto as any);
+    await expect(service.findByKey('TESKB-1')).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKey).toHaveBeenCalledWith('TESKB-1');
   });
 
-  it('archives a task by workspace key', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const task = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-      isArchived: false,
-    };
-    const archivedTask = { ...task, isArchived: true };
-    const taskDto = { id: taskId, isArchived: true };
+  it('delegates findByKeyInWorkspaceKey to TaskQueryService', async () => {
+    taskQueryService.findByKeyInWorkspaceKey.mockResolvedValue(taskDto as any);
+    await expect(service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKeyInWorkspaceKey).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+  });
 
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(task as any);
-    repository.archiveInWorkspace.mockResolvedValue(archivedTask as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
+  it('delegates findByKeyInWorkspace to TaskQueryService', async () => {
+    taskQueryService.findByKeyInWorkspace.mockResolvedValue(taskDto as any);
+    await expect(service.findByKeyInWorkspace('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKeyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+  });
 
+  it('delegates findByKeyInWorkspaceId to TaskQueryService', async () => {
+    taskQueryService.findByKeyInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.findByKeyInWorkspaceId(workspaceId, 'TESKB-1', userId)).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKeyInWorkspaceId).toHaveBeenCalledWith(workspaceId, 'TESKB-1', userId);
+  });
+
+  it('delegates findCalendarByWorkspaceId to TaskQueryService', async () => {
+    const result = { tasks: [taskDto] };
+    taskQueryService.findCalendarByWorkspaceId.mockResolvedValue(result as any);
+    await expect(service.findCalendarByWorkspaceId(workspaceId, 2026, 6, userId)).resolves.toEqual(result);
+    expect(taskQueryService.findCalendarByWorkspaceId).toHaveBeenCalledWith(workspaceId, 2026, 6, userId);
+  });
+
+  it('delegates findTimelineHierarchyByWorkspaceId to TaskQueryService', async () => {
+    const result = { epics: [], children: [], standalones: [taskDto] };
+    taskQueryService.findTimelineHierarchyByWorkspaceId.mockResolvedValue(result as any);
+    await expect(service.findTimelineHierarchyByWorkspaceId(workspaceId, userId)).resolves.toEqual(result);
+    expect(taskQueryService.findTimelineHierarchyByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+  });
+
+  // ─── Update delegation ────────────────────────────────────────────────
+
+  it('delegates update to TaskUpdateService', async () => {
+    const dto: UpdateTaskDto = { title: 'Updated' };
+    taskUpdateService.update.mockResolvedValue(taskDto as any);
+    await expect(service.update(taskId, dto)).resolves.toEqual(taskDto);
+    expect(taskUpdateService.update).toHaveBeenCalledWith(taskId, dto);
+  });
+
+  it('delegates updateInWorkspaceKey to TaskUpdateService', async () => {
+    const dto: UpdateTaskDto = { title: 'Updated' };
+    taskUpdateService.updateInWorkspaceKey.mockResolvedValue(taskDto as any);
+    await expect(service.updateInWorkspaceKey('TESKB', taskId, dto, userId)).resolves.toEqual(taskDto);
+    expect(taskUpdateService.updateInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, dto, userId);
+  });
+
+  it('delegates updateInWorkspaceId to TaskUpdateService', async () => {
+    const dto: UpdateTaskDto = { title: 'Updated' };
+    taskUpdateService.updateInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.updateInWorkspaceId(workspaceId, taskId, dto, userId)).resolves.toEqual(taskDto);
+    expect(taskUpdateService.updateInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, dto, userId, undefined);
+  });
+
+  // ─── Lifecycle delegation ──────────────────────────────────────────────
+
+  it('delegates archiveInWorkspaceKey to TaskLifecycleService', async () => {
+    taskLifecycleService.archiveInWorkspaceKey.mockResolvedValue(taskDto as any);
     await expect(service.archiveInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
-    expect(repository.archiveInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, userId);
+    expect(taskLifecycleService.archiveInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId);
   });
 
-  it('restores an archived task by workspace key', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const task = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-      isArchived: true,
-    };
-    const restoredTask = { ...task, isArchived: false };
-    const taskDto = { id: taskId, isArchived: false };
+  it('delegates archiveInWorkspaceId to TaskLifecycleService', async () => {
+    taskLifecycleService.archiveInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.archiveInWorkspaceId(workspaceId, taskId, userId)).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.archiveInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+  });
 
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(task as any);
-    repository.restoreInWorkspace.mockResolvedValue(restoredTask as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
-
+  it('delegates restoreInWorkspaceKey to TaskLifecycleService', async () => {
+    taskLifecycleService.restoreInWorkspaceKey.mockResolvedValue(taskDto as any);
     await expect(service.restoreInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
-    expect(repository.restoreInWorkspace).toHaveBeenCalledWith(taskId, workspaceId);
+    expect(taskLifecycleService.restoreInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId);
   });
 
-  it('soft deletes a task permanently when confirmation is valid', async () => {
-    const taskId = new Types.ObjectId().toString();
-    const workspaceId = new Types.ObjectId().toString();
-    const userId = new Types.ObjectId().toString();
-    const workspace = { _id: new Types.ObjectId(workspaceId), key: 'TESKB' };
-    const task = {
-      _id: new Types.ObjectId(taskId),
-      workspaceId: new Types.ObjectId(workspaceId),
-      isArchived: false,
-    };
-    const deletedTask = { ...task, isArchived: true, isDeleted: true };
-    const taskDto = { id: taskId, isDeleted: true };
+  it('delegates restoreInWorkspaceId to TaskLifecycleService', async () => {
+    taskLifecycleService.restoreInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.restoreInWorkspaceId(workspaceId, taskId, userId)).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.restoreInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+  });
 
-    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
-    repository.findByIdInWorkspace.mockResolvedValue(task as any);
-    repository.softDeleteInWorkspace.mockResolvedValue(deletedTask as any);
-    mapper.mapToDto.mockReturnValue(taskDto as any);
-
+  it('delegates deletePermanentlyInWorkspaceKey to TaskLifecycleService', async () => {
+    taskLifecycleService.deletePermanentlyInWorkspaceKey.mockResolvedValue(taskDto as any);
     await expect(service.deletePermanentlyInWorkspaceKey('TESKB', taskId, userId, 'delete')).resolves.toEqual(taskDto);
-    expect(repository.softDeleteInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, userId);
+    expect(taskLifecycleService.deletePermanentlyInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId, 'delete');
   });
 
-  it('rejects permanent delete when confirmation is invalid', async () => {
-    await expect(service.deletePermanentlyInWorkspaceKey('TESKB', 'task-id', 'user-id', 'wrong')).rejects.toThrow(
-      BadRequestException,
-    );
+  it('delegates deletePermanentlyInWorkspaceId to TaskLifecycleService', async () => {
+    taskLifecycleService.deletePermanentlyInWorkspaceId.mockResolvedValue(taskDto as any);
+    await expect(service.deletePermanentlyInWorkspaceId(workspaceId, taskId, userId, 'delete')).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.deletePermanentlyInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId, 'delete');
+  });
+
+  it('delegates archiveTaskKeyInWorkspace to TaskLifecycleService', async () => {
+    taskLifecycleService.archiveTaskKeyInWorkspace.mockResolvedValue(taskDto as any);
+    await expect(service.archiveTaskKeyInWorkspace('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.archiveTaskKeyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+  });
+
+  it('delegates restoreTaskKeyInWorkspace to TaskLifecycleService', async () => {
+    taskLifecycleService.restoreTaskKeyInWorkspace.mockResolvedValue(taskDto as any);
+    await expect(service.restoreTaskKeyInWorkspace('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.restoreTaskKeyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+  });
+
+  it('delegates deleteTaskKeyPermanentlyInWorkspace to TaskLifecycleService', async () => {
+    taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace.mockResolvedValue(taskDto as any);
+    await expect(service.deleteTaskKeyPermanentlyInWorkspace('TESKB', 'TESKB-1', userId, 'delete')).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId, 'delete');
+  });
+
+  it('preserves error propagation from delegated services', async () => {
+    taskQueryService.findById.mockRejectedValue(new NotFoundException('Task not found'));
+    await expect(service.findById('nonexistent')).rejects.toThrow(NotFoundException);
   });
 });
