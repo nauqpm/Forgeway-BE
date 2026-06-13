@@ -190,9 +190,6 @@ export class TasksController {
           viewedFrom: 'key',
         },
       });
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', {
-        task,
-      });
       return task;
     } catch (error) {
       this.auditTaskFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
