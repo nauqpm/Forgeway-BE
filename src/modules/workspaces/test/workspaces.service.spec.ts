@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 
@@ -8,8 +9,13 @@ import { ScrumService } from '@/modules/scrum/services/scrum.service';
 import { UsersService } from '@/modules/users/services/users.service';
 import { WorkflowsService } from '@/modules/workflows/services/workflows.service';
 import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspaces.repository';
+import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
+import { WorkspaceKeyService } from '@/modules/workspaces/services/workspace-key.service';
 import { WorkspacesService } from '@/modules/workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '@/modules/workspaces/services/workspace-member.service';
+import { Task } from '@/modules/tasks/schemas/task.schema';
+import { Page } from '@/modules/pages/schemas/page.schema';
+import { DocumentEntity } from '@/modules/documents/schemas/document.schema';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -72,6 +78,11 @@ const mockUsersService = () => ({
   findByEmail: jest.fn(),
 });
 
+const mockWorkspaceKeyService = () => ({
+  generateUniqueSlug: jest.fn(async (name: string) => name.toLowerCase().replace(/\s+/g, '-')),
+  generateUniqueKey: jest.fn(async (key: string) => key.toUpperCase()),
+});
+
 const mockWorkspaceMemberService = () => ({
   addMember: jest.fn(),
   removeMember: jest.fn(),
@@ -101,6 +112,11 @@ describe('WorkspacesService', () => {
         { provide: ScrumService, useFactory: mockScrumService },
         { provide: UsersService, useFactory: mockUsersService },
         { provide: WorkspaceMemberService, useFactory: mockWorkspaceMemberService },
+        { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
+        { provide: WorkspaceDomainEventPublisher, useValue: { publishCreated: jest.fn(), publishUpdated: jest.fn(), publishDeleted: jest.fn(), publishArchived: jest.fn(), publishRestored: jest.fn() } },
+        { provide: getModelToken(Task.name), useValue: { countDocuments: jest.fn().mockResolvedValue(0) } },
+        { provide: getModelToken(Page.name), useValue: { countDocuments: jest.fn().mockResolvedValue(0) } },
+        { provide: getModelToken(DocumentEntity.name), useValue: { countDocuments: jest.fn().mockResolvedValue(0) } },
       ],
     }).compile();
 

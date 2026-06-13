@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
@@ -47,6 +48,7 @@ describe('TaskActivitiesService', () => {
         { provide: WorkspacesService, useValue: workspacesService },
         { provide: WorkspaceMemberService, useValue: workspaceMemberService },
         { provide: getModelToken(Task.name), useValue: taskModel },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 
