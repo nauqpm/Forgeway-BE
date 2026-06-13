@@ -26,7 +26,7 @@ describe('TaskDetailService', () => {
     } as unknown as jest.Mocked<TaskMapper>;
 
     validationService = {
-      getWorkspaceByKey: jest.fn(),
+      getWorkspaceById: jest.fn(),
       validateWorkspaceMember: jest.fn(),
       validateObjectId: jest.fn((id: string, resourceName: string) => {
         if (!Types.ObjectId.isValid(id)) {
@@ -48,13 +48,13 @@ describe('TaskDetailService', () => {
     };
     const detail = { id: taskId, workspaceId, key: 'TESKB-1' };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByIdInWorkspace.mockResolvedValue(task as any);
     mapper.mapToDetailDto.mockReturnValue(detail as any);
 
     await expect(service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(detail);
 
-    expect(validationService.getWorkspaceByKey).toHaveBeenCalledWith('TESKB');
+    expect(validationService.getWorkspaceById).toHaveBeenCalledWith('TESKB');
     expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(workspaceId, userId);
     expect(repository.findDetailByIdInWorkspace).toHaveBeenCalledWith(taskId, workspaceId, { includeArchived: true });
   });
@@ -67,7 +67,7 @@ describe('TaskDetailService', () => {
     };
     const detail = { id: task._id.toString(), workspaceId, key: 'TESKB-2' };
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByKeyInWorkspace.mockResolvedValue(task as any);
     mapper.mapToDetailDto.mockReturnValue(detail as any);
 
@@ -79,7 +79,7 @@ describe('TaskDetailService', () => {
   });
 
   it('rejects invalid task id before repository lookup', async () => {
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
 
     await expect(service.getDetailByIdInWorkspaceKey('TESKB', 'invalid-id', userId)).rejects.toThrow(
       BadRequestException,
@@ -91,7 +91,7 @@ describe('TaskDetailService', () => {
   it('returns not found when scoped task lookup misses', async () => {
     const taskId = new Types.ObjectId().toString();
 
-    validationService.getWorkspaceByKey.mockResolvedValue(workspace as any);
+    validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByIdInWorkspace.mockResolvedValue(null);
 
     await expect(service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId)).rejects.toThrow(NotFoundException);
