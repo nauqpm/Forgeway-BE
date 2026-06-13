@@ -53,14 +53,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Join personal room
       await client.join(RoomBuilder.user(user.userId));
 
-      // Auto-join all accessible channels to receive real-time unread updates
-      const channels = await this.channelsService.findByUser(user.userId);
-      for (const channel of channels) {
-        await client.join(RoomBuilder.channel(channel._id.toString()));
-      }
-
       this.logger.log(
-        `Chat client connected: ${client.id} | User: ${userIdentifier} | Joined ${channels.length} channels`,
+        `Chat client connected: ${client.id} | User: ${userIdentifier}`,
       );
     } catch (error) {
       this.logger.warn(
@@ -165,7 +159,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await client.leave(RoomBuilder.channel(body.channelId));
   }
 
-  // 5.2 Text Chat Events
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_SEND)
   @SubscribeMessage('chat.send')
   async handleSend(
@@ -199,6 +192,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
 
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_SENT, envelope);
+
+    // Update unread count to all other channel members
+    try {
+      const memberIds = await this.channelsService.getChannelMemberIds(payload.channelId);
+      for (const memberId of memberIds) {
+        if (memberId === userId) continue;
+
+        this.server.to(RoomBuilder.user(memberId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE, {
+          channelId: payload.channelId,
+          increment: 1,
+          lastMessage: message,
+        });
+      }
+    } catch (err) {
+      this.logger.error(`Failed to broadcast unread updates: ${err.message}`, err.stack);
+    }
+
     return { ok: true };
   }
 
@@ -266,12 +276,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId || !payload.emoji) return { ok: false };
 
+    // Persist reaction into the database
+    await this.messagesService.toggleReaction(payload.messageId, userId, payload.emoji);
+    // Get updated reactions map for the message
+    const updatedReactions = await this.messagesService.getReactions(payload.messageId);
+
     const room = RoomBuilder.channel(payload.channelId);
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_REACTION_UPDATED, {
       messageId: payload.messageId,
-      userId,
-      emoji: payload.emoji,
       channelId: payload.channelId,
+      reactions: updatedReactions,
     });
 
     return { ok: true };
@@ -287,6 +301,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!userId || !body.channelId) return { ok: false };
 
     await this.channelsService.markAsRead(body.channelId, userId);
+    
+    // Notify all other connections/tabs of this user that the channel unread count is now 0
+    this.server.to(RoomBuilder.user(userId)).emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE, {
+      channelId: body.channelId,
+      unreadCount: 0,
+    });
+    
     return { ok: true };
   }
 

@@ -47,6 +47,6 @@ export class ChatModule implements OnModuleInit {
   constructor(private readonly channelsService: ChannelsService) {}
 
   async onModuleInit() {
-    await this.channelsService.createGeneralChannel();
+    await this.channelsService.ensureGlobalChannels();
   }
 }

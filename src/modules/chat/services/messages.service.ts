@@ -57,6 +57,47 @@ export class MessagesService {
     });
   }
 
+  async getReactions(messageId: string): Promise<Record<string, string[]>> {
+    const reactions = await this.reactionModel.find({ messageId: new Types.ObjectId(messageId) }).exec();
+    const result: Record<string, string[]> = {};
+    reactions.forEach(r => {
+      if (!result[r.emoji]) {
+        result[r.emoji] = [];
+      }
+      result[r.emoji].push(r.userId.toString());
+    });
+    return result;
+  }
+
+  async populateReactions(messages: MessageDocument[]): Promise<any[]> {
+    if (!messages.length) return [];
+    
+    const messageIds = messages.map(m => m._id);
+    const reactions = await this.reactionModel.find({ messageId: { $in: messageIds } }).exec();
+    
+    const reactionMap = new Map<string, Record<string, string[]>>();
+    reactions.forEach(r => {
+      const msgId = r.messageId.toString();
+      const emoji = r.emoji;
+      const userId = r.userId.toString();
+      
+      if (!reactionMap.has(msgId)) {
+        reactionMap.set(msgId, {});
+      }
+      const msgReactions = reactionMap.get(msgId)!;
+      if (!msgReactions[emoji]) {
+        msgReactions[emoji] = [];
+      }
+      msgReactions[emoji].push(userId);
+    });
+    
+    return messages.map(m => {
+      const obj = m.toObject();
+      obj.reactions = reactionMap.get(m._id.toString()) || {};
+      return obj;
+    });
+  }
+
   async markAsRead(channelId: string, userId: string): Promise<void> {
     await this.readMarkerModel.updateOne(
       {
@@ -107,7 +148,7 @@ export class MessagesService {
     channelId: string,
     senderId: string,
     dto: SendMessageDto,
-  ): Promise<MessageDocument> {
+  ): Promise<any> {
     if (!Types.ObjectId.isValid(channelId)) {
       throw new NotFoundException('Invalid Channel ID');
     }
@@ -150,14 +191,16 @@ export class MessagesService {
       senderId: new Types.ObjectId(senderId),
     });
 
-    return message.populate('senderId', 'fullName avatar email');
+    const populated = await message.populate('senderId', 'fullName avatar email');
+    const [withReactions] = await this.populateReactions([populated]);
+    return withReactions;
   }
 
   async findByChannel(
     channelId: string,
     userId: string,
     dto: CursorPaginationDto,
-  ): Promise<{ messages: MessageDocument[]; nextCursor: string | null }> {
+  ): Promise<{ messages: any[]; nextCursor: string | null }> {
     if (!Types.ObjectId.isValid(channelId)) {
       throw new NotFoundException('Invalid Channel ID');
     }
@@ -192,14 +235,13 @@ export class MessagesService {
         ? messages[messages.length - 1]._id.toString()
         : null;
 
-    return { messages, nextCursor };
+    return {
+      messages: await this.populateReactions(messages),
+      nextCursor,
+    };
   }
 
-  async edit(
-    messageId: string,
-    userId: string,
-    content: string,
-  ): Promise<MessageDocument> {
+  async edit(messageId: string, userId: string, content: string): Promise<any> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');
     }
@@ -215,7 +257,11 @@ export class MessagesService {
 
     message.content = content;
     message.editedAt = new Date();
-    return message.save();
+    await message.save();
+    
+    const populated = await message.populate('senderId', 'fullName avatar email');
+    const [withReactions] = await this.populateReactions([populated]);
+    return withReactions;
   }
 
   async softDelete(messageId: string, userId: string): Promise<void> {
@@ -260,12 +306,12 @@ export class MessagesService {
       );
     }
 
-    message.content = '[Message deleted]';
+    // Do not overwrite message.content with English text so that FE can localize correctly
     message.deletedAt = new Date();
     await message.save();
   }
 
-  async findById(id: string): Promise<MessageDocument> {
+  async findById(id: string): Promise<any> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid Message ID');
     }
@@ -276,6 +322,7 @@ export class MessagesService {
     if (!message) {
       throw new NotFoundException('Message not found');
     }
-    return message;
+    const [withReactions] = await this.populateReactions([message]);
+    return withReactions;
   }
 }

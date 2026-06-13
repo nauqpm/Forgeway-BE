@@ -29,6 +29,15 @@ export class Page {
   @Prop({ default: 1 })
   version!: number;
 
+  @Prop({ type: Buffer })
+  yjsState?: Buffer;
+
+  @Prop({ type: String })
+  contentJson?: string;
+
+  @Prop({ type: String, default: '' })
+  plainTextSnapshot?: string;
+
   @Prop({ type: String, enum: ['draft', 'published'], default: 'draft' })
   status!: string;
 

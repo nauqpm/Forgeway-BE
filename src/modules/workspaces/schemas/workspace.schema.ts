@@ -12,6 +12,9 @@ export class Workspace {
   @Prop()
   description?: string;
 
+  @Prop()
+  avatar?: string;
+
   @Prop({ required: true })
   slug!: string;
 
