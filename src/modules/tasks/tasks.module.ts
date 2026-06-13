@@ -10,7 +10,11 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
-import { TasksController } from './controllers/tasks.controller';
+import { TaskQueryController } from './controllers/task-query.controller';
+import { TaskDetailController } from './controllers/task-detail.controller';
+import { TaskCommandController } from './controllers/task-command.controller';
+import { TaskWorkflowController } from './controllers/task-workflow.controller';
+import { TaskDependencyController } from './controllers/task-dependency.controller';
 import { TaskMapper } from './mappers/task.mapper';
 import { TaskMovePolicy } from './policies/task-move.policy';
 import { TaskReorderPolicy } from './policies/task-reorder.policy';
@@ -36,6 +40,7 @@ import { TaskCreateService } from './services/task-create.service';
 import { TaskQueryService } from './services/task-query.service';
 import { TaskUpdateService } from './services/task-update.service';
 import { TaskLifecycleService } from './services/task-lifecycle.service';
+import { TaskAuditService } from './shared/task-audit.service';
 
 @Module({
   imports: [
@@ -54,7 +59,13 @@ import { TaskLifecycleService } from './services/task-lifecycle.service';
     TaskActivitiesModule,
     AuditModule,
   ],
-  controllers: [TasksController],
+  controllers: [
+    TaskQueryController,
+    TaskDetailController,
+    TaskCommandController,
+    TaskWorkflowController,
+    TaskDependencyController,
+  ],
   providers: [
     TasksRepository,
     TaskMapper,
@@ -78,29 +89,11 @@ import { TaskLifecycleService } from './services/task-lifecycle.service';
     TaskQueryService,
     TaskUpdateService,
     TaskLifecycleService,
+    TaskAuditService,
     WorkspaceRoleGuard,
   ],
   exports: [
     TasksService,
-    TaskDetailService,
-    TaskKeyService,
-    TaskCounterService,
-    TaskCreationValidationService,
-    TaskMovePolicy,
-    TaskMoveService,
-    TaskReorderPolicy,
-    TaskReorderService,
-    TaskNormalizerService,
-    TaskDataTransformerService,
-    TasksRepository,
-    TaskMapper,
-    TaskDependencyService,
-    TaskAccessService,
-    TaskAssignmentNotificationService,
-    TaskCreateService,
-    TaskQueryService,
-    TaskUpdateService,
-    TaskLifecycleService,
   ],
 })
 export class TasksModule {}
