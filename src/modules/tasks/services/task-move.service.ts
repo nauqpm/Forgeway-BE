@@ -5,7 +5,8 @@ import { MoveTaskDto } from '../dtos/requests/move-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TaskMovePolicy } from '../policies/task-move.policy';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
+import { TaskRankRepository } from '../repositories/task-rank.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 
@@ -30,7 +31,8 @@ export interface TaskMoveResult {
 @Injectable()
 export class TaskMoveService {
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly taskReadRepository: TaskReadRepository,
+    private readonly taskRankRepository: TaskRankRepository,
     private readonly validationService: TaskCreationValidationService,
     private readonly scrumService: ScrumService,
     private readonly taskMovePolicy: TaskMovePolicy,
@@ -51,7 +53,7 @@ export class TaskMoveService {
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 
-    const task = await this.tasksRepository.findByIdInWorkspace(taskId, workspaceId, {
+    const task = await this.taskReadRepository.findByIdInWorkspace(taskId, workspaceId, {
       includeArchived: true,
       includeDeleted: true,
     });
@@ -71,7 +73,7 @@ export class TaskMoveService {
 
     this.taskMovePolicy.validateMove(task, targetSprint, currentSprint);
 
-    const movedTask = await this.tasksRepository.moveTaskInWorkspace(taskId, workspaceId, {
+    const movedTask = await this.taskRankRepository.moveTaskInWorkspace(taskId, workspaceId, {
       columnId: dto.columnId,
       status: dto.status,
       sprintId: dto.sprintId,

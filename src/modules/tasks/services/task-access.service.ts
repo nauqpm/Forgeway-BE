@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 
 @Injectable()
 export class TaskAccessService {
   constructor(
     private readonly validationService: TaskCreationValidationService,
-    private readonly tasksRepository: TasksRepository,
+    private readonly tasksRepository: TaskReadRepository,
   ) {}
 
   async getWorkspaceContext(

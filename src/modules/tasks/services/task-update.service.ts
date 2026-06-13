@@ -4,7 +4,8 @@ import { TaskActivitiesService } from '../../task-activities/services/task-activ
 import { UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
+import { TaskWriteRepository } from '../repositories/task-write.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskAssignmentNotificationService } from './task-assignment-notification.service';
 import { TaskCreationValidationService } from './task-creation-validation.service';
@@ -15,7 +16,8 @@ import { TaskNormalizerService } from './task-normalizer.service';
 @Injectable()
 export class TaskUpdateService {
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly taskReadRepository: TaskReadRepository,
+    private readonly taskWriteRepository: TaskWriteRepository,
     private readonly taskMapper: TaskMapper,
     private readonly validationService: TaskCreationValidationService,
     private readonly normalizerService: TaskNormalizerService,
@@ -32,7 +34,7 @@ export class TaskUpdateService {
     this.validationService.validateObjectId(id, 'Task');
     this.assertMetadataUpdateOnly(updateTaskDto);
 
-    const existing = await this.tasksRepository.findById(id, {
+    const existing = await this.taskReadRepository.findById(id, {
       includeArchived: true,
     });
     if (!existing) {
@@ -47,7 +49,7 @@ export class TaskUpdateService {
     const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
     await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
 
-    const task = await this.tasksRepository.update(
+    const task = await this.taskWriteRepository.update(
       id,
       this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
     );
@@ -84,7 +86,7 @@ export class TaskUpdateService {
     await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
     await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, undefined);
 
-    const task = await this.tasksRepository.updateInWorkspace(
+    const task = await this.taskWriteRepository.updateInWorkspace(
       resolvedTaskId,
       workspaceId,
       this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
@@ -120,7 +122,7 @@ export class TaskUpdateService {
     await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
     await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, userRole);
 
-    const task = await this.tasksRepository.updateInWorkspace(
+    const task = await this.taskWriteRepository.updateInWorkspace(
       taskId,
       workspaceId,
       this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),

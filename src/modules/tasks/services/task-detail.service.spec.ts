@@ -1,13 +1,13 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDetailService } from './task-detail.service';
 
 describe('TaskDetailService', () => {
   let service: TaskDetailService;
-  let repository: jest.Mocked<TasksRepository>;
+  let repository: jest.Mocked<TaskReadRepository>;
   let mapper: jest.Mocked<TaskMapper>;
   let validationService: jest.Mocked<TaskCreationValidationService>;
 
@@ -19,7 +19,7 @@ describe('TaskDetailService', () => {
     repository = {
       findDetailByIdInWorkspace: jest.fn(),
       findDetailByKeyInWorkspace: jest.fn(),
-    } as unknown as jest.Mocked<TasksRepository>;
+    } as unknown as jest.Mocked<TaskReadRepository>;
 
     mapper = {
       mapToDetailDto: jest.fn(),

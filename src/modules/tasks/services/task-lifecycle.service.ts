@@ -2,14 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskWriteRepository } from '../repositories/task-write.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 
 @Injectable()
 export class TaskLifecycleService {
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly tasksRepository: TaskWriteRepository,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,

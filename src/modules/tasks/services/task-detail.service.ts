@@ -1,14 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TaskDetailDto } from '../dtos/responses/task-detail.dto';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
 import { normalizeTaskKey } from '../utils/task-key.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 
 @Injectable()
 export class TaskDetailService {
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly tasksRepository: TaskReadRepository,
     private readonly taskMapper: TaskMapper,
     private readonly validationService: TaskCreationValidationService,
   ) {}

@@ -3,7 +3,8 @@ import { TaskActivitiesService } from '../../task-activities/services/task-activ
 import { CreateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskWriteRepository } from '../repositories/task-write.repository';
+import { TaskRankRepository } from '../repositories/task-rank.repository';
 import { compareRanks, generateRankBetween } from '../utils/rank.util';
 import { TaskAccessService } from './task-access.service';
 import { TaskCounterService } from './task-counter.service';
@@ -18,7 +19,8 @@ export class TaskCreateService {
   private readonly logger = new Logger(TaskCreateService.name);
 
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly taskWriteRepository: TaskWriteRepository,
+    private readonly taskRankRepository: TaskRankRepository,
     private readonly taskMapper: TaskMapper,
     private readonly taskKeyService: TaskKeyService,
     private readonly taskCounterService: TaskCounterService,
@@ -38,7 +40,7 @@ export class TaskCreateService {
     const taskData = this.transformerService.transformCreateInput(normalizedDto, workspaceId, userId, key);
     taskData.rank = await this.createInitialRankForTask(workspace.type, workspaceId, normalizedDto);
 
-    const task = await this.tasksRepository.create(taskData);
+    const task = await this.taskWriteRepository.create(taskData);
     await this.taskActivitiesService.recordTaskCreated(task, userId);
     this.taskDomainEventPublisher.publishCreated(task, userId);
     this.logger.log(`Task created: ${key} in workspace ${workspaceId}`);
@@ -70,7 +72,7 @@ export class TaskCreateService {
       workspaceType === 'scrum'
         ? { workspaceId, sprintId: dto.sprintId ?? null }
         : { workspaceId, columnId: dto.columnId };
-    const tasks = await this.tasksRepository.findTasksInRankScope(scope);
+    const tasks = await this.taskRankRepository.findTasksInRankScope(scope);
     const lastTask = tasks
       .filter(task => Boolean(task.rank))
       .sort((left, right) => {

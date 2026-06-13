@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { Task, TaskDocument } from '../schemas/task.schema';
 import { normalizeTaskKey } from '../utils/task-key.util';
@@ -14,17 +14,20 @@ export class TaskReadRepository {
     private readonly queryBuilder: TaskQueryBuilder,
   ) {}
 
-  async findById(id: string, options: TaskLookupOptions = {}): Promise<TaskDocument | null> {
+  async findById(id: string, options: TaskLookupOptions = {}, session?: ClientSession): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
 
-    return this.queryBuilder.applyRelations(
-      this.taskModel.findOne({
-        _id: new Types.ObjectId(id),
-        ...this.queryBuilder.buildVisibilityFilter(options),
-      }),
-    ).exec();
+    const query = this.taskModel.findOne({
+      _id: new Types.ObjectId(id),
+      ...this.queryBuilder.buildVisibilityFilter(options),
+    });
+    if (session) {
+      query.session(session);
+    }
+
+    return this.queryBuilder.applyRelations(query).exec();
   }
 
   async findByKey(key: string, options: TaskLookupOptions = {}): Promise<TaskDocument | null> {
@@ -40,18 +43,22 @@ export class TaskReadRepository {
     id: string,
     workspaceId: string,
     options: TaskLookupOptions = {},
+    session?: ClientSession,
   ): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
 
-    return this.queryBuilder.applyRelations(
-      this.taskModel.findOne({
-        _id: new Types.ObjectId(id),
-        workspaceId: new Types.ObjectId(workspaceId),
-        ...this.queryBuilder.buildVisibilityFilter(options),
-      }),
-    ).exec();
+    const query = this.taskModel.findOne({
+      _id: new Types.ObjectId(id),
+      workspaceId: new Types.ObjectId(workspaceId),
+      ...this.queryBuilder.buildVisibilityFilter(options),
+    });
+    if (session) {
+      query.session(session);
+    }
+
+    return this.queryBuilder.applyRelations(query).exec();
   }
 
   async findByKeyInWorkspace(

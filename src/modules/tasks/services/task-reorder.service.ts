@@ -5,7 +5,8 @@ import { TaskActivitiesService } from '../../task-activities/services/task-activ
 import { ReorderTaskDto } from '../dtos/requests/reorder-task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
 import { TaskReorderPolicy, TaskReorderScope } from '../policies/task-reorder.policy';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
+import { TaskRankRepository } from '../repositories/task-rank.repository';
 import { TaskDocument } from '../schemas/task.schema';
 import { compareRanks, generateRankBetween } from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
@@ -25,7 +26,8 @@ interface RankRebalanceResult {
 @Injectable()
 export class TaskReorderService {
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly taskReadRepository: TaskReadRepository,
+    private readonly taskRankRepository: TaskRankRepository,
     private readonly validationService: TaskCreationValidationService,
     private readonly scrumService: ScrumService,
     private readonly taskReorderPolicy: TaskReorderPolicy,
@@ -48,7 +50,7 @@ export class TaskReorderService {
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 
-    const task = await this.tasksRepository.findByIdInWorkspace(taskId, workspaceId, {
+    const task = await this.taskReadRepository.findByIdInWorkspace(taskId, workspaceId, {
       includeArchived: true,
       includeDeleted: true,
     });
@@ -76,10 +78,10 @@ export class TaskReorderService {
 
     const [beforeTask, afterTask] = await Promise.all([
       dto.beforeTaskId
-        ? this.tasksRepository.findNeighborForReorder(dto.beforeTaskId, workspaceId, session)
+        ? this.taskRankRepository.findNeighborForReorder(dto.beforeTaskId, workspaceId, session)
         : Promise.resolve(null),
       dto.afterTaskId
-        ? this.tasksRepository.findNeighborForReorder(dto.afterTaskId, workspaceId, session)
+        ? this.taskRankRepository.findNeighborForReorder(dto.afterTaskId, workspaceId, session)
         : Promise.resolve(null),
     ]);
 
@@ -88,7 +90,7 @@ export class TaskReorderService {
     this.taskReorderPolicy.validateReorder(task, scope, beforeTask, afterTask, targetSprint, currentSprint);
 
     const boundaryScopeTasks =
-      !beforeTask || !afterTask ? await this.tasksRepository.findTasksInRankScope(scope, session) : undefined;
+      !beforeTask || !afterTask ? await this.taskRankRepository.findTasksInRankScope(scope, session) : undefined;
     let nextRank = this.generateInitialRank(task, beforeTask, afterTask, boundaryScopeTasks);
     let rankUpdates: RankUpdate[] = [];
 
@@ -101,10 +103,10 @@ export class TaskReorderService {
     this.ensureRankWillChange(task, targetColumnId, targetStatus, targetSprintId, nextRank, rankUpdates.length);
 
     if (rankUpdates.length > 0) {
-      await this.tasksRepository.updateRanksInWorkspace(workspaceId, rankUpdates, session);
+      await this.taskRankRepository.updateRanksInWorkspace(workspaceId, rankUpdates, session);
     }
 
-    const reorderedTask = await this.tasksRepository.reorderTaskInWorkspace(
+    const reorderedTask = await this.taskRankRepository.reorderTaskInWorkspace(
       taskId,
       workspaceId,
       {
@@ -238,7 +240,7 @@ export class TaskReorderService {
     session?: ClientSession,
   ): Promise<RankRebalanceResult> {
     const taskId = task._id.toString();
-    const scopeTasks = await this.tasksRepository.findTasksInRankScope(scope, session);
+    const scopeTasks = await this.taskRankRepository.findTasksInRankScope(scope, session);
     const orderedTasks = scopeTasks
       .filter(scopeTask => scopeTask._id.toString() !== taskId)
       .sort((left, right) => this.compareTaskOrder(left, right));

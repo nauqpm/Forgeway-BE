@@ -5,14 +5,14 @@ import { ScrumService } from '../../scrum/services/scrum.service';
 import { FilterTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TasksRepository } from '../repositories/tasks.repository';
+import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 
 @Injectable()
 export class TaskQueryService {
   constructor(
-    private readonly tasksRepository: TasksRepository,
+    private readonly tasksRepository: TaskReadRepository,
     private readonly taskMapper: TaskMapper,
     private readonly validationService: TaskCreationValidationService,
     private readonly taskAccessService: TaskAccessService,
