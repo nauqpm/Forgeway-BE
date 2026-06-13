@@ -71,6 +71,12 @@ export class WorkspacesController {
     return this.workspacesService.findAllWithDeleted();
   }
 
+  @Get('avatar-samples')
+  @ApiOperation({ summary: 'Get sample workspace avatars' })
+  async getAvatarSamples() {
+    return this.workspacesService.getAvatarSamples();
+  }
+
   @Get(':workspaceId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Lấy workspace theo ID' })

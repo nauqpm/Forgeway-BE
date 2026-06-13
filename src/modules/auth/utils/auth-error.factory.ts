@@ -8,6 +8,13 @@ export interface AuthErrorPayload {
 }
 
 export class AuthErrorFactory {
+  static publicLoginFailure(): AuthErrorPayload {
+    return {
+      message: 'Email or password is incorrect.',
+      code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+    };
+  }
+
   static invalidCredentials(remainingAttempts?: number): AuthErrorPayload {
     return {
       message: 'Email or password is incorrect.',

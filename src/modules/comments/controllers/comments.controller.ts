@@ -69,4 +69,16 @@ export class CommentsController {
     await this.commentService.delete(id, req.user.userId);
     return { message: 'Comment deleted successfully' };
   }
+
+  @Post(':id/resolve')
+  @ApiOperation({ summary: 'Mark a comment thread as resolved' })
+  async resolve(@Param('id') id: string, @Request() req: any) {
+    return this.commentService.resolve(id, req.user.userId);
+  }
+
+  @Post(':id/unresolve')
+  @ApiOperation({ summary: 'Reopen a resolved comment thread' })
+  async unresolve(@Param('id') id: string, @Request() req: any) {
+    return this.commentService.unresolve(id, req.user.userId);
+  }
 }

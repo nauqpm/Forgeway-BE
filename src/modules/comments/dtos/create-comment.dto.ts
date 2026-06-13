@@ -25,6 +25,11 @@ export class CreateCommentDto {
   @IsString()
   parentId?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  inlineId?: string;
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
