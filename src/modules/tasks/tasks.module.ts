@@ -19,6 +19,10 @@ import { TaskMapper } from './mappers/task.mapper';
 import { TaskMovePolicy } from './policies/task-move.policy';
 import { TaskReorderPolicy } from './policies/task-reorder.policy';
 import { TasksRepository } from './repositories/tasks.repository';
+import { TaskReadRepository } from './repositories/task-read.repository';
+import { TaskWriteRepository } from './repositories/task-write.repository';
+import { TaskRankRepository } from './repositories/task-rank.repository';
+import { TaskQueryBuilder } from './repositories/task-query.builder';
 import { TaskCounter, TaskCounterSchema } from './schemas/task-counter.schema';
 import { Task, TaskSchema } from './schemas/task.schema';
 import { TaskDependency, TaskDependencySchema } from './schemas/task-dependency.schema';
@@ -68,6 +72,10 @@ import { TaskAuditService } from './shared/task-audit.service';
   ],
   providers: [
     TasksRepository,
+    TaskReadRepository,
+    TaskWriteRepository,
+    TaskRankRepository,
+    TaskQueryBuilder,
     TaskMapper,
     TaskKeyService,
     TaskCounterService,
