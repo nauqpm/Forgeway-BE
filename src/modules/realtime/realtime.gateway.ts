@@ -15,7 +15,6 @@ import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contra
 import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
-import { LeavePageRoomDto } from './dto/leave-page-room.dto';
 import { LeaveTaskRoomDto } from './dto/leave-task-room.dto';
 import { PageYjsUpdateDto } from './dto/page-yjs-update.dto';
 import { PageAwarenessUpdateDto } from './dto/page-awareness-update.dto';
@@ -30,6 +29,7 @@ import { WsException } from '@nestjs/websockets';
 import { PagesService } from '../pages/services/pages.service';
 import { Workspace, WorkspaceDocument } from '../workspaces/schemas/workspace.schema';
 import { getPermissionsForWorkspaceRole } from '../../common/constants/workspace-permissions.constants';
+import { LeavePageRoomDto } from './dto/leave-page-room.dto';
 
 const socketValidationPipe = new ValidationPipe({
   transform: true,
@@ -72,7 +72,10 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
-      this.logger.debug(`Realtime client connected: ${client.id}, userId: ${user.userId}`);
+      const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
+      this.logger.log(
+        `Realtime client connected: ${client.id} | User: ${userIdentifier}`,
+      );
     } catch (error) {
       this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
       client.disconnect(true);
@@ -236,7 +239,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       this.logger.warn(`Empty yjs-update from ${user.userId} for page ${body.pageId}`);
       return { ok: false };
     }
-
     const isAllowed = await this.authorizePageEdit(user.userId, body.pageId);
     if (!isAllowed) {
       throw new WsException('Forbidden: You do not have permission to edit this page');
