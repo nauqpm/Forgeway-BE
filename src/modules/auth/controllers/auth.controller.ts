@@ -27,6 +27,8 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { AuthenticationService } from '../services/authentication.service';
 import { TokenService } from '../services/token.service';
+import { AccountSwitcherService } from '../services/account-switcher.service';
+import { RecentLoginsService } from '../services/recent-logins.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto, VerifyEmailDto, ResendVerificationDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
@@ -34,7 +36,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../../audit/services/audit-log.service';
-import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
+import { clearAuthCookies, getDeviceIdFromRequest, setAuthCookies, setDeviceIdCookie } from '../utils/cookie.utils';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
@@ -65,6 +67,8 @@ export class AuthController {
     private readonly userService: UsersService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
+    private readonly accountSwitcher: AccountSwitcherService,
+    private readonly recentLoginsService: RecentLoginsService,
   ) {}
 
   @ApiOperation({ summary: 'Check email before registration' })
@@ -283,6 +287,73 @@ export class AuthController {
       const result = await this.authenticationService.login(loginDto);
 
       setAuthCookies(res, this.configService, result.tokens);
+
+      // Hook: remember this account under any active session owner.
+      // If the request carries an existing access token, treat its userId as the owner
+      // and remember the freshly-logged-in account. This is what populates the
+      // "Switch account" dropdown for users who share a browser.
+      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as string | undefined;
+      const ownerUserId = this.tokenService.peekUserIdFromAccessToken(existingAccess);
+      if (ownerUserId && ownerUserId !== result.user.id) {
+        try {
+          const ip =
+            (req.headers['x-forwarded-for'] as string | undefined)
+              ?.split(',')[0]
+              ?.trim() ?? req.ip ?? undefined;
+          const userAgent = (req.headers['user-agent'] as string | undefined) ?? undefined;
+          await this.accountSwitcher.rememberAccount(
+            ownerUserId,
+            {
+              id: result.user.id,
+              email: result.user.email,
+              fullName: result.user.fullName,
+              avatar: result.user.avatar,
+              role: result.user.role,
+              ssoProvider:
+                result.user.ssoProvider === 'google' ? 'google' : null,
+            },
+            { ip, userAgent },
+          );
+        } catch (rememberErr) {
+          // Never let rememberAccount break login; just log
+          this.logger.warn(
+            `rememberAccount failed: ${(rememberErr as Error).message}`,
+          );
+        }
+      }
+
+      // Hook: ghi nhận account này là "gần đây trên thiết bị" — luôn chạy,
+      // kể cả khi không có owner cũ (khác với rememberAccount ở trên).
+      // Cho phép hiển thị "Tài khoản gần đây" trong dropdown sau khi user logout.
+      try {
+        const ip =
+          (req.headers['x-forwarded-for'] as string | undefined)
+            ?.split(',')[0]
+            ?.trim() ?? req.ip ?? undefined;
+        const userAgent = (req.headers['user-agent'] as string | undefined) ?? undefined;
+        let deviceId = getDeviceIdFromRequest(req);
+        if (!deviceId) {
+          deviceId = RecentLoginsService.generateDeviceId();
+          setDeviceIdCookie(res, this.configService, deviceId);
+        }
+        await this.recentLoginsService.remember(
+          deviceId,
+          {
+            id: result.user.id,
+            email: result.user.email,
+            fullName: result.user.fullName,
+            avatar: result.user.avatar,
+            role: result.user.role,
+            ssoProvider:
+              result.user.ssoProvider === 'google' ? 'google' : null,
+          },
+          { ip, userAgent },
+        );
+      } catch (recentErr) {
+        this.logger.warn(
+          `recentLogins.remember failed: ${(recentErr as Error).message}`,
+        );
+      }
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,

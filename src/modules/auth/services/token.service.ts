@@ -35,6 +35,27 @@ export class TokenService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  /**
+   * Best-effort: extract userId from a JWT access token without enforcing expiry.
+   * Used only to discover the "current owner" so we can populate the account switcher
+   * when a second account logs in on the same browser. Returns null on any error.
+   */
+  peekUserIdFromAccessToken(token: string | undefined): string | null {
+    if (!token) return null;
+    try {
+      const payload = this.jwtService.verify<{ userId?: string; type?: string }>(
+        token,
+        { ignoreExpiration: true },
+      );
+      if (payload && typeof payload === 'object' && payload.type === TOKEN_TYPES.ACCESS && payload.userId) {
+        return payload.userId;
+      }
+    } catch {
+      // Invalid signature, malformed, etc. — treat as no owner.
+    }
+    return null;
+  }
+
   // Legacy single-token creator (kept for backward compat if used elsewhere)
   async createAndSaveToken(
     userId: string,

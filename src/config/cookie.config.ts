@@ -40,6 +40,17 @@ export const getRefreshCookieOptions = (
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
 });
 
+// Device id cookie: 1 năm. HttpOnly + lax để browser tự gửi theo mọi request trong cùng site.
+// Mục đích: định danh browser cho "Tài khoản gần đây trên thiết bị này".
+// Không nhạy cảm (chỉ là UUID ngẫu nhiên, không leak identity), nên có thể giữ 1 năm.
+export const getDeviceCookieOptions = (
+  configService: ConfigService,
+): CookieOptions => ({
+  ...BASE_COOKIE_OPTIONS(configService),
+  sameSite: 'lax', // ép lax để chắc chắn browser gửi kèm khi navigate cùng site
+  maxAge: 365 * 24 * 60 * 60 * 1000, // 1 năm
+});
+
 // Backward-compat alias
 export const getCookieOptions = getAccessCookieOptions;
 
