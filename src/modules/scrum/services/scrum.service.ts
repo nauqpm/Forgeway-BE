@@ -39,7 +39,7 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
     dto: UpdateSprintDto,
-    actorId?: string,
+    _actorId?: string,
   ): Promise<SprintDocument> {
     return this.sprintCommandService.updateSprint(workspaceId, sprintId, dto);
   }
@@ -47,7 +47,7 @@ export class ScrumService {
   deleteSprint(
     workspaceId: string,
     sprintId: string,
-    actorId?: string,
+    _actorId?: string,
   ): Promise<void> {
     return this.sprintCommandService.deleteSprint(workspaceId, sprintId);
   }
@@ -56,7 +56,7 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
     dto: StartSprintDto,
-    actorId?: string,
+    _actorId?: string,
   ): Promise<SprintDocument> {
     return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
   }
@@ -65,7 +65,7 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
     dto: CompleteSprintDto,
-    actorId?: string,
+    _actorId?: string,
   ): Promise<unknown> {
     return this.sprintLifecycleService.completeSprint(
       workspaceId,

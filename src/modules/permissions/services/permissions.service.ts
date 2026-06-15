@@ -113,7 +113,7 @@ export class PermissionsService {
       const permissionIds = updateDto.permissionIds.map(id => {
         try {
           return new Types.ObjectId(id);
-        } catch (error) {
+        } catch {
           throw new Error(`Invalid permission ID format: ${id}`);
         }
       });

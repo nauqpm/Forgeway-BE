@@ -165,7 +165,9 @@ export class WorkspacesService {
   }
 
   async findByKey(_key: string): Promise<any> {
-    throw new BadRequestException('Workspace key lookup is not supported; use workspaceId');
+    throw new BadRequestException(
+      'Workspace key lookup is not supported; use workspaceId',
+    );
   }
 
   getAvatarSamples() {

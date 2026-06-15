@@ -24,7 +24,11 @@ describe('Auth throttling (e2e)', () => {
       success: true,
       message: 'ok',
       tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
-      user: { id: 'user-1', email: 'test@example.com', role: GLOBAL_ROLES.USER },
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        role: GLOBAL_ROLES.USER,
+      },
     }),
   };
 
@@ -39,21 +43,27 @@ describe('Auth throttling (e2e)', () => {
   };
 
   const passwordResetServiceMock = {
-    requestPasswordReset: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
+    requestPasswordReset: jest
+      .fn()
+      .mockResolvedValue({ success: true, message: 'ok' }),
     verifyOtpAndIssueGrant: jest.fn().mockResolvedValue({
       success: true,
       message: 'ok',
       resetGrant: 'reset-grant',
       expiresIn: 600_000,
     }),
-    resetPasswordWithGrant: jest.fn().mockResolvedValue({ success: true, message: 'ok' }),
+    resetPasswordWithGrant: jest
+      .fn()
+      .mockResolvedValue({ success: true, message: 'ok' }),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }])],
+      imports: [
+        ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
+      ],
       controllers: [AuthController, PasswordController],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -62,10 +72,20 @@ describe('Auth throttling (e2e)', () => {
         { provide: UsersService, useValue: { getUserById: jest.fn() } },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn((key: string) => (key === 'NODE_ENV' ? 'test' : undefined)) },
+          useValue: {
+            get: jest.fn((key: string) =>
+              key === 'NODE_ENV' ? 'test' : undefined,
+            ),
+          },
         },
-        { provide: AuditLogService, useValue: { log: jest.fn(), logRequest: jest.fn() } },
-        { provide: JwtService, useValue: { verify: jest.fn(), sign: jest.fn() } },
+        {
+          provide: AuditLogService,
+          useValue: { log: jest.fn(), logRequest: jest.fn() },
+        },
+        {
+          provide: JwtService,
+          useValue: { verify: jest.fn(), sign: jest.fn() },
+        },
         { provide: TokenService, useValue: tokenServiceMock },
       ],
     }).compile();
@@ -87,7 +107,11 @@ describe('Auth throttling (e2e)', () => {
     }
   });
 
-  async function postUntilLimited(path: string, body: Record<string, unknown>, attempts: number) {
+  async function postUntilLimited(
+    path: string,
+    body: Record<string, unknown>,
+    attempts: number,
+  ) {
     const responses: request.Response[] = [];
     for (let i = 0; i < attempts; i += 1) {
       responses.push(await request(app.getHttpServer()).post(path).send(body));
@@ -122,8 +146,12 @@ describe('Auth throttling (e2e)', () => {
       .expect(200);
 
     const setCookie = response.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some(cookie => cookie.startsWith('access_token='))).toBe(true);
-    expect(setCookie.some(cookie => cookie.startsWith('refresh_token='))).toBe(true);
+    expect(setCookie.some(cookie => cookie.startsWith('access_token='))).toBe(
+      true,
+    );
+    expect(setCookie.some(cookie => cookie.startsWith('refresh_token='))).toBe(
+      true,
+    );
     expect(response.body).not.toHaveProperty('accessToken');
     expect(response.body).not.toHaveProperty('refreshToken');
     expect(response.body).not.toHaveProperty('tokens');
@@ -141,8 +169,12 @@ describe('Auth throttling (e2e)', () => {
       .expect(200);
 
     const setCookie = response.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some(cookie => cookie.startsWith('access_token='))).toBe(true);
-    expect(setCookie.some(cookie => cookie.startsWith('refresh_token='))).toBe(true);
+    expect(setCookie.some(cookie => cookie.startsWith('access_token='))).toBe(
+      true,
+    );
+    expect(setCookie.some(cookie => cookie.startsWith('refresh_token='))).toBe(
+      true,
+    );
     expect(response.body).not.toHaveProperty('accessToken');
     expect(response.body).not.toHaveProperty('refreshToken');
     expect(response.body).not.toHaveProperty('tokens');
@@ -150,31 +182,50 @@ describe('Auth throttling (e2e)', () => {
   });
 
   it('limits repeated login attempts', async () => {
-    const responses = await postUntilLimited('/auth/login', { email: 'test@example.com', password: 'WrongPass1!' }, 6);
+    const responses = await postUntilLimited(
+      '/auth/login',
+      { email: 'test@example.com', password: 'WrongPass1!' },
+      6,
+    );
 
     expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated email availability probes', async () => {
-    const responses = await getUntilLimited('/auth/check-email?email=test@example.com', 6);
+    const responses = await getUntilLimited(
+      '/auth/check-email?email=test@example.com',
+      6,
+    );
 
     expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated OTP verification attempts', async () => {
-    const responses = await postUntilLimited('/auth/verify-otp', { email: 'test@example.com', otp: '123456' }, 6);
+    const responses = await postUntilLimited(
+      '/auth/verify-otp',
+      { email: 'test@example.com', otp: '123456' },
+      6,
+    );
 
     expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated refresh attempts', async () => {
-    const responses = await postUntilLimited('/auth/refresh', { refreshToken: 'refresh-token' }, 31);
+    const responses = await postUntilLimited(
+      '/auth/refresh',
+      { refreshToken: 'refresh-token' },
+      31,
+    );
 
     expect(responses.some(res => res.status === 429)).toBe(true);
   });
 
   it('limits repeated password reset requests', async () => {
-    const responses = await postUntilLimited('/auth/request-password-reset', { email: 'test@example.com' }, 4);
+    const responses = await postUntilLimited(
+      '/auth/request-password-reset',
+      { email: 'test@example.com' },
+      4,
+    );
 
     expect(responses.some(res => res.status === 429)).toBe(true);
   });

@@ -39,7 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * @param payload The decoded JWT payload
    * @returns The authenticated user data
    */
-  async validate(payload: JwtPayload) {
+  validate(payload: JwtPayload) {
     this.logger.debug(`🔍 Validating JWT payload for user: ${payload.email}`);
 
     try {

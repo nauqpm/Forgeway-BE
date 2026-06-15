@@ -51,7 +51,9 @@ export class SprintLifecycleService {
     }
 
     if (sprint.status !== 'planning') {
-      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('planning', sprint.status));
+      throw new BadRequestException(
+        ErrorFactory.sprintInvalidStatus('planning', sprint.status),
+      );
     }
 
     const activeSprint = await this.sprintModel
@@ -103,7 +105,9 @@ export class SprintLifecycleService {
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('active', sprint.status));
+      throw new BadRequestException(
+        ErrorFactory.sprintInvalidStatus('active', sprint.status),
+      );
     }
 
     if (moveToSprintObjectId) {

@@ -1,8 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MeetingService } from '../services/meeting.service';
-import { CHAT_THROTTLE_CONFIG } from '../constants/chat-throttler.constants';
 
 /**
  * Dedicated REST controller for Meeting resources (per D-15).

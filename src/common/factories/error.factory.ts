@@ -1,7 +1,6 @@
 import { PASSWORD_POLICY } from '../constants/password-policy.constants';
 import {
   AUTH_ERROR_CODES,
-  COMMON_ERROR_CODES,
   SPRINT_ERROR_CODES,
   TASK_ERROR_CODES,
   USER_ERROR_CODES,

@@ -17,7 +17,7 @@ export class OtpService {
   }
 
   /** SEC-6: Hash OTP before persist */
-  async hashOtp(otp: string): Promise<string> {
+  hashOtp(otp: string): Promise<string> {
     return bcrypt.hash(otp, 10);
   }
 

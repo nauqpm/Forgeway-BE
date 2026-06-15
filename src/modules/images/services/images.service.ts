@@ -182,7 +182,7 @@ export class ImagesService {
     const filePath = join(process.cwd(), 'uploads', image.filename);
     try {
       await fs.unlink(filePath);
-    } catch (error) {
+    } catch {
       console.warn(`File not found on disk: ${filePath}`);
     }
 

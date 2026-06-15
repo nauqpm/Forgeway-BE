@@ -94,7 +94,9 @@ export class SprintQueryService {
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('active', sprint.status));
+      throw new BadRequestException(
+        ErrorFactory.sprintInvalidStatus('active', sprint.status),
+      );
     }
 
     const completedStatuses =

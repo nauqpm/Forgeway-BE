@@ -12,7 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { VerifyService } from '../services/verify.service';
-import { SendVerifyDto, CheckVerifyDto } from '../dtos/verify.dto';
+import { SendVerifyDto, CheckVerifyDto, VerifyType } from '../dtos/verify.dto';
 
 @ApiTags('Verify')
 @Controller('verify')
@@ -27,9 +27,9 @@ export class VerifyController {
   async sendVerification(@Body() dto: SendVerifyDto) {
     const { email, type } = dto;
 
-    if (type === 'verification') {
+    if (type === VerifyType.VERIFICATION) {
       await this.verifyService.sendVerificationEmail(email);
-    } else if (type === 'password-reset') {
+    } else if (type === VerifyType.PASSWORD_RESET) {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       await this.verifyService.sendPasswordResetEmail(email, otp);
     }
