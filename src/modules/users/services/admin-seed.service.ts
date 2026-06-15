@@ -14,6 +14,11 @@ export class AdminSeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    const seedEnabled = this.configService.get<string>('ADMIN_SEED_ENABLED');
+    if (seedEnabled !== 'true') {
+      return;
+    }
+
     const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
     const adminPassword = this.configService.get<string>('ADMIN_PASSWORD');
     const adminFullName = this.configService.get<string>('ADMIN_FULL_NAME');
@@ -21,6 +26,13 @@ export class AdminSeedService implements OnModuleInit {
     if (!adminEmail || !adminPassword) {
       this.logger.warn(
         'ADMIN_EMAIL or ADMIN_PASSWORD not configured in .env. Skipping admin seed.',
+      );
+      return;
+    }
+
+    if (adminPassword.length < 12) {
+      this.logger.error(
+        'ADMIN_PASSWORD must be at least 12 characters. Skipping admin seed.',
       );
       return;
     }

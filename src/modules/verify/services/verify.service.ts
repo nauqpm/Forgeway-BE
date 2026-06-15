@@ -21,9 +21,6 @@ export class VerifyService {
 
   async generateVerificationCode(email: string): Promise<string> {
     const code = this.generateCode();
-    this.logger.debug(
-      `[DEBUG] Generated Verification Code for ${email}: ${code}`,
-    );
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
@@ -95,7 +92,6 @@ export class VerifyService {
   }
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
-    this.logger.debug(`[DEBUG] Password Reset OTP for ${email}: ${otp}`);
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 

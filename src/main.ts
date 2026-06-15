@@ -54,14 +54,19 @@ async function bootstrap() {
         .filter(Boolean),
     ];
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const allowedOrigins = [
       ...configuredOrigins,
-      `http://localhost:${PORT}`,
-      'http://localhost:5173', // Vite dev server (Admin FE)
-      'http://localhost:5174', // Vite alternative
-      'http://localhost:5175',
-      'http://localhost:3000', // Next.js/React default
-      'http://localhost:3001',
+      ...(!isProduction
+        ? [
+            `http://localhost:${PORT}`,
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175',
+            'http://localhost:3000',
+            'http://localhost:3001',
+          ]
+        : []),
     ].filter(Boolean);
 
     app.enableCors({
@@ -92,34 +97,30 @@ async function bootstrap() {
       prefix: '/uploads',
     });
 
-    // ======================
-    // Swagger Config
-    // ======================
-    const config = new DocumentBuilder()
-      .setTitle('Your API')
-      .setDescription('API Documentation')
-      .setVersion('1.0')
-      .addBearerAuth(
-        {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          name: 'Authorization',
-          in: 'header',
-        },
-        'access-token',
-      )
-      // Nếu dùng HttpOnly Cookie refresh token
-      .addCookieAuth('refreshToken')
-      .build();
+    // Swagger — chỉ bật ngoài production
+    if (process.env.NODE_ENV !== 'production') {
+      const config = new DocumentBuilder()
+        .setTitle('Your API')
+        .setDescription('API Documentation')
+        .setVersion('1.0')
+        .addBearerAuth(
+          {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            name: 'Authorization',
+            in: 'header',
+          },
+          'access-token',
+        )
+        .addCookieAuth('refreshToken')
+        .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-
-    SwaggerModule.setup('api-docs', app, document, {
-      swaggerOptions: {
-        persistAuthorization: true, // giữ token khi refresh page
-      },
-    });
+      const document = SwaggerModule.createDocument(app, config);
+      SwaggerModule.setup('api-docs', app, document, {
+        swaggerOptions: { persistAuthorization: true },
+      });
+    }
 
     // await app.listen(PORT, '0.0.0.0'); // for LAN network deploy
     await app.listen(PORT);

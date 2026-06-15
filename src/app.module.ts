@@ -167,7 +167,7 @@ import { ChatModule } from './modules/chat/chat.module';
           pass: process.env.MAIL_PASSWORD ?? '',
         },
         tls: {
-          rejectUnauthorized: false,
+          rejectUnauthorized: process.env.NODE_ENV === 'production',
         },
       },
       defaults: {
