@@ -113,7 +113,7 @@ export class PagesController {
     private readonly pagesService: PagesService,
     @Inject(forwardRef(() => RealtimeService))
     private readonly realtimeService: RealtimeService,
-  ) { }
+  ) {}
 
   // -------------------------------------------------------------------------
   // POST /pages
@@ -226,7 +226,11 @@ export class PagesController {
     type: PageResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Page not found' })
-  async update(@Param('id') id: string, @Body() updatePageDto: UpdatePageDto, @Request() req: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() updatePageDto: UpdatePageDto,
+    @Request() req: any,
+  ) {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
   }
 
@@ -238,10 +242,14 @@ export class PagesController {
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Synchronize page Yjs state and document content snapshots',
-    description: 'Updates page yjsState, contentJson, content (HTML), and plainTextSnapshot.',
+    description:
+      'Updates page yjsState, contentJson, content (HTML), and plainTextSnapshot.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
-  @ApiOkResponse({ description: 'Page synchronized successfully', type: PageResponseDto })
+  @ApiOkResponse({
+    description: 'Page synchronized successfully',
+    type: PageResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Page not found' })
   async sync(
     @Param('id') id: string,
@@ -305,7 +313,10 @@ export class PagesController {
     type: PageResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Page or new parent not found' })
-  async moveToParent(@Param('id') id: string, @Body('parentId') parentId: string | null) {
+  async moveToParent(
+    @Param('id') id: string,
+    @Body('parentId') parentId: string | null,
+  ) {
     return this.pagesService.moveToParent(id, parentId);
   }
 
@@ -460,7 +471,8 @@ export class PagesController {
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Create a new named version',
-    description: 'Saves current document state (yjsState, content, contentJson) as a named version.',
+    description:
+      'Saves current document state (yjsState, content, contentJson) as a named version.',
   })
   @ApiParam({ name: 'id', description: 'Document page ID' })
   @ApiBody({ type: CreateVersionDto })
@@ -479,7 +491,8 @@ export class PagesController {
   @Get(':id/versions')
   @ApiOperation({
     summary: 'Get document version list',
-    description: 'Returns a list of saved versions of the document, sorted by newest creation time.',
+    description:
+      'Returns a list of saved versions of the document, sorted by newest creation time.',
   })
   @ApiParam({ name: 'id', description: 'Document page ID' })
   @ApiOkResponse({ description: 'List of versions' })
@@ -523,8 +536,12 @@ export class PagesController {
     @Param('versionId') versionId: string,
     @Request() req: any,
   ) {
-    const page = await this.pagesService.restoreVersion(id, versionId, req.user.userId);
-    
+    const page = await this.pagesService.restoreVersion(
+      id,
+      versionId,
+      req.user.userId,
+    );
+
     // Broadcast real-time notification to all connected clients in the page room
     this.realtimeService.emitPageVersionRestored(
       page._id.toString(),
@@ -543,14 +560,16 @@ export class PagesController {
   @UseGuards(WorkspaceRoleGuard)
   @ApiOperation({
     summary: 'Export document as Word file (.docx)',
-    description: 'Converts HTML of the current document to Word file (.docx) for download.',
+    description:
+      'Converts HTML of the current document to Word file (.docx) for download.',
   })
   @ApiParam({ name: 'id', description: 'Document page ID' })
   async exportDocx(@Param('id') id: string, @Res() res: any) {
     const { buffer, filename } = await this.pagesService.exportToDocx(id);
 
     res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
       'Content-Length': buffer.length,
     });
@@ -567,7 +586,10 @@ export class PagesController {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
       fileFilter: (req: any, file: any, cb: any) => {
         if (!file.originalname.match(/\.(docx)$/)) {
-          return cb(new BadRequestException('Only .docx files are allowed'), false);
+          return cb(
+            new BadRequestException('Only .docx files are allowed'),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -575,7 +597,8 @@ export class PagesController {
   )
   @ApiOperation({
     summary: 'Import content from Word file (.docx)',
-    description: 'Converts uploaded Word file (.docx) to clean HTML to insert into editor.',
+    description:
+      'Converts uploaded Word file (.docx) to clean HTML to insert into editor.',
   })
   async importDocx(@UploadedFile() file: Express.Multer.File) {
     if (!file) {

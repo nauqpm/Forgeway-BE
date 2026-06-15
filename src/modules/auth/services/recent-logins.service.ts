@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { randomUUID } from 'crypto';
-import { RecentLogin, RecentLoginDocument } from '../schemas/recent-login.schema';
+import {
+  RecentLogin,
+  RecentLoginDocument,
+} from '../schemas/recent-login.schema';
 
 export interface RecentAccountDto {
   accountId: string;
@@ -82,7 +85,10 @@ export class RecentLoginsService {
   /**
    * Lấy danh sách account đã login trên device, sort lastUsedAt desc, giới hạn 10.
    */
-  async listForDevice(deviceId: string, limit = 10): Promise<RecentAccountDto[]> {
+  async listForDevice(
+    deviceId: string,
+    limit = 10,
+  ): Promise<RecentAccountDto[]> {
     if (!deviceId) return [];
     const docs = await this.recentLoginModel
       .find({ deviceId })
@@ -91,7 +97,7 @@ export class RecentLoginsService {
       .lean()
       .exec();
 
-    return docs.map((d) => ({
+    return docs.map(d => ({
       accountId: d.accountId.toString(),
       email: d.email,
       fullName: d.fullName,

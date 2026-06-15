@@ -11,7 +11,9 @@ const CONNECTION_TIMEOUT = 10000; // ⏱️ Thời gian chờ tối đa 10 giây
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService): Promise<MongooseModuleOptions> => {
+      useFactory: (
+        configService: ConfigService,
+      ): MongooseModuleOptions => {
         const uri = configService.get<string>('DB_CONNECTION_STRING');
 
         console.log('🌐 Đang kết nối tới MongoDB...');

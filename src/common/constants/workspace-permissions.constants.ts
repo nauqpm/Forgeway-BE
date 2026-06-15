@@ -13,7 +13,8 @@ export const WORKSPACE_PERMISSIONS = {
   PAGE_DELETE: 'page:delete',
 } as const;
 
-export type WorkspacePermission = (typeof WORKSPACE_PERMISSIONS)[keyof typeof WORKSPACE_PERMISSIONS];
+export type WorkspacePermission =
+  (typeof WORKSPACE_PERMISSIONS)[keyof typeof WORKSPACE_PERMISSIONS];
 
 export const WORKSPACE_ROLE_PERMISSIONS: Record<
   SpaceRole,
@@ -33,7 +34,9 @@ export const WORKSPACE_ROLE_PERMISSIONS: Record<
   [SPACE_ROLES.VIEWER]: [],
 };
 
-export const getPermissionsForWorkspaceRole = (role?: string): WorkspacePermission[] => {
+export const getPermissionsForWorkspaceRole = (
+  role?: string,
+): WorkspacePermission[] => {
   if (!role || !(role in WORKSPACE_ROLE_PERMISSIONS)) {
     return [];
   }

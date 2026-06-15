@@ -11,6 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
@@ -61,8 +62,11 @@ export class WorkspacesService {
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);
-    const slug = dto.slug || (await this.workspaceKeyService.generateUniqueSlug(dto.name));
-    const key = await this.workspaceKeyService.generateUniqueKey(dto.key || dto.name);
+    const slug =
+      dto.slug || (await this.workspaceKeyService.generateUniqueSlug(dto.name));
+    const key = await this.workspaceKeyService.generateUniqueKey(
+      dto.key || dto.name,
+    );
     const avatar = this.resolveWorkspaceAvatar(dto.avatar);
 
     const existingSlug = await this.workspacesRepository.findAnyBySlug(slug);
@@ -82,7 +86,12 @@ export class WorkspacesService {
         type: dto.type || 'kanban',
         access: dto.access || 'public',
         ownerId: new Types.ObjectId(userId),
-        members: [{ userId: new Types.ObjectId(userId), role: SPACE_ROLES.WORKSPACE_ADMIN }],
+        members: [
+          {
+            userId: new Types.ObjectId(userId),
+            role: SPACE_ROLES.WORKSPACE_ADMIN,
+          },
+        ],
         settings: {},
         status: 'active',
       });
@@ -90,7 +99,10 @@ export class WorkspacesService {
       try {
         await this.kanbanService.createDefaultBoard(workspace._id.toString());
       } catch (error) {
-        this.logger.error(`Failed to create default board for workspace ${workspace._id}`, error);
+        this.logger.error(
+          `Failed to create default board for workspace ${workspace._id}`,
+          error,
+        );
       }
 
       try {
@@ -103,7 +115,10 @@ export class WorkspacesService {
             `Default workflow already exists for workspace ${workspace._id}`,
           );
         } else {
-          this.logger.error(`Failed to create default workflow for workspace ${workspace._id}`, error);
+          this.logger.error(
+            `Failed to create default workflow for workspace ${workspace._id}`,
+            error,
+          );
         }
       }
 
@@ -136,7 +151,7 @@ export class WorkspacesService {
   async findById(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
     return this.withDefaultAvatar(workspace);
   }
@@ -144,15 +159,13 @@ export class WorkspacesService {
   async findBySlug(slug: string): Promise<any> {
     const workspace = await this.workspacesRepository.findBySlug(slug);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with slug "${slug}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(slug));
     }
     return this.withDefaultAvatar(workspace);
   }
 
   async findByKey(_key: string): Promise<any> {
-    throw new BadRequestException(
-      'Workspace key lookup is not supported; use workspaceId',
-    );
+    throw new BadRequestException('Workspace key lookup is not supported; use workspaceId');
   }
 
   getAvatarSamples() {
@@ -206,14 +219,20 @@ export class WorkspacesService {
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     if (dto.name) workspace.name = dto.name;
     if (dto.description !== undefined) workspace.description = dto.description;
-    if (dto.avatar !== undefined) workspace.avatar = this.resolveWorkspaceAvatar(dto.avatar);
-    if (dto.settings) workspace.settings = { ...workspace.settings, ...dto.settings };
-    if (dto.key) workspace.key = await this.workspaceKeyService.generateUniqueKey(dto.key, id);
+    if (dto.avatar !== undefined)
+      workspace.avatar = this.resolveWorkspaceAvatar(dto.avatar);
+    if (dto.settings)
+      workspace.settings = { ...workspace.settings, ...dto.settings };
+    if (dto.key)
+      workspace.key = await this.workspaceKeyService.generateUniqueKey(
+        dto.key,
+        id,
+      );
     if (dto.type) workspace.type = dto.type;
     if (dto.status) workspace.status = dto.status;
     if (dto.access) workspace.access = dto.access;
@@ -229,7 +248,7 @@ export class WorkspacesService {
   async delete(id: string, actorId?: string): Promise<void> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     try {
@@ -252,7 +271,7 @@ export class WorkspacesService {
 
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     this.workspaceDomainEventPublisher.publishDeleted(id, workspace, actorId);
@@ -261,9 +280,7 @@ export class WorkspacesService {
   async restore(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.restore(id);
     if (!workspace) {
-      throw new NotFoundException(
-        `Deleted workspace with ID "${id}" not found`,
-      );
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     try {
@@ -282,7 +299,7 @@ export class WorkspacesService {
   async archive(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     workspace.status = 'archived';
@@ -300,14 +317,19 @@ export class WorkspacesService {
     }
 
     if (!isWorkspaceSampleAvatar(avatar)) {
-      throw new BadRequestException('Workspace avatar must be one of the sample avatars');
+      throw new BadRequestException(
+        'Workspace avatar must be one of the sample avatars',
+      );
     }
 
     return avatar;
   }
 
   private withDefaultAvatar(workspace: any): any {
-    const workspaceData = typeof workspace?.toObject === 'function' ? workspace.toObject() : { ...workspace };
+    const workspaceData =
+      typeof workspace?.toObject === 'function'
+        ? workspace.toObject()
+        : { ...workspace };
 
     return {
       ...workspaceData,

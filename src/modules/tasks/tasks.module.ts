@@ -10,14 +10,25 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
-import { TasksController } from './controllers/tasks.controller';
+import { TaskQueryController } from './controllers/task-query.controller';
+import { TaskDetailController } from './controllers/task-detail.controller';
+import { TaskCommandController } from './controllers/task-command.controller';
+import { TaskWorkflowController } from './controllers/task-workflow.controller';
+import { TaskDependencyController } from './controllers/task-dependency.controller';
 import { TaskMapper } from './mappers/task.mapper';
 import { TaskMovePolicy } from './policies/task-move.policy';
 import { TaskReorderPolicy } from './policies/task-reorder.policy';
 import { TasksRepository } from './repositories/tasks.repository';
+import { TaskReadRepository } from './repositories/task-read.repository';
+import { TaskWriteRepository } from './repositories/task-write.repository';
+import { TaskRankRepository } from './repositories/task-rank.repository';
+import { TaskQueryBuilder } from './repositories/task-query.builder';
 import { TaskCounter, TaskCounterSchema } from './schemas/task-counter.schema';
 import { Task, TaskSchema } from './schemas/task.schema';
-import { TaskDependency, TaskDependencySchema } from './schemas/task-dependency.schema';
+import {
+  TaskDependency,
+  TaskDependencySchema,
+} from './schemas/task-dependency.schema';
 import { TaskDependencyService } from './services/task-dependency.service';
 import { TaskCounterService } from './services/task-counter.service';
 import { TaskCreationValidationService } from './services/task-creation-validation.service';
@@ -30,6 +41,13 @@ import { TaskNormalizerService } from './services/task-normalizer.service';
 import { TaskReorderService } from './services/task-reorder.service';
 import { TaskSearchService } from './services/task-search.service';
 import { TasksService } from './services/tasks.service';
+import { TaskAccessService } from './services/task-access.service';
+import { TaskAssignmentNotificationService } from './services/task-assignment-notification.service';
+import { TaskCreateService } from './services/task-create.service';
+import { TaskQueryService } from './services/task-query.service';
+import { TaskUpdateService } from './services/task-update.service';
+import { TaskLifecycleService } from './services/task-lifecycle.service';
+import { TaskAuditService } from './shared/task-audit.service';
 
 @Module({
   imports: [
@@ -48,9 +66,19 @@ import { TasksService } from './services/tasks.service';
     TaskActivitiesModule,
     AuditModule,
   ],
-  controllers: [TasksController],
+  controllers: [
+    TaskQueryController,
+    TaskDetailController,
+    TaskCommandController,
+    TaskWorkflowController,
+    TaskDependencyController,
+  ],
   providers: [
     TasksRepository,
+    TaskReadRepository,
+    TaskWriteRepository,
+    TaskRankRepository,
+    TaskQueryBuilder,
     TaskMapper,
     TaskKeyService,
     TaskCounterService,
@@ -66,23 +94,15 @@ import { TasksService } from './services/tasks.service';
     TaskDomainEventPublisher,
     TasksService,
     TaskDependencyService,
+    TaskAccessService,
+    TaskAssignmentNotificationService,
+    TaskCreateService,
+    TaskQueryService,
+    TaskUpdateService,
+    TaskLifecycleService,
+    TaskAuditService,
     WorkspaceRoleGuard,
   ],
-  exports: [
-    TasksService,
-    TaskDetailService,
-    TaskKeyService,
-    TaskCounterService,
-    TaskCreationValidationService,
-    TaskMovePolicy,
-    TaskMoveService,
-    TaskReorderPolicy,
-    TaskReorderService,
-    TaskNormalizerService,
-    TaskDataTransformerService,
-    TasksRepository,
-    TaskMapper,
-    TaskDependencyService,
-  ],
+  exports: [TasksService],
 })
 export class TasksModule {}

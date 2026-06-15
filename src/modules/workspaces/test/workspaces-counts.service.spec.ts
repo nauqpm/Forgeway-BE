@@ -9,6 +9,7 @@ import { ScrumService } from '@/modules/scrum/services/scrum.service';
 import { Task } from '@/modules/tasks/schemas/task.schema';
 import { WorkflowsService } from '@/modules/workflows/services/workflows.service';
 import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspaces.repository';
+import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
 import { WorkspaceKeyService } from '@/modules/workspaces/services/workspace-key.service';
 import { WorkspacesService } from '@/modules/workspaces/services/workspaces.service';
 
@@ -48,6 +49,16 @@ describe('WorkspacesService workspace counts', () => {
         {
           provide: getModelToken(DocumentEntity.name),
           useFactory: mockCountModel,
+        },
+        {
+          provide: WorkspaceDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+            publishUpdated: jest.fn(),
+            publishDeleted: jest.fn(),
+            publishArchived: jest.fn(),
+            publishRestored: jest.fn(),
+          },
         },
       ],
     }).compile();

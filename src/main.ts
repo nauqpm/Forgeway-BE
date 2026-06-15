@@ -4,6 +4,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import compression from 'compression';
 import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
@@ -28,6 +30,12 @@ async function bootstrap() {
 
     // Trust reverse proxy (Nginx)
     app.set('trust proxy', 1);
+
+    // Security headers
+    app.use(helmet());
+
+    // Compression
+    app.use(compression());
 
     // Hỗ trợ dữ liệu lớn
     app.use(express.json({ limit: '50mb' }));
@@ -125,4 +133,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

@@ -1,8 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { Task } from '../../tasks/schemas/task.schema';
 import { TaskActivityMapper } from '../mappers/task-activity.mapper';
 import { TaskActivitiesRepository } from '../repositories/task-activities.repository';
@@ -13,6 +15,7 @@ describe('TaskActivitiesService', () => {
   let repository: jest.Mocked<TaskActivitiesRepository>;
   let mapper: jest.Mocked<TaskActivityMapper>;
   let workspacesService: jest.Mocked<WorkspacesService>;
+  let workspaceMemberService: jest.Mocked<WorkspaceMemberService>;
   let taskModel: { findOne: jest.Mock };
 
   const workspaceId = new Types.ObjectId().toString();
@@ -29,8 +32,10 @@ describe('TaskActivitiesService', () => {
     } as unknown as jest.Mocked<TaskActivityMapper>;
     workspacesService = {
       findById: jest.fn(),
-      isMember: jest.fn(),
     } as unknown as jest.Mocked<WorkspacesService>;
+    workspaceMemberService = {
+      isMember: jest.fn(),
+    } as unknown as jest.Mocked<WorkspaceMemberService>;
     taskModel = {
       findOne: jest.fn(),
     };
@@ -41,7 +46,9 @@ describe('TaskActivitiesService', () => {
         { provide: TaskActivitiesRepository, useValue: repository },
         { provide: TaskActivityMapper, useValue: mapper },
         { provide: WorkspacesService, useValue: workspacesService },
+        { provide: WorkspaceMemberService, useValue: workspaceMemberService },
         { provide: getModelToken(Task.name), useValue: taskModel },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 
@@ -56,7 +63,7 @@ describe('TaskActivitiesService', () => {
       _id: new Types.ObjectId(workspaceId),
       key: 'TESKB',
     } as any);
-    workspacesService.isMember.mockResolvedValue(true);
+    workspaceMemberService.isMember.mockResolvedValue(true);
     taskModel.findOne.mockReturnValue({
       exec: jest.fn().mockResolvedValue({
         _id: new Types.ObjectId(taskId),
@@ -71,7 +78,9 @@ describe('TaskActivitiesService', () => {
     } as any);
     mapper.mapToDtos.mockReturnValue(mapped as any);
 
-    await expect(service.findByTaskInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual({
+    await expect(
+      service.findByTaskInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual({
       activities: mapped,
       total: 1,
       page: 1,
@@ -79,8 +88,15 @@ describe('TaskActivitiesService', () => {
     });
 
     expect(workspacesService.findById).toHaveBeenCalledWith('TESKB');
-    expect(workspacesService.isMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(repository.findByTaskInWorkspace).toHaveBeenCalledWith(workspaceId, taskId, {});
+    expect(workspaceMemberService.isMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(repository.findByTaskInWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      taskId,
+      {},
+    );
   });
 
   it('returns not found when user is not a workspace member', async () => {
@@ -88,9 +104,11 @@ describe('TaskActivitiesService', () => {
       _id: new Types.ObjectId(workspaceId),
       key: 'TESKB',
     } as any);
-    workspacesService.isMember.mockResolvedValue(false);
+    workspaceMemberService.isMember.mockResolvedValue(false);
 
-    await expect(service.findByTaskInWorkspaceKey('TESKB', taskId, userId)).rejects.toThrow(NotFoundException);
+    await expect(
+      service.findByTaskInWorkspaceKey('TESKB', taskId, userId),
+    ).rejects.toThrow(NotFoundException);
 
     expect(repository.findByTaskInWorkspace).not.toHaveBeenCalled();
   });

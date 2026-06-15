@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InviteService } from '@/modules/workspaces/services/invite.service';
 import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
@@ -26,12 +33,14 @@ export class AuthenticationService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.dummyPasswordHash = await this.passwordService.hashPassword(randomUUID());
+    this.dummyPasswordHash =
+      await this.passwordService.hashPassword(randomUUID());
   }
 
   private async runDummyPasswordCompare(password: string) {
     if (!this.dummyPasswordHash) {
-      this.dummyPasswordHash = await this.passwordService.hashPassword(randomUUID());
+      this.dummyPasswordHash =
+        await this.passwordService.hashPassword(randomUUID());
     }
     await this.passwordService.verifyPassword(password, this.dummyPasswordHash);
   }
@@ -41,18 +50,27 @@ export class AuthenticationService implements OnModuleInit {
   }
 
   async register(registerDto: RegisterDto) {
-    this.logger.log(`Starting registration flow for email: ${registerDto.email}`);
+    this.logger.log(
+      `Starting registration flow for email: ${registerDto.email}`,
+    );
 
     try {
-      const existingUser = await this.usersService.findByEmail(registerDto.email);
-      if (existingUser && existingUser.status === USER_STATUSES.PENDING_VERIFICATION) {
+      const existingUser = await this.usersService.findByEmail(
+        registerDto.email,
+      );
+      if (
+        existingUser &&
+        existingUser.status === USER_STATUSES.PENDING_VERIFICATION
+      ) {
         // Use BadRequestException for validation errors, not ForbiddenException
         throw new BadRequestException({
           message: 'Please verify your email before registering.',
           code: AuthErrorFactory.emailNotVerified().code,
         });
       } else if (existingUser) {
-        this.logger.warn(`Registration failed: Email ${registerDto.email} already exists.`);
+        this.logger.warn(
+          `Registration failed: Email ${registerDto.email} already exists.`,
+        );
         throw new ConflictException('Email is already in use.');
       }
 
@@ -62,25 +80,33 @@ export class AuthenticationService implements OnModuleInit {
         role: GLOBAL_ROLES.USER,
         status: USER_STATUSES.PENDING_VERIFICATION,
       });
-      this.logger.log(`User created successfully: ${newUser.email} (ID: ${newUser._id})`);
+      this.logger.log(
+        `User created successfully: ${newUser.email} (ID: ${newUser._id})`,
+      );
 
       await this.verifyService.sendVerificationEmail(registerDto.email);
       this.logger.log(`Verification email sent to: ${registerDto.email}`);
 
       this.inviteService
         .processPostRegisterInvites(registerDto.email, newUser._id.toString())
-        .catch((err: Error) => this.logger.error('processPostRegisterInvites failed', err.stack));
+        .catch((err: Error) =>
+          this.logger.error('processPostRegisterInvites failed', err.stack),
+        );
 
       return {
         success: true,
-        message: 'Registration successful. Please check your email to verify your account.',
+        message:
+          'Registration successful. Please check your email to verify your account.',
         email: registerDto.email,
       };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
       if (!(error instanceof ConflictException)) {
-        this.logger.error(`Unexpected error during registration (${registerDto.email}): ${message}`, stack);
+        this.logger.error(
+          `Unexpected error during registration (${registerDto.email}): ${message}`,
+          stack,
+        );
       }
       throw error;
     }
@@ -99,7 +125,9 @@ export class AuthenticationService implements OnModuleInit {
       // === Handle non-existent user ===
       // Return same response shape as a real wrong password to prevent user enumeration.
       if (!user) {
-        this.logger.warn(`Login failed: Email ${loginDto.email} was not found.`);
+        this.logger.warn(
+          `Login failed: Email ${loginDto.email} was not found.`,
+        );
         await this.runDummyPasswordCompare(loginDto.password);
         this.throwPublicLoginFailure();
       }
@@ -107,7 +135,9 @@ export class AuthenticationService implements OnModuleInit {
       // === Handle OAuth (no password) user ===
       // Return generic invalid credentials to prevent OAuth account enumeration.
       if (!user.password) {
-        this.logger.warn(`Login failed: Account ${loginDto.email} has no password (OAuth).`);
+        this.logger.warn(
+          `Login failed: Account ${loginDto.email} has no password (OAuth).`,
+        );
         await this.runDummyPasswordCompare(loginDto.password);
         this.throwPublicLoginFailure();
       }
@@ -115,7 +145,9 @@ export class AuthenticationService implements OnModuleInit {
       // === Handle locked account ===
       const now = new Date();
       if (user.lockoutUntil && user.lockoutUntil.getTime() > now.getTime()) {
-        this.logger.warn(`Login temporarily locked for email ${loginDto.email}.`);
+        this.logger.warn(
+          `Login temporarily locked for email ${loginDto.email}.`,
+        );
         await this.runDummyPasswordCompare(loginDto.password);
         this.throwPublicLoginFailure();
       }
@@ -126,11 +158,18 @@ export class AuthenticationService implements OnModuleInit {
       }
 
       // === Verify password ===
-      const isPasswordValid = await this.passwordService.verifyPassword(loginDto.password, user.password);
+      const isPasswordValid = await this.passwordService.verifyPassword(
+        loginDto.password,
+        user.password,
+      );
 
       if (!isPasswordValid) {
-        this.logger.warn(`Login failed: Incorrect password for email ${loginDto.email}.`);
-        const failureState = await this.usersService.registerFailedLoginAttempt(user._id.toString());
+        this.logger.warn(
+          `Login failed: Incorrect password for email ${loginDto.email}.`,
+        );
+        const failureState = await this.usersService.registerFailedLoginAttempt(
+          user._id.toString(),
+        );
 
         if (failureState.isLocked) {
           this.throwPublicLoginFailure();
@@ -141,7 +180,9 @@ export class AuthenticationService implements OnModuleInit {
 
       // === Handle non-active status ===
       if (user.status !== USER_STATUSES.ACTIVE) {
-        this.logger.warn(`Login failed: Account ${loginDto.email} is not active (status: ${user.status}).`);
+        this.logger.warn(
+          `Login failed: Account ${loginDto.email} is not active (status: ${user.status}).`,
+        );
 
         if (user.status === USER_STATUSES.PENDING_VERIFICATION) {
           throw new UnauthorizedException(AuthErrorFactory.emailNotVerified());
@@ -160,13 +201,14 @@ export class AuthenticationService implements OnModuleInit {
       }
 
       // === Issue tokens ===
-      const { accessToken, refreshToken } = await this.tokenService.createAndSaveTokens(
-        user._id.toString(),
-        user.email,
-        user.role,
-        user.fullName,
-        user.avatar,
-      );
+      const { accessToken, refreshToken } =
+        await this.tokenService.createAndSaveTokens(
+          user._id.toString(),
+          user.email,
+          user.role,
+          user.fullName,
+          user.avatar,
+        );
 
       this.logger.log(`Login successful: ${user.email} (ID: ${user._id})`);
 
@@ -187,8 +229,14 @@ export class AuthenticationService implements OnModuleInit {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
-      if (!(error instanceof UnauthorizedException) && !(error instanceof BadRequestException)) {
-        this.logger.error(`System error during login (${loginDto.email}): ${message}`, stack);
+      if (
+        !(error instanceof UnauthorizedException) &&
+        !(error instanceof BadRequestException)
+      ) {
+        this.logger.error(
+          `System error during login (${loginDto.email}): ${message}`,
+          stack,
+        );
       }
       throw error;
     }
@@ -200,15 +248,21 @@ export class AuthenticationService implements OnModuleInit {
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      this.logger.error(`Verification succeeded but no user was found for email: ${email}`);
-      throw new UnauthorizedException('The verification code is invalid or has expired.');
+      this.logger.error(
+        `Verification succeeded but no user was found for email: ${email}`,
+      );
+      throw new UnauthorizedException(
+        'The verification code is invalid or has expired.',
+      );
     }
 
     if (user.status !== USER_STATUSES.ACTIVE) {
       await this.usersService.updateUser(user._id.toString(), {
         status: USER_STATUSES.ACTIVE,
       });
-      this.logger.log(`Account ${email} was activated successfully (status -> ACTIVE)`);
+      this.logger.log(
+        `Account ${email} was activated successfully (status -> ACTIVE)`,
+      );
     } else {
       this.logger.log(`Account ${email} was already ACTIVE.`);
     }
@@ -227,7 +281,8 @@ export class AuthenticationService implements OnModuleInit {
 
     return {
       success: true,
-      message: 'If the email requires verification, new instructions have been sent.',
+      message:
+        'If the email requires verification, new instructions have been sent.',
     };
   }
 }

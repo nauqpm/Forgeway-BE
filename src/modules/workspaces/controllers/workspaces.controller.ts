@@ -107,7 +107,11 @@ export class WorkspacesController {
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.WORKSPACE_UPDATE)
   @ApiOperation({ summary: 'Update workspace (owner/workspace admin only)' })
-  async update(@Param('workspaceId') workspaceId: string, @Body() dto: UpdateWorkspaceDto, @Request() req: any) {
+  async update(
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: UpdateWorkspaceDto,
+    @Request() req: any,
+  ) {
     return this.workspacesService.update(workspaceId, dto, req.user.userId);
   }
 
@@ -167,16 +171,33 @@ export class WorkspacesController {
   @Delete(':workspaceId/members/me')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Leave workspace (any member)' })
-  async leaveWorkspace(@Param('workspaceId') workspaceId: string, @Request() req: any) {
-    await this.workspaceMemberService.removeMember(workspaceId, req.user.userId, req.user.userId);
+  async leaveWorkspace(
+    @Param('workspaceId') workspaceId: string,
+    @Request() req: any,
+  ) {
+    await this.workspaceMemberService.removeMember(
+      workspaceId,
+      req.user.userId,
+      req.user.userId,
+    );
   }
 
   @Delete(':workspaceId/members/:userId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove member from workspace (owner/workspace admin only)' })
-  async removeMember(@Param('workspaceId') workspaceId: string, @Param('userId') userId: string, @Request() req: any) {
-    await this.workspaceMemberService.removeMember(workspaceId, userId, req.user.userId);
+  @ApiOperation({
+    summary: 'Remove member from workspace (owner/workspace admin only)',
+  })
+  async removeMember(
+    @Param('workspaceId') workspaceId: string,
+    @Param('userId') userId: string,
+    @Request() req: any,
+  ) {
+    await this.workspaceMemberService.removeMember(
+      workspaceId,
+      userId,
+      req.user.userId,
+    );
   }
 
   @Post(':workspaceId/restore')

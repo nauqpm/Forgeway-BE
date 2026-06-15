@@ -25,6 +25,8 @@ export class DocumentVersionEntity {
   readonly updatedAt!: Date;
 }
 
-export const DocumentVersionSchema = SchemaFactory.createForClass(DocumentVersionEntity);
+export const DocumentVersionSchema = SchemaFactory.createForClass(
+  DocumentVersionEntity,
+);
 DocumentVersionSchema.index({ documentId: 1, createdAt: -1 });
 DocumentVersionSchema.index({ createdBy: 1 });

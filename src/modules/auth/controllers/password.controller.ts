@@ -6,7 +6,11 @@ import { Request as ExpressRequest } from 'express';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { PasswordResetService } from '../services/password-reset.service';
-import { RequestPasswordResetDto, ResetPasswordWithGrantDto, VerifyOtpDto } from '../dtos/password-reset.dto';
+import {
+  RequestPasswordResetDto,
+  ResetPasswordWithGrantDto,
+  VerifyOtpDto,
+} from '../dtos/password-reset.dto';
 
 @ApiTags('Auth - Password')
 @Controller('auth')
@@ -29,7 +33,10 @@ export class PasswordController {
   })
   @Throttle({ default: { limit: 3, ttl: 900_000 } })
   @Post('request-password-reset')
-  async requestPasswordReset(@Body() dto: RequestPasswordResetDto, @Req() req: ExpressRequest) {
+  async requestPasswordReset(
+    @Body() dto: RequestPasswordResetDto,
+    @Req() req: ExpressRequest,
+  ) {
     try {
       const result = await this.passwordResetService.requestPasswordReset(dto);
       this.auditLogService.logRequest(req, {
@@ -98,7 +105,10 @@ export class PasswordController {
   })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password')
-  async resetPassword(@Body() dto: ResetPasswordWithGrantDto, @Req() req: ExpressRequest) {
+  async resetPassword(
+    @Body() dto: ResetPasswordWithGrantDto,
+    @Req() req: ExpressRequest,
+  ) {
     try {
       const result =
         await this.passwordResetService.resetPasswordWithGrant(dto);

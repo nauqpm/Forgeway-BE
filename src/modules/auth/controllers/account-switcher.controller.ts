@@ -80,10 +80,12 @@ export class AccountSwitcherController {
   ) {
     const ownerId = req.user.userId;
     const ip =
-      (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
+      (req.headers['x-forwarded-for'] as string | undefined)
+        ?.split(',')[0]
+        ?.trim() ??
       req.ip ??
       undefined;
-    const userAgent = (req.headers['user-agent'] as string | undefined) ?? undefined;
+    const userAgent = req.headers['user-agent'] ?? undefined;
 
     try {
       const result = await this.accountSwitcher.switchToAccount(
@@ -117,7 +119,11 @@ export class AccountSwitcherController {
         type: SECURITY_EVENT_TYPES.LOGIN_FAILED,
         severity: 'WARN',
         email: undefined,
-        metadata: { via: 'account-switch', reason: message, fromUserId: ownerId },
+        metadata: {
+          via: 'account-switch',
+          reason: message,
+          fromUserId: ownerId,
+        },
       });
       throw error;
     }
@@ -126,7 +132,7 @@ export class AccountSwitcherController {
   @Delete(':accountId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Remove a saved account from the current user\'s switcher list',
+    summary: "Remove a saved account from the current user's switcher list",
   })
   async forget(
     @Req() req: RequestWithUser,
@@ -134,6 +140,9 @@ export class AccountSwitcherController {
   ) {
     const ownerId = req.user.userId;
     await this.accountSwitcher.forgetAccount(ownerId, accountId);
-    return { success: true, message: 'Đã xoá account khỏi danh sách chuyển đổi.' };
+    return {
+      success: true,
+      message: 'Đã xoá account khỏi danh sách chuyển đổi.',
+    };
   }
 }

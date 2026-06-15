@@ -1,4 +1,4 @@
-import { ExecutionContext, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard, ThrottlerException } from '@nestjs/throttler';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
     // Track strictly by authenticated userId
     const tracker = client.data?.user?.userId || 'anonymous';
     const key = generateKey(context, tracker, throttler.name);
-    
+
     const { totalHits, timeToExpire } = await this.storageService.increment(
       key,
       ttl,
@@ -41,11 +41,11 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
         statusCode: 429,
         error: 'ThrottlerException',
       });
-      
+
       // Also emit 'rate_limited' with remaining TTL in milliseconds
       const remainingMs = timeToExpire ? timeToExpire * 1000 : ttl;
       client.emit('rate_limited', { retryAfterMs: remainingMs });
-      
+
       throw new ThrottlerException();
     }
 

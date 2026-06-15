@@ -7,7 +7,10 @@ import { Amenity, AmenitySchema } from './schemas/amenity.schema';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Amenity.name, schema: AmenitySchema }]), forwardRef(() => AuthModule)],
+  imports: [
+    MongooseModule.forFeature([{ name: Amenity.name, schema: AmenitySchema }]),
+    forwardRef(() => AuthModule),
+  ],
   controllers: [UtilitiesController],
   providers: [UtilitiesService, JwtAuthGuard],
   exports: [JwtAuthGuard, UtilitiesService],

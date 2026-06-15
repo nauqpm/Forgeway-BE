@@ -1,6 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { TASK_ACTIVITY_TYPE_VALUES, TaskActivityType } from '../constants/task-activity.constants';
+import {
+  TASK_ACTIVITY_TYPE_VALUES,
+  TaskActivityType,
+} from '../constants/task-activity.constants';
 
 export type TaskActivityDocument = TaskActivity & Document;
 
