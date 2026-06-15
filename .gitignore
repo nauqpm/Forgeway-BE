@@ -9,6 +9,10 @@
 *.yaml
 *.yml
 
+# Ngoại lệ: Cho phép Git theo dõi các file yml/yaml nằm trong thư mục .github
+!/.github/**/*.yml
+!/.github/**/*.yaml
+
 # Logs
 logs
 *.log
@@ -71,6 +75,3 @@ superpowers
 # CodeGraph
 .codegraph/
 
-# Headroom local-only artifacts
-.headroom/
-node_modules/headroom-ai/
