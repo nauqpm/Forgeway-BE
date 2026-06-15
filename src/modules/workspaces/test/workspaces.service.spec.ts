@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
@@ -18,7 +17,6 @@ import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspac
 import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
 import { WorkspaceKeyService } from '@/modules/workspaces/services/workspace-key.service';
 import { WorkspacesService } from '@/modules/workspaces/services/workspaces.service';
-import { WorkspaceMemberService } from '@/modules/workspaces/services/workspace-member.service';
 import { Task } from '@/modules/tasks/schemas/task.schema';
 import { Page } from '@/modules/pages/schemas/page.schema';
 import { DocumentEntity } from '@/modules/documents/schemas/document.schema';
@@ -29,7 +27,6 @@ const makeId = () => new Types.ObjectId().toString();
 
 const OWNER_ID = makeId();
 const WORKSPACE_ID = makeId();
-const MEMBER_USER_ID = makeId();
 
 const buildWorkspace = (overrides: Partial<any> = {}) => ({
   _id: new Types.ObjectId(WORKSPACE_ID),
@@ -53,6 +50,7 @@ const buildWorkspace = (overrides: Partial<any> = {}) => ({
 const mockWorkspacesRepository = () => ({
   create: jest.fn(),
   findAll: jest.fn(),
+  findAllWithDeleted: jest.fn(),
   findById: jest.fn(),
   findByIdWithMembers: jest.fn(),
   findBySlug: jest.fn(),
@@ -93,14 +91,6 @@ const mockWorkspaceKeyService = () => ({
   generateUniqueKey: jest.fn(async (key: string) => key.toUpperCase()),
 });
 
-const mockWorkspaceMemberService = () => ({
-  addMember: jest.fn(),
-  removeMember: jest.fn(),
-  updateMemberRole: jest.fn(),
-  getMembers: jest.fn(),
-  isMember: jest.fn(),
-});
-
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 describe('WorkspacesService', () => {
@@ -109,8 +99,6 @@ describe('WorkspacesService', () => {
   let workflowsService: ReturnType<typeof mockWorkflowsService>;
   let kanbanService: ReturnType<typeof mockKanbanService>;
   let scrumService: ReturnType<typeof mockScrumService>;
-  let usersService: ReturnType<typeof mockUsersService>;
-  let workspaceMemberService: ReturnType<typeof mockWorkspaceMemberService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -121,10 +109,6 @@ describe('WorkspacesService', () => {
         { provide: KanbanService, useFactory: mockKanbanService },
         { provide: ScrumService, useFactory: mockScrumService },
         { provide: UsersService, useFactory: mockUsersService },
-        {
-          provide: WorkspaceMemberService,
-          useFactory: mockWorkspaceMemberService,
-        },
         { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
         {
           provide: WorkspaceDomainEventPublisher,
@@ -150,7 +134,7 @@ describe('WorkspacesService', () => {
         },
         {
           provide: ChannelsService,
-          useValue: { createDefaultChannel: jest.fn().mockResolvedValue({}) },
+          useValue: { createWorkspaceChannel: jest.fn().mockResolvedValue({}) },
         },
       ],
     }).compile();
@@ -160,8 +144,6 @@ describe('WorkspacesService', () => {
     workflowsService = module.get(WorkflowsService);
     kanbanService = module.get(KanbanService);
     scrumService = module.get(ScrumService);
-    usersService = module.get(UsersService);
-    workspaceMemberService = module.get(WorkspaceMemberService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -274,13 +256,24 @@ describe('WorkspacesService', () => {
   // ── findAll ────────────────────────────────────────────────────────────────
 
   describe('findAll', () => {
-    it('returns all workspaces', async () => {
+    it('returns all workspaces with avatar field added', async () => {
       const workspaces = [buildWorkspace(), buildWorkspace()];
       repo.findAll.mockResolvedValue(workspaces);
 
       const result = await service.findAll();
 
-      expect(result).toEqual(workspaces);
+      // withDefaultAvatar adds avatar field — use objectContaining
+      expect(result).toHaveLength(2);
+      result.forEach((ws, i) => {
+        expect(ws).toEqual(
+          expect.objectContaining({
+            _id: workspaces[i]._id,
+            name: workspaces[i].name,
+            slug: workspaces[i].slug,
+          }),
+        );
+        expect(ws.avatar).toBeDefined();
+      });
       expect(repo.findAll).toHaveBeenCalledTimes(1);
     });
   });
@@ -288,13 +281,20 @@ describe('WorkspacesService', () => {
   // ── findById ───────────────────────────────────────────────────────────────
 
   describe('findById', () => {
-    it('returns workspace when found', async () => {
+    it('returns workspace with avatar field when found', async () => {
       const workspace = buildWorkspace();
       repo.findById.mockResolvedValue(workspace);
 
       const result = await service.findById(WORKSPACE_ID);
 
-      expect(result).toEqual(workspace);
+      expect(result).toEqual(
+        expect.objectContaining({
+          _id: workspace._id,
+          name: workspace.name,
+          slug: workspace.slug,
+        }),
+      );
+      expect(result.avatar).toBeDefined();
     });
 
     it('throws NotFoundException when workspace does not exist', async () => {
@@ -309,13 +309,20 @@ describe('WorkspacesService', () => {
   // ── findBySlug ─────────────────────────────────────────────────────────────
 
   describe('findBySlug', () => {
-    it('returns workspace when found', async () => {
+    it('returns workspace with avatar field when found', async () => {
       const workspace = buildWorkspace();
       repo.findBySlug.mockResolvedValue(workspace);
 
       const result = await service.findBySlug('test-workspace');
 
-      expect(result).toEqual(workspace);
+      expect(result).toEqual(
+        expect.objectContaining({
+          _id: workspace._id,
+          name: workspace.name,
+          slug: workspace.slug,
+        }),
+      );
+      expect(result.avatar).toBeDefined();
     });
 
     it('throws NotFoundException for unknown slug', async () => {
@@ -330,25 +337,24 @@ describe('WorkspacesService', () => {
   // ── findByKey ──────────────────────────────────────────────────────────────
 
   describe('findByKey', () => {
-    it('returns workspace when found', async () => {
-      const workspace = buildWorkspace();
-      repo.findByKey.mockResolvedValue(workspace);
-
-      const result = await service.findByKey('TESTWOR');
-
-      expect(result).toEqual(workspace);
+    it('always throws BadRequestException with message about using workspaceId', async () => {
+      await expect(service.findByKey('TESTWOR')).rejects.toThrow(
+        new BadRequestException(
+          'Workspace key lookup is not supported; use workspaceId',
+        ),
+      );
     });
 
-    it('throws NotFoundException for unknown key', async () => {
+    it('throws BadRequestException regardless of whether key exists', async () => {
       repo.findByKey.mockResolvedValue(null);
 
       await expect(service.findByKey('UNKNOWN')).rejects.toThrow(
-        NotFoundException,
+        BadRequestException,
       );
     });
   });
 
-  // ── findByUserId ───────────────────────────────────────────────────────────
+  // ── id-only lookup ────────────────────────────────────────────────────────
 
   describe('id-only lookup', () => {
     it('does not resolve public keys through workspace id lookup', async () => {
@@ -363,14 +369,25 @@ describe('WorkspacesService', () => {
     });
   });
 
+  // ── findByUserId ───────────────────────────────────────────────────────────
+
   describe('findByUserId', () => {
-    it('returns workspaces for given user', async () => {
+    it('returns workspaces with count fields for given user', async () => {
       const workspaces = [buildWorkspace()];
       repo.findByUserId.mockResolvedValue(workspaces);
 
       const result = await service.findByUserId(OWNER_ID);
 
-      expect(result).toEqual(workspaces);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          _id: workspaces[0]._id,
+          name: workspaces[0].name,
+          taskCount: 0,
+          tasksCount: 0,
+          docsCount: 0,
+        }),
+      );
       expect(repo.findByUserId).toHaveBeenCalledWith(OWNER_ID);
     });
   });
@@ -378,7 +395,7 @@ describe('WorkspacesService', () => {
   // ── update ─────────────────────────────────────────────────────────────────
 
   describe('update', () => {
-    it('updates allowed fields and returns updated workspace', async () => {
+    it('updates allowed fields and returns updated workspace with avatar', async () => {
       const workspace = buildWorkspace();
       repo.findById.mockResolvedValue(workspace);
       repo.findAnyByKey.mockResolvedValue(null);
@@ -400,7 +417,12 @@ describe('WorkspacesService', () => {
           description: 'new desc',
         }),
       );
-      expect(result).toEqual(updated);
+      expect(result).toEqual(
+        expect.objectContaining({
+          name: 'Updated Name',
+        }),
+      );
+      expect(result.avatar).toBeDefined();
     });
 
     it('throws NotFoundException when workspace is missing', async () => {
@@ -430,6 +452,7 @@ describe('WorkspacesService', () => {
 
   describe('delete', () => {
     it('deletes boards, sprints, then workspace', async () => {
+      repo.findById.mockResolvedValue(buildWorkspace());
       kanbanService.deleteByWorkspace.mockResolvedValue(undefined);
       scrumService.deleteByWorkspace.mockResolvedValue(undefined);
       repo.delete.mockResolvedValue(buildWorkspace());
@@ -443,6 +466,7 @@ describe('WorkspacesService', () => {
     });
 
     it('still attempts repo.delete even when cleanup throws', async () => {
+      repo.findById.mockResolvedValue(buildWorkspace());
       kanbanService.deleteByWorkspace.mockRejectedValue(
         new Error('cleanup failed'),
       );
@@ -455,6 +479,7 @@ describe('WorkspacesService', () => {
     });
 
     it('throws NotFoundException when workspace not found in repo', async () => {
+      repo.findById.mockResolvedValue(buildWorkspace());
       kanbanService.deleteByWorkspace.mockResolvedValue(undefined);
       scrumService.deleteByWorkspace.mockResolvedValue(undefined);
       repo.delete.mockResolvedValue(null);
@@ -463,9 +488,19 @@ describe('WorkspacesService', () => {
         NotFoundException,
       );
     });
+
+    it('throws NotFoundException before cleanup when workspace does not exist', async () => {
+      repo.findById.mockResolvedValue(null);
+
+      await expect(service.delete(WORKSPACE_ID)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(kanbanService.deleteByWorkspace).not.toHaveBeenCalled();
+      expect(repo.delete).not.toHaveBeenCalled();
+    });
   });
 
-  // ── addMember ──────────────────────────────────────────────────────────────
+  // ── restore ────────────────────────────────────────────────────────────────
 
   describe('restore', () => {
     it('restores workspace and sprint data', async () => {
@@ -479,7 +514,13 @@ describe('WorkspacesService', () => {
       expect(scrumService.restoreByWorkspace).toHaveBeenCalledWith(
         WORKSPACE_ID,
       );
-      expect(result).toEqual(workspace);
+      expect(result).toEqual(
+        expect.objectContaining({
+          _id: workspace._id,
+          name: workspace.name,
+        }),
+      );
+      expect(result.avatar).toBeDefined();
     });
 
     it('throws NotFoundException when restore target is missing', async () => {
@@ -489,281 +530,6 @@ describe('WorkspacesService', () => {
         NotFoundException,
       );
       expect(scrumService.restoreByWorkspace).not.toHaveBeenCalled();
-    });
-  });
-
-  // ── addMember (moved to WorkspaceMemberService) ──────────────────────────
-
-  describe('WorkspaceMemberService.addMember', () => {
-    const email = 'newmember@example.com';
-    const newUser = { _id: new Types.ObjectId(MEMBER_USER_ID), email };
-
-    it('adds a new member successfully', async () => {
-      const workspace = buildWorkspace();
-      repo.findById.mockResolvedValue(workspace);
-      usersService.findByEmail.mockResolvedValue(newUser);
-      const updatedWorkspace = buildWorkspace({
-        members: [
-          ...workspace.members,
-          { userId: newUser._id, role: SPACE_ROLES.MEMBER },
-        ],
-      });
-      repo.addMember.mockResolvedValue(updatedWorkspace);
-
-      const result = await workspaceMemberService.addMember(
-        WORKSPACE_ID,
-        email,
-        SPACE_ROLES.MEMBER,
-      );
-
-      expect(repo.addMember).toHaveBeenCalledWith(
-        WORKSPACE_ID,
-        MEMBER_USER_ID,
-        SPACE_ROLES.MEMBER,
-      );
-      expect(result).toEqual(updatedWorkspace);
-    });
-
-    it('throws NotFoundException when workspace not found', async () => {
-      repo.findById.mockResolvedValue(null);
-
-      await expect(
-        workspaceMemberService.addMember(
-          WORKSPACE_ID,
-          email,
-          SPACE_ROLES.MEMBER,
-        ),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws NotFoundException when user email not found', async () => {
-      repo.findById.mockResolvedValue(buildWorkspace());
-      usersService.findByEmail.mockResolvedValue(null);
-
-      await expect(
-        workspaceMemberService.addMember(
-          WORKSPACE_ID,
-          email,
-          SPACE_ROLES.MEMBER,
-        ),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws BadRequestException when user is already a member', async () => {
-      const workspace = buildWorkspace({
-        members: [
-          {
-            userId: new Types.ObjectId(MEMBER_USER_ID),
-            role: SPACE_ROLES.MEMBER,
-          },
-        ],
-      });
-      repo.findById.mockResolvedValue(workspace);
-      usersService.findByEmail.mockResolvedValue(newUser);
-
-      await expect(
-        workspaceMemberService.addMember(
-          WORKSPACE_ID,
-          email,
-          SPACE_ROLES.MEMBER,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  // ── removeMember ───────────────────────────────────────────────────────────
-
-  // ── removeMember (moved to WorkspaceMemberService) ────────────────────────
-
-  describe('WorkspaceMemberService.removeMember', () => {
-    it('removes a regular member successfully', async () => {
-      const workspace = buildWorkspace({
-        members: [
-          {
-            userId: new Types.ObjectId(OWNER_ID),
-            role: SPACE_ROLES.WORKSPACE_ADMIN,
-          },
-          {
-            userId: new Types.ObjectId(MEMBER_USER_ID),
-            role: SPACE_ROLES.MEMBER,
-          },
-        ],
-      });
-      repo.findById.mockResolvedValue(workspace);
-      repo.removeMember.mockResolvedValue({ ...workspace });
-
-      await workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID);
-
-      expect(repo.removeMember).toHaveBeenCalledWith(
-        WORKSPACE_ID,
-        MEMBER_USER_ID,
-      );
-    });
-
-    it('throws NotFoundException when workspace not found', async () => {
-      repo.findById.mockResolvedValue(null);
-
-      await expect(
-        workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws NotFoundException when user is not a member', async () => {
-      repo.findById.mockResolvedValue(buildWorkspace());
-
-      await expect(
-        workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws ForbiddenException when trying to remove the owner', async () => {
-      const workspace = buildWorkspace({
-        members: [
-          {
-            userId: new Types.ObjectId(OWNER_ID),
-            role: SPACE_ROLES.WORKSPACE_ADMIN,
-          },
-        ],
-      });
-      repo.findById.mockResolvedValue(workspace);
-
-      await expect(
-        workspaceMemberService.removeMember(WORKSPACE_ID, OWNER_ID),
-      ).rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  // ── updateMemberRole ───────────────────────────────────────────────────────
-
-  // ── updateMemberRole (moved to WorkspaceMemberService) ────────────────────
-
-  describe('WorkspaceMemberService.updateMemberRole', () => {
-    it('updates the role of a regular member', async () => {
-      const workspace = buildWorkspace({
-        members: [
-          {
-            userId: new Types.ObjectId(OWNER_ID),
-            role: SPACE_ROLES.WORKSPACE_ADMIN,
-          },
-          {
-            userId: new Types.ObjectId(MEMBER_USER_ID),
-            role: SPACE_ROLES.MEMBER,
-          },
-        ],
-      });
-      repo.findById.mockResolvedValue(workspace);
-      repo.updateMemberRole.mockResolvedValue(workspace);
-
-      await workspaceMemberService.updateMemberRole(
-        WORKSPACE_ID,
-        MEMBER_USER_ID,
-        SPACE_ROLES.WORKSPACE_ADMIN,
-      );
-
-      expect(repo.updateMemberRole).toHaveBeenCalledWith(
-        WORKSPACE_ID,
-        MEMBER_USER_ID,
-        SPACE_ROLES.WORKSPACE_ADMIN,
-      );
-    });
-
-    it('throws NotFoundException when workspace not found', async () => {
-      repo.findById.mockResolvedValue(null);
-
-      await expect(
-        workspaceMemberService.updateMemberRole(
-          WORKSPACE_ID,
-          MEMBER_USER_ID,
-          SPACE_ROLES.MEMBER,
-        ),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws NotFoundException when user is not a member', async () => {
-      repo.findById.mockResolvedValue(buildWorkspace());
-
-      await expect(
-        workspaceMemberService.updateMemberRole(
-          WORKSPACE_ID,
-          MEMBER_USER_ID,
-          SPACE_ROLES.MEMBER,
-        ),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws ForbiddenException when trying to change the owner role', async () => {
-      const workspace = buildWorkspace({
-        members: [
-          {
-            userId: new Types.ObjectId(OWNER_ID),
-            role: SPACE_ROLES.WORKSPACE_ADMIN,
-          },
-        ],
-      });
-      repo.findById.mockResolvedValue(workspace);
-
-      await expect(
-        workspaceMemberService.updateMemberRole(
-          WORKSPACE_ID,
-          OWNER_ID,
-          SPACE_ROLES.MEMBER,
-        ),
-      ).rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  // ── getMembers ─────────────────────────────────────────────────────────────
-
-  // ── getMembers (moved to WorkspaceMemberService) ──────────────────────────
-
-  describe('WorkspaceMemberService.getMembers', () => {
-    it('returns the members array of the workspace', async () => {
-      const workspace = buildWorkspace();
-      repo.findByIdWithMembers.mockResolvedValue(workspace);
-
-      const result = await workspaceMemberService.getMembers(WORKSPACE_ID);
-
-      expect(result).toEqual(workspace.members);
-    });
-
-    it('throws NotFoundException when workspace not found', async () => {
-      repo.findByIdWithMembers.mockResolvedValue(null);
-
-      await expect(
-        workspaceMemberService.getMembers(WORKSPACE_ID),
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // ── generateUniqueSlug (via create) ───────────────────────────────────────
-
-  describe('slug uniqueness via create', () => {
-    it('appends counter suffix when slug collides', async () => {
-      const dto = { name: 'My WS' };
-      // 'my-ws' is taken, 'my-ws-1' is free
-      repo.findAnyBySlug
-        .mockResolvedValueOnce(buildWorkspace({ slug: 'my-ws' })) // slug check in create
-        // Note: because slug is already taken during the explicit check, BadRequestException is thrown.
-        // To test slug generation we rely on the auto-generation path (no dto.slug provided):
-        .mockResolvedValueOnce(null);
-      repo.findAnyByKey.mockResolvedValue(null);
-      repo.create.mockResolvedValue(buildWorkspace({ slug: 'my-ws' }));
-      kanbanService.createDefaultBoard.mockResolvedValue(undefined);
-      workflowsService.createDefaultWorkflow.mockResolvedValue(undefined);
-
-      // When dto has no explicit slug, findBySlug is called inside generateUniqueSlug
-      // then again to validate. We simulate: first slug attempt free → valid.
-      repo.findAnyBySlug.mockReset();
-      repo.findAnyBySlug
-        .mockResolvedValueOnce(buildWorkspace()) // 'my-ws' taken inside generateUniqueSlug
-        .mockResolvedValueOnce(null) // 'my-ws-1' free inside generateUniqueSlug
-        .mockResolvedValueOnce(null); // explicit slug check passes
-
-      await service.create(OWNER_ID, dto);
-
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ slug: 'my-ws-1' }),
-      );
     });
   });
 });
