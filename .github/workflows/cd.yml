@@ -5,7 +5,7 @@ on:
     branches: [production]
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/al-task-backend
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sdlc-platform-backend
 
 jobs:
   build-and-push:
@@ -62,10 +62,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            echo "${{ secrets.VPS_GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/sdlc
-            docker pull ghcr.io/${{ github.repository_owner }}/al-task-backend:latest
+            docker pull ghcr.io/${{ github.repository_owner }}/sdlc-platform-backend:latest
             docker compose up -d --no-build --no-deps backend
-            docker image ls "ghcr.io/${{ github.repository_owner }}/al-task-backend" \
+            docker image ls "ghcr.io/${{ github.repository_owner }}/sdlc-platform-backend" \
               --format "{{.Repository}}:{{.Tag}}" | grep "sha-" | sort -r | \
               tail -n +3 | xargs docker rmi 2>/dev/null || true
             sleep 20
