@@ -1,4 +1,4 @@
-import { BadRequestException,ForbiddenException,Inject,Injectable,Logger,NotFoundException,forwardRef } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Channel, ChannelDocument } from '../schemas/channel.schema';
@@ -23,7 +23,7 @@ export class ChannelsService {
     private readonly messagesService: MessagesService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.ensureGlobalChannels();
@@ -88,12 +88,12 @@ export class ChannelsService {
       try {
         const systemId = new Types.ObjectId('000000000000000000000000');
         const allWorkspaces = await this.workspacesService.findAll();
-        
+
         for (const workspace of allWorkspaces) {
           const workspaceId = workspace._id.toString();
-          const channel = await this.channelModel.findOne({ 
+          const channel = await this.channelModel.findOne({
             workspaceId: new Types.ObjectId(workspaceId),
-            type: 'workspace' 
+            type: 'workspace'
           });
 
           if (!channel) {
@@ -195,9 +195,11 @@ export class ChannelsService {
     return Promise.all(
       channels.map(async (channel) => {
         const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
-        
-        // Manual Populate members for all channels (important for DM to show other user)
-        const userInfos = await this.usersService.getUsersByIds(channel.members.map(m => m.toString()));
+
+        // Manual Populate members for all channels based on channel type
+        const memberIds = await this.getChannelMemberIds(channel._id.toString());
+        const validMemberIds = memberIds.filter(id => id && Types.ObjectId.isValid(id));
+        const userInfos = await this.usersService.getUsersByIds(validMemberIds);
 
         return {
           ...channel.toObject(),
@@ -227,14 +229,14 @@ export class ChannelsService {
 
     const members = [userAId, userBId].sort();
     const memberObjectIds = members.map(id => new Types.ObjectId(id));
-    
+
     // 1. Tìm kênh cũ bằng .lean()
     let channel: any = await this.channelModel.findOne({
       type: 'dm',
       members: { $all: memberObjectIds, $size: 2 }
     })
-    .lean()
-    .exec();
+      .lean()
+      .exec();
 
     // 2. Nếu không thấy, tạo kênh mới
     if (!channel) {
@@ -274,17 +276,17 @@ export class ChannelsService {
       type: 'dm',
       members: new Types.ObjectId(userId)
     })
-    .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
-    .limit(20)
-    .lean()
-    .exec();
+      .sort({ 'lastMessage.sentAt': -1, updatedAt: -1 })
+      .limit(20)
+      .lean()
+      .exec();
 
     // Add unread count AND Manual Populate members
     return Promise.all(
       channels.map(async (channel) => {
         const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
         const userInfos = await this.usersService.getUsersByIds(channel.members.map(m => m.toString()));
-        
+
         return {
           ...channel,
           members: userInfos,
@@ -371,7 +373,7 @@ export class ChannelsService {
 
     const channel = await this.findById(channelId);
     this.logger.debug(`Validating access for user ${userId} to channel: ${channel.name} (${channelId})`);
-    
+
     if (channel.type === 'general' || channel.type === 'announcement') {
       return true;
     }
@@ -402,22 +404,31 @@ export class ChannelsService {
 
   async getChannelMemberIds(channelId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(channelId)) return [];
-    
+
     const channel = await this.findById(channelId);
     if (!channel) return [];
 
     if (channel.type === 'general' || channel.type === 'announcement') {
       const allUsers = await this.usersService.getAllUsers();
-      return allUsers.map((u) => u._id.toString());
+      return allUsers
+        .map((u) => u._id?.toString() || (u as any).id?.toString() || '')
+        .filter((id) => Types.ObjectId.isValid(id));
     }
 
     if (channel.type === 'workspace' && channel.workspaceId) {
       const members = await this.workspaceMemberService.getMembers(channel.workspaceId.toString());
-      return members.map((m) => m.userId.toString());
+      return members
+        .map((m) => {
+          const uId = typeof m.userId === 'object' && m.userId ? (m.userId._id || (m.userId as any).id) : m.userId;
+          return uId ? uId.toString() : '';
+        })
+        .filter((id) => Types.ObjectId.isValid(id));
     }
 
     if (channel.type === 'dm') {
-      return channel.members.map((m) => m.toString());
+      return channel.members
+        .map((m) => m.toString())
+        .filter((id) => Types.ObjectId.isValid(id));
     }
 
     return [];
@@ -431,7 +442,9 @@ export class ChannelsService {
 
     const channel = await this.findById(channelId);
     const unreadCount = await this.messagesService.countUnread(channelId, userId);
-    const userInfos = await this.usersService.getUsersByIds(channel.members.map(m => m.toString()));
+    const memberIds = await this.getChannelMemberIds(channelId);
+    const validMemberIds = memberIds.filter(id => id && Types.ObjectId.isValid(id));
+    const userInfos = await this.usersService.getUsersByIds(validMemberIds);
 
     return {
       ...channel.toObject(),
