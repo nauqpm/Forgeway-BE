@@ -14,6 +14,17 @@ import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter'
 // 👇 thêm
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
+function normalizeCorsOrigin(origin: string): string {
+  return origin.trim().replace(/\/+$/, '');
+}
+
+function parseCorsOrigins(value?: string): string[] {
+  return (value ?? '')
+    .split(',')
+    .map(origin => normalizeCorsOrigin(origin))
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   console.log('🚀 Đang khởi tạo ứng dụng NestJS...');
 
@@ -46,33 +57,38 @@ async function bootstrap() {
 
     // CORS - cho phép nhiều frontend origins
     const PORT = process.env.PORT || 5512;
+    const isProduction = process.env.NODE_ENV === 'production';
     const configuredOrigins = [
-      process.env.FRONTEND_URL,
-      ...(process.env.CORS_ORIGINS ?? '')
-        .split(',')
-        .map(origin => origin.trim())
-        .filter(Boolean),
+      ...parseCorsOrigins(process.env.FRONTEND_URL),
+      ...parseCorsOrigins(process.env.CORS_ORIGINS),
     ];
 
-    const isProduction = process.env.NODE_ENV === 'production';
-    const allowedOrigins = [
-      ...configuredOrigins,
-      ...(!isProduction
-        ? [
-            `http://localhost:${PORT}`,
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5175',
-            'http://localhost:3000',
-            'http://localhost:3001',
-          ]
-        : []),
-    ].filter(Boolean);
+    const developmentOrigins = !isProduction
+      ? [
+          `http://localhost:${PORT}`,
+          'http://localhost:5173',
+          'http://localhost:5174',
+          'http://localhost:5175',
+          'http://localhost:3000',
+          'http://localhost:3001',
+        ]
+      : [];
+
+    const allowedOrigins = Array.from(
+      new Set([...configuredOrigins, ...developmentOrigins]),
+    );
+
+    if (isProduction && allowedOrigins.length === 0) {
+      throw new Error(
+        'Production CORS requires FRONTEND_URL or CORS_ORIGINS to be configured',
+      );
+    }
 
     app.enableCors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile, curl, etc.)
-        if (!origin || allowedOrigins.includes(origin)) {
+        const normalizedOrigin = origin ? normalizeCorsOrigin(origin) : undefined;
+        if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
           callback(null, true);
         } else {
           callback(new Error(`Origin ${origin} not allowed by CORS policy`));
