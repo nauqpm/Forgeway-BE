@@ -37,7 +37,12 @@ export class RealtimeService {
     return this.server;
   }
 
-  emitBoardDelta<TPayload>(workspaceId: string, action: BoardDeltaAction, payload: TPayload, version?: number): void {
+  emitBoardDelta<TPayload>(
+    workspaceId: string,
+    action: BoardDeltaAction,
+    payload: TPayload,
+    version?: number,
+  ): void {
     if (!this.server) {
       return;
     }

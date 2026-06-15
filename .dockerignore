@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+uploads
+docs
+test
+scripts
+.git
+.vscode
+.agents
+.claude
+.codegraph
+.npm-cache
+.env
+.env.*
+*.log
+*.md

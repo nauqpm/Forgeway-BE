@@ -11,7 +11,10 @@ export class TaskNormalizerService {
     private readonly validationService: TaskCreationValidationService,
   ) {}
 
-  async normalizeForWorkspaceType(dto: CreateTaskDto, workspace: any): Promise<CreateTaskDto> {
+  async normalizeForWorkspaceType(
+    dto: CreateTaskDto,
+    workspace: any,
+  ): Promise<CreateTaskDto> {
     const workspaceId = workspace._id.toString();
 
     if (workspace.type === 'kanban') {
@@ -21,7 +24,10 @@ export class TaskNormalizerService {
     return this.normalizeScrumTask(dto, workspaceId);
   }
 
-  async normalizeUpdateForWorkspaceType(dto: UpdateTaskDto, existingTask: any): Promise<UpdateTaskDto> {
+  async normalizeUpdateForWorkspaceType(
+    dto: UpdateTaskDto,
+    existingTask: any,
+  ): Promise<UpdateTaskDto> {
     const workspace = existingTask.workspaceId;
     const workspaceType = workspace?.type;
 
@@ -35,7 +41,9 @@ export class TaskNormalizerService {
     }
 
     if (dto.sprintId) {
-      throw new BadRequestException('Kanban workspace task cannot have sprintId');
+      throw new BadRequestException(
+        'Kanban workspace task cannot have sprintId',
+      );
     }
 
     if (!dto.columnId && !dto.status && !dto.boardId) {
@@ -54,7 +62,8 @@ export class TaskNormalizerService {
     }
 
     const column =
-      this.resolveKanbanColumn(board.columns, dto.columnId, dto.status) || this.getFirstKanbanColumn(board.columns);
+      this.resolveKanbanColumn(board.columns, dto.columnId, dto.status) ||
+      this.getFirstKanbanColumn(board.columns);
 
     if (!column) {
       throw new BadRequestException('Kanban board has no columns');
@@ -69,9 +78,14 @@ export class TaskNormalizerService {
     };
   }
 
-  private async normalizeKanbanTask(dto: CreateTaskDto, workspaceId: string): Promise<CreateTaskDto> {
+  private async normalizeKanbanTask(
+    dto: CreateTaskDto,
+    workspaceId: string,
+  ): Promise<CreateTaskDto> {
     if (dto.sprintId) {
-      throw new BadRequestException('Kanban workspace task cannot have sprintId');
+      throw new BadRequestException(
+        'Kanban workspace task cannot have sprintId',
+      );
     }
 
     const board = dto.boardId
@@ -83,7 +97,8 @@ export class TaskNormalizerService {
     }
 
     const column =
-      this.resolveKanbanColumn(board.columns, dto.columnId, dto.status) || this.getFirstKanbanColumn(board.columns);
+      this.resolveKanbanColumn(board.columns, dto.columnId, dto.status) ||
+      this.getFirstKanbanColumn(board.columns);
 
     if (!column) {
       throw new BadRequestException('Kanban board has no columns');
@@ -100,7 +115,10 @@ export class TaskNormalizerService {
     };
   }
 
-  private async normalizeScrumTask(dto: CreateTaskDto, workspaceId: string): Promise<CreateTaskDto> {
+  private async normalizeScrumTask(
+    dto: CreateTaskDto,
+    workspaceId: string,
+  ): Promise<CreateTaskDto> {
     if (dto.boardId) {
       throw new BadRequestException('Scrum workspace task cannot have boardId');
     }
@@ -115,19 +133,30 @@ export class TaskNormalizerService {
     };
   }
 
-  private resolveKanbanColumn(columns: BoardColumn[], columnId?: string, status?: string): BoardColumn | undefined {
+  private resolveKanbanColumn(
+    columns: BoardColumn[],
+    columnId?: string,
+    status?: string,
+  ): BoardColumn | undefined {
     if (columnId) {
       const column = columns.find(item => item.id === columnId);
       if (!column) {
-        throw new BadRequestException(`Column "${columnId}" does not exist in this board`);
+        throw new BadRequestException(
+          `Column "${columnId}" does not exist in this board`,
+        );
       }
       return column;
     }
 
     if (status) {
-      const column = columns.find(item => item.id === status || (item.mappedStatuses || []).includes(status));
+      const column = columns.find(
+        item =>
+          item.id === status || (item.mappedStatuses || []).includes(status),
+      );
       if (!column) {
-        throw new BadRequestException(`Status "${status}" does not map to any column in this board`);
+        throw new BadRequestException(
+          `Status "${status}" does not map to any column in this board`,
+        );
       }
       return column;
     }

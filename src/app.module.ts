@@ -159,19 +159,19 @@ import { ChatModule } from './modules/chat/chat.module';
     // Email
     MailerModule.forRoot({
       transport: {
-        host: process.env.MAIL_HOST,
-        port: parseInt(process.env.MAIL_PORT || '587'),
+        host: process.env.MAIL_HOST ?? '',
+        port: parseInt(process.env.MAIL_PORT ?? '587', 10),
         secure: false,
         auth: {
-          user: process.env.MAIL_USER,
-          pass: process.env.MAIL_PASSWORD,
+          user: process.env.MAIL_USER ?? '',
+          pass: process.env.MAIL_PASSWORD ?? '',
         },
         tls: {
           rejectUnauthorized: false,
         },
       },
       defaults: {
-        from: `"AL-TASK" <${process.env.MAIL_USER}>`,
+        from: `"AL-TASK" <${process.env.MAIL_USER ?? ''}>`,
       },
       template: {
         // Use workspace absolute path so templates resolve in both ts-node(dev) + dist(prod)

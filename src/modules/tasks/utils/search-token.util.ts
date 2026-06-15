@@ -1,8 +1,12 @@
 const SEARCH_TOKEN_MAX_PREFIX_LENGTH = 32;
 
-export const normalizeSearchToken = (value: string): string => value.trim().toLowerCase();
+export const normalizeSearchToken = (value: string): string =>
+  value.trim().toLowerCase();
 
-export const buildTaskSearchTokens = (key?: string, title?: string): string[] => {
+export const buildTaskSearchTokens = (
+  key?: string,
+  title?: string,
+): string[] => {
   const tokens = new Set<string>();
 
   for (const value of [key, title]) {

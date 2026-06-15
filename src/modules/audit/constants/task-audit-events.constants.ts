@@ -21,4 +21,5 @@ export const TASK_AUDIT_EVENTS = {
   TASK_ATTACHMENT_PREVIEWED: 'TASK_ATTACHMENT_PREVIEWED',
 } as const;
 
-export type TaskAuditEventLiteral = (typeof TASK_AUDIT_EVENTS)[keyof typeof TASK_AUDIT_EVENTS];
+export type TaskAuditEventLiteral =
+  (typeof TASK_AUDIT_EVENTS)[keyof typeof TASK_AUDIT_EVENTS];

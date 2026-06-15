@@ -1,4 +1,11 @@
-import { ArrayUnique, IsArray, IsMongoId, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class UploadDocumentDto {

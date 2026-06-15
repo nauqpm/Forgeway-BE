@@ -23,6 +23,7 @@ export const TASK_ACTIVITY_TYPES = {
   COVER_CHANGED: 'COVER_CHANGED',
 } as const;
 
-export type TaskActivityType = (typeof TASK_ACTIVITY_TYPES)[keyof typeof TASK_ACTIVITY_TYPES];
+export type TaskActivityType =
+  (typeof TASK_ACTIVITY_TYPES)[keyof typeof TASK_ACTIVITY_TYPES];
 
 export const TASK_ACTIVITY_TYPE_VALUES = Object.values(TASK_ACTIVITY_TYPES);

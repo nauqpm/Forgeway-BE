@@ -1,4 +1,11 @@
-import { Controller, Get, HttpStatus, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -37,6 +44,11 @@ export class TaskActivitiesController {
     @Query() filterDto: FilterTaskActivityDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<TaskActivityListDto> {
-    return this.taskActivitiesService.findByTaskInWorkspaceKey(key, taskId, user.userId, filterDto);
+    return this.taskActivitiesService.findByTaskInWorkspaceKey(
+      key,
+      taskId,
+      user.userId,
+      filterDto,
+    );
   }
 }

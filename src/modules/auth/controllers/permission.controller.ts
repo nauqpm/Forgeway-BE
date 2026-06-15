@@ -1,7 +1,19 @@
 // 📁 src/modules/auth/controllers/permission.controller.ts
 
-import { Controller, Get, UseGuards, Request, Logger, UnauthorizedException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Request,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Request as ExpressRequest } from 'express';
@@ -31,7 +43,9 @@ export class PermissionController {
     schema: {
       example: {
         role: 'user',
-        permissions: [{ id: '...', resource: 'tasks', action: 'read', source: 'role' }],
+        permissions: [
+          { id: '...', resource: 'tasks', action: 'read', source: 'role' },
+        ],
         isAdmin: false,
       },
     },

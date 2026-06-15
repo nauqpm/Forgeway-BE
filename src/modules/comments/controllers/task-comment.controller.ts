@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -42,7 +53,12 @@ export class TaskCommentController {
     @Body() dto: CreateTaskCommentDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<CommentDto> {
-    return this.taskCommentService.createForTask(workspaceId, taskId, dto, user.userId);
+    return this.taskCommentService.createForTask(
+      workspaceId,
+      taskId,
+      dto,
+      user.userId,
+    );
   }
 
   @Get()
@@ -77,7 +93,13 @@ export class TaskCommentController {
     @Body() dto: UpdateCommentDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<CommentDto> {
-    return this.taskCommentService.updateForTask(workspaceId, taskId, commentId, dto, user.userId);
+    return this.taskCommentService.updateForTask(
+      workspaceId,
+      taskId,
+      commentId,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete(':commentId')
@@ -98,6 +120,11 @@ export class TaskCommentController {
     @Param('commentId') commentId: string,
     @CurrentUser() user: JwtPayload,
   ): Promise<void> {
-    await this.taskCommentService.deleteForTask(workspaceId, taskId, commentId, user.userId);
+    await this.taskCommentService.deleteForTask(
+      workspaceId,
+      taskId,
+      commentId,
+      user.userId,
+    );
   }
 }

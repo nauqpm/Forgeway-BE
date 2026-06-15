@@ -33,4 +33,5 @@ export const DOMAIN_EVENT_TYPES = {
   WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
 } as const;
 
-export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[keyof typeof DOMAIN_EVENT_TYPES];
+export type DomainEventType =
+  (typeof DOMAIN_EVENT_TYPES)[keyof typeof DOMAIN_EVENT_TYPES];

@@ -1,5 +1,10 @@
 // users.service.ts
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
@@ -8,6 +13,7 @@ import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 
 export interface LoginFailureState {
   failedAttempts: number;
@@ -21,22 +27,20 @@ export interface LoginFailureState {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(
-    private readonly usersRepository: UsersRepository,
-  ) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Fetching user by ID: ${id}`);
-    
+
     if (!Types.ObjectId.isValid(id)) {
       this.logger.warn(`Invalid user ID: ${id}`);
-      throw new BadRequestException('Invalid User ID format');
+      throw new BadRequestException(ErrorFactory.invalidUserId());
     }
 
     const user = await this.usersRepository.findById(id);
     if (!user) {
       this.logger.warn(`User not found with ID: ${id}`);
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(id));
     }
     return user;
   }
@@ -57,12 +61,15 @@ export class UsersService {
     const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
 
     // Use atomic $inc to prevent race conditions from concurrent requests
-    const updatedUser = await this.usersRepository.incrementFailedLoginAttempts(userId);
+    const updatedUser =
+      await this.usersRepository.incrementFailedLoginAttempts(userId);
     const currentAttempts = updatedUser?.failedLoginAttempts ?? 0;
     const isLocked = currentAttempts >= maxAttempts;
 
     if (isLocked) {
-      const lockedUntil = new Date(Date.now() + PASSWORD_POLICY.lockoutDurationMs);
+      const lockedUntil = new Date(
+        Date.now() + PASSWORD_POLICY.lockoutDurationMs,
+      );
       await this.usersRepository.setLockout(userId, lockedUntil);
 
       return {
@@ -95,7 +102,9 @@ export class UsersService {
       return user;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to create user (${userData.email}): ${message}`);
+      this.logger.error(
+        `Failed to create user (${userData.email}): ${message}`,
+      );
       throw error;
     }
   }
@@ -115,37 +124,45 @@ export class UsersService {
 
     if (!updatedUser) {
       this.logger.warn(`User not found: ${userId}`);
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
 
     return updatedUser;
   }
 
-  private isPasswordUpdate(data: UpdateUsersDto | { $unset: Record<string, unknown> }): data is UpdateUsersDto {
+  private isPasswordUpdate(
+    data: UpdateUsersDto | { $unset: Record<string, unknown> },
+  ): data is UpdateUsersDto {
     return 'password' in data && !!data.password;
   }
 
-  private async handlePasswordUpdate(userId: string, updateData: UpdateUsersDto): Promise<void> {
+  private async handlePasswordUpdate(
+    userId: string,
+    updateData: UpdateUsersDto,
+  ): Promise<void> {
     this.logger.log(`Updating password for User ID: ${userId}`);
 
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
 
     if (!updateData.currentPassword) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException(ErrorFactory.currentPasswordIncorrect());
     }
 
     if (!PASSWORD_POLICY.noWhitespacePattern.test(updateData.password!)) {
-      throw new BadRequestException(PASSWORD_POLICY.noWhitespaceMessage);
+      throw new BadRequestException(ErrorFactory.passwordHasWhitespace());
     }
 
-    const isMatch = await bcrypt.compare(updateData.currentPassword, user.password);
+    const isMatch = await bcrypt.compare(
+      updateData.currentPassword,
+      user.password,
+    );
 
     if (!isMatch) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException(ErrorFactory.currentPasswordIncorrect());
     }
 
     updateData.password = await bcrypt.hash(updateData.password!, 10);
@@ -168,8 +185,13 @@ export class UsersService {
     };
   }> {
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-    const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.floor(limit))) : 20;
-    const { users, total } = await this.usersRepository.findAllPaginated(safePage, safeLimit);
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(100, Math.max(1, Math.floor(limit)))
+      : 20;
+    const { users, total } = await this.usersRepository.findAllPaginated(
+      safePage,
+      safeLimit,
+    );
 
     return {
       data: users,
@@ -186,7 +208,7 @@ export class UsersService {
   async deleteUser(userId: string): Promise<{ message: string }> {
     const deletedUser = await this.usersRepository.delete(userId);
     if (!deletedUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     return { message: 'User deleted successfully' };
   }
@@ -195,11 +217,11 @@ export class UsersService {
     this.logger.log(`Updating role for User ID: ${userId} to ${role}`);
     const user = await this.usersRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     const updated = await this.usersRepository.update(userId, { role });
     if (!updated) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     this.logger.log(`Role updated for user ${userId} to ${role}`);
     return updated;
@@ -209,11 +231,11 @@ export class UsersService {
     this.logger.log(`Updating status for User ID: ${userId} to ${status}`);
     const user = await this.usersRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     const updated = await this.usersRepository.update(userId, { status });
     if (!updated) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     this.logger.log(`Status updated for user ${userId} to ${status}`);
     return updated;
@@ -234,7 +256,7 @@ export class UsersService {
   async updatePassword(email: string, newPassword: string) {
     const user = await this.usersRepository.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(email));
     }
 
     // Use partial update with $set to avoid overwriting unrelated fields

@@ -1,7 +1,11 @@
 import { ConfigService } from '@nestjs/config';
 import { CookieOptions, Response } from 'express';
 
-import { getAccessCookieOptions, getRefreshCookieOptions } from '../../../config/cookie.config';
+import {
+  getAccessCookieOptions,
+  getDeviceCookieOptions,
+  getRefreshCookieOptions,
+} from '../../../config/cookie.config';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 
 export function setAccessTokenCookie(
@@ -28,6 +32,18 @@ export function setRefreshTokenCookie(
   );
 }
 
+export function setDeviceIdCookie(
+  res: Response,
+  configService: ConfigService,
+  deviceId: string,
+): void {
+  res.cookie(
+    COOKIE_NAMES.DEVICE,
+    deviceId,
+    getDeviceCookieOptions(configService),
+  );
+}
+
 export function setAuthCookies(
   res: Response,
   configService: ConfigService,
@@ -35,6 +51,16 @@ export function setAuthCookies(
 ): void {
   setAccessTokenCookie(res, configService, tokens.accessToken);
   setRefreshTokenCookie(res, configService, tokens.refreshToken);
+}
+
+/**
+ * Đọc device id từ cookie. Trả về null nếu chưa có — caller tự quyết định có sinh mới hay không.
+ */
+export function getDeviceIdFromRequest(req: {
+  cookies?: Record<string, unknown>;
+}): string | null {
+  const v = req.cookies?.[COOKIE_NAMES.DEVICE];
+  return typeof v === 'string' && v.length > 0 ? v : null;
 }
 
 /**

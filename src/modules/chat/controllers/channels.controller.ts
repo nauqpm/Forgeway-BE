@@ -70,7 +70,10 @@ export class ChannelsController {
   @Get(':id')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
-  async getChannelDetails(@Param('id') id: string, @CurrentUser('userId') userId: string) {
+  async getChannelDetails(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
     return this.channelsService.getChannelDetailsForUser(id, userId);
   }
 

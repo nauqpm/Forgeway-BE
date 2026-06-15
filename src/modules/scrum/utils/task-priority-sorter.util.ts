@@ -7,7 +7,9 @@ const PRIORITY_WEIGHT: Record<string, number> = {
   lowest: 1,
 };
 
-export function sortTasksByPriority<T extends { priority?: string; createdAt?: Date | string }>(tasks: T[]): T[] {
+export function sortTasksByPriority<
+  T extends { priority?: string; createdAt?: Date | string },
+>(tasks: T[]): T[] {
   return [...tasks].sort((a, b) => {
     const aPriority = PRIORITY_WEIGHT[a.priority ?? ''] ?? 0;
     const bPriority = PRIORITY_WEIGHT[b.priority ?? ''] ?? 0;

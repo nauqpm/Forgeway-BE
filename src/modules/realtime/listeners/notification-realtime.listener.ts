@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { DOMAIN_EVENT_TYPES, DomainEventType } from '../../../shared/events/domain-events';
+import {
+  DOMAIN_EVENT_TYPES,
+  DomainEventType,
+} from '../../../shared/events/domain-events';
 import {
   BaseNotificationEvent,
   NotificationCreatedEventData,
@@ -9,7 +12,12 @@ import {
   NotificationReadAllEventData,
   NotificationReadEventData,
 } from '../../../shared/events/domain-events/notification';
-import { REALTIME_EVENT_TYPES, RealtimeEnvelope, RealtimeEventType, RoomBuilder } from '../contracts';
+import {
+  REALTIME_EVENT_TYPES,
+  RealtimeEnvelope,
+  RealtimeEventType,
+  RoomBuilder,
+} from '../contracts';
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type NotificationRealtimeEventData =
@@ -17,7 +25,10 @@ export type NotificationRealtimeEventData =
   | NotificationReadEventData
   | NotificationReadAllEventData;
 
-export type NotificationRealtimeDomainEvent = BaseNotificationEvent<DomainEventType, NotificationRealtimeEventData>;
+export type NotificationRealtimeDomainEvent = BaseNotificationEvent<
+  DomainEventType,
+  NotificationRealtimeEventData
+>;
 
 @Injectable()
 export class NotificationRealtimeListener {
@@ -27,7 +38,10 @@ export class NotificationRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.NOTIFICATION_CREATED, { async: true })
   handleNotificationCreated(event: NotificationRealtimeDomainEvent): void {
-    this.publishNotificationEvent(REALTIME_EVENT_TYPES.NOTIFICATION_CREATED, event);
+    this.publishNotificationEvent(
+      REALTIME_EVENT_TYPES.NOTIFICATION_CREATED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.NOTIFICATION_READ, { async: true })
@@ -40,10 +54,16 @@ export class NotificationRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.NOTIFICATION_READ_ALL, { async: true })
   handleNotificationReadAll(event: NotificationRealtimeDomainEvent): void {
-    this.publishNotificationEvent(REALTIME_EVENT_TYPES.NOTIFICATION_READ_ALL, event);
+    this.publishNotificationEvent(
+      REALTIME_EVENT_TYPES.NOTIFICATION_READ_ALL,
+      event,
+    );
   }
 
-  private publishNotificationEvent(type: RealtimeEventType, event: NotificationRealtimeDomainEvent): void {
+  private publishNotificationEvent(
+    type: RealtimeEventType,
+    event: NotificationRealtimeDomainEvent,
+  ): void {
     try {
       const room = RoomBuilder.user(event.data.recipientId);
       const envelope = this.buildEnvelope(type, event);

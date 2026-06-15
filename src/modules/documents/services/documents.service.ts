@@ -40,14 +40,18 @@ export class DocumentsService {
     private readonly conversionService: DocumentConversionService,
   ) {}
 
-  async upload(userId: string, file: Express.Multer.File, dto: UploadDocumentDto) {
+  async upload(
+    userId: string,
+    file: Express.Multer.File,
+    dto: UploadDocumentDto,
+  ) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
 
     const name = dto.name?.trim() || file.originalname;
     const workspaceIds = (dto.workspaceIds ?? []).map(
-      (id) => new Types.ObjectId(id),
+      id => new Types.ObjectId(id),
     );
 
     for (const wsId of workspaceIds) {
@@ -83,7 +87,7 @@ export class DocumentsService {
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
 
     const workspaceIds = (dto.workspaceIds ?? []).map(
-      (id) => new Types.ObjectId(id),
+      id => new Types.ObjectId(id),
     );
 
     for (const wsId of workspaceIds) {
@@ -95,9 +99,8 @@ export class DocumentsService {
 
     await this.ensureUniqueNameForUser(userId, name);
 
-    const storedFile = await this.storageService.saveHtmlContent(
-      sanitizedContent,
-    );
+    const storedFile =
+      await this.storageService.saveHtmlContent(sanitizedContent);
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
@@ -159,7 +162,6 @@ export class DocumentsService {
 
   async deleteMine(userId: string, id: string) {
     const doc = await this.getMineById(userId, id);
-
     await this.documentModel.updateOne(
       { _id: doc._id },
       { $set: { deletedAt: new Date() } },
@@ -219,7 +221,7 @@ export class DocumentsService {
   ) {
     await this.getMineById(userId, id);
 
-    const objectIds = dto.workspaceIds.map((wsId) => new Types.ObjectId(wsId));
+    const objectIds = dto.workspaceIds.map(wsId => new Types.ObjectId(wsId));
 
     for (const wsId of objectIds) {
       await this.accessService.getActiveWorkspaceAndMember(
@@ -336,7 +338,11 @@ export class DocumentsService {
     return this.conversionService.renderPreviewHtml(doc);
   }
 
-  private async ensureUniqueNameForUser(userId: string, name: string, excludeId?: string): Promise<void> {
+  private async ensureUniqueNameForUser(
+    userId: string,
+    name: string,
+    excludeId?: string,
+  ): Promise<void> {
     const query: Record<string, any> = {
       uploadedBy: new Types.ObjectId(userId),
       deletedAt: null,
@@ -355,7 +361,9 @@ export class DocumentsService {
     const existingDocument = await this.documentModel.exists(query).exec();
 
     if (existingDocument) {
-      throw new BadRequestException('A document with this name already exists in your library');
+      throw new BadRequestException(
+        'A document with this name already exists in your library',
+      );
     }
   }
 }

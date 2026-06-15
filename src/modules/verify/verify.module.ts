@@ -5,7 +5,9 @@ import { VerifyService } from './services/verify.service';
 import { VerifyController } from './controllers/verify.controller';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Verify.name, schema: VerifySchema }])],
+  imports: [
+    MongooseModule.forFeature([{ name: Verify.name, schema: VerifySchema }]),
+  ],
   controllers: [VerifyController],
   providers: [VerifyService],
   exports: [VerifyService],

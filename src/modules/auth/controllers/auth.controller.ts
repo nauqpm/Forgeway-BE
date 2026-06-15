@@ -27,14 +27,26 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { AuthenticationService } from '../services/authentication.service';
 import { TokenService } from '../services/token.service';
+import { AccountSwitcherService } from '../services/account-switcher.service';
+import { RecentLoginsService } from '../services/recent-logins.service';
 import { UsersService } from '../../users/services/users.service';
-import { RegisterDto, LoginDto, VerifyEmailDto, ResendVerificationDto } from '../dtos/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
+} from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../../audit/services/audit-log.service';
-import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
+import {
+  clearAuthCookies,
+  getDeviceIdFromRequest,
+  setAuthCookies,
+  setDeviceIdCookie,
+} from '../utils/cookie.utils';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
@@ -65,6 +77,8 @@ export class AuthController {
     private readonly userService: UsersService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
+    private readonly accountSwitcher: AccountSwitcherService,
+    private readonly recentLoginsService: RecentLoginsService,
   ) {}
 
   @ApiOperation({ summary: 'Check email before registration' })
@@ -97,7 +111,8 @@ export class AuthController {
     schema: {
       example: {
         success: true,
-        message: 'Registration successful. Please check your email to verify your account.',
+        message:
+          'Registration successful. Please check your email to verify your account.',
         email: 'user@example.com',
       },
     },
@@ -138,7 +153,10 @@ export class AuthController {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Registration failed (${registerDto.email}): ${message}`, stack);
+      this.logger.error(
+        `Registration failed (${registerDto.email}): ${message}`,
+        stack,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.REGISTER_FAILED,
         severity: 'WARN',
@@ -197,7 +215,8 @@ export class AuthController {
     schema: {
       example: {
         success: true,
-        message: 'If the email requires verification, new instructions have been sent.',
+        message:
+          'If the email requires verification, new instructions have been sent.',
       },
     },
   })
@@ -276,13 +295,90 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response, @Req() req: ExpressRequest) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+    @Req() req: ExpressRequest,
+  ) {
     this.logger.log('Processing login request...');
 
     try {
       const result = await this.authenticationService.login(loginDto);
 
       setAuthCookies(res, this.configService, result.tokens);
+
+      // Hook: remember this account under any active session owner.
+      // If the request carries an existing access token, treat its userId as the owner
+      // and remember the freshly-logged-in account. This is what populates the
+      // "Switch account" dropdown for users who share a browser.
+      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
+        | string
+        | undefined;
+      const ownerUserId =
+        this.tokenService.peekUserIdFromAccessToken(existingAccess);
+      if (ownerUserId && ownerUserId !== result.user.id) {
+        try {
+          const ip =
+            (req.headers['x-forwarded-for'] as string | undefined)
+              ?.split(',')[0]
+              ?.trim() ??
+            req.ip ??
+            undefined;
+          const userAgent = req.headers['user-agent'] ?? undefined;
+          await this.accountSwitcher.rememberAccount(
+            ownerUserId,
+            {
+              id: result.user.id,
+              email: result.user.email,
+              fullName: result.user.fullName,
+              avatar: result.user.avatar,
+              role: result.user.role,
+              ssoProvider:
+                result.user.ssoProvider === 'google' ? 'google' : null,
+            },
+            { ip, userAgent },
+          );
+        } catch (rememberErr) {
+          // Never let rememberAccount break login; just log
+          this.logger.warn(
+            `rememberAccount failed: ${(rememberErr as Error).message}`,
+          );
+        }
+      }
+
+      // Hook: ghi nhận account này là "gần đây trên thiết bị" — luôn chạy,
+      // kể cả khi không có owner cũ (khác với rememberAccount ở trên).
+      // Cho phép hiển thị "Tài khoản gần đây" trong dropdown sau khi user logout.
+      try {
+        const ip =
+          (req.headers['x-forwarded-for'] as string | undefined)
+            ?.split(',')[0]
+            ?.trim() ??
+          req.ip ??
+          undefined;
+        const userAgent = req.headers['user-agent'] ?? undefined;
+        let deviceId = getDeviceIdFromRequest(req);
+        if (!deviceId) {
+          deviceId = RecentLoginsService.generateDeviceId();
+          setDeviceIdCookie(res, this.configService, deviceId);
+        }
+        await this.recentLoginsService.remember(
+          deviceId,
+          {
+            id: result.user.id,
+            email: result.user.email,
+            fullName: result.user.fullName,
+            avatar: result.user.avatar,
+            role: result.user.role,
+            ssoProvider: result.user.ssoProvider === 'google' ? 'google' : null,
+          },
+          { ip, userAgent },
+        );
+      } catch (recentErr) {
+        this.logger.warn(
+          `recentLogins.remember failed: ${(recentErr as Error).message}`,
+        );
+      }
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
@@ -323,7 +419,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@Request() req: RequestWithUser, @Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Request() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const userId = req.user?.userId;
 
     const accessTokenFromCookie = req.cookies?.[COOKIE_NAMES.ACCESS];
@@ -427,7 +526,8 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Get current user profile',
-    description: 'Requires a valid access token via Bearer header or HttpOnly cookie.',
+    description:
+      'Requires a valid access token via Bearer header or HttpOnly cookie.',
   })
   @ApiResponse({
     status: 200,

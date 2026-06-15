@@ -1,4 +1,10 @@
-import { ArrayUnique, IsArray, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsMongoId,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
 
 export class AttachDocumentDto {
   @IsNotEmpty()

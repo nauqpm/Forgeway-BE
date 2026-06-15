@@ -85,7 +85,7 @@ export const ScopedRoleGuard = (
           const workspace = await workspacesService.findById(resourceId);
 
           targetWorkspaceId = workspace._id.toString();
-        } catch (error) {
+        } catch {
           throw new NotFoundException('Workspace not found');
         }
       }

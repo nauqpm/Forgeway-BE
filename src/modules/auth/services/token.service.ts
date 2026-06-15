@@ -35,6 +35,32 @@ export class TokenService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  /**
+   * Best-effort: extract userId from a JWT access token without enforcing expiry.
+   * Used only to discover the "current owner" so we can populate the account switcher
+   * when a second account logs in on the same browser. Returns null on any error.
+   */
+  peekUserIdFromAccessToken(token: string | undefined): string | null {
+    if (!token) return null;
+    try {
+      const payload = this.jwtService.verify<{
+        userId?: string;
+        type?: string;
+      }>(token, { ignoreExpiration: true });
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        payload.type === TOKEN_TYPES.ACCESS &&
+        payload.userId
+      ) {
+        return payload.userId;
+      }
+    } catch {
+      // Invalid signature, malformed, etc. — treat as no owner.
+    }
+    return null;
+  }
+
   // Legacy single-token creator (kept for backward compat if used elsewhere)
   async createAndSaveToken(
     userId: string,
@@ -136,8 +162,21 @@ export class TokenService {
     }
   }
 
-  private createAccessToken(userId: string, email: string, role: string, fullName?: string, avatar?: string): string {
-    const payload = { userId, email, role, fullName, avatar, type: TOKEN_TYPES.ACCESS };
+  private createAccessToken(
+    userId: string,
+    email: string,
+    role: string,
+    fullName?: string,
+    avatar?: string,
+  ): string {
+    const payload = {
+      userId,
+      email,
+      role,
+      fullName,
+      avatar,
+      type: TOKEN_TYPES.ACCESS,
+    };
     return this.jwtService.sign(payload);
   }
 
@@ -167,7 +206,9 @@ export class TokenService {
     }
 
     try {
-      const hashedTokens = ([accessToken, refreshToken].filter(Boolean) as string[]).map(t => this.hashToken(t));
+      const hashedTokens = (
+        [accessToken, refreshToken].filter(Boolean) as string[]
+      ).map(t => this.hashToken(t));
 
       await this.tokenModel.updateMany(
         { token: { $in: hashedTokens } },
@@ -181,7 +222,10 @@ export class TokenService {
     }
   }
 
-  async createResetGrant(userId: string, email: string): Promise<{ resetGrant: string; expiresInMs: number }> {
+  async createResetGrant(
+    userId: string,
+    email: string,
+  ): Promise<{ resetGrant: string; expiresInMs: number }> {
     this.logger.debug(`Creating password reset grant for userId: ${userId}`);
 
     const expiresInMs = 10 * 60 * 1000;
@@ -320,7 +364,8 @@ export class TokenService {
             throw new UnauthorizedException({
               statusCode: 401,
               error: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
-              message: 'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
+              message:
+                'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
             });
           }
 
@@ -494,8 +539,13 @@ export class TokenService {
       this.logger.log(`✅ Tất cả token của userId ${userId} đã bị hủy`);
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi hủy tất cả token của userId ${userId}: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Không thể hủy tất cả token của người dùng.');
+      this.logger.error(
+        `❌ Lỗi khi hủy tất cả token của userId ${userId}: ${err.message}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException(
+        'Không thể hủy tất cả token của người dùng.',
+      );
     }
   }
 }

@@ -64,7 +64,9 @@ export class NotificationDomainEventPublisher {
     }
   }
 
-  private toNotificationSummary(notification: NotificationDto): NotificationSummaryPayload {
+  private toNotificationSummary(
+    notification: NotificationDto,
+  ): NotificationSummaryPayload {
     return {
       id: notification.id,
       recipientId: notification.recipientId,

@@ -1,10 +1,18 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import axios from 'axios';
 import sanitizeHtml from 'sanitize-html';
 import { Page, PageDocument } from '../schemas/page.schema';
-import { PageVersion, PageVersionDocument } from '../schemas/page-version.schema';
+import {
+  PageVersion,
+  PageVersionDocument,
+} from '../schemas/page-version.schema';
 import { CreatePageDto } from '../dtos/create-page.dto';
 import { UpdatePageDto } from '../dtos/update-page.dto';
 import { FilterPageDto } from '../dtos/filter-page.dto';
@@ -113,19 +121,23 @@ export class PagesService {
     if (dto.parentId) {
       const parentDepth = await this.getAncestorDepth(dto.parentId);
       if (parentDepth + 1 >= MAX_DEPTH) {
-        throw new BadRequestException(`Cannot create page: maximum nesting depth of ${MAX_DEPTH} levels exceeded`);
+        throw new BadRequestException(
+          `Cannot create page: maximum nesting depth of ${MAX_DEPTH} levels exceeded`,
+        );
       }
     }
 
     const title = dto.title.trim();
-    await this.ensureUniqueTitleInLocation(title, dto.workspaceId, dto.parentId);
+    await this.ensureUniqueTitleInWorkspace(title, dto.workspaceId);
 
     const slug = dto.slug || (await this.generateUniqueSlug(title));
 
     const page = new this.pageModel({
       title,
       content: dto.content || '',
-      workspaceId: dto.workspaceId ? new Types.ObjectId(dto.workspaceId) : undefined,
+      workspaceId: dto.workspaceId
+        ? new Types.ObjectId(dto.workspaceId)
+        : undefined,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       slug,
       authorId: new Types.ObjectId(userId),
@@ -148,7 +160,10 @@ export class PagesService {
       throw new NotFoundException(`Page with id ${id} not found`);
     }
 
-    const page = await this.pageModel.findById(id).populate('lastEditedBy', 'fullName').exec();
+    const page = await this.pageModel
+      .findById(id)
+      .populate('lastEditedBy', 'fullName')
+      .exec();
     if (!page) {
       throw new NotFoundException(`Page with id ${id} not found`);
     }
@@ -158,7 +173,10 @@ export class PagesService {
   async findBySlug(slug: string): Promise<PageDocument> {
     this.logger.debug(`Finding page by slug: ${slug}`);
 
-    const page = await this.pageModel.findOne({ slug }).populate('lastEditedBy', 'fullName').exec();
+    const page = await this.pageModel
+      .findOne({ slug })
+      .populate('lastEditedBy', 'fullName')
+      .exec();
     if (!page) {
       throw new NotFoundException(`Page with slug "${slug}" not found`);
     }
@@ -280,14 +298,22 @@ export class PagesService {
       .exec();
   }
 
-  async update(id: string, dto: UpdatePageDto, userId: string): Promise<PageDocument> {
+  async update(
+    id: string,
+    dto: UpdatePageDto,
+    userId: string,
+  ): Promise<PageDocument> {
     this.logger.debug(`Updating page ${id} by user ${userId}`);
 
     const page = await this.findById(id);
 
     if (dto.title !== undefined) {
       const title = dto.title.trim();
-      await this.ensureUniqueTitleInLocation(title, page.workspaceId.toString(), page.parentId?.toString(), id);
+      await this.ensureUniqueTitleInWorkspace(
+        title,
+        page.workspaceId.toString(),
+        id,
+      );
       page.title = title;
     }
     if (dto.content !== undefined) page.content = dto.content;
@@ -315,10 +341,19 @@ export class PagesService {
 
     const page = await this.findById(id);
 
-    if (dto.title !== undefined) page.title = dto.title;
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      await this.ensureUniqueTitleInWorkspace(
+        title,
+        page.workspaceId.toString(),
+        id,
+      );
+      page.title = title;
+    }
     if (dto.content !== undefined) page.content = dto.content;
     if (dto.contentJson !== undefined) page.contentJson = dto.contentJson;
-    if (dto.plainTextSnapshot !== undefined) page.plainTextSnapshot = dto.plainTextSnapshot;
+    if (dto.plainTextSnapshot !== undefined)
+      page.plainTextSnapshot = dto.plainTextSnapshot;
 
     if (dto.yjsState !== undefined) {
       page.yjsState = Buffer.from(dto.yjsState);
@@ -368,14 +403,19 @@ export class PagesService {
     }
   }
 
-  async moveToParent(pageId: string, newParentId: string | null): Promise<PageDocument> {
+  async moveToParent(
+    pageId: string,
+    newParentId: string | null,
+  ): Promise<PageDocument> {
     this.logger.debug(`Moving page ${pageId} to parent ${newParentId}`);
 
     const page = await this.findById(pageId);
 
     if (newParentId) {
       if (!Types.ObjectId.isValid(newParentId)) {
-        throw new NotFoundException(`Parent page with id ${newParentId} not found`);
+        throw new NotFoundException(
+          `Parent page with id ${newParentId} not found`,
+        );
       }
 
       if (newParentId === pageId) {
@@ -385,7 +425,9 @@ export class PagesService {
       // ── Circular-reference check: newParent must NOT be a descendant of page ──
       const descendants = await this.getAllDescendantIds(pageId);
       if (descendants.includes(newParentId)) {
-        throw new BadRequestException('Cannot move a page into its own descendant (circular reference)');
+        throw new BadRequestException(
+          'Cannot move a page into its own descendant (circular reference)',
+        );
       }
 
       // ── Depth check: parentDepth + 1 (this page) + subtreeDepth ≤ MAX_DEPTH ──
@@ -427,7 +469,9 @@ export class PagesService {
   async incrementViewCount(id: string): Promise<PageDocument> {
     this.logger.debug(`Incrementing view count for page ${id}`);
 
-    const page = await this.pageModel.findByIdAndUpdate(id, { $inc: { viewCount: 1 } }, { new: true }).exec();
+    const page = await this.pageModel
+      .findByIdAndUpdate(id, { $inc: { viewCount: 1 } }, { new: true })
+      .exec();
 
     if (!page) {
       throw new NotFoundException(`Page with id ${id} not found`);
@@ -457,10 +501,9 @@ export class PagesService {
     return page.save();
   }
 
-  private async ensureUniqueTitleInLocation(
+  private async ensureUniqueTitleInWorkspace(
     title: string,
     workspaceId?: string,
-    parentId?: string,
     excludeId?: string,
   ): Promise<void> {
     if (!workspaceId) return;
@@ -470,19 +513,15 @@ export class PagesService {
       title: { $regex: `^${this.escapeRegex(title)}$`, $options: 'i' },
     };
 
-    if (parentId) {
-      query.parentId = new Types.ObjectId(parentId);
-    } else {
-      query.parentId = { $exists: false };
-    }
-
     if (excludeId) {
       query._id = { $ne: new Types.ObjectId(excludeId) };
     }
 
     const existingPage = await this.pageModel.exists(query).exec();
     if (existingPage) {
-      throw new BadRequestException('A document with this name already exists in this location');
+      throw new BadRequestException(
+        'A document with this name already exists in this workspace',
+      );
     }
   }
 
@@ -535,7 +574,11 @@ export class PagesService {
     let currentId = pageId;
 
     while (true) {
-      const page = await this.pageModel.findById(currentId).select('parentId').lean().exec();
+      const page = await this.pageModel
+        .findById(currentId)
+        .select('parentId')
+        .lean()
+        .exec();
 
       if (!page || !page.parentId) break;
       depth++;
@@ -618,28 +661,58 @@ export class PagesService {
       const response = await axios.get(url.toString(), {
         timeout: 4000,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         },
         maxContentLength: 512000, // Limit to 512KB
         responseType: 'text',
       });
 
       const html = response.data;
-      
+
       // Extract metadata
       const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
-                           html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
-      const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ||
-                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
-      const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-                        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-      const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-                           html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+      const ogTitleMatch =
+        html.match(
+          /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        html.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
+        );
+      const ogDescMatch =
+        html.match(
+          /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        html.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i,
+        );
+      const descMatch =
+        html.match(
+          /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        html.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i,
+        );
+      const ogImageMatch =
+        html.match(
+          /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+        ) ||
+        html.match(
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+        );
 
-      const title = ogTitleMatch ? ogTitleMatch[1] : (titleMatch ? titleMatch[1] : url.hostname);
-      const description = ogDescMatch ? ogDescMatch[1] : (descMatch ? descMatch[1] : '');
+      const title = ogTitleMatch
+        ? ogTitleMatch[1]
+        : titleMatch
+          ? titleMatch[1]
+          : url.hostname;
+      const description = ogDescMatch
+        ? ogDescMatch[1]
+        : descMatch
+          ? descMatch[1]
+          : '';
       let image = ogImageMatch ? ogImageMatch[1] : '';
 
       if (image && !image.startsWith('http')) {
@@ -664,8 +737,14 @@ export class PagesService {
     }
   }
 
-  async createVersion(pageId: string, label: string, userId: string): Promise<PageVersionDocument> {
-    this.logger.debug(`Creating version for page ${pageId} with label "${label}" by user ${userId}`);
+  async createVersion(
+    pageId: string,
+    label: string,
+    userId: string,
+  ): Promise<PageVersionDocument> {
+    this.logger.debug(
+      `Creating version for page ${pageId} with label "${label}" by user ${userId}`,
+    );
     const page = await this.findById(pageId);
 
     const pageVersion = new this.pageVersionModel({
@@ -693,7 +772,10 @@ export class PagesService {
       .exec();
   }
 
-  async getVersionById(pageId: string, versionId: string): Promise<PageVersionDocument> {
+  async getVersionById(
+    pageId: string,
+    versionId: string,
+  ): Promise<PageVersionDocument> {
     this.logger.debug(`Fetching version ${versionId} for page ${pageId}`);
     if (!Types.ObjectId.isValid(versionId)) {
       throw new NotFoundException(`Version with id ${versionId} not found`);
@@ -708,8 +790,14 @@ export class PagesService {
     return version;
   }
 
-  async restoreVersion(pageId: string, versionId: string, userId: string): Promise<PageDocument> {
-    this.logger.debug(`Restoring version ${versionId} for page ${pageId} by user ${userId}`);
+  async restoreVersion(
+    pageId: string,
+    versionId: string,
+    userId: string,
+  ): Promise<PageDocument> {
+    this.logger.debug(
+      `Restoring version ${versionId} for page ${pageId} by user ${userId}`,
+    );
     const version = await this.getVersionById(pageId, versionId);
     const page = await this.findById(pageId);
 
@@ -728,10 +816,12 @@ export class PagesService {
     return page.save();
   }
 
-  async exportToDocx(pageId: string): Promise<{ buffer: Buffer; filename: string }> {
+  async exportToDocx(
+    pageId: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
     this.logger.debug(`Exporting page ${pageId} to DOCX`);
     const page = await this.findById(pageId);
-    
+
     const htmlString = `
       <!DOCTYPE html>
       <html>

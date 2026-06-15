@@ -86,8 +86,8 @@ export class MeetingService {
     await this.channelsService.updateLastMessage(channelId, {
       content: message.content,
       senderId: userId,
-      senderName: (message as any).senderId?.fullName || 'System',
-      sentAt: (message as any).createdAt,
+      senderName: message.senderId?.fullName || 'System',
+      sentAt: message.createdAt,
     });
 
     this.realtimePublisher.emit(

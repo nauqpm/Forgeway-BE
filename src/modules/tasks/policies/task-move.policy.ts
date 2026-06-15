@@ -4,7 +4,11 @@ import { TaskDocument } from '../schemas/task.schema';
 
 @Injectable()
 export class TaskMovePolicy {
-  validateMove(task: TaskDocument, targetSprint?: SprintDocument | null, currentSprint?: SprintDocument | null): void {
+  validateMove(
+    task: TaskDocument,
+    targetSprint?: SprintDocument | null,
+    currentSprint?: SprintDocument | null,
+  ): void {
     if (task.isArchived) {
       throw new BadRequestException('Archived task cannot be moved');
     }
@@ -14,7 +18,9 @@ export class TaskMovePolicy {
     }
 
     if (currentSprint?.status === 'completed') {
-      throw new BadRequestException('Task in a completed sprint cannot be moved');
+      throw new BadRequestException(
+        'Task in a completed sprint cannot be moved',
+      );
     }
 
     if (targetSprint?.status === 'completed') {

@@ -63,4 +63,5 @@ export const REALTIME_EVENT_TYPES = {
   PAGE_YJS_UPDATE: 'page.yjs-update',
 } as const;
 
-export type RealtimeEventType = typeof REALTIME_EVENT_TYPES[keyof typeof REALTIME_EVENT_TYPES];
+export type RealtimeEventType =
+  (typeof REALTIME_EVENT_TYPES)[keyof typeof REALTIME_EVENT_TYPES];

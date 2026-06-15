@@ -22,7 +22,9 @@ const buildWorkspace = (overrides: Record<string, any> = {}) => ({
   access: 'public',
   status: 'active',
   ownerId: new Types.ObjectId(ownerId),
-  members: [{ userId: new Types.ObjectId(ownerId), role: SPACE_ROLES.WORKSPACE_ADMIN }],
+  members: [
+    { userId: new Types.ObjectId(ownerId), role: SPACE_ROLES.WORKSPACE_ADMIN },
+  ],
   settings: {},
   ...overrides,
 });
@@ -80,7 +82,9 @@ describe('workspace sample avatars', () => {
       }),
     );
     expect(
-      WORKSPACE_SAMPLE_AVATARS.every(avatar => avatar.url.includes('/sdlc-platform/sample%20avater%20workspace/')),
+      WORKSPACE_SAMPLE_AVATARS.every(avatar =>
+        avatar.url.includes('/sdlc-platform/sample%20avater%20workspace/'),
+      ),
     ).toBe(true);
   });
 
@@ -102,7 +106,9 @@ describe('WorkspacesService avatar handling', () => {
 
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        avatar: expect.stringContaining('/sdlc-platform/sample%20avater%20workspace/'),
+        avatar: expect.stringContaining(
+          '/sdlc-platform/sample%20avater%20workspace/',
+        ),
       }),
     );
   });
@@ -118,7 +124,9 @@ describe('WorkspacesService avatar handling', () => {
       avatar: selectedAvatar,
     } as any);
 
-    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ avatar: selectedAvatar }));
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ avatar: selectedAvatar }),
+    );
   });
 
   it('updates workspace avatar when the value is one of the samples', async () => {
@@ -126,11 +134,21 @@ describe('WorkspacesService avatar handling', () => {
     const workspace = buildWorkspace();
     const { repository, service } = createService();
     repository.findById.mockResolvedValue(workspace);
-    repository.update.mockResolvedValue({ ...workspace, avatar: selectedAvatar });
+    repository.update.mockResolvedValue({
+      ...workspace,
+      avatar: selectedAvatar,
+    });
 
-    await service.update(workspaceId, { avatar: selectedAvatar } as any, ownerId);
+    await service.update(
+      workspaceId,
+      { avatar: selectedAvatar } as any,
+      ownerId,
+    );
 
-    expect(repository.update).toHaveBeenCalledWith(workspaceId, expect.objectContaining({ avatar: selectedAvatar }));
+    expect(repository.update).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ avatar: selectedAvatar }),
+    );
   });
 
   it('returns the first sample avatar when a stored workspace has no avatar', async () => {
@@ -159,7 +177,11 @@ describe('WorkspacesService avatar handling', () => {
     repository.findById.mockResolvedValue(workspace);
 
     await expect(
-      service.update(workspaceId, { avatar: 'https://example.com/not-allowed.png' } as any, ownerId),
+      service.update(
+        workspaceId,
+        { avatar: 'https://example.com/not-allowed.png' } as any,
+        ownerId,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(repository.update).not.toHaveBeenCalled();
   });

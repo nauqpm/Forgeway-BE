@@ -22,5 +22,6 @@ export const RoomBuilder = {
   channel: (id: string): ChannelRoom => `channel:${id}`,
   meeting: (id: string): MeetingRoom => `meeting:${id}`,
   page: (id: string): PageRoom => `page:${id}`,
-  presence: (workspaceId: string, userId: string): PresenceKey => `presence:${workspaceId}:${userId}`,
+  presence: (workspaceId: string, userId: string): PresenceKey =>
+    `presence:${workspaceId}:${userId}`,
 } as const;

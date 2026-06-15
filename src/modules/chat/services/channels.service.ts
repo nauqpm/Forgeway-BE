@@ -33,7 +33,9 @@ export class ChannelsService {
   async ensureGlobalChannels(): Promise<void> {
     // Nếu đang có một quá trình khởi tạo diễn ra, đợi nó xong
     if (this.initializationPromise) {
-      this.logger.debug('ensureGlobalChannels: Waiting for existing initialization to complete...');
+      this.logger.debug(
+        'ensureGlobalChannels: Waiting for existing initialization to complete...',
+      );
       return this.initializationPromise;
     }
 
@@ -45,7 +47,9 @@ export class ChannelsService {
         // Check #general
         const general = await this.channelModel.findOne({ type: 'general' });
         if (!general) {
-          this.logger.log('Self-healing: Initializing missing #general channel');
+          this.logger.log(
+            'Self-healing: Initializing missing #general channel',
+          );
           await this.channelModel.create({
             name: 'general',
             type: 'general',
@@ -57,9 +61,13 @@ export class ChannelsService {
         }
 
         // Check #announcements
-        const announcements = await this.channelModel.findOne({ type: 'announcement' });
+        const announcements = await this.channelModel.findOne({
+          type: 'announcement',
+        });
         if (!announcements) {
-          this.logger.log('Self-healing: Initializing missing #announcements channel');
+          this.logger.log(
+            'Self-healing: Initializing missing #announcements channel',
+          );
           await this.channelModel.create({
             name: 'announcements',
             type: 'announcement',
@@ -80,7 +88,9 @@ export class ChannelsService {
 
   async syncWorkspaceChannels(): Promise<void> {
     if (this.syncPromise) {
-      this.logger.debug('syncWorkspaceChannels: Waiting for existing sync to complete...');
+      this.logger.debug(
+        'syncWorkspaceChannels: Waiting for existing sync to complete...',
+      );
       return this.syncPromise;
     }
 
@@ -89,15 +99,19 @@ export class ChannelsService {
         const systemId = new Types.ObjectId('000000000000000000000000');
         const allWorkspaces = await this.workspacesService.findAll();
 
+
         for (const workspace of allWorkspaces) {
           const workspaceId = workspace._id.toString();
+          const channel = await this.channelModel.findOne({
           const channel = await this.channelModel.findOne({
             workspaceId: new Types.ObjectId(workspaceId),
             type: 'workspace'
           });
 
           if (!channel) {
-            this.logger.log(`Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`);
+            this.logger.log(
+              `Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`,
+            );
             await this.channelModel.create({
               name: workspace.name,
               type: 'workspace',
@@ -166,28 +180,34 @@ export class ChannelsService {
     const userWorkspaces = await this.workspacesService.findByUserId(userId);
     const userWorkspaceIds = userWorkspaces.map(w => w._id);
 
-    let channels = await this.channelModel.find({
-      $or: [
-        { type: 'general' },
-        { type: 'announcement' },
-        { workspaceId: { $in: userWorkspaceIds } },
-        { type: 'dm', members: new Types.ObjectId(userId) }
-      ]
-    }).exec();
-
-    // If still missing workspace channels, trigger a sync (happens once if DB was wiped)
-    if (channels.length < (userWorkspaceIds.length + 2)) {
-      this.logger.log(`Missing channels detected for user ${userId}, triggering sync...`);
-      await this.syncWorkspaceChannels();
-      // Re-fetch after sync
-      channels = await this.channelModel.find({
+    let channels = await this.channelModel
+      .find({
         $or: [
           { type: 'general' },
           { type: 'announcement' },
           { workspaceId: { $in: userWorkspaceIds } },
-          { type: 'dm', members: new Types.ObjectId(userId) }
-        ]
-      }).exec();
+          { type: 'dm', members: new Types.ObjectId(userId) },
+        ],
+      })
+      .exec();
+
+    // If still missing workspace channels, trigger a sync (happens once if DB was wiped)
+    if (channels.length < userWorkspaceIds.length + 2) {
+      this.logger.log(
+        `Missing channels detected for user ${userId}, triggering sync...`,
+      );
+      await this.syncWorkspaceChannels();
+      // Re-fetch after sync
+      channels = await this.channelModel
+        .find({
+          $or: [
+            { type: 'general' },
+            { type: 'announcement' },
+            { workspaceId: { $in: userWorkspaceIds } },
+            { type: 'dm', members: new Types.ObjectId(userId) },
+          ],
+        })
+        .exec();
     }
 
     this.logger.log(`Found ${channels.length} channels for user: ${userId}`);
@@ -233,6 +253,7 @@ export class ChannelsService {
     const members = [userAId, userBId].sort();
     const memberObjectIds = members.map(id => new Types.ObjectId(id));
 
+
     // 1. Tìm kênh cũ bằng .lean()
     let channel: any = await this.channelModel.findOne({
       type: 'dm',
@@ -254,7 +275,10 @@ export class ChannelsService {
         });
         channel = created.toObject();
       } catch (error: any) {
-        this.logger.error(`Failed to create DM channel: ${error.message}`, error.stack);
+        this.logger.error(
+          `Failed to create DM channel: ${error.message}`,
+          error.stack,
+        );
         throw new Error('Could not create DM channel');
       }
     }
@@ -265,7 +289,10 @@ export class ChannelsService {
 
     // 3. MANUAL POPULATE: Lấy thông tin user thủ công để đảm bảo 100% thành công
     const userInfos = await this.usersService.getUsersByIds(members);
-    const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userAId);
+    const unreadCount = await this.messagesService.countUnread(
+      channel._id.toString(),
+      userAId,
+    );
 
     return {
       ...channel,
@@ -370,8 +397,12 @@ export class ChannelsService {
     if (!Types.ObjectId.isValid(workspaceId)) {
       return [];
     }
-    const channels = await this.channelModel.find({ workspaceId: new Types.ObjectId(workspaceId) }).exec();
-    this.logger.debug(`Found ${channels.length} channels for workspace: ${workspaceId}`);
+    const channels = await this.channelModel
+      .find({ workspaceId: new Types.ObjectId(workspaceId) })
+      .exec();
+    this.logger.debug(
+      `Found ${channels.length} channels for workspace: ${workspaceId}`,
+    );
     return channels;
   }
 
@@ -406,7 +437,9 @@ export class ChannelsService {
     if (channel.type === 'dm') {
       const isMember = channel.members.some(m => m.toString() === userId);
       if (!isMember) {
-        this.logger.warn(`Access denied: User ${userId} is not a member of DM channel ${channelId}`);
+        this.logger.warn(
+          `Access denied: User ${userId} is not a member of DM channel ${channelId}`,
+        );
       }
       return isMember;
     }
@@ -416,6 +449,7 @@ export class ChannelsService {
 
   async getChannelMemberIds(channelId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(channelId)) return [];
+
 
     const channel = await this.findById(channelId);
     if (!channel) return [];
@@ -511,7 +545,10 @@ export class ChannelsService {
     return [];
   }
 
-  async getChannelDetailsForUser(channelId: string, userId: string): Promise<any> {
+  async getChannelDetailsForUser(
+    channelId: string,
+    userId: string,
+  ): Promise<any> {
     const hasAccess = await this.validateUserAccess(channelId, userId);
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
