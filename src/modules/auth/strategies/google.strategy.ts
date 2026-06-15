@@ -24,13 +24,23 @@ interface GoogleUserProfile {
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(configService: ConfigService) {
+    const googleClientId = configService.get<string>('GOOGLE_CLIENT_ID') || '';
+    const googleRedirectUrl = configService.get<string>('GOOGLE_REDIRECT_URL') || '';
+
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID') || '',
+      clientID: googleClientId,
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET') || '',
-      callbackURL: configService.get<string>('GOOGLE_REDIRECT_URL') || '',
+      callbackURL: googleRedirectUrl,
       scope: ['email', 'profile'],
       passReqToCallback: true,
     });
+
+    // 🐛 DEBUG LOG — REMOVE AFTER PRODUCTION INVESTIGATION
+    console.log('================ GOOGLE OAUTH DEBUG ================');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('GOOGLE_CLIENT_ID:', googleClientId.substring(0, 25) + '...');
+    console.log('GOOGLE_REDIRECT_URL:', googleRedirectUrl);
+    console.log('===================================================');
   }
 
   validate(

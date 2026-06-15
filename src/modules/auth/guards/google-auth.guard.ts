@@ -16,6 +16,16 @@ export class GoogleAuthGuard extends AuthGuard('google') {
   }
 
   async canActivate(context: ExecutionContext) {
+    const req = context.switchToHttp().getRequest<Request>();
+
+    // 🐛 DEBUG LOG — REMOVE AFTER PRODUCTION INVESTIGATION
+    console.log('================ GOOGLE LOGIN START ================');
+    console.log('Origin:', req.headers.origin);
+    console.log('Host:', req.headers.host);
+    console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
+    console.log('X-Forwarded-Host:', req.headers['x-forwarded-host']);
+    console.log('===================================================');
+
     return (await super.canActivate(context)) as boolean;
   }
 
