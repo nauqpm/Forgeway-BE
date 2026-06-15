@@ -534,4 +534,83 @@ export class ChannelsService {
       unreadCount,
     };
   }
+  async getChannelMembers(
+    channelId: string,
+    userId: string,
+  ): Promise<any[]> {
+    const hasAccess = await this.validateUserAccess(channelId, userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const channel = await this.findById(channelId);
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    // For workspace channels, include role info
+    if (channel.type === 'workspace' && channel.workspaceId) {
+      const workspaceMembers = await this.workspaceMemberService.getMembers(
+        channel.workspaceId.toString(),
+      );
+      const memberIds = workspaceMembers
+        .map((m) => {
+          const uId = typeof m.userId === 'object' && m.userId ? (m.userId._id || (m.userId as any).id) : m.userId;
+          return uId ? uId.toString() : '';
+        })
+        .filter((id) => Types.ObjectId.isValid(id));
+
+      if (memberIds.length === 0) return [];
+
+      const users = await this.usersService.getUsersByIds(memberIds);
+      
+      // Build a role map from workspace members
+      const roleMap = new Map<string, string>();
+      for (const wm of workspaceMembers) {
+        const uId = typeof wm.userId === 'object' && wm.userId ? ((wm.userId as any)._id || (wm.userId as any).id) : wm.userId;
+        if (uId) roleMap.set(uId.toString(), (wm as any).role || 'member');
+      }
+
+      return users.map((u) => ({
+        _id: u._id?.toString() || (u as any).id?.toString(),
+        fullName: u.fullName,
+        email: u.email,
+        phone: (u as any).phone,
+        avatar: (u as any).avatar,
+        role: roleMap.get(u._id?.toString() || '') || 'member',
+      }));
+    }
+
+    // For general/announcement — all users
+    if (channel.type === 'general' || channel.type === 'announcement') {
+      const allUsers = await this.usersService.getAllUsers();
+      return allUsers.map((u) => ({
+        _id: u._id?.toString() || (u as any).id?.toString(),
+        fullName: u.fullName,
+        email: u.email,
+        phone: (u as any).phone,
+        avatar: (u as any).avatar,
+        role: u.role || 'user',
+      }));
+    }
+
+    // For DM
+    if (channel.type === 'dm') {
+      const memberIds = channel.members
+        .map((m) => m.toString())
+        .filter((id) => Types.ObjectId.isValid(id));
+      if (memberIds.length === 0) return [];
+
+      const users = await this.usersService.getUsersByIds(memberIds);
+      return users.map((u) => ({
+        _id: u._id?.toString() || (u as any).id?.toString(),
+        fullName: u.fullName,
+        email: u.email,
+        phone: (u as any).phone,
+        avatar: (u as any).avatar,
+      }));
+    }
+
+    return [];
+  }
 }

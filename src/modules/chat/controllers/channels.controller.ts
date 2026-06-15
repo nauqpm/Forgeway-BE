@@ -85,6 +85,16 @@ export class ChannelsController {
     return this.channelsService.searchMentionMembers(id, query || '', userId);
   }
 
+  @Get('channels/:id/members')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getChannelMembers(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.channelsService.getChannelMembers(id, userId);
+  }
+
 
   @Post('channels/:id/read')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
