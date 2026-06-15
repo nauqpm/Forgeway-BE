@@ -97,8 +97,11 @@ async function bootstrap() {
       prefix: '/uploads',
     });
 
-    // Swagger — chỉ bật ngoài production
-    if (process.env.NODE_ENV !== 'production') {
+    const swaggerEnabled =
+      !isProduction && process.env.SWAGGER_ENABLED !== 'false';
+
+    // Swagger is disabled by default in production.
+    if (swaggerEnabled) {
       const config = new DocumentBuilder()
         .setTitle('Your API')
         .setDescription('API Documentation')
@@ -127,7 +130,9 @@ async function bootstrap() {
 
     console.log(`🚀 Backend đang chạy tại: http://localhost:${PORT}`);
 
-    console.log(`📄 Swagger docs: http://localhost:${PORT}/api-docs`);
+    if (swaggerEnabled) {
+      console.log(`📄 Swagger docs: http://localhost:${PORT}/api-docs`);
+    }
   } catch (error) {
     console.error('❌ Lỗi khởi động ứng dụng:', error);
     process.exit(1);
