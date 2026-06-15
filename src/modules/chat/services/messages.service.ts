@@ -9,7 +9,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Message, MessageDocument } from '../schemas/message.schema';
-import { Reaction, ReactionDocument } from '../schemas/reaction.schema';
 import {
   ChannelReadMarker,
   ChannelReadMarkerDocument,
@@ -29,8 +28,6 @@ export class MessagesService {
   constructor(
     @InjectModel(Message.name)
     private readonly messageModel: Model<MessageDocument>,
-    @InjectModel(Reaction.name)
-    private readonly reactionModel: Model<ReactionDocument>,
     @InjectModel(ChannelReadMarker.name)
     private readonly readMarkerModel: Model<ChannelReadMarkerDocument>,
     @Inject(forwardRef(() => ChannelsService))
@@ -58,42 +55,28 @@ export class MessagesService {
   }
 
   async getReactions(messageId: string): Promise<Record<string, string[]>> {
-    const reactions = await this.reactionModel.find({ messageId: new Types.ObjectId(messageId) }).exec();
+    const message = await this.messageModel.findById(messageId).exec();
+    if (!message) return {};
+
     const result: Record<string, string[]> = {};
-    reactions.forEach(r => {
-      if (!result[r.emoji]) {
-        result[r.emoji] = [];
+    if (message.reactions) {
+      for (const [emoji, userIds] of message.reactions.entries()) {
+        result[emoji] = userIds.map(id => id.toString());
       }
-      result[r.emoji].push(r.userId.toString());
-    });
+    }
     return result;
   }
 
   async populateReactions(messages: MessageDocument[]): Promise<any[]> {
-    if (!messages.length) return [];
-    
-    const messageIds = messages.map(m => m._id);
-    const reactions = await this.reactionModel.find({ messageId: { $in: messageIds } }).exec();
-    
-    const reactionMap = new Map<string, Record<string, string[]>>();
-    reactions.forEach(r => {
-      const msgId = r.messageId.toString();
-      const emoji = r.emoji;
-      const userId = r.userId.toString();
-      
-      if (!reactionMap.has(msgId)) {
-        reactionMap.set(msgId, {});
-      }
-      const msgReactions = reactionMap.get(msgId)!;
-      if (!msgReactions[emoji]) {
-        msgReactions[emoji] = [];
-      }
-      msgReactions[emoji].push(userId);
-    });
-    
     return messages.map(m => {
       const obj = m.toObject();
-      obj.reactions = reactionMap.get(m._id.toString()) || {};
+      const reactionsRecord: Record<string, string[]> = {};
+      if (m.reactions) {
+        for (const [emoji, userIds] of m.reactions.entries()) {
+          reactionsRecord[emoji] = userIds.map(id => id.toString());
+        }
+      }
+      obj.reactions = reactionsRecord;
       return obj;
     });
   }
@@ -125,21 +108,32 @@ export class MessagesService {
       throw new NotFoundException('Message not found');
     }
 
-    const existing = await this.reactionModel.findOne({
-      messageId: new Types.ObjectId(messageId),
-      userId: new Types.ObjectId(userId),
-      emoji,
-    });
+    if (!message.reactions) {
+      message.reactions = new Map<string, Types.ObjectId[]>();
+    }
 
-    if (existing) {
-      await this.reactionModel.deleteOne({ _id: existing._id });
+    const userObjectId = new Types.ObjectId(userId);
+    const existingList = message.reactions.get(emoji) || [];
+
+    const userIndex = existingList.findIndex(id => id.toString() === userId);
+
+    if (userIndex > -1) {
+      // Remove reaction
+      existingList.splice(userIndex, 1);
+      if (existingList.length === 0) {
+        message.reactions.delete(emoji);
+      } else {
+        message.reactions.set(emoji, existingList);
+      }
+      message.markModified('reactions');
+      await message.save();
       return { action: 'removed', emoji };
     } else {
-      await this.reactionModel.create({
-        messageId: new Types.ObjectId(messageId),
-        userId: new Types.ObjectId(userId),
-        emoji,
-      });
+      // Add reaction
+      existingList.push(userObjectId);
+      message.reactions.set(emoji, existingList);
+      message.markModified('reactions');
+      await message.save();
       return { action: 'added', emoji };
     }
   }
