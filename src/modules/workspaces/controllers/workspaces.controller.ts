@@ -99,7 +99,6 @@ export class WorkspacesController {
   })
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() dto: CreateWorkspaceDto) {
-    console.log('📥 Nhận yêu cầu tạo Workspace:', JSON.stringify(dto));
     return this.workspacesService.create(req.user.userId, dto);
   }
 

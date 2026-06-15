@@ -82,9 +82,6 @@ export class PermissionsController {
     @Body() updateDto: UpdateUserPermissionsDto,
   ) {
     try {
-      console.log('Updating permissions for user:', userId);
-      console.log('With data:', updateDto);
-
       // Validate input
       if (!userId || !updateDto.permissionIds) {
         throw new Error('Invalid input: userId and permissionIds are required');
@@ -152,8 +149,6 @@ export class PermissionsController {
   @RequirePermission('permissions', 'update')
   async assignAllPermissionsToSuperAdmin(@Param('userId') userId: string) {
     try {
-      console.log('Assigning all permissions to super admin user:', userId);
-
       // First, ensure all permissions are initialized
       await this.permissionsService.initializeDefaultPermissions();
 
