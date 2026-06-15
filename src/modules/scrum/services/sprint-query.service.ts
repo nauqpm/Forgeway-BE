@@ -5,9 +5,9 @@
 // - lấy preview khi complete sprint
 // - tìm sprint theo id
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -15,6 +15,7 @@ import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { sortTasksByPriority } from '../utils/task-priority-sorter.util';
 import { BoardStatusService } from './board-status.service';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 
 @Injectable()
 export class SprintQueryService {
@@ -89,13 +90,11 @@ export class SprintQueryService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint not exist');
+      throw new NotFoundException(ErrorFactory.sprintNotFound(sprintId));
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException(
-        'Only sprint in active status can be completed',
-      );
+      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('active', sprint.status));
     }
 
     const completedStatuses =
@@ -149,7 +148,7 @@ export class SprintQueryService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint not exist');
+      throw new NotFoundException(ErrorFactory.sprintNotFound(sprintId));
     }
 
     return sprint;
@@ -157,7 +156,7 @@ export class SprintQueryService {
 
   private validateObjectId(id: string, resourceName: string): void {
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException(`ID format ${resourceName} is invalid`);
+      throw new BadRequestException(ErrorFactory.invalidIdFormat(resourceName));
     }
   }
 }

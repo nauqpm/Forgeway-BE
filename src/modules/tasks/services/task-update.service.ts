@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
@@ -44,10 +45,10 @@ export class TaskUpdateService {
       includeArchived: true,
     });
     if (!existing) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(id));
     }
     if (existing.isArchived) {
-      throw new BadRequestException('Archived task cannot be updated');
+      throw new BadRequestException(ErrorFactory.taskArchived());
     }
 
     const workspaceId = this.taskAccessService.toId(existing.workspaceId);
@@ -74,7 +75,7 @@ export class TaskUpdateService {
       ),
     );
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(id));
     }
 
     return this.taskMapper.mapToDto(task);

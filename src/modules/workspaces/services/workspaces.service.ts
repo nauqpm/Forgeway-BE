@@ -11,6 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
@@ -150,7 +151,7 @@ export class WorkspacesService {
   async findById(id: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
     return this.withDefaultAvatar(workspace);
   }
@@ -158,15 +159,13 @@ export class WorkspacesService {
   async findBySlug(slug: string): Promise<any> {
     const workspace = await this.workspacesRepository.findBySlug(slug);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with slug "${slug}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(slug));
     }
     return this.withDefaultAvatar(workspace);
   }
 
   async findByKey(_key: string): Promise<any> {
-    throw new BadRequestException(
-      'Workspace key lookup is not supported; use workspaceId',
-    );
+    throw new BadRequestException('Workspace key lookup is not supported; use workspaceId');
   }
 
   getAvatarSamples() {
@@ -220,7 +219,7 @@ export class WorkspacesService {
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     if (dto.name) workspace.name = dto.name;
@@ -249,7 +248,7 @@ export class WorkspacesService {
   async delete(id: string, actorId?: string): Promise<void> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     try {
@@ -272,7 +271,7 @@ export class WorkspacesService {
 
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     this.workspaceDomainEventPublisher.publishDeleted(id, workspace, actorId);
@@ -281,9 +280,7 @@ export class WorkspacesService {
   async restore(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.restore(id);
     if (!workspace) {
-      throw new NotFoundException(
-        `Deleted workspace with ID "${id}" not found`,
-      );
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     try {
@@ -302,7 +299,7 @@ export class WorkspacesService {
   async archive(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${id}" not found`);
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
 
     workspace.status = 'archived';

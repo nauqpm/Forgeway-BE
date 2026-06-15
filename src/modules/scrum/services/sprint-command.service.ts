@@ -15,6 +15,7 @@ import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { CreateSprintDto, UpdateSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 
 @Injectable()
 export class SprintCommandService {
@@ -75,7 +76,7 @@ export class SprintCommandService {
         this.logger.error(
           `[AUDIT LOG] [${timestamp}] Update Sprint Failed | Sprint ID: ${sprintId} | Error: Sprint not exist`,
         );
-        throw new NotFoundException('Sprint not exist');
+        throw new NotFoundException(ErrorFactory.sprintNotFound(sprintId));
       }
 
       if (sprint.status === 'completed') {
@@ -180,11 +181,11 @@ export class SprintCommandService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint not exist');
+      throw new NotFoundException(ErrorFactory.sprintNotFound(sprintId));
     }
 
     if (sprint.status !== 'planning') {
-      throw new BadRequestException('Only planning sprints can be deleted');
+      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('planning', sprint.status));
     }
 
     await this.taskModel

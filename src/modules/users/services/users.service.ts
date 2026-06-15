@@ -13,6 +13,7 @@ import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 
 export interface LoginFailureState {
   failedAttempts: number;
@@ -33,13 +34,13 @@ export class UsersService {
 
     if (!Types.ObjectId.isValid(id)) {
       this.logger.warn(`Invalid user ID: ${id}`);
-      throw new BadRequestException('Invalid User ID format');
+      throw new BadRequestException(ErrorFactory.invalidUserId());
     }
 
     const user = await this.usersRepository.findById(id);
     if (!user) {
       this.logger.warn(`User not found with ID: ${id}`);
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(id));
     }
     return user;
   }
@@ -123,7 +124,7 @@ export class UsersService {
 
     if (!updatedUser) {
       this.logger.warn(`User not found: ${userId}`);
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
 
     return updatedUser;
@@ -144,15 +145,15 @@ export class UsersService {
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
 
     if (!updateData.currentPassword) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException(ErrorFactory.currentPasswordIncorrect());
     }
 
     if (!PASSWORD_POLICY.noWhitespacePattern.test(updateData.password!)) {
-      throw new BadRequestException(PASSWORD_POLICY.noWhitespaceMessage);
+      throw new BadRequestException(ErrorFactory.passwordHasWhitespace());
     }
 
     const isMatch = await bcrypt.compare(
@@ -161,7 +162,7 @@ export class UsersService {
     );
 
     if (!isMatch) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException(ErrorFactory.currentPasswordIncorrect());
     }
 
     updateData.password = await bcrypt.hash(updateData.password!, 10);
@@ -207,7 +208,7 @@ export class UsersService {
   async deleteUser(userId: string): Promise<{ message: string }> {
     const deletedUser = await this.usersRepository.delete(userId);
     if (!deletedUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     return { message: 'User deleted successfully' };
   }
@@ -216,11 +217,11 @@ export class UsersService {
     this.logger.log(`Updating role for User ID: ${userId} to ${role}`);
     const user = await this.usersRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     const updated = await this.usersRepository.update(userId, { role });
     if (!updated) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     this.logger.log(`Role updated for user ${userId} to ${role}`);
     return updated;
@@ -230,11 +231,11 @@ export class UsersService {
     this.logger.log(`Updating status for User ID: ${userId} to ${status}`);
     const user = await this.usersRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     const updated = await this.usersRepository.update(userId, { status });
     if (!updated) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
     this.logger.log(`Status updated for user ${userId} to ${status}`);
     return updated;
@@ -255,7 +256,7 @@ export class UsersService {
   async updatePassword(email: string, newPassword: string) {
     const user = await this.usersRepository.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(ErrorFactory.userNotFound(email));
     }
 
     // Use partial update with $set to avoid overwriting unrelated fields

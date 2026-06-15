@@ -13,6 +13,7 @@ import { TaskMapper } from '../mappers/task.mapper';
 import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskCreationValidationService } from './task-creation-validation.service';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 
 @Injectable()
 export class TaskQueryService {
@@ -261,7 +262,7 @@ export class TaskQueryService {
 
     const task = await this.tasksRepository.findById(id);
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(id));
     }
 
     return this.taskMapper.mapToDto(task);
@@ -305,7 +306,7 @@ export class TaskQueryService {
       includeArchived: true,
     });
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(id));
     }
 
     return this.taskMapper.mapToDto(task);
@@ -314,7 +315,7 @@ export class TaskQueryService {
   async findByKey(key: string): Promise<TaskDto> {
     const task = await this.tasksRepository.findByKey(key);
     if (!task) {
-      throw new NotFoundException(`Task with key ${key} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(key));
     }
 
     return this.taskMapper.mapToDto(task);

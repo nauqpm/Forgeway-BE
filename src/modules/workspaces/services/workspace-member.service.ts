@@ -13,6 +13,7 @@ import {
   SPACE_ROLES,
   SpaceRole,
 } from '../../../common/constants/space-role.constants';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import {
@@ -42,14 +43,12 @@ export class WorkspaceMemberService {
     this.logger.log(`Adding member ${email} to workspace ${workspaceId}`);
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(
-        `Workspace with ID "${workspaceId}" not found`,
-      );
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
     }
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException(`User with email "${email}" not found`);
+      throw new NotFoundException(ErrorFactory.userNotFound(email));
     }
 
     const userId = user._id.toString();
@@ -81,16 +80,14 @@ export class WorkspaceMemberService {
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(
-        `Workspace with ID "${workspaceId}" not found`,
-      );
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
     }
 
     const member = workspace.members.find(
       item => item.userId.toString() === userId,
     );
     if (!member) {
-      throw new NotFoundException(`User "${userId}" is not a member`);
+      throw new NotFoundException(ErrorFactory.workspaceMemberNotFound(userId));
     }
 
     if (workspace.ownerId.toString() === userId) {
@@ -116,16 +113,14 @@ export class WorkspaceMemberService {
   ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(
-        `Workspace with ID "${workspaceId}" not found`,
-      );
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
     }
 
     const member = workspace.members.find(
       item => item.userId.toString() === userId,
     );
     if (!member) {
-      throw new NotFoundException(`User "${userId}" is not a member`);
+      throw new NotFoundException(ErrorFactory.workspaceMemberNotFound(userId));
     }
 
     if (workspace.ownerId.toString() === userId) {
@@ -162,9 +157,7 @@ export class WorkspaceMemberService {
     const workspace =
       await this.workspacesRepository.findByIdWithMembers(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(
-        `Workspace with ID "${workspaceId}" not found`,
-      );
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
     }
     return workspace.members;
   }

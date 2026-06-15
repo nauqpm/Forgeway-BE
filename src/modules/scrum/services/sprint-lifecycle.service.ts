@@ -2,10 +2,10 @@
 // File này kiểm tra trạng thái sprint, kiểm tra active sprint hiện tại,
 // validate target sprint khi đóng sprint, move incomplete tasks.
 import {
-  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -13,6 +13,7 @@ import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { CompleteSprintDto, StartSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { BoardStatusService } from './board-status.service';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 
 @Injectable()
 export class SprintLifecycleService {
@@ -46,13 +47,11 @@ export class SprintLifecycleService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint not exist');
+      throw new NotFoundException(ErrorFactory.sprintNotFound(sprintId));
     }
 
     if (sprint.status !== 'planning') {
-      throw new BadRequestException(
-        'Only sprint in planning status can be started',
-      );
+      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('planning', sprint.status));
     }
 
     const activeSprint = await this.sprintModel
@@ -65,9 +64,7 @@ export class SprintLifecycleService {
       .exec();
 
     if (activeSprint) {
-      throw new BadRequestException(
-        'Cannot start sprint: There is already an active sprint in this workspace.',
-      );
+      throw new BadRequestException(ErrorFactory.activeSprintExists());
     }
 
     sprint.status = 'active';
@@ -102,13 +99,11 @@ export class SprintLifecycleService {
       .exec();
 
     if (!sprint) {
-      throw new NotFoundException('Sprint not exist');
+      throw new NotFoundException(ErrorFactory.sprintNotFound(sprintId));
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException(
-        'Only sprint in active status can be completed',
-      );
+      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('active', sprint.status));
     }
 
     if (moveToSprintObjectId) {
@@ -122,9 +117,7 @@ export class SprintLifecycleService {
         .exec();
 
       if (!targetSprint) {
-        throw new BadRequestException(
-          'moveToSprintId is invalid: Target sprint must exist, belong to the same workspace, and be in the planning status',
-        );
+        throw new BadRequestException(ErrorFactory.sprintTargetInvalid());
       }
     }
 

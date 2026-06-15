@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ErrorFactory } from '../../../common/factories/error.factory';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
@@ -47,7 +48,7 @@ export class TaskLifecycleService {
       userId,
     );
     if (!archived) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskId));
     }
 
     await this.taskActivitiesService.recordTaskArchived(archived, userId);
@@ -82,7 +83,7 @@ export class TaskLifecycleService {
       userId,
     );
     if (!archived) {
-      throw new NotFoundException(`Task with key ${taskKey} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskKey));
     }
 
     this.taskDomainEventPublisher.publishArchived(archived, userId);
@@ -114,7 +115,7 @@ export class TaskLifecycleService {
       userId,
     );
     if (!archived) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskId));
     }
 
     this.taskDomainEventPublisher.publishArchived(archived, userId);
@@ -141,7 +142,7 @@ export class TaskLifecycleService {
       workspaceId,
     );
     if (!restored) {
-      throw new NotFoundException(`Archived task with ID ${taskId} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskId));
     }
 
     await this.taskActivitiesService.recordTaskRestored(restored, userId);
@@ -172,9 +173,7 @@ export class TaskLifecycleService {
       workspaceId,
     );
     if (!restored) {
-      throw new NotFoundException(
-        `Archived task with key ${taskKey} not found`,
-      );
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskKey));
     }
 
     this.taskDomainEventPublisher.publishRestored(restored, userId);
@@ -260,7 +259,7 @@ export class TaskLifecycleService {
       userId,
     );
     if (!deleted) {
-      throw new NotFoundException(`Task with key ${taskKey} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskKey));
     }
 
     this.taskDomainEventPublisher.publishDeleted(deleted, userId);
@@ -292,7 +291,7 @@ export class TaskLifecycleService {
       userId,
     );
     if (!deleted) {
-      throw new NotFoundException(`Task with ID ${taskId} not found`);
+      throw new NotFoundException(ErrorFactory.taskNotFound(taskId));
     }
 
     await this.taskActivitiesService.recordTaskPermanentlyDeleted(
