@@ -1,27 +1,77 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ThrottlerGuard, ThrottlerException } from '@nestjs/throttler';
+import { CHAT_THROTTLE_CONFIG } from '../../modules/chat/constants/chat-throttler.constants';
 
 @Injectable()
 export class SocketThrottlerGuard extends ThrottlerGuard {
-  protected async handleRequest(requestProps: any): Promise<boolean> {
-    const { context, limit, ttl, throttler, generateKey } = requestProps;
-    const client = context.switchToWs().getClient();
+  private readonly logger = new Logger(SocketThrottlerGuard.name);
 
-    // 1. Core Throttler Logic (using default in-memory storage)
-    // Track strictly by authenticated userId
+  protected async handleRequest(requestProps: any): Promise<boolean> {
+    const { context, throttler, generateKey } = requestProps;
+    const client = context.switchToWs().getClient();
+    const handler = context.getHandler();
+
+    // 1. Resolve event name từ metadata của handler
+    const eventMetadata = handler
+      ? (this.reflector.get<string>('message', handler) || this.reflector.get<string | string[]>('events', handler))
+      : null;
+    const eventNames = Array.isArray(eventMetadata) ? eventMetadata : [eventMetadata];
+    const eventName = eventNames[0];
+
+    // 2. Resolve limit và ttl
+    // Mặc định lấy từ requestProps (global default)
+    let limit = requestProps.limit;
+    let ttl = requestProps.ttl;
+
+    // A. Lần đầu thử: Đọc từ @Throttle metadata của method
+    if (handler) {
+      const metadataLimit = this.reflector.get<number>('THROTTLER:LIMITdefault', handler);
+      const metadataTtl = this.reflector.get<number>('THROTTLER:TTLdefault', handler);
+
+      if (metadataLimit !== undefined) {
+        limit = metadataLimit;
+      }
+      if (metadataTtl !== undefined) {
+        ttl = metadataTtl;
+      }
+    }
+
+    // B. Lần hai thử: Fallback tự động map bằng tên event nếu limit/ttl chưa đúng cấu hình chat mong muốn
+    if (eventName) {
+      let config: { limit: number; ttl: number } | null = null;
+      if (eventName === 'chat.send') {
+        config = CHAT_THROTTLE_CONFIG.MESSAGE_SEND.default;
+      } else if (['chat.edit', 'chat.delete', 'chat.mark_read'].includes(eventName)) {
+        config = CHAT_THROTTLE_CONFIG.MESSAGE_ACTION.default;
+      } else if (eventName === 'chat.typing') {
+        config = CHAT_THROTTLE_CONFIG.TYPING.default;
+      } else if (['chat.join', 'chat.leave'].includes(eventName)) {
+        config = CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT.default;
+      }
+
+      if (config) {
+        limit = config.limit;
+        ttl = config.ttl;
+      }
+    }
+
     const tracker = client.data?.user?.userId || 'anonymous';
     const key = generateKey(context, tracker, throttler.name);
+
+    this.logger.log(
+      `handleRequest: eventName=${eventName}, limit=${limit}, ttl=${ttl}, tracker=${tracker}`,
+    );
 
     const { totalHits, timeToExpire } = await this.storageService.increment(
       key,
       ttl,
       limit,
-      throttler.blockDuration || 0,
+      throttler.blockDuration ?? ttl,
       throttler.name,
     );
 
-    // 2. Synchronize with Realtime Module's data structure
-    // This ensures client.data.rateLimit is always updated to reflect the state
+    // 3. Đồng bộ hóa với cấu trúc dữ liệu của Realtime Module
+    // Đảm bảo client.data.rateLimit luôn cập nhật để client biết trạng thái
     if (client.data) {
       const now = Date.now();
       if (
@@ -35,16 +85,26 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
     }
 
     if (totalHits > limit) {
-      // Emit error events compatible with both Chat and Realtime modules
-      client.emit('error', {
+      this.logger.warn(
+        `Rate limit exceeded: key=${key}, totalHits=${totalHits}, limit=${limit}, eventName=${eventName}`,
+      );
+
+      // Phát sự kiện lỗi tương thích với cả Chat và Realtime module (dùng 'exception' thay vì 'error' để tránh ngắt kết nối socket)
+      client.emit('exception', {
         message: 'Too Many Requests',
         statusCode: 429,
         error: 'ThrottlerException',
       });
 
-      // Also emit 'rate_limited' with remaining TTL in milliseconds
-      const remainingMs = timeToExpire ? timeToExpire * 1000 : ttl;
-      client.emit('rate_limited', { retryAfterMs: remainingMs });
+      // Chỉ phát 'rate_limited' với TTL còn lại (mili giây) cho các hành động foreground (tin nhắn)
+      const isForegroundAction = eventNames.some(name => 
+        name && ['chat.send', 'chat.edit', 'chat.delete'].includes(name)
+      );
+
+      if (isForegroundAction) {
+        const remainingMs = timeToExpire ? timeToExpire * 1000 : ttl;
+        client.emit('rate_limited', { retryAfterMs: remainingMs });
+      }
 
       throw new ThrottlerException();
     }
