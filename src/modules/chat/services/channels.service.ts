@@ -103,9 +103,8 @@ export class ChannelsService {
         for (const workspace of allWorkspaces) {
           const workspaceId = workspace._id.toString();
           const channel = await this.channelModel.findOne({
-          const channel = await this.channelModel.findOne({
             workspaceId: new Types.ObjectId(workspaceId),
-            type: 'workspace'
+            type: 'workspace',
           });
 
           if (!channel) {
@@ -516,12 +515,14 @@ export class ChannelsService {
 
       const regex = new RegExp(query, 'i');
       const users = await this.usersService.getUsersByIds(memberIds);
-      return users.filter((user) => {
-        const nameMatch = user.fullName && regex.test(user.fullName);
-        const emailMatch = user.email && regex.test(user.email);
-        const phoneMatch = (user as any).phone && regex.test((user as any).phone);
-        return nameMatch || emailMatch || phoneMatch;
-      });
+      return users
+        .filter((user) => {
+          const nameMatch = user.fullName && regex.test(user.fullName);
+          const emailMatch = user.email && regex.test(user.email);
+          const phoneMatch = (user as any).phone && regex.test((user as any).phone);
+          return nameMatch || emailMatch || phoneMatch;
+        })
+        .slice(0, 10);
     }
 
     // 3. dm
@@ -534,12 +535,14 @@ export class ChannelsService {
 
       const regex = new RegExp(query, 'i');
       const users = await this.usersService.getUsersByIds(memberIds);
-      return users.filter((user) => {
-        const nameMatch = user.fullName && regex.test(user.fullName);
-        const emailMatch = user.email && regex.test(user.email);
-        const phoneMatch = (user as any).phone && regex.test((user as any).phone);
-        return nameMatch || emailMatch || phoneMatch;
-      });
+      return users
+        .filter((user) => {
+          const nameMatch = user.fullName && regex.test(user.fullName);
+          const emailMatch = user.email && regex.test(user.email);
+          const phoneMatch = (user as any).phone && regex.test((user as any).phone);
+          return nameMatch || emailMatch || phoneMatch;
+        })
+        .slice(0, 10);
     }
 
     return [];
