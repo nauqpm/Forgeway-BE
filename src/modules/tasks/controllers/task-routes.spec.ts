@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { JwtService } from '@nestjs/jwt';
 import { Types } from 'mongoose';
 import { TaskQueryController } from './task-query.controller';

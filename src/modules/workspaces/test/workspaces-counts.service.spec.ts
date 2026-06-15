@@ -65,7 +65,7 @@ describe('WorkspacesService workspace counts', () => {
         { provide: UsersService, useValue: {} },
         {
           provide: ChannelsService,
-          useValue: { createDefaultChannel: jest.fn().mockResolvedValue({}) },
+          useValue: { createWorkspaceChannel: jest.fn().mockResolvedValue({}) },
         },
       ],
     }).compile();

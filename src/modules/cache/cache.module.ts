@@ -36,7 +36,9 @@ const logger = new Logger('CacheModule');
           return { ttl, store };
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
-          logger.warn(`Redis unavailable (${msg}) — falling back to in-memory cache`);
+          logger.warn(
+            `Redis unavailable (${msg}) — falling back to in-memory cache`,
+          );
           return { ttl, max };
         }
       },
