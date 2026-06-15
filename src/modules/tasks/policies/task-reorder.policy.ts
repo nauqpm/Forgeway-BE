@@ -64,8 +64,12 @@ export class TaskReorderPolicy {
       throw new BadRequestException(`${fieldName} is not an active task`);
     }
 
-    if (this.toOptionalId(neighbor.sprintId) !== (scope.sprintId ?? undefined)) {
-      throw new BadRequestException(`${fieldName} is outside target sprint scope`);
+    if (
+      this.toOptionalId(neighbor.sprintId) !== (scope.sprintId ?? undefined)
+    ) {
+      throw new BadRequestException(
+        `${fieldName} is outside target sprint scope`,
+      );
     }
 
     if (scope.columnId && neighbor.columnId !== scope.columnId) {

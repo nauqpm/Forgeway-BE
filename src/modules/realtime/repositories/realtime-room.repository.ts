@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
-import { Workspace, WorkspaceDocument } from '../../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '../../workspaces/schemas/workspace.schema';
 
 @Injectable()
 export class RealtimeRoomRepository {

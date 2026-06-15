@@ -94,7 +94,8 @@ export class SprintCommandService {
       let nextEndDate = sprint.endDate;
 
       if (sprint.status === 'planning') {
-        if (dto.startDate !== undefined) nextStartDate = new Date(dto.startDate);
+        if (dto.startDate !== undefined)
+          nextStartDate = new Date(dto.startDate);
         if (dto.endDate !== undefined) nextEndDate = new Date(dto.endDate);
       }
 

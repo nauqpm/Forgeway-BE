@@ -47,7 +47,11 @@ export class WorkspaceRealtimeListener {
     const actorId = event.data.actorId;
     if (actorId) {
       // Emit strictly to the creator, because they are not yet in the workspace room
-      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_CREATED, event, RoomBuilder.user(actorId));
+      this.publishToRoom(
+        REALTIME_EVENT_TYPES.WORKSPACE_CREATED,
+        event,
+        RoomBuilder.user(actorId),
+      );
     }
   }
 
@@ -72,7 +76,11 @@ export class WorkspaceRealtimeListener {
     // Also emit to the actor's personal room so /workspaces page updates in realtime
     const actorId = event.data.actorId;
     if (actorId) {
-      this.publishToRoom(REALTIME_EVENT_TYPES.WORKSPACE_DELETED, event, RoomBuilder.user(actorId));
+      this.publishToRoom(
+        REALTIME_EVENT_TYPES.WORKSPACE_DELETED,
+        event,
+        RoomBuilder.user(actorId),
+      );
     }
   }
 

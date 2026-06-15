@@ -65,7 +65,8 @@ export class PasswordController {
   @Post('verify-otp')
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.passwordResetService.verifyOtpAndIssueGrant(dto);
+      const result =
+        await this.passwordResetService.verifyOtpAndIssueGrant(dto);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.OTP_VERIFIED_GRANT_ISSUED,
         severity: 'INFO',
@@ -99,7 +100,8 @@ export class PasswordController {
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordWithGrantDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.passwordResetService.resetPasswordWithGrant(dto);
+      const result =
+        await this.passwordResetService.resetPasswordWithGrant(dto);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.PASSWORD_RESET_COMPLETED,
         severity: 'INFO',

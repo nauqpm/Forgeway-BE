@@ -47,7 +47,10 @@ export class Workflow {
   @Prop({ type: [SchemaFactory.createForClass(WorkflowStatus)], default: [] })
   statuses!: WorkflowStatus[];
 
-  @Prop({ type: [SchemaFactory.createForClass(WorkflowTransition)], default: [] })
+  @Prop({
+    type: [SchemaFactory.createForClass(WorkflowTransition)],
+    default: [],
+  })
   transitions!: WorkflowTransition[];
 
   readonly _id!: Types.ObjectId;

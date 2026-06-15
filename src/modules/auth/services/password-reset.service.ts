@@ -29,7 +29,9 @@ export class PasswordResetService {
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      this.logger.warn(`Password reset requested for non-existent email: ${dto.email}`);
+      this.logger.warn(
+        `Password reset requested for non-existent email: ${dto.email}`,
+      );
       return genericResponse;
     }
 
@@ -50,7 +52,9 @@ export class PasswordResetService {
     expiresIn: number;
     message: string;
   }> {
-    this.logger.log(`Password reset OTP verification requested for email: ${dto.email}`);
+    this.logger.log(
+      `Password reset OTP verification requested for email: ${dto.email}`,
+    );
 
     await this.otpService.consumeVerifiedOtp(dto.email, dto.otp);
     this.logger.debug(`Password reset OTP consumed for email: ${dto.email}`);
@@ -63,7 +67,9 @@ export class PasswordResetService {
 
     const { resetGrant, expiresInMs } = await this.tokenService.createResetGrant(user._id.toString(), user.email);
 
-    this.logger.log(`Password reset grant issued for userId: ${user._id}; expiresInMs: ${expiresInMs}`);
+    this.logger.log(
+      `Password reset grant issued for userId: ${user._id}; expiresInMs: ${expiresInMs}`,
+    );
     return {
       success: true,
       resetGrant,
@@ -75,7 +81,9 @@ export class PasswordResetService {
   async resetPasswordWithGrant(dto: ResetPasswordWithGrantDto) {
     this.logger.log('Password reset with grant requested');
 
-    const { email } = await this.tokenService.validateResetGrant(dto.resetGrant);
+    const { email } = await this.tokenService.validateResetGrant(
+      dto.resetGrant,
+    );
     this.logger.debug(`Password reset grant validated for email: ${email}`);
 
     const user = await this.usersService.findByEmail(email);
@@ -85,26 +93,35 @@ export class PasswordResetService {
     }
 
     const isSameAsCurrentPassword = user.password
-      ? await this.passwordService.verifyPassword(dto.newPassword, user.password)
+      ? await this.passwordService.verifyPassword(
+          dto.newPassword,
+          user.password,
+        )
       : false;
     if (isSameAsCurrentPassword) {
       this.logger.warn(`Password reset rejected because new password matches current password for userId: ${user._id}`);
       throw new BadRequestException('The new password must be different from the current password.');
     }
 
-    const consumedGrant = await this.tokenService.consumeResetGrant(dto.resetGrant);
+    const consumedGrant = await this.tokenService.consumeResetGrant(
+      dto.resetGrant,
+    );
     if (consumedGrant.email !== email) {
       this.logger.error(`Password reset grant email mismatch during consume for userId: ${user._id}`);
       throw new BadRequestException('Reset grant is invalid.');
     }
     this.logger.debug(`Password reset grant consumed for email: ${email}`);
 
-    const hashedPassword = await this.passwordService.hashPassword(dto.newPassword);
+    const hashedPassword = await this.passwordService.hashPassword(
+      dto.newPassword,
+    );
     await this.usersService.updatePassword(email, hashedPassword);
     this.logger.log(`Password updated for userId: ${user._id}`);
 
     await this.tokenService.invalidateAllTokensForUser(user._id.toString());
-    this.logger.log(`Existing sessions invalidated after password reset for userId: ${user._id}`);
+    this.logger.log(
+      `Existing sessions invalidated after password reset for userId: ${user._id}`,
+    );
 
     return { success: true, message: 'Password has been reset successfully.' };
   }

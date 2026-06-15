@@ -4,7 +4,10 @@ const REQUIRED_ENV_VARS = ['DB_CONNECTION_STRING', 'JWT_SECRET', 'REFRESH_TOKEN_
 
 const MIN_SECRET_LENGTH = 32;
 
-function requireValue(config: Env, key: (typeof REQUIRED_ENV_VARS)[number]): string {
+function requireValue(
+  config: Env,
+  key: (typeof REQUIRED_ENV_VARS)[number],
+): string {
   const value = config[key]?.trim();
   if (!value) {
     throw new Error(`Missing required environment variable: ${key}`);
@@ -12,10 +15,15 @@ function requireValue(config: Env, key: (typeof REQUIRED_ENV_VARS)[number]): str
   return value;
 }
 
-function requireStrongSecret(config: Env, key: 'JWT_SECRET' | 'REFRESH_TOKEN_SECRET'): void {
+function requireStrongSecret(
+  config: Env,
+  key: 'JWT_SECRET' | 'REFRESH_TOKEN_SECRET',
+): void {
   const value = requireValue(config, key);
   if (value.length < MIN_SECRET_LENGTH) {
-    throw new Error(`${key} must be at least ${MIN_SECRET_LENGTH} characters long`);
+    throw new Error(
+      `${key} must be at least ${MIN_SECRET_LENGTH} characters long`,
+    );
   }
 }
 

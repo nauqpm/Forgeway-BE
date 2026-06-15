@@ -122,9 +122,9 @@ describe('SprintCommandService', () => {
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
-      await expect(service.updateSprint(workspaceId, sprintId, { name: 'New Name' })).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.updateSprint(workspaceId, sprintId, { name: 'New Name' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when trying to update dates of non-planning sprint', async () => {
@@ -135,7 +135,9 @@ describe('SprintCommandService', () => {
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
       await expect(
-        service.updateSprint(workspaceId, sprintId, { startDate: new Date().toISOString() }),
+        service.updateSprint(workspaceId, sprintId, {
+          startDate: new Date().toISOString(),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -152,7 +154,9 @@ describe('SprintCommandService', () => {
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
 
       await expect(
-        service.updateSprint(workspaceId, sprintId, { endDate: new Date('2026-06-05').toISOString() }),
+        service.updateSprint(workspaceId, sprintId, {
+          endDate: new Date('2026-06-05').toISOString(),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -203,7 +207,9 @@ describe('SprintCommandService', () => {
         status: 'planning',
       };
       sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
-      sprintModel.deleteOne = jest.fn().mockReturnValue(mockQuery({ deletedCount: 1 }));
+      sprintModel.deleteOne = jest
+        .fn()
+        .mockReturnValue(mockQuery({ deletedCount: 1 }));
       taskModel.updateMany.mockReturnValue(mockQuery({ modifiedCount: 5 }));
 
       await service.deleteSprint(workspaceId, sprintId);

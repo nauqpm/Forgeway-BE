@@ -175,7 +175,8 @@ export class PagesController {
   // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
   @ApiOperation({
     summary: 'Get page by ID',
-    description: 'Fetches a single page and increments its view counter atomically.',
+    description:
+      'Fetches a single page and increments its view counter atomically.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
   @ApiOkResponse({ description: 'Page found', type: PageResponseDto })
@@ -191,9 +192,13 @@ export class PagesController {
   @Get('slug/:slug')
   @ApiOperation({
     summary: 'Get page by slug',
-    description: 'Fetches a single page by its URL-friendly slug and increments the view counter.',
+    description:
+      'Fetches a single page by its URL-friendly slug and increments the view counter.',
   })
-  @ApiParam({ name: 'slug', description: 'URL-friendly slug, e.g. "getting-started-guide"' })
+  @ApiParam({
+    name: 'slug',
+    description: 'URL-friendly slug, e.g. "getting-started-guide"',
+  })
   @ApiOkResponse({ description: 'Page found', type: PageResponseDto })
   @ApiNotFoundResponse({ description: 'No page with the given slug exists' })
   async findBySlug(@Param('slug') slug: string) {
@@ -216,7 +221,10 @@ export class PagesController {
       '`content` accepts the raw HTML string from TipTap.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
-  @ApiOkResponse({ description: 'Page updated successfully', type: PageResponseDto })
+  @ApiOkResponse({
+    description: 'Page updated successfully',
+    type: PageResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Page not found' })
   async update(@Param('id') id: string, @Body() updatePageDto: UpdatePageDto, @Request() req: any) {
     return this.pagesService.update(id, updatePageDto, req.user.userId);
@@ -256,7 +264,10 @@ export class PagesController {
       'Deletes a page **and all its descendants** recursively (via `$graphLookup`). ' +
       'This operation is irreversible. Requires WORKSPACE_ADMIN role.',
   })
-  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page to delete' })
+  @ApiParam({
+    name: 'id',
+    description: 'MongoDB ObjectId of the page to delete',
+  })
   @ApiNoContentResponse({ description: 'Page and all descendants deleted' })
   @ApiNotFoundResponse({ description: 'Page not found' })
   async delete(@Param('id') id: string) {
@@ -289,7 +300,10 @@ export class PagesController {
       },
     },
   })
-  @ApiOkResponse({ description: 'Page moved successfully', type: PageResponseDto })
+  @ApiOkResponse({
+    description: 'Page moved successfully',
+    type: PageResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Page or new parent not found' })
   async moveToParent(@Param('id') id: string, @Body('parentId') parentId: string | null) {
     return this.pagesService.moveToParent(id, parentId);
@@ -303,7 +317,8 @@ export class PagesController {
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Publish a page',
-    description: 'Sets the page status to `published`. Idempotent — safe to call on already-published pages.',
+    description:
+      'Sets the page status to `published`. Idempotent — safe to call on already-published pages.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
   @ApiOkResponse({ description: 'Page published', type: PageResponseDto })
@@ -323,7 +338,10 @@ export class PagesController {
     description: 'Reverts the page status back to `draft`.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
-  @ApiOkResponse({ description: 'Page reverted to draft', type: PageResponseDto })
+  @ApiOkResponse({
+    description: 'Page reverted to draft',
+    type: PageResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Page not found' })
   async unpublish(@Param('id') id: string) {
     return this.pagesService.unpublish(id);
@@ -336,7 +354,8 @@ export class PagesController {
   // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({
     summary: 'Get all pages in a workspace',
-    description: 'Returns **all** pages (all levels) for the workspace, sorted by title.',
+    description:
+      'Returns **all** pages (all levels) for the workspace, sorted by title.',
   })
   @ApiParam({ name: 'workspaceId', description: 'The ID of the workspace' })
   @ApiOkResponse({ description: 'List of pages', type: [PageResponseDto] })
@@ -407,9 +426,15 @@ export class PagesController {
       },
     },
   })
-  @ApiOkResponse({ description: 'Updated page with new label set', type: PageResponseDto })
+  @ApiOkResponse({
+    description: 'Updated page with new label set',
+    type: PageResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Page not found' })
-  async updateLabels(@Param('id') id: string, @Body('labels') labels: string[]) {
+  async updateLabels(
+    @Param('id') id: string,
+    @Body('labels') labels: string[],
+  ) {
     const page = await this.pagesService.findById(id);
 
     for (const label of labels) {

@@ -27,6 +27,8 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { AuthenticationService } from '../services/authentication.service';
 import { TokenService } from '../services/token.service';
+import { AccountSwitcherService } from '../services/account-switcher.service';
+import { RecentLoginsService } from '../services/recent-logins.service';
 import { UsersService } from '../../users/services/users.service';
 import { RegisterDto, LoginDto, VerifyEmailDto, ResendVerificationDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
@@ -34,7 +36,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogService } from '../../audit/services/audit-log.service';
-import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
+import { clearAuthCookies, getDeviceIdFromRequest, setAuthCookies, setDeviceIdCookie } from '../utils/cookie.utils';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
@@ -65,6 +67,8 @@ export class AuthController {
     private readonly userService: UsersService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
+    private readonly accountSwitcher: AccountSwitcherService,
+    private readonly recentLoginsService: RecentLoginsService,
   ) {}
 
   @ApiOperation({ summary: 'Check email before registration' })
@@ -168,7 +172,10 @@ export class AuthController {
   @Post('verify-email')
   async verifyEmail(@Body() dto: VerifyEmailDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.authenticationService.verifyRegistrationEmail(dto.email, dto.code);
+      const result = await this.authenticationService.verifyRegistrationEmail(
+        dto.email,
+        dto.code,
+      );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_SUCCESS,
         severity: 'INFO',
@@ -201,9 +208,15 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 15 * 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('resend-verification')
-  async resendVerification(@Body() dto: ResendVerificationDto, @Req() req: ExpressRequest) {
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+    @Req() req: ExpressRequest,
+  ) {
     try {
-      const result = await this.authenticationService.resendRegistrationVerification(dto.email);
+      const result =
+        await this.authenticationService.resendRegistrationVerification(
+          dto.email,
+        );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_RESENT,
         severity: 'INFO',
@@ -275,6 +288,73 @@ export class AuthController {
 
       setAuthCookies(res, this.configService, result.tokens);
 
+      // Hook: remember this account under any active session owner.
+      // If the request carries an existing access token, treat its userId as the owner
+      // and remember the freshly-logged-in account. This is what populates the
+      // "Switch account" dropdown for users who share a browser.
+      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as string | undefined;
+      const ownerUserId = this.tokenService.peekUserIdFromAccessToken(existingAccess);
+      if (ownerUserId && ownerUserId !== result.user.id) {
+        try {
+          const ip =
+            (req.headers['x-forwarded-for'] as string | undefined)
+              ?.split(',')[0]
+              ?.trim() ?? req.ip ?? undefined;
+          const userAgent = (req.headers['user-agent'] as string | undefined) ?? undefined;
+          await this.accountSwitcher.rememberAccount(
+            ownerUserId,
+            {
+              id: result.user.id,
+              email: result.user.email,
+              fullName: result.user.fullName,
+              avatar: result.user.avatar,
+              role: result.user.role,
+              ssoProvider:
+                result.user.ssoProvider === 'google' ? 'google' : null,
+            },
+            { ip, userAgent },
+          );
+        } catch (rememberErr) {
+          // Never let rememberAccount break login; just log
+          this.logger.warn(
+            `rememberAccount failed: ${(rememberErr as Error).message}`,
+          );
+        }
+      }
+
+      // Hook: ghi nhận account này là "gần đây trên thiết bị" — luôn chạy,
+      // kể cả khi không có owner cũ (khác với rememberAccount ở trên).
+      // Cho phép hiển thị "Tài khoản gần đây" trong dropdown sau khi user logout.
+      try {
+        const ip =
+          (req.headers['x-forwarded-for'] as string | undefined)
+            ?.split(',')[0]
+            ?.trim() ?? req.ip ?? undefined;
+        const userAgent = (req.headers['user-agent'] as string | undefined) ?? undefined;
+        let deviceId = getDeviceIdFromRequest(req);
+        if (!deviceId) {
+          deviceId = RecentLoginsService.generateDeviceId();
+          setDeviceIdCookie(res, this.configService, deviceId);
+        }
+        await this.recentLoginsService.remember(
+          deviceId,
+          {
+            id: result.user.id,
+            email: result.user.email,
+            fullName: result.user.fullName,
+            avatar: result.user.avatar,
+            role: result.user.role,
+            ssoProvider:
+              result.user.ssoProvider === 'google' ? 'google' : null,
+          },
+          { ip, userAgent },
+        );
+      } catch (recentErr) {
+        this.logger.warn(
+          `recentLogins.remember failed: ${(recentErr as Error).message}`,
+        );
+      }
+
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
         severity: 'INFO',
@@ -319,12 +399,17 @@ export class AuthController {
 
     const accessTokenFromCookie = req.cookies?.[COOKIE_NAMES.ACCESS];
     const authHeader = req.headers.authorization;
-    const accessTokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const accessTokenFromHeader = authHeader?.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : undefined;
     const accessToken = accessTokenFromCookie || accessTokenFromHeader;
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH];
 
     try {
-      const result = await this.tokenService.revokeSessionTokens(accessToken, refreshToken);
+      const result = await this.tokenService.revokeSessionTokens(
+        accessToken,
+        refreshToken,
+      );
 
       clearAuthCookies(res, this.configService);
 
@@ -371,7 +456,8 @@ export class AuthController {
     @Body() body: RefreshTokenDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH] ?? body?.refreshToken;
+    const refreshToken =
+      req.cookies?.[COOKIE_NAMES.REFRESH] ?? body?.refreshToken;
 
     if (!refreshToken) {
       this.auditLogService.logRequest(req, {
@@ -385,7 +471,10 @@ export class AuthController {
     try {
       const result = await this.tokenService.refreshAccessToken(refreshToken);
 
-      setAuthCookies(res, this.configService, { accessToken: result.accessToken, refreshToken: result.refreshToken });
+      setAuthCookies(res, this.configService, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.REFRESH_SUCCESS,

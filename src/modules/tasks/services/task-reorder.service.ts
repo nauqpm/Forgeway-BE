@@ -46,7 +46,8 @@ export class TaskReorderService {
     this.ensureReorderHasMutation(dto);
     this.ensureNeighborIdsAreValid(dto, taskId);
 
-    const workspace = await this.validationService.getWorkspaceById(workspaceId);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
     this.validationService.validateObjectId(taskId, 'Task');
 
@@ -66,7 +67,10 @@ export class TaskReorderService {
     }
 
     const currentSprint = currentSprintId
-      ? await this.scrumService.findByIdInWorkspace(workspaceId, currentSprintId)
+      ? await this.scrumService.findByIdInWorkspace(
+          workspaceId,
+          currentSprintId,
+        )
       : null;
     const targetSprint = targetSprintId
       ? await this.scrumService.findByIdInWorkspace(workspaceId, targetSprintId)
@@ -175,7 +179,10 @@ export class TaskReorderService {
 
     const boundaryRanks = this.resolveBoundaryRanks(task, beforeTask, afterTask, scopeTasks);
 
-    return generateRankBetween(boundaryRanks.beforeRank, boundaryRanks.afterRank);
+    return generateRankBetween(
+      boundaryRanks.beforeRank,
+      boundaryRanks.afterRank,
+    );
   }
 
   private resolveBoundaryRanks(
@@ -227,7 +234,11 @@ export class TaskReorderService {
       !task.rank ||
       Boolean(beforeTask && !beforeTask.rank) ||
       Boolean(afterTask && !afterTask.rank) ||
-      Boolean(beforeTask?.rank && afterTask?.rank && beforeTask.rank === afterTask.rank) ||
+      Boolean(
+        beforeTask?.rank &&
+        afterTask?.rank &&
+        beforeTask.rank === afterTask.rank,
+      ) ||
       task.rank === nextRank
     );
   }
@@ -271,7 +282,8 @@ export class TaskReorderService {
       .map(({ taskId: id, newRank }) => ({ taskId: id, rank: newRank }));
 
     return {
-      nextRank: withNewRanks[movedIndex]?.newRank ?? task.rank ?? generateRankBetween(),
+      nextRank:
+        withNewRanks[movedIndex]?.newRank ?? task.rank ?? generateRankBetween(),
       rankUpdates,
     };
   }
@@ -339,7 +351,8 @@ export class TaskReorderService {
     sprintId: string | null,
     rankScope: 'board' | 'sprint' = 'board',
   ): TaskReorderScope {
-    const isScrumSprintList = workspaceType === 'scrum' && rankScope === 'sprint';
+    const isScrumSprintList =
+      workspaceType === 'scrum' && rankScope === 'sprint';
     const isScrumBacklog = workspaceType === 'scrum' && sprintId === null;
     const shouldScopeByColumn = !isScrumSprintList && !isScrumBacklog;
 

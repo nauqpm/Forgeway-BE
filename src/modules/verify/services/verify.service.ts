@@ -21,7 +21,9 @@ export class VerifyService {
 
   async generateVerificationCode(email: string): Promise<string> {
     const code = this.generateCode();
-    this.logger.debug(`[DEBUG] Generated Verification Code for ${email}: ${code}`);
+    this.logger.debug(
+      `[DEBUG] Generated Verification Code for ${email}: ${code}`,
+    );
 
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
@@ -49,13 +51,17 @@ export class VerifyService {
     });
 
     if (!verification) {
-      this.logger.warn(`Verification failed for ${email}: Invalid or expired code`);
+      this.logger.warn(
+        `Verification failed for ${email}: Invalid or expired code`,
+      );
       throw new BadRequestException('Invalid or expired verification code');
     }
 
     const now = new Date();
     if (verification.expiresAt < now) {
-      this.logger.warn(`Verification failed for ${email}: Code expired at ${verification.expiresAt}`);
+      this.logger.warn(
+        `Verification failed for ${email}: Code expired at ${verification.expiresAt}`,
+      );
       throw new BadRequestException('Verification code has expired');
     }
 
@@ -120,7 +126,9 @@ export class VerifyService {
     const result = await this.verifyModel.deleteMany({
       expiresAt: { $lt: new Date() },
     });
-    this.logger.log(`Cleaned up ${result.deletedCount} expired verification codes`);
+    this.logger.log(
+      `Cleaned up ${result.deletedCount} expired verification codes`,
+    );
     return result.deletedCount;
   }
 }

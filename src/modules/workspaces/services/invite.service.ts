@@ -149,7 +149,11 @@ export class InviteService {
     await this.inviteRepository.updateStatus(inviteId, INVITE_STATUS.EXPIRED);
   }
 
-  async acceptInvite(token: string, userId: string, userEmail: string): Promise<void> {
+  async acceptInvite(
+    token: string,
+    userId: string,
+    userEmail: string,
+  ): Promise<void> {
     const invite = await this.inviteRepository.findByToken(token);
     if (!invite) throw new NotFoundException('Invite not found');
 
@@ -183,7 +187,9 @@ export class InviteService {
     const invite = await this.inviteRepository.findByToken(token);
     if (!invite) throw new NotFoundException('Invite not found');
 
-    const workspace = await this.workspacesRepository.findById(invite.workspaceId.toString());
+    const workspace = await this.workspacesRepository.findById(
+      invite.workspaceId.toString(),
+    );
 
     return {
       workspaceId: invite.workspaceId.toString(),
@@ -255,7 +261,12 @@ export class InviteService {
         await this.workspacesRepository.addMember(invite.workspaceId.toString(), userId, invite.role);
         await this.inviteRepository.updateStatus((invite as any)._id.toString(), INVITE_STATUS.ACCEPTED);
         if (workspace) {
-          this.publishWorkspaceMemberJoinedEvent(workspace, userId, invite.role, userId);
+          this.publishWorkspaceMemberJoinedEvent(
+            workspace,
+            userId,
+            invite.role,
+            userId,
+          );
         }
       }),
     );
@@ -381,7 +392,9 @@ export class InviteService {
   }
 
   private buildAcceptUrl(token: string): string {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL')?.replace(/\/$/, '');
+    const frontendUrl = this.configService
+      .get<string>('FRONTEND_URL')
+      ?.replace(/\/$/, '');
     if (!frontendUrl) {
       throw new BadRequestException('FRONTEND_URL is not configured');
     }
@@ -426,7 +439,9 @@ export class InviteService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Failed to create workspace invite notification: ${message}`);
+      this.logger.warn(
+        `Failed to create workspace invite notification: ${message}`,
+      );
     }
   }
 }

@@ -88,7 +88,11 @@ export class FilterTaskDto {
       'Single status or multi-select statuses. Supports status=todo,inprogress or repeated status query params.',
     oneOf: [
       { type: 'string', example: 'todo' },
-      { type: 'array', items: { type: 'string' }, example: ['todo', 'inprogress', 'testing'] },
+      {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['todo', 'inprogress', 'testing'],
+      },
     ],
   })
   @IsOptional()
@@ -134,12 +138,28 @@ export class FilterTaskDto {
   limit?: number;
 
   @ApiPropertyOptional({
-    enum: ['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt'],
+    enum: [
+      'createdAt',
+      'updatedAt',
+      'key',
+      'priority',
+      'status',
+      'rank',
+      'archivedAt',
+    ],
     default: 'createdAt',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt'])
+  @IsIn([
+    'createdAt',
+    'updatedAt',
+    'key',
+    'priority',
+    'status',
+    'rank',
+    'archivedAt',
+  ])
   sortBy?: string;
 
   @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })

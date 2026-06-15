@@ -21,7 +21,9 @@ export class ForYouService {
     const workspaces = await this.workspacesRepository.findActiveForUserOverview(userId);
     const workspaceDtos = workspaces.map(workspace => this.mapWorkspaceToForYouDto(workspace, userId));
 
-    this.logger.log(`Retrieved ${workspaceDtos.length} for-you workspaces for user ${userId}`);
+    this.logger.log(
+      `Retrieved ${workspaceDtos.length} for-you workspaces for user ${userId}`,
+    );
     return {
       success: true,
       workspaces: workspaceDtos,

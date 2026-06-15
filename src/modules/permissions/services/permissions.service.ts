@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Permission, PermissionDocument } from '../schemas/permission.schema';
-import { UserPermission, UserPermissionDocument } from '../schemas/user-permission.schema';
+import {
+  UserPermission,
+  UserPermissionDocument,
+} from '../schemas/user-permission.schema';
 import { CreatePermissionDto } from '../dtos/create-permission.dto';
 import { UpdateUserPermissionsDto } from '../dtos/update-user-permissions.dto';
 
@@ -68,7 +71,11 @@ export class PermissionsService {
     }
   }
 
-  async checkUserPermission(userId: string, resource: string, action: string): Promise<boolean> {
+  async checkUserPermission(
+    userId: string,
+    resource: string,
+    action: string,
+  ): Promise<boolean> {
     try {
       const allPermissions = await this.getUserPermissions(userId);
 
@@ -77,7 +84,9 @@ export class PermissionsService {
         permission => permission.resource === resource && permission.action === action,
       );
 
-      console.log(`Checking permission for ${resource}:${action} - Result: ${hasPermission}`);
+      console.log(
+        `Checking permission for ${resource}:${action} - Result: ${hasPermission}`,
+      );
       return hasPermission;
     } catch (error) {
       console.error('Error checking user permission:', error);
@@ -85,10 +94,14 @@ export class PermissionsService {
     }
   }
 
-  async updateUserPermissions(updateDto: UpdateUserPermissionsDto): Promise<UserPermissionDocument[]> {
+  async updateUserPermissions(
+    updateDto: UpdateUserPermissionsDto,
+  ): Promise<UserPermissionDocument[]> {
     try {
       if (!updateDto.userId || !Array.isArray(updateDto.permissionIds)) {
-        throw new Error('Invalid input: userId is required and permissionIds must be an array');
+        throw new Error(
+          'Invalid input: userId is required and permissionIds must be an array',
+        );
       }
 
       const userId = new Types.ObjectId(updateDto.userId);
@@ -139,7 +152,10 @@ export class PermissionsService {
     } catch (error) {
       const err = error as Error;
       console.error('Error updating user permissions:', error);
-      if (err.message.includes('Invalid input') || err.message.includes('Invalid permission ID format')) {
+      if (
+        err.message.includes('Invalid input') ||
+        err.message.includes('Invalid permission ID format')
+      ) {
         throw new Error(`Bad Request: ${err.message}`);
       }
       throw error;

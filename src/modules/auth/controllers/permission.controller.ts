@@ -56,7 +56,8 @@ export class PermissionController {
         };
       }
 
-      const userPermissions = await this.permissionsService.getUserPermissions(userId);
+      const userPermissions =
+        await this.permissionsService.getUserPermissions(userId);
       return {
         role,
         permissions: userPermissions.map(permission => ({
@@ -69,7 +70,10 @@ export class PermissionController {
       };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi lấy quyền người dùng: ${err.message}`, err.stack);
+      this.logger.error(
+        `❌ Lỗi khi lấy quyền người dùng: ${err.message}`,
+        err.stack,
+      );
       throw error;
     }
   }
@@ -90,7 +94,8 @@ export class PermissionController {
   async checkPermission(@Request() req) {
     try {
       const userId = req.user.userId;
-      const userPermissions = await this.permissionsService.getUserPermissions(userId);
+      const userPermissions =
+        await this.permissionsService.getUserPermissions(userId);
       return {
         success: true,
         permissions: userPermissions.map(up => ({

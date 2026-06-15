@@ -5,7 +5,10 @@ import { Board, BoardSchema } from '../kanban/schemas/kanban-board.schema';
 import { KanbanModule } from '../kanban/kanban.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { AuthModule } from '../auth/auth.module';
-import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ScrumController } from './controllers/scrum.controller';
 import { Sprint, SprintSchema } from './schemas/sprint.schema';

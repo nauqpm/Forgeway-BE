@@ -57,7 +57,18 @@ export class Comment {
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);
 CommentSchema.index({ targetType: 1, targetId: 1, isDeleted: 1, createdAt: 1 });
-CommentSchema.index({ workspaceId: 1, targetType: 1, targetId: 1, isDeleted: 1, createdAt: 1 });
-CommentSchema.index({ workspaceId: 1, targetType: 1, targetId: 1, parentId: 1 });
+CommentSchema.index({
+  workspaceId: 1,
+  targetType: 1,
+  targetId: 1,
+  isDeleted: 1,
+  createdAt: 1,
+});
+CommentSchema.index({
+  workspaceId: 1,
+  targetType: 1,
+  targetId: 1,
+  parentId: 1,
+});
 CommentSchema.index({ parentId: 1 });
 CommentSchema.index({ authorId: 1 });

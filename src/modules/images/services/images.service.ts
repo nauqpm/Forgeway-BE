@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { promises as fs } from 'fs';
@@ -16,7 +21,11 @@ export class ImagesService {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async create(dto: CreateImageDto, file: Express.Multer.File, userId: string): Promise<ImageDocument> {
+  async create(
+    dto: CreateImageDto,
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<ImageDocument> {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -41,7 +50,10 @@ export class ImagesService {
         try {
           await fs.unlink(file.path);
         } catch (err) {
-          this.logger.error(`Failed to delete local temp file: ${file.path}`, err);
+          this.logger.error(
+            `Failed to delete local temp file: ${file.path}`,
+            err,
+          );
         }
       } else {
         // Case: Uploaded via memoryStorage
@@ -51,7 +63,9 @@ export class ImagesService {
       url = result.secure_url;
     } else if (file.path || file.destination) {
       // Case: Standard local storage
-      const relativePath = file.destination ? file.destination.replace(/\\/g, '/') : 'uploads/others';
+      const relativePath = file.destination
+        ? file.destination.replace(/\\/g, '/')
+        : 'uploads/others';
       url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
     } else {
       // Fallback
@@ -120,7 +134,12 @@ export class ImagesService {
     userId?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ images: ImageDocument[]; total: number; page: number; limit: number }> {
+  }): Promise<{
+    images: ImageDocument[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { targetType, targetId, userId, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
@@ -130,7 +149,12 @@ export class ImagesService {
     if (userId) filter.uploadedBy = new Types.ObjectId(userId);
 
     const [images, total] = await Promise.all([
-      this.imageModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+      this.imageModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
       this.imageModel.countDocuments(filter).exec(),
     ]);
 

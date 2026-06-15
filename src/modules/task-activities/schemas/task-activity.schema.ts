@@ -12,7 +12,13 @@ export class TaskActivity {
   @Prop({ type: Types.ObjectId, ref: 'Task', required: true, index: true })
   taskId!: Types.ObjectId;
 
-  @Prop({ type: String, required: true, trim: true, uppercase: true, index: true })
+  @Prop({
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true,
+    index: true,
+  })
   taskKey!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })

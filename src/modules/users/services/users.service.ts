@@ -6,6 +6,7 @@ import { User } from '../schemas/users.schema';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUsersDto } from '../dtos/update-users.dto';
 import * as bcrypt from 'bcrypt';
+import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 
 export interface LoginFailureState {
@@ -20,10 +21,18 @@ export interface LoginFailureState {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+  ) {}
 
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Fetching user by ID: ${id}`);
+    
+    if (!Types.ObjectId.isValid(id)) {
+      this.logger.warn(`Invalid user ID: ${id}`);
+      throw new BadRequestException('Invalid User ID format');
+    }
+
     const user = await this.usersRepository.findById(id);
     if (!user) {
       this.logger.warn(`User not found with ID: ${id}`);
@@ -210,6 +219,18 @@ export class UsersService {
     return updated;
   }
 
+  async searchUsers(query: string, excludeUserId: string): Promise<User[]> {
+    const users = await this.usersRepository.search(query, excludeUserId);
+    return users;
+  }
+
+  async getUsersByIds(ids: string[]): Promise<User[]> {
+    return this.usersRepository.findByIds(ids);
+  }
+
+  /**
+   * 🔄 Cập nhật mật khẩu cho người dùng
+   */
   async updatePassword(email: string, newPassword: string) {
     const user = await this.usersRepository.findByEmail(email);
     if (!user) {

@@ -7,7 +7,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Workflow.name, schema: WorkflowSchema }]), forwardRef(() => AuthModule)],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Workflow.name, schema: WorkflowSchema },
+    ]),
+    forwardRef(() => AuthModule),
+  ],
   controllers: [WorkflowsController],
   providers: [WorkflowsService, JwtAuthGuard],
   exports: [WorkflowsService, JwtAuthGuard],

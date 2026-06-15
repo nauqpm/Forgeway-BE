@@ -9,7 +9,11 @@ describe('InviteController', () => {
   let controller: InviteController;
   let service: jest.Mocked<InviteService>;
 
-  const mockUser = { userId: 'useridabc', email: 'admin@example.com', role: 'user' };
+  const mockUser = {
+    userId: 'useridabc',
+    email: 'admin@example.com',
+    role: 'user',
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -45,9 +49,17 @@ describe('InviteController', () => {
     const dto = { email: 'new@example.com', role: SPACE_ROLES.MEMBER };
     service.createInvite.mockResolvedValue({ token: 'abc' } as any);
 
-    const result = await controller.createInvite('workspaceId', mockUser as any, dto);
+    const result = await controller.createInvite(
+      'workspaceId',
+      mockUser as any,
+      dto,
+    );
 
-    expect(service.createInvite).toHaveBeenCalledWith('workspaceId', mockUser.userId, dto);
+    expect(service.createInvite).toHaveBeenCalledWith(
+      'workspaceId',
+      mockUser.userId,
+      dto,
+    );
     expect(result).toEqual({ token: 'abc' });
   });
 
@@ -55,9 +67,17 @@ describe('InviteController', () => {
     const dto = { role: SPACE_ROLES.VIEWER };
     service.createInviteLink.mockResolvedValue({ token: 'link-token' } as any);
 
-    const result = await controller.createInviteLink('workspaceId', mockUser as any, dto);
+    const result = await controller.createInviteLink(
+      'workspaceId',
+      mockUser as any,
+      dto,
+    );
 
-    expect(service.createInviteLink).toHaveBeenCalledWith('workspaceId', mockUser.userId, dto);
+    expect(service.createInviteLink).toHaveBeenCalledWith(
+      'workspaceId',
+      mockUser.userId,
+      dto,
+    );
     expect(result).toEqual({ token: 'link-token' });
   });
 
@@ -74,7 +94,10 @@ describe('InviteController', () => {
 
     await controller.cancelInvite('workspaceId', 'inviteId');
 
-    expect(service.cancelInvite).toHaveBeenCalledWith('workspaceId', 'inviteId');
+    expect(service.cancelInvite).toHaveBeenCalledWith(
+      'workspaceId',
+      'inviteId',
+    );
   });
 
   it('getInviteById calls service with inviteId, userId, userEmail', async () => {
@@ -112,7 +135,9 @@ describe('InviteController', () => {
     );
   });
   it('getInviteByToken calls service with token', async () => {
-    service.getInviteByToken.mockResolvedValue({ workspaceName: 'Test' } as any);
+    service.getInviteByToken.mockResolvedValue({
+      workspaceName: 'Test',
+    } as any);
 
     await controller.getInviteByToken('some-token');
 

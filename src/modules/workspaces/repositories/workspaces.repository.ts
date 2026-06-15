@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workspace, WorkspaceDocument } from '../schemas/workspace.schema';
-import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
+import {
+  CreateWorkspaceDto,
+  UpdateWorkspaceDto,
+} from '../dtos/create-workspace.dto';
 
 @Injectable()
 export class WorkspacesRepository {
@@ -61,7 +64,9 @@ export class WorkspacesRepository {
       .exec();
   }
 
-  async findActiveForUserOverview(userId: string): Promise<WorkspaceDocument[]> {
+  async findActiveForUserOverview(
+    userId: string,
+  ): Promise<WorkspaceDocument[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
     }
@@ -72,7 +77,9 @@ export class WorkspacesRepository {
         deletedAt: null,
         $or: [{ ownerId: objectUserId }, { 'members.userId': objectUserId }],
       })
-      .select('_id name description slug key type ownerId members status createdAt updatedAt')
+      .select(
+        '_id name description slug key type ownerId members status createdAt updatedAt',
+      )
       .sort({ updatedAt: -1 })
       .exec();
   }

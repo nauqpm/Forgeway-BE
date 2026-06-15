@@ -41,7 +41,10 @@ export class InviteController {
 
   @ApiBearerAuth()
   @Get(':id/invites')
-  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN))
+  @UseGuards(
+    JwtAuthGuard,
+    ScopedRoleGuard('workspace', SPACE_ROLES.WORKSPACE_ADMIN),
+  )
   getInvites(@Param('id') workspaceId: string) {
     return this.inviteService.getInvites(workspaceId);
   }

@@ -1,4 +1,12 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsUrl, Matches, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsEnum,
+  IsUrl,
+  Matches,
+  IsNotEmpty,
+} from 'class-validator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 

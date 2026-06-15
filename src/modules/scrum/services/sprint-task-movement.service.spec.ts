@@ -46,7 +46,10 @@ describe('SprintTaskMovementService', () => {
   describe('moveTasksToSprint', () => {
     const workspaceId = new Types.ObjectId().toString();
     const sprintId = new Types.ObjectId().toString();
-    const taskIds = [new Types.ObjectId().toString(), new Types.ObjectId().toString()];
+    const taskIds = [
+      new Types.ObjectId().toString(),
+      new Types.ObjectId().toString(),
+    ];
 
     it('throws BadRequestException if taskIds is empty', async () => {
       await expect(service.moveTasksToSprint(workspaceId, sprintId, [])).rejects.toThrow(BadRequestException);
@@ -75,7 +78,9 @@ describe('SprintTaskMovementService', () => {
       taskModel.countDocuments.mockReturnValue({
         exec: jest.fn().mockResolvedValue(taskIds.length),
       });
-      sprintModel.findOne.mockReturnValue(mockQuery({ _id: new Types.ObjectId(sprintId), status: 'completed' }));
+      sprintModel.findOne.mockReturnValue(
+        mockQuery({ _id: new Types.ObjectId(sprintId), status: 'completed' }),
+      );
 
       await expect(service.moveTasksToSprint(workspaceId, sprintId, taskIds)).rejects.toThrow(BadRequestException);
     });
@@ -91,8 +96,12 @@ describe('SprintTaskMovementService', () => {
       taskModel.find.mockReturnValue(mockQuery(mockTasksWithSprints));
 
       sprintModel.findOne
-        .mockReturnValueOnce(mockQuery({ _id: new Types.ObjectId(sprintId), status: 'active' })) // target sprint check
-        .mockReturnValueOnce(mockQuery({ _id: new Types.ObjectId(), status: 'completed' })); // source sprint check (completed)
+        .mockReturnValueOnce(
+          mockQuery({ _id: new Types.ObjectId(sprintId), status: 'active' }),
+        ) // target sprint check
+        .mockReturnValueOnce(
+          mockQuery({ _id: new Types.ObjectId(), status: 'completed' }),
+        ); // source sprint check (completed)
 
       await expect(service.moveTasksToSprint(workspaceId, sprintId, taskIds, false)).rejects.toThrow(
         BadRequestException,
@@ -107,9 +116,16 @@ describe('SprintTaskMovementService', () => {
 
       // tasks being moved have no sprint (from backlog)
       taskModel.find.mockReturnValue(mockQuery([]));
-      taskModel.updateMany.mockReturnValue(mockQuery({ modifiedCount: taskIds.length }));
+      taskModel.updateMany.mockReturnValue(
+        mockQuery({ modifiedCount: taskIds.length }),
+      );
 
-      const result = await service.moveTasksToSprint(workspaceId, sprintId, taskIds, false);
+      const result = await service.moveTasksToSprint(
+        workspaceId,
+        sprintId,
+        taskIds,
+        false,
+      );
 
       expect(taskModel.updateMany).toHaveBeenCalledWith(
         {
@@ -131,9 +147,15 @@ describe('SprintTaskMovementService', () => {
         exec: jest.fn().mockResolvedValue(taskIds.length),
       });
       taskModel.find.mockReturnValue(mockQuery([])); // not from completed sprint
-      taskModel.updateMany.mockReturnValue(mockQuery({ modifiedCount: taskIds.length }));
+      taskModel.updateMany.mockReturnValue(
+        mockQuery({ modifiedCount: taskIds.length }),
+      );
 
-      const result = await service.moveTasksToBacklog(workspaceId, taskIds, false);
+      const result = await service.moveTasksToBacklog(
+        workspaceId,
+        taskIds,
+        false,
+      );
 
       expect(taskModel.updateMany).toHaveBeenCalledWith(
         {

@@ -1,8 +1,15 @@
-import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Types } from 'mongoose';
 import { SPACE_ROLES } from '../constants/space-role.constants';
-import { WORKSPACE_PERMISSIONS, getPermissionsForWorkspaceRole } from '../constants/workspace-permissions.constants';
+import {
+  WORKSPACE_PERMISSIONS,
+  getPermissionsForWorkspaceRole,
+} from '../constants/workspace-permissions.constants';
 import { WorkspaceRoleGuard } from './workspace-role.guard';
 
 const workspaceId = new Types.ObjectId();
@@ -61,7 +68,9 @@ describe('WorkspaceRoleGuard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    reflector.getAllAndOverride.mockReturnValue([WORKSPACE_PERMISSIONS.TASK_MOVE]);
+    reflector.getAllAndOverride.mockReturnValue([
+      WORKSPACE_PERMISSIONS.TASK_MOVE,
+    ]);
     workspacesService.findByKey.mockResolvedValue({
       _id: workspaceId,
       ownerId,
@@ -88,7 +97,9 @@ describe('WorkspaceRoleGuard', () => {
     };
 
     await expect(guard.canActivate(makeContext(request))).resolves.toBe(true);
-    expect((request as any).workspaceAuth.permissions).toContain(WORKSPACE_PERMISSIONS.TASK_MOVE);
+    expect((request as any).workspaceAuth.permissions).toContain(
+      WORKSPACE_PERMISSIONS.TASK_MOVE,
+    );
   });
 
   it('rejects key strings passed to id-only workspaceId params', async () => {
@@ -98,7 +109,9 @@ describe('WorkspaceRoleGuard', () => {
       user: { userId: memberId.toString(), role: 'user' },
     };
 
-    await expect(guard.canActivate(makeContext(request))).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      guard.canActivate(makeContext(request)),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(workspacesService.findByKey).not.toHaveBeenCalled();
     expect(workspacesService.findById).not.toHaveBeenCalled();
   });
@@ -110,11 +123,15 @@ describe('WorkspaceRoleGuard', () => {
       user: { userId: viewerId.toString(), role: 'user' },
     };
 
-    await expect(guard.canActivate(makeContext(request))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      guard.canActivate(makeContext(request)),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('resolves page routes through the page workspaceId when no workspace param exists', async () => {
-    reflector.getAllAndOverride.mockReturnValue([WORKSPACE_PERMISSIONS.PAGE_EDIT]);
+    reflector.getAllAndOverride.mockReturnValue([
+      WORKSPACE_PERMISSIONS.PAGE_EDIT,
+    ]);
     pagesService.findById.mockResolvedValue({ workspaceId });
 
     const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);

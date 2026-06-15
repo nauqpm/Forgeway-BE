@@ -16,7 +16,8 @@ import { BoardStatusService } from './board-status.service';
 export class SprintQueryService {
   constructor(
     private readonly boardStatusService: BoardStatusService,
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
+    @InjectModel(Sprint.name)
+    private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
   ) {}
 
@@ -82,7 +83,9 @@ export class SprintQueryService {
     }
 
     if (sprint.status !== 'active') {
-      throw new BadRequestException('Only sprint in active status can be completed');
+      throw new BadRequestException(
+        'Only sprint in active status can be completed',
+      );
     }
 
     const completedStatuses = await this.boardStatusService.getCompletedStatuses(workspaceObjectId);

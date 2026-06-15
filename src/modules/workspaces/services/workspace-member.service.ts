@@ -9,7 +9,10 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { SPACE_ROLES, SpaceRole } from '../../../common/constants/space-role.constants';
+import {
+  SPACE_ROLES,
+  SpaceRole,
+} from '../../../common/constants/space-role.constants';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import {
@@ -34,7 +37,9 @@ export class WorkspaceMemberService {
     this.logger.log(`Adding member ${email} to workspace ${workspaceId}`);
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(
+        `Workspace with ID "${workspaceId}" not found`,
+      );
     }
 
     const user = await this.usersService.findByEmail(email);
@@ -45,19 +50,25 @@ export class WorkspaceMemberService {
     const userId = user._id.toString();
     const isAlreadyMember = workspace.members.some(member => member.userId.toString() === userId);
     if (isAlreadyMember) {
-      throw new BadRequestException(`User with email "${email}" is already a member`);
+      throw new BadRequestException(
+        `User with email "${email}" is already a member`,
+      );
     }
 
     const updated = await this.workspacesRepository.addMember(workspaceId, userId, role);
     this.publishMemberJoinedEvent(workspace, userId, role, actorId);
-    this.logger.log(`Added member ${email} to workspace ${workspaceId} as ${role}`);
+    this.logger.log(
+      `Added member ${email} to workspace ${workspaceId} as ${role}`,
+    );
     return updated;
   }
 
   async removeMember(workspaceId: string, userId: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(
+        `Workspace with ID "${workspaceId}" not found`,
+      );
     }
 
     const member = workspace.members.find(item => item.userId.toString() === userId);
@@ -71,7 +82,10 @@ export class WorkspaceMemberService {
 
     this.ensureNotLastAdmin(workspace, userId);
 
-    const updated = await this.workspacesRepository.removeMember(workspaceId, userId);
+    const updated = await this.workspacesRepository.removeMember(
+      workspaceId,
+      userId,
+    );
     this.publishMemberRemovedEvent(workspace, userId, member.role, actorId);
     this.logger.log(`Member ${userId} removed from workspace ${workspaceId}`);
     return updated;
@@ -80,7 +94,9 @@ export class WorkspaceMemberService {
   async updateMemberRole(workspaceId: string, userId: string, role: SpaceRole, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(
+        `Workspace with ID "${workspaceId}" not found`,
+      );
     }
 
     const member = workspace.members.find(item => item.userId.toString() === userId);
@@ -104,9 +120,12 @@ export class WorkspaceMemberService {
   }
 
   async getMembers(workspaceId: string): Promise<any[]> {
-    const workspace = await this.workspacesRepository.findByIdWithMembers(workspaceId);
+    const workspace =
+      await this.workspacesRepository.findByIdWithMembers(workspaceId);
     if (!workspace) {
-      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found`);
+      throw new NotFoundException(
+        `Workspace with ID "${workspaceId}" not found`,
+      );
     }
     return workspace.members;
   }
@@ -115,6 +134,13 @@ export class WorkspaceMemberService {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) return false;
     return workspace.members.some(member => member.userId.toString() === userId);
+  }
+
+  async getMemberRole(workspaceId: string, userId: string): Promise<string | null> {
+    const workspace = await this.workspacesRepository.findById(workspaceId);
+    if (!workspace) return null;
+    const member = workspace.members.find((m) => m.userId.toString() === userId);
+    return member ? member.role : null;
   }
 
   /**
@@ -154,7 +180,9 @@ export class WorkspaceMemberService {
     );
 
     if (adminCount === 1 && isTargetAdmin) {
-      throw new BadRequestException('Cannot remove or demote the last workspace admin');
+      throw new BadRequestException(
+        'Cannot remove or demote the last workspace admin',
+      );
     }
   }
 

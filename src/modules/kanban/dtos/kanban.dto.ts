@@ -72,13 +72,19 @@ export class CreateColumnDto {
 }
 
 export class UpdateColumnDto {
-  @ApiPropertyOptional({ example: 'Code Review', description: 'Tên column mới' })
+  @ApiPropertyOptional({
+    example: 'Code Review',
+    description: 'Tên column mới',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   name?: string;
 
-  @ApiPropertyOptional({ example: ['in-review', 'review'], description: 'Danh sách status được ánh xạ' })
+  @ApiPropertyOptional({
+    example: ['in-review', 'review'],
+    description: 'Danh sách status được ánh xạ',
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -98,7 +104,10 @@ export class UpdateWipLimitDto {
 }
 
 export class MoveColumnDto {
-  @ApiPropertyOptional({ example: 2, description: 'Vị trí index mới (0-based)' })
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'Vị trí index mới (0-based)',
+  })
   @ValidateIf((o: MoveColumnDto) => o.afterColumnId === undefined)
   @IsInt()
   @Min(0)

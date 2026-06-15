@@ -84,7 +84,9 @@ describe('SprintLifecycleService', () => {
       };
       sprintModel.findOne
         .mockReturnValueOnce(mockQuery(mockSprint)) // first call for target sprint
-        .mockReturnValueOnce(mockQuery({ _id: new Types.ObjectId(), status: 'active' })); // second call for existing active sprint
+        .mockReturnValueOnce(
+          mockQuery({ _id: new Types.ObjectId(), status: 'active' }),
+        ); // second call for existing active sprint
 
       await expect(service.startSprint(workspaceId, sprintId, dto)).rejects.toThrow(BadRequestException);
     });
@@ -242,7 +244,9 @@ describe('SprintLifecycleService', () => {
           },
         },
       );
-      expect(result.incompleteTasksMovedTo).toEqual(new Types.ObjectId(moveToSprintId));
+      expect(result.incompleteTasksMovedTo).toEqual(
+        new Types.ObjectId(moveToSprintId),
+      );
     });
   });
 });

@@ -26,7 +26,12 @@ export class BoardColumn {
 
 @Schema({ timestamps: true })
 export class Board {
-  @Prop({ type: Types.ObjectId, ref: 'Workspace', required: true, unique: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Workspace',
+    required: true,
+    unique: true,
+  })
   workspaceId!: Types.ObjectId;
 
   @Prop({ type: String, trim: true, maxlength: 100 })

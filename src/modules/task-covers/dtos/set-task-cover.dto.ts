@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, IsUrl, Matches, ValidateIf } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 import {
   TASK_COVER_COLOR_PATTERN,
   TASK_COVER_SOURCE_VALUES,
@@ -10,7 +17,10 @@ import {
 } from '../constants/task-cover.constants';
 
 export class SetTaskCoverDto {
-  @ApiProperty({ enum: TASK_COVER_TYPE_VALUES, example: TASK_COVER_TYPES.COLOR })
+  @ApiProperty({
+    enum: TASK_COVER_TYPE_VALUES,
+    example: TASK_COVER_TYPES.COLOR,
+  })
   @IsEnum(TASK_COVER_TYPE_VALUES)
   type!: TaskCoverType;
 

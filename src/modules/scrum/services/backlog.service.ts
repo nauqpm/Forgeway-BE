@@ -13,7 +13,8 @@ import { sortTasksByPriority } from '../utils/task-priority-sorter.util';
 @Injectable()
 export class BacklogService {
   constructor(
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
+    @InjectModel(Sprint.name)
+    private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
   ) {}
 

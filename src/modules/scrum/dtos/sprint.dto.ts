@@ -40,7 +40,8 @@ class EndDateAfterStartDateConstraint implements ValidatorConstraintInterface {
 export class CreateSprintDto {
   @ApiPropertyOptional({
     example: 'Sprint 3',
-    description: 'Sprint name. If omitted, the system can generate a default name.',
+    description:
+      'Sprint name. If omitted, the system can generate a default name.',
   })
   @IsOptional()
   @IsString()
@@ -76,7 +77,9 @@ export class UpdateSprintDto {
   @IsNotEmpty()
   name?: string;
 
-  @ApiPropertyOptional({ example: 'Finish sprint planning and authentication tasks' })
+  @ApiPropertyOptional({
+    example: 'Finish sprint planning and authentication tasks',
+  })
   @IsOptional()
   @IsString()
   goal?: string;
@@ -124,7 +127,8 @@ export class MoveTasksToSprintDto {
   @ApiProperty({
     type: [String],
     example: ['606065da30a349a19b04c860'],
-    description: 'List of task/issue IDs to move into a sprint or back to backlog.',
+    description:
+      'List of task/issue IDs to move into a sprint or back to backlog.',
   })
   @IsArray()
   @ArrayNotEmpty()

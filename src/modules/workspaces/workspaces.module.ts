@@ -7,6 +7,7 @@ import { ForYouService } from './services/for-you.service';
 import { WorkspacesRepository } from './repositories/workspaces.repository';
 import { Workspace, WorkspaceSchema } from './schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
+import { ChatModule } from '../chat/chat.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
 import { UsersModule } from '../users/users.module';
 import { KanbanModule } from '../kanban/kanban.module';
@@ -21,7 +22,10 @@ import { WorkspaceDomainEventPublisher } from './services/workspace-domain-event
 import { InviteController } from './controllers/invite.controller';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
-import { DocumentEntity, DocumentSchema } from '../documents/schemas/document.schema';
+import {
+  DocumentEntity,
+  DocumentSchema,
+} from '../documents/schemas/document.schema';
 import { Page, PageSchema } from '../pages/schemas/page.schema';
 
 @Module({
@@ -34,6 +38,7 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
       { name: DocumentEntity.name, schema: DocumentSchema },
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => ChatModule),
     forwardRef(() => WorkflowsModule),
     forwardRef(() => UsersModule),
     forwardRef(() => KanbanModule),
@@ -52,6 +57,11 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
     InviteService,
     WorkspaceRoleGuard,
   ],
-  exports: [WorkspacesService, WorkspaceMemberService, ForYouService, InviteService],
+  exports: [
+    WorkspacesService,
+    WorkspaceMemberService,
+    ForYouService,
+    InviteService,
+  ],
 })
 export class WorkspacesModule {}

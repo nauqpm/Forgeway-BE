@@ -11,7 +11,13 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { WorkflowsService } from '../services/workflows.service';
 import { CreateWorkflowDto } from '../dtos/create-workflow.dto';
 import { UpdateWorkflowDto } from '../dtos/update-workflow.dto';
@@ -25,7 +31,11 @@ export class WorkflowsController {
 
   @Get()
   @ApiOperation({ summary: 'List all workflows or filter by workspaceId' })
-  @ApiQuery({ name: 'workspaceId', required: false, description: 'Filter workflows by Workspace ID' })
+  @ApiQuery({
+    name: 'workspaceId',
+    required: false,
+    description: 'Filter workflows by Workspace ID',
+  })
   @ApiResponse({ status: 200, description: 'List of workflows' })
   async findAll(@Query('workspaceId') workspaceId?: string) {
     if (workspaceId) {
@@ -46,7 +56,10 @@ export class WorkflowsController {
   @Post()
   @ApiOperation({ summary: 'Create a new workflow' })
   @ApiResponse({ status: 201, description: 'Workflow created successfully' })
-  @ApiResponse({ status: 409, description: 'Workflow already exists for this Workspace' })
+  @ApiResponse({
+    status: 409,
+    description: 'Workflow already exists for this Workspace',
+  })
   async create(@Body() dto: CreateWorkflowDto & { workspaceId: string }) {
     return this.workflowsService.create(dto);
   }
@@ -88,7 +101,10 @@ export class WorkflowsController {
   @ApiParam({ name: 'id', description: 'Workflow ID' })
   @ApiParam({ name: 'fromStatus', description: 'Current status ID' })
   @ApiResponse({ status: 200, description: 'List of valid transitions' })
-  async getNextStatuses(@Param('id') id: string, @Param('fromStatus') fromStatus: string) {
+  async getNextStatuses(
+    @Param('id') id: string,
+    @Param('fromStatus') fromStatus: string,
+  ) {
     if (!fromStatus) {
       return [];
     }
@@ -99,7 +115,10 @@ export class WorkflowsController {
   @ApiOperation({ summary: 'Create a default workflow for a Workspace' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiResponse({ status: 201, description: 'Default workflow created' })
-  @ApiResponse({ status: 409, description: 'Workflow already exists for this Workspace' })
+  @ApiResponse({
+    status: 409,
+    description: 'Workflow already exists for this Workspace',
+  })
   async createDefault(@Param('workspaceId') workspaceId: string) {
     return this.workflowsService.createDefaultWorkflow(workspaceId);
   }

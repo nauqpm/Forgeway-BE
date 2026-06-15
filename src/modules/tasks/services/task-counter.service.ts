@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { MongoServerError } from 'mongodb';
 import { Model, Types } from 'mongoose';
-import { TaskCounter, TaskCounterDocument } from '../schemas/task-counter.schema';
+import {
+  TaskCounter,
+  TaskCounterDocument,
+} from '../schemas/task-counter.schema';
 import { Task, TaskDocument } from '../schemas/task.schema';
 
 @Injectable()
@@ -16,13 +19,15 @@ export class TaskCounterService {
 
   async nextSequence(workspaceId: string): Promise<number> {
     const workspaceObjectId = new Types.ObjectId(workspaceId);
-    const existingCounter = await this.incrementExistingCounter(workspaceObjectId);
+    const existingCounter =
+      await this.incrementExistingCounter(workspaceObjectId);
     if (existingCounter) {
       return existingCounter.taskSequence;
     }
 
     await this.initializeCounter(workspaceObjectId);
-    const initializedCounter = await this.incrementExistingCounter(workspaceObjectId);
+    const initializedCounter =
+      await this.incrementExistingCounter(workspaceObjectId);
     if (!initializedCounter) {
       throw new Error('Failed to initialize task counter');
     }

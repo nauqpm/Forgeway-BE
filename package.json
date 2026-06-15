@@ -6,11 +6,13 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "predev": "node ./print-banner.mjs backend 4000 development",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "dev": "nest start --watch",
+    "dev-LAN": "nest start --watch --host 0.0.0.0",
     "start:debug": "nest start --debug --watch",
     "debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",

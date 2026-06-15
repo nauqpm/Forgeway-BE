@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+// @ts-ignore
 import * as Y from 'yjs';
 
 import { PageDraft, PageDraftDocument } from '@/modules/pages/schemas/page-draft.schema';

@@ -12,7 +12,8 @@ import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 @Injectable()
 export class SprintTaskMovementService {
   constructor(
-    @InjectModel(Sprint.name) private readonly sprintModel: Model<SprintDocument>,
+    @InjectModel(Sprint.name)
+    private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
   ) {}
 
@@ -47,7 +48,10 @@ export class SprintTaskMovementService {
 
     const taskObjectIds = taskIds.map(taskId => new Types.ObjectId(taskId));
     if (!isSuperAdmin) {
-      await this.ensureNoTasksFromCompletedSprint(workspaceObjectId, taskObjectIds);
+      await this.ensureNoTasksFromCompletedSprint(
+        workspaceObjectId,
+        taskObjectIds,
+      );
     }
 
     const result = await this.taskModel
@@ -77,7 +81,10 @@ export class SprintTaskMovementService {
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const taskObjectIds = taskIds.map(taskId => new Types.ObjectId(taskId));
     if (!isSuperAdmin) {
-      await this.ensureNoTasksFromCompletedSprint(workspaceObjectId, taskObjectIds);
+      await this.ensureNoTasksFromCompletedSprint(
+        workspaceObjectId,
+        taskObjectIds,
+      );
     }
 
     const result = await this.taskModel

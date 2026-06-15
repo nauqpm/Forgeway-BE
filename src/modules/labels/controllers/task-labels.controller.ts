@@ -28,7 +28,10 @@ export class TaskLabelsController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Replace labels on a task' })
   @ApiResponse({ status: 200, type: TaskDto })
-  @ApiBadRequestResponse({ description: 'Invalid IDs, labels outside workspace, or archived task is read-only' })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid IDs, labels outside workspace, or archived task is read-only',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Workspace or task not found' })
   async setTaskLabels(

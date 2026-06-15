@@ -26,7 +26,11 @@ export class Image {
   @Prop()
   thumbnailUrl?: string;
 
-  @Prop({ type: String, enum: ['post', 'property', 'avatar', 'other'], default: 'other' })
+  @Prop({
+    type: String,
+    enum: ['post', 'property', 'avatar', 'other'],
+    default: 'other',
+  })
   type!: string;
 
   @Prop()

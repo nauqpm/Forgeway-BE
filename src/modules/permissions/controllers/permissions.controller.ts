@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { PermissionsService } from '../services/permissions.service';
 import { CreatePermissionDto } from '../dtos/create-permission.dto';
@@ -37,7 +45,8 @@ export class PermissionsController {
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'create')
   async create(@Body() createPermissionDto: CreatePermissionDto) {
-    const permission = await this.permissionsService.create(createPermissionDto);
+    const permission =
+      await this.permissionsService.create(createPermissionDto);
     return {
       success: true,
       permission: {
@@ -53,7 +62,8 @@ export class PermissionsController {
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'read')
   async getUserPermissions(@Param('userId') userId: string) {
-    const permissions = await this.permissionsService.getUserPermissions(userId);
+    const permissions =
+      await this.permissionsService.getUserPermissions(userId);
     return {
       success: true,
       permissions: permissions.map(p => ({

@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -29,9 +34,14 @@ export class TaskLabelService {
     const task = await this.getWritableTask(workspaceId, taskId, userId);
     const labelIds = [...new Set(dto.labelIds)];
 
-    const labels = await this.labelService.findActiveLabelsByIds(workspaceId, labelIds);
+    const labels = await this.labelService.findActiveLabelsByIds(
+      workspaceId,
+      labelIds,
+    );
     if (labels.length !== labelIds.length) {
-      throw new BadRequestException('One or more labels do not belong to this workspace');
+      throw new BadRequestException(
+        'One or more labels do not belong to this workspace',
+      );
     }
 
     const beforeLabelIds = this.toIdList(task.labelIds || []);
@@ -104,8 +114,14 @@ export class TaskLabelService {
     return task;
   }
 
-  private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+  private async assertWorkspaceMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
@@ -116,12 +132,16 @@ export class TaskLabelService {
   }
 
   private toIdList(values: unknown[]): string[] {
-    return values.map((value: any) => (value?._id ? value._id.toString() : value.toString()));
+    return values.map((value: any) =>
+      value?._id ? value._id.toString() : value.toString(),
+    );
   }
 
   private validateObjectId(value: string, label: string): void {
     if (!Types.ObjectId.isValid(value)) {
-      throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
+      throw new BadRequestException(
+        `${label} must be a valid MongoDB ObjectId`,
+      );
     }
   }
 }

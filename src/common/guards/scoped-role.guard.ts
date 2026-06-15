@@ -38,11 +38,16 @@ export const ScopedRoleGuard = (
       }
 
       const routeWorkspaceId = request.params?.workspaceId;
-      if (resourceType === 'workspace' && routeWorkspaceId && !Types.ObjectId.isValid(routeWorkspaceId)) {
+      if (
+        resourceType === 'workspace' &&
+        routeWorkspaceId &&
+        !Types.ObjectId.isValid(routeWorkspaceId)
+      ) {
         throw new NotFoundException('Workspace not found');
       }
 
-      const resourceId = request.params?.id || routeWorkspaceId || request.body?.workspaceId;
+      const resourceId =
+        request.params?.id || routeWorkspaceId || request.body?.workspaceId;
 
       if (!resourceId) {
         return true;
@@ -73,7 +78,9 @@ export const ScopedRoleGuard = (
       } else if (resourceType === 'workspace') {
         try {
           if (!Types.ObjectId.isValid(resourceId)) {
-            throw new BadRequestException('workspaceId must be a valid MongoDB ObjectId');
+            throw new BadRequestException(
+              'workspaceId must be a valid MongoDB ObjectId',
+            );
           }
           const workspace = await workspacesService.findById(resourceId);
 
@@ -86,12 +93,19 @@ export const ScopedRoleGuard = (
       // Kiểm tra quyền dựa trên Workspace đã phân giải
       if (targetWorkspaceId) {
         const workspace = await workspacesService.findById(targetWorkspaceId);
-        const member = workspace.members.find(m => m.userId.toString() === user.userId);
-        userRoleInResource = workspace.ownerId.toString() === user.userId ? SPACE_ROLES.WORKSPACE_ADMIN : member?.role;
+        const member = workspace.members.find(
+          m => m.userId.toString() === user.userId,
+        );
+        userRoleInResource =
+          workspace.ownerId.toString() === user.userId
+            ? SPACE_ROLES.WORKSPACE_ADMIN
+            : member?.role;
       }
 
       if (!userRoleInResource) {
-        throw new ForbiddenException('Bạn không có quyền truy cập vào tài nguyên này');
+        throw new ForbiddenException(
+          'Bạn không có quyền truy cập vào tài nguyên này',
+        );
       }
 
       // Kiểm tra cấp bậc quyền: Admin > Member > Viewer
@@ -102,7 +116,9 @@ export const ScopedRoleGuard = (
       };
 
       if (roleWeights[userRoleInResource] < roleWeights[requiredRole]) {
-        throw new ForbiddenException(`Yêu cầu quyền: ${requiredRole}. Quyền của bạn: ${userRoleInResource}`);
+        throw new ForbiddenException(
+          `Yêu cầu quyền: ${requiredRole}. Quyền của bạn: ${userRoleInResource}`,
+        );
       }
 
       return true;

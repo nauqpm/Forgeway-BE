@@ -39,7 +39,10 @@ import type { SecurityEventType } from '../../audit/schemas/security-event.schem
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { AttachmentDto } from '../dtos/attachment.dto';
-import { TaskAttachmentFileStream, TaskAttachmentService } from '../services/task-attachment.service';
+import {
+  TaskAttachmentFileStream,
+  TaskAttachmentService,
+} from '../services/task-attachment.service';
 
 @ApiTags('Task Attachments')
 @ApiBearerAuth()
@@ -56,7 +59,9 @@ export class TaskAttachmentController {
   @ApiOperation({ summary: 'Upload attachment to a task' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: HttpStatus.CREATED, type: AttachmentDto })
-  @ApiBadRequestResponse({ description: 'Invalid IDs, missing file, or archived task is read-only' })
+  @ApiBadRequestResponse({
+    description: 'Invalid IDs, missing file, or archived task is read-only',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({ description: 'Workspace or task not found' })
   @UseInterceptors(
@@ -104,7 +109,11 @@ export class TaskAttachmentController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: JwtPayload,
   ): Promise<AttachmentDto[]> {
-    return this.taskAttachmentService.findByTask(workspaceId, taskId, user.userId);
+    return this.taskAttachmentService.findByTask(
+      workspaceId,
+      taskId,
+      user.userId,
+    );
   }
 
   @Get(':attachmentId/download')
@@ -112,7 +121,9 @@ export class TaskAttachmentController {
   @ApiOperation({ summary: 'Download task attachment file' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Attachment file stream' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
-  @ApiNotFoundResponse({ description: 'Workspace, task, attachment, or file not found' })
+  @ApiNotFoundResponse({
+    description: 'Workspace, task, attachment, or file not found',
+  })
   async downloadTaskAttachment(
     @Param('workspaceId') workspaceId: string,
     @Param('taskId') taskId: string,
@@ -139,10 +150,17 @@ export class TaskAttachmentController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @Header('X-Content-Type-Options', 'nosniff')
   @ApiOperation({ summary: 'Preview task attachment file inline' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Previewable attachment file stream' })
-  @ApiBadRequestResponse({ description: 'Attachment type does not support preview' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Previewable attachment file stream',
+  })
+  @ApiBadRequestResponse({
+    description: 'Attachment type does not support preview',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
-  @ApiNotFoundResponse({ description: 'Workspace, task, attachment, or file not found' })
+  @ApiNotFoundResponse({
+    description: 'Workspace, task, attachment, or file not found',
+  })
   async previewTaskAttachment(
     @Param('workspaceId') workspaceId: string,
     @Param('taskId') taskId: string,
@@ -170,9 +188,15 @@ export class TaskAttachmentController {
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.MEMBER))
   @ApiOperation({ summary: 'Soft delete a task attachment' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
-  @ApiBadRequestResponse({ description: 'Invalid IDs or archived task is read-only' })
-  @ApiForbiddenResponse({ description: 'Workspace access denied or not attachment uploader' })
-  @ApiNotFoundResponse({ description: 'Workspace, task, or attachment not found' })
+  @ApiBadRequestResponse({
+    description: 'Invalid IDs or archived task is read-only',
+  })
+  @ApiForbiddenResponse({
+    description: 'Workspace access denied or not attachment uploader',
+  })
+  @ApiNotFoundResponse({
+    description: 'Workspace, task, or attachment not found',
+  })
   async deleteTaskAttachment(
     @Param('workspaceId') workspaceId: string,
     @Param('taskId') taskId: string,

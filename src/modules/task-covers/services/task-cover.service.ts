@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
@@ -49,7 +53,9 @@ export class TaskCoverService {
       updatedTask.cover.type,
     );
 
-    const coverDto = this.taskCoverMapper.mapToDto(updatedTask.cover) as TaskCoverDto;
+    const coverDto = this.taskCoverMapper.mapToDto(
+      updatedTask.cover,
+    ) as TaskCoverDto;
     this.publishCoverUpdatedEvent(updatedTask, userId, coverDto);
 
     return coverDto;
@@ -98,7 +104,10 @@ export class TaskCoverService {
 
   private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
     await this.workspacesService.findById(workspaceId);
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }

@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsIn, IsMongoId, IsOptional, IsString, ValidateIf } from 'class-validator';
+import {
+  IsIn,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 
 const emptyStringToNull = (value: unknown): unknown => {
   if (value === '') {

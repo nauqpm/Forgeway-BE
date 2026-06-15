@@ -12,8 +12,14 @@ export class DashboardController {
 
   @Get('workspace/:workspaceId')
   @ApiOperation({ summary: 'Get workspace overview statistics' })
-  async getWorkspaceOverview(@Param('workspaceId') workspaceId: string, @Request() req) {
-    return this.dashboardService.getWorkspaceOverview(workspaceId, req.user.userId);
+  async getWorkspaceOverview(
+    @Param('workspaceId') workspaceId: string,
+    @Request() req,
+  ) {
+    return this.dashboardService.getWorkspaceOverview(
+      workspaceId,
+      req.user.userId,
+    );
   }
 
   @Get('workspace/:workspaceId/stats')

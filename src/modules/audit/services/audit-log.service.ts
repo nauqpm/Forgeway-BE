@@ -59,7 +59,10 @@ export class AuditLogService {
     };
 
     this.securityEventModel.create(record).catch((err: Error) => {
-      this.logger.error(`[AuditLog] Failed to persist event: ${err.message}`, err.stack);
+      this.logger.error(
+        `[AuditLog] Failed to persist event: ${err.message}`,
+        err.stack,
+      );
     });
 
     const structuredLog = {
@@ -71,11 +74,20 @@ export class AuditLogService {
     };
 
     if (payload.severity === 'CRITICAL') {
-      this.logger.error(`[SECURITY] ${payload.type}`, JSON.stringify(structuredLog));
+      this.logger.error(
+        `[SECURITY] ${payload.type}`,
+        JSON.stringify(structuredLog),
+      );
     } else if (payload.severity === 'WARN') {
-      this.logger.warn(`[SECURITY] ${payload.type}`, JSON.stringify(structuredLog));
+      this.logger.warn(
+        `[SECURITY] ${payload.type}`,
+        JSON.stringify(structuredLog),
+      );
     } else {
-      this.logger.log(`[SECURITY] ${payload.type}`, JSON.stringify(structuredLog));
+      this.logger.log(
+        `[SECURITY] ${payload.type}`,
+        JSON.stringify(structuredLog),
+      );
     }
   }
 
@@ -120,7 +132,8 @@ export class AuditLogService {
     }
     if (startDate || endDate) {
       filter.createdAt = {};
-      if (startDate) (filter.createdAt as Record<string, Date>).$gte = startDate;
+      if (startDate)
+        (filter.createdAt as Record<string, Date>).$gte = startDate;
       if (endDate) (filter.createdAt as Record<string, Date>).$lte = endDate;
     }
 

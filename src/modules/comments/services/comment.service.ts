@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateCommentDto } from '../dtos/create-comment.dto';
@@ -14,8 +19,13 @@ export class CommentService {
     private readonly commentModel: Model<CommentDocument>,
   ) {}
 
-  async create(dto: CreateCommentDto, userId: string): Promise<CommentDocument> {
-    this.logger.log(`Creating comment for ${dto.targetType}:${dto.targetId} by user ${userId}`);
+  async create(
+    dto: CreateCommentDto,
+    userId: string,
+  ): Promise<CommentDocument> {
+    this.logger.log(
+      `Creating comment for ${dto.targetType}:${dto.targetId} by user ${userId}`,
+    );
 
     const comment = new this.commentModel({
       content: dto.content,
@@ -46,7 +56,10 @@ export class CommentService {
     return comment;
   }
 
-  async findByTarget(targetType: string, targetId: string): Promise<CommentDocument[]> {
+  async findByTarget(
+    targetType: string,
+    targetId: string,
+  ): Promise<CommentDocument[]> {
     this.logger.debug(`Finding comments for ${targetType}:${targetId}`);
 
     return this.commentModel
@@ -95,7 +108,10 @@ export class CommentService {
     }
 
     return this.commentModel
-      .find({ parentId: new Types.ObjectId(parentId), isDeleted: { $ne: true } })
+      .find({
+        parentId: new Types.ObjectId(parentId),
+        isDeleted: { $ne: true },
+      })
       .sort({ createdAt: 1 })
       .exec();
   }

@@ -89,7 +89,10 @@ export class SocketAuthService {
     }
   }
 
-  private async ensureTokenIsActive(token: string, payload: JwtPayload): Promise<void> {
+  private async ensureTokenIsActive(
+    token: string,
+    payload: JwtPayload,
+  ): Promise<void> {
     const activeToken = await this.tokenService.findActiveAccessToken(token);
     if (!activeToken || activeToken.userId.toString() !== payload.userId) {
       throw new WsException('Access token revoked or not found');
@@ -100,7 +103,9 @@ export class SocketAuthService {
     this.clearDisconnectTimer(client);
 
     if (!expiresAtSeconds) {
-      this.logger.warn(`Realtime client ${client.id} has no token expiration claim.`);
+      this.logger.warn(
+        `Realtime client ${client.id} has no token expiration claim.`,
+      );
       return;
     }
 
@@ -111,7 +116,13 @@ export class SocketAuthService {
     }
 
     client.data.disconnectTimer = setTimeout(() => {
-      this.logger.debug(`Disconnecting realtime client ${client.id} because access token expired.`);
+      const user = client.data.user;
+      const userIdentifier = user?.email
+        ? `${user.email} (${user.userId})`
+        : user?.userId || 'unknown';
+      this.logger.log(
+        `Disconnecting realtime client ${client.id} | User: ${userIdentifier} because access token expired.`,
+      );
       client.disconnect(true);
     }, delayMs);
   }

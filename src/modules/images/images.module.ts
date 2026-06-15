@@ -35,7 +35,8 @@ import { CloudinaryService } from './services/cloudinary.service';
           cb(null, uploadPath);
         },
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
@@ -45,7 +46,12 @@ import { CloudinaryService } from './services/cloudinary.service';
     forwardRef(() => AuthModule),
   ],
   controllers: [ImagesController],
-  providers: [ImagesService, JwtAuthGuard, CloudinaryProvider, CloudinaryService],
+  providers: [
+    ImagesService,
+    JwtAuthGuard,
+    CloudinaryProvider,
+    CloudinaryService,
+  ],
   exports: [ImagesService, JwtAuthGuard, CloudinaryService],
 })
 export class ImagesModule {}

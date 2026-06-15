@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Invite, InviteDocument, INVITE_STATUS } from '../schemas/invite.schema';
+import {
+  Invite,
+  InviteDocument,
+  INVITE_STATUS,
+} from '../schemas/invite.schema';
 
 @Injectable()
 export class InviteRepository {
@@ -14,13 +18,19 @@ export class InviteRepository {
 
   async findPendingByWorkspace(workspaceId: string): Promise<Invite[]> {
     return this.inviteModel
-      .find({ workspaceId: new Types.ObjectId(workspaceId), status: INVITE_STATUS.PENDING })
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        status: INVITE_STATUS.PENDING,
+      })
       .populate('invitedBy', 'fullName email avatar')
       .lean()
       .exec();
   }
 
-  async findPendingByEmailAndWorkspace(email: string, workspaceId: string): Promise<Invite | null> {
+  async findPendingByEmailAndWorkspace(
+    email: string,
+    workspaceId: string,
+  ): Promise<Invite | null> {
     return this.inviteModel
       .findOne({
         invitedEmail: email.toLowerCase(),

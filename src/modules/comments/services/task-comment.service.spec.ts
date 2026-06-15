@@ -117,7 +117,10 @@ describe('TaskCommentService', () => {
       mentions: [],
       isDeleted: false,
     };
-    const mapped = { id: populatedComment._id.toString(), content: 'Looks good' };
+    const mapped = {
+      id: populatedComment._id.toString(),
+      content: 'Looks good',
+    };
 
     function mockSuccess(): void {
       workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);

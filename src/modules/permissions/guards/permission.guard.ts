@@ -26,7 +26,10 @@ export class PermissionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Get permission requirements from metadata
-    const permissionMeta = this.reflector.get('permission', context.getHandler());
+    const permissionMeta = this.reflector.get(
+      'permission',
+      context.getHandler(),
+    );
 
     if (!permissionMeta) {
       return true; // No permission requirements
@@ -39,12 +42,17 @@ export class PermissionGuard implements CanActivate {
 
     if (!userId) {
       this.logger.debug('[PermissionGuard] No user ID found in request');
-      this.logger.debug('[PermissionGuard] User object:', JSON.stringify(request.user));
+      this.logger.debug(
+        '[PermissionGuard] User object:',
+        JSON.stringify(request.user),
+      );
       return false;
     }
 
     if (request.user?.role === GLOBAL_ROLES.SUPER_ADMIN) {
-      this.logger.debug('[PermissionGuard] User has super_admin role, access granted');
+      this.logger.debug(
+        '[PermissionGuard] User has super_admin role, access granted',
+      );
       return true;
     }
 

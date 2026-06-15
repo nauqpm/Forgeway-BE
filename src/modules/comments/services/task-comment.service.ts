@@ -98,7 +98,11 @@ export class TaskCommentService {
     userId: string,
   ): Promise<CommentDto> {
     const task = await this.getCommentableTask(workspaceId, taskId, userId);
-    const comment = await this.findTaskCommentDocument(workspaceId, taskId, commentId);
+    const comment = await this.findTaskCommentDocument(
+      workspaceId,
+      taskId,
+      commentId,
+    );
 
     if (!comment) {
       throw new NotFoundException(`Comment with id ${commentId} not found`);
@@ -125,7 +129,11 @@ export class TaskCommentService {
 
   async deleteForTask(workspaceId: string, taskId: string, commentId: string, userId: string): Promise<void> {
     const task = await this.getCommentableTask(workspaceId, taskId, userId);
-    const comment = await this.findTaskCommentDocument(workspaceId, taskId, commentId);
+    const comment = await this.findTaskCommentDocument(
+      workspaceId,
+      taskId,
+      commentId,
+    );
 
     if (!comment) {
       throw new NotFoundException(`Comment with id ${commentId} not found`);
@@ -223,9 +231,15 @@ export class TaskCommentService {
     }
     this.validateObjectId(parentId, 'Parent comment');
 
-    const parent = await this.findTaskCommentDocument(workspaceId, taskId, parentId);
+    const parent = await this.findTaskCommentDocument(
+      workspaceId,
+      taskId,
+      parentId,
+    );
     if (!parent) {
-      throw new NotFoundException(`Parent comment with id ${parentId} not found`);
+      throw new NotFoundException(
+        `Parent comment with id ${parentId} not found`,
+      );
     }
   }
 
@@ -259,7 +273,9 @@ export class TaskCommentService {
 
   private validateObjectId(value: string, label: string): void {
     if (!Types.ObjectId.isValid(value)) {
-      throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
+      throw new BadRequestException(
+        `${label} must be a valid MongoDB ObjectId`,
+      );
     }
   }
   private async validateMentionsAreMembers(workspaceId: string, mentionedUserIds: string[]): Promise<void> {
@@ -323,7 +339,9 @@ export class TaskCommentService {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Failed to create task comment notification: ${message}`);
+      this.logger.warn(
+        `Failed to create task comment notification: ${message}`,
+      );
     }
   }
 

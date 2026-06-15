@@ -17,15 +17,29 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import * as fs from 'fs';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
 import { CloudinaryService } from '../services/cloudinary.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
 
-const imageFileFilter = (req: any, file: Express.Multer.File, callback: Function) => {
+const imageFileFilter = (
+  req: any,
+  file: Express.Multer.File,
+  callback: Function,
+) => {
   if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-    return callback(new Error('Only image files are allowed! (jpg, jpeg, png, gif, webp)'), false);
+    return callback(
+      new Error('Only image files are allowed! (jpg, jpeg, png, gif, webp)'),
+      false,
+    );
   }
   callback(null, true);
 };
@@ -76,7 +90,9 @@ export class ImagesController {
     }),
   )
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Upload single image (Local Storage with Date Structure)' })
+  @ApiOperation({
+    summary: 'Upload single image (Local Storage with Date Structure)',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -102,7 +118,12 @@ export class ImagesController {
       example: {
         success: true,
         message: 'Image uploaded successfully',
-        data: { _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task', targetId: '...' },
+        data: {
+          _id: '...',
+          url: '/uploads/others/2026/06/05/image-123.jpg',
+          targetType: 'task',
+          targetId: '...',
+        },
       },
     },
   })
@@ -153,7 +174,10 @@ export class ImagesController {
     status: 201,
     description: 'Avatar uploaded successfully',
   })
-  async uploadAvatar(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
+  ) {
     const userId = req.user.userId;
 
     // The service now handles Cloudinary upload automatically if type is AVATAR
@@ -228,7 +252,13 @@ export class ImagesController {
     schema: {
       example: {
         success: true,
-        data: [{ _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task' }],
+        data: [
+          {
+            _id: '...',
+            url: '/uploads/others/2026/06/05/image-123.jpg',
+            targetType: 'task',
+          },
+        ],
         pagination: { page: 1, limit: 20, total: 50 },
       },
     },
@@ -261,7 +291,12 @@ export class ImagesController {
     schema: {
       example: {
         success: true,
-        data: { _id: '...', url: '/uploads/others/2026/06/05/image-123.jpg', targetType: 'task', downloadCount: 5 },
+        data: {
+          _id: '...',
+          url: '/uploads/others/2026/06/05/image-123.jpg',
+          targetType: 'task',
+          downloadCount: 5,
+        },
       },
     },
   })

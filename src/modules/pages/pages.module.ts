@@ -7,7 +7,10 @@ import { PagesController } from './controllers/pages.controller';
 import { PagesService } from './services/pages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
-import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { RealtimeModule } from '../realtime/realtime.module';
 

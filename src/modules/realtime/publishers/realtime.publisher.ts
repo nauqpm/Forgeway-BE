@@ -9,7 +9,11 @@ export class RealtimePublisher {
 
   constructor(private readonly realtimeService: RealtimeService) {}
 
-  emit<TData>(room: RealtimeRoom | string, envelope: RealtimeEnvelope<TData>): void {
+  emit<TData>(
+    room: RealtimeRoom,
+    envelope: RealtimeEnvelope<TData>,
+    namespace?: string,
+  ): void {
     const server = this.realtimeService.getServer();
     if (!server) {
       this.logger.warn('Socket server not ready, skipping realtime emit.');
@@ -17,7 +21,11 @@ export class RealtimePublisher {
     }
 
     try {
-      server.to(room).emit(envelope.type, envelope);
+      if (namespace) {
+        server.of(namespace).to(room).emit(envelope.type, envelope);
+      } else {
+        server.to(room).emit(envelope.type, envelope);
+      }
     } catch (error) {
       this.logger.warn(`Realtime emit failed. room=${room}, type=${envelope.type}, reason=${(error as Error).message}`);
     }

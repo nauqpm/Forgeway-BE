@@ -18,11 +18,15 @@ export class DashboardService {
   ) {}
 
   async getWorkspaceOverview(workspaceId: string, userId: string) {
-    this.logger.log(`Getting workspace overview for workspaceId: ${workspaceId}, userId: ${userId}`);
+    this.logger.log(
+      `Getting workspace overview for workspaceId: ${workspaceId}, userId: ${userId}`,
+    );
 
     const workspaceObjectId = new Types.ObjectId(workspaceId);
 
-    const workspace = await this.workspaceModel.findById(workspaceObjectId, { _id: 1 });
+    const workspace = await this.workspaceModel.findById(workspaceObjectId, {
+      _id: 1,
+    });
     const workspaceIds = workspace ? [workspace._id] : [];
 
     // Get total tasks across all Workspaces
@@ -231,7 +235,9 @@ export class DashboardService {
       })
       .sort({ updatedAt: -1 })
       .limit(20)
-      .select('title key columnId type priority workspaceId createdAt updatedAt createdBy updatedBy')
+      .select(
+        'title key columnId type priority workspaceId createdAt updatedAt createdBy updatedBy',
+      )
       .exec();
 
     return {

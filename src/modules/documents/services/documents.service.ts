@@ -11,7 +11,10 @@ import { Model, Types } from 'mongoose';
 
 import { DocumentDoc, DocumentEntity } from '../schemas/document.schema';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
-import { AttachDocumentDto, DetachDocumentDto } from '../dtos/attach-document.dto';
+import {
+  AttachDocumentDto,
+  DetachDocumentDto,
+} from '../dtos/attach-document.dto';
 import { UpdateDocumentDto } from '../dtos/update-document.dto';
 import { CreateOnlineDocumentDto } from '../dtos/create-online-document.dto';
 import { UpdateDocumentContentDto } from '../dtos/update-document-content.dto';
@@ -156,7 +159,6 @@ export class DocumentsService {
 
   async deleteMine(userId: string, id: string) {
     const doc = await this.getMineById(userId, id);
-
     await this.documentModel.updateOne(
       { _id: doc._id },
       { $set: { deletedAt: new Date() } },

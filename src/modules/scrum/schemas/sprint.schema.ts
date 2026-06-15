@@ -23,7 +23,11 @@ export class Sprint {
   @Prop()
   duration?: string;
 
-  @Prop({ type: String, enum: ['planning', 'active', 'completed'], default: 'planning' })
+  @Prop({
+    type: String,
+    enum: ['planning', 'active', 'completed'],
+    default: 'planning',
+  })
   status!: string;
 
   @Prop()

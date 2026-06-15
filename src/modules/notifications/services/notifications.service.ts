@@ -23,9 +23,13 @@ export class NotificationsService {
     private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
   ) {}
 
-  async create(input: CreateNotificationInput): Promise<NotificationDto | null> {
+  async create(
+    input: CreateNotificationInput,
+  ): Promise<NotificationDto | null> {
     if (!this.isValidRecipient(input.recipientId)) {
-      this.logger.warn(`Skip notification with invalid recipient ${input.recipientId}`);
+      this.logger.warn(
+        `Skip notification with invalid recipient ${input.recipientId}`,
+      );
       return null;
     }
 

@@ -1,7 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { AttachmentFile, CreateAttachmentInput } from '../dtos/attachment-input.dto';
+import {
+  AttachmentFile,
+  CreateAttachmentInput,
+} from '../dtos/attachment-input.dto';
 import { Attachment, AttachmentDocument } from '../schemas/attachment.schema';
 
 @Injectable()
@@ -22,7 +25,9 @@ export class AttachmentService {
     const url = `/uploads/${storageKey}`.replace(/\/+/g, '/');
 
     const attachment = new this.attachmentModel({
-      workspaceId: input.workspaceId ? new Types.ObjectId(input.workspaceId) : undefined,
+      workspaceId: input.workspaceId
+        ? new Types.ObjectId(input.workspaceId)
+        : undefined,
       uploadedBy: new Types.ObjectId(userId),
       filename: file.filename,
       originalName: input.originalName,
@@ -57,7 +62,10 @@ export class AttachmentService {
     return attachment;
   }
 
-  async findByTarget(targetType: string, targetId: string): Promise<AttachmentDocument[]> {
+  async findByTarget(
+    targetType: string,
+    targetId: string,
+  ): Promise<AttachmentDocument[]> {
     this.logger.log(`Finding attachments for ${targetType}:${targetId}`);
 
     return this.attachmentModel

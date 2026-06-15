@@ -44,7 +44,10 @@ export class LabelService {
     return this.labelMapper.mapToDto(label);
   }
 
-  async findByWorkspace(workspaceId: string, userId: string): Promise<LabelDto[]> {
+  async findByWorkspace(
+    workspaceId: string,
+    userId: string,
+  ): Promise<LabelDto[]> {
     await this.assertWorkspaceMember(workspaceId, userId);
 
     const labels = await this.labelModel
@@ -143,7 +146,9 @@ export class LabelService {
       .exec();
 
     if (existing && existing._id.toString() !== currentLabelId) {
-      throw new ConflictException('Label name already exists in this workspace');
+      throw new ConflictException(
+        'Label name already exists in this workspace',
+      );
     }
   }
 
@@ -151,7 +156,10 @@ export class LabelService {
     this.validateObjectId(workspaceId, 'Workspace');
     await this.workspacesService.findById(workspaceId);
 
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new ForbiddenException('Workspace access denied');
     }
@@ -167,7 +175,9 @@ export class LabelService {
 
   private validateObjectId(value: string, label: string): void {
     if (!Types.ObjectId.isValid(value)) {
-      throw new BadRequestException(`${label} must be a valid MongoDB ObjectId`);
+      throw new BadRequestException(
+        `${label} must be a valid MongoDB ObjectId`,
+      );
     }
   }
 }

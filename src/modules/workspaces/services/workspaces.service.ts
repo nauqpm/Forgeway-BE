@@ -15,12 +15,20 @@ import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
-import { DocumentDoc, DocumentEntity } from '../../documents/schemas/document.schema';
+import {
+  DocumentDoc,
+  DocumentEntity,
+} from '../../documents/schemas/document.schema';
 import { Page, PageDocument } from '../../pages/schemas/page.schema';
-import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/create-workspace.dto';
+import {
+  CreateWorkspaceDto,
+  UpdateWorkspaceDto,
+} from '../dtos/create-workspace.dto';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceKeyService } from './workspace-key.service';
 import { WorkspaceDomainEventPublisher } from './workspace-domain-event.publisher';
+import { ChannelsService } from '../../chat/services/channels.service';
+import { UsersService } from '../../users/services/users.service';
 import {
   DEFAULT_WORKSPACE_AVATAR,
   WORKSPACE_SAMPLE_AVATARS,
@@ -45,6 +53,10 @@ export class WorkspacesService {
     private readonly pageModel: Model<PageDocument>,
     @InjectModel(DocumentEntity.name)
     private readonly documentModel: Model<DocumentDoc>,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => ChannelsService))
+    private readonly channelsService: ChannelsService,
   ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
@@ -55,7 +67,9 @@ export class WorkspacesService {
 
     const existingSlug = await this.workspacesRepository.findAnyBySlug(slug);
     if (existingSlug) {
-      throw new BadRequestException(`Workspace with slug "${slug}" already exists`);
+      throw new BadRequestException(
+        `Workspace with slug "${slug}" already exists`,
+      );
     }
 
     try {
@@ -80,16 +94,27 @@ export class WorkspacesService {
       }
 
       try {
-        await this.workflowsService.createDefaultWorkflow(workspace._id.toString());
+        await this.workflowsService.createDefaultWorkflow(
+          workspace._id.toString(),
+        );
       } catch (error) {
         if (error instanceof ConflictException) {
-          this.logger.warn(`Default workflow already exists for workspace ${workspace._id}`);
+          this.logger.warn(
+            `Default workflow already exists for workspace ${workspace._id}`,
+          );
         } else {
           this.logger.error(`Failed to create default workflow for workspace ${workspace._id}`, error);
         }
       }
 
+      // Publish domain event
       this.workspaceDomainEventPublisher.publishCreated(workspace, userId);
+
+      // Create workspace channel
+      await this.channelsService.createWorkspaceChannel(
+        workspace._id.toString(),
+        userId,
+      );
 
       return workspace;
     } catch (error) {
@@ -125,7 +150,9 @@ export class WorkspacesService {
   }
 
   async findByKey(_key: string): Promise<any> {
-    throw new BadRequestException('Workspace key lookup is not supported; use workspaceId');
+    throw new BadRequestException(
+      'Workspace key lookup is not supported; use workspaceId',
+    );
   }
 
   getAvatarSamples() {
@@ -172,7 +199,11 @@ export class WorkspacesService {
     );
   }
 
-  async update(id: string, dto: UpdateWorkspaceDto, actorId?: string): Promise<any> {
+  async update(
+    id: string,
+    dto: UpdateWorkspaceDto,
+    actorId?: string,
+  ): Promise<any> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException(`Workspace with ID "${id}" not found`);
@@ -204,13 +235,19 @@ export class WorkspacesService {
     try {
       await this.kanbanService.deleteByWorkspace(id);
     } catch (error) {
-      this.logger.error(`Failed to cleanup board data for workspace ${id}`, error);
+      this.logger.error(
+        `Failed to cleanup board data for workspace ${id}`,
+        error,
+      );
     }
 
     try {
       await this.scrumService.deleteByWorkspace(id);
     } catch (error) {
-      this.logger.error(`Failed to cleanup sprint data for workspace ${id}`, error);
+      this.logger.error(
+        `Failed to cleanup sprint data for workspace ${id}`,
+        error,
+      );
     }
 
     const deleted = await this.workspacesRepository.delete(id);
@@ -224,13 +261,18 @@ export class WorkspacesService {
   async restore(id: string, actorId?: string): Promise<any> {
     const workspace = await this.workspacesRepository.restore(id);
     if (!workspace) {
-      throw new NotFoundException(`Deleted workspace with ID "${id}" not found`);
+      throw new NotFoundException(
+        `Deleted workspace with ID "${id}" not found`,
+      );
     }
 
     try {
       await this.scrumService.restoreByWorkspace(id);
     } catch (error) {
-      this.logger.error(`Failed to restore sprint data for workspace ${id}`, error);
+      this.logger.error(
+        `Failed to restore sprint data for workspace ${id}`,
+        error,
+      );
     }
 
     this.workspaceDomainEventPublisher.publishRestored(workspace, actorId);

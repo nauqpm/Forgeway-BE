@@ -29,10 +29,19 @@ export class DocumentEntity {
   @Prop({ required: true })
   size!: number;
 
-  @Prop({ type: String, enum: ['upload', 'online'], default: 'upload', index: true })
+  @Prop({
+    type: String,
+    enum: ['upload', 'online'],
+    default: 'upload',
+    index: true,
+  })
   documentType!: 'upload' | 'online';
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Workspace' }], default: [], index: true })
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'Workspace' }],
+    default: [],
+    index: true,
+  })
   workspaceIds!: Types.ObjectId[];
 
   @Prop({ type: Date, default: null })

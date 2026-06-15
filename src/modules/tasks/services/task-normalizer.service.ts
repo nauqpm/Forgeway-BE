@@ -27,7 +27,9 @@ export class TaskNormalizerService {
 
     if (workspaceType !== 'kanban') {
       if (dto.boardId) {
-        throw new BadRequestException('Scrum workspace task cannot have boardId');
+        throw new BadRequestException(
+          'Scrum workspace task cannot have boardId',
+        );
       }
       return dto;
     }
@@ -133,11 +135,16 @@ export class TaskNormalizerService {
     return undefined;
   }
 
-  private getFirstKanbanColumn(columns: BoardColumn[]): BoardColumn | undefined {
+  private getFirstKanbanColumn(
+    columns: BoardColumn[],
+  ): BoardColumn | undefined {
     return [...columns].sort((left, right) => left.order - right.order)[0];
   }
 
-  private resolveTaskStatus(column: BoardColumn, requestedStatus?: string): string {
+  private resolveTaskStatus(
+    column: BoardColumn,
+    requestedStatus?: string,
+  ): string {
     if (requestedStatus) {
       return requestedStatus;
     }

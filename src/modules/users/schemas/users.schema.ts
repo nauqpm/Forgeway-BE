@@ -17,7 +17,11 @@ export class User {
   @Prop()
   googleId?: string; // Google OAuth identifier (optional)
 
-  @Prop({ type: String, enum: Object.values(GLOBAL_ROLES), default: GLOBAL_ROLES.USER })
+  @Prop({
+    type: String,
+    enum: Object.values(GLOBAL_ROLES),
+    default: GLOBAL_ROLES.USER,
+  })
   role!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Role' })

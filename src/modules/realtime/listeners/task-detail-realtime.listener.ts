@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { DOMAIN_EVENT_TYPES, DomainEventType } from '../../../shared/events/domain-events';
+import {
+  DOMAIN_EVENT_TYPES,
+  DomainEventType,
+} from '../../../shared/events/domain-events';
 import {
   BaseTaskEvent,
   TaskActivityCreatedEventData,
@@ -37,32 +40,50 @@ export class TaskDetailRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_COMMENT_CREATED, { async: true })
   handleTaskCommentCreated(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_COMMENT_CREATED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_COMMENT_CREATED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_COMMENT_UPDATED, { async: true })
   handleTaskCommentUpdated(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_COMMENT_UPDATED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_COMMENT_UPDATED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_COMMENT_DELETED, { async: true })
   handleTaskCommentDeleted(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_COMMENT_DELETED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_COMMENT_DELETED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_ATTACHMENT_ADDED, { async: true })
   handleTaskAttachmentAdded(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_ATTACHMENT_ADDED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_ATTACHMENT_ADDED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_ATTACHMENT_DELETED, { async: true })
   handleTaskAttachmentDeleted(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_ATTACHMENT_DELETED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_ATTACHMENT_DELETED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_LABELS_UPDATED, { async: true })
   handleTaskLabelsUpdated(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_LABELS_UPDATED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_LABELS_UPDATED,
+      event,
+    );
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_COVER_UPDATED, { async: true })
@@ -72,7 +93,10 @@ export class TaskDetailRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.TASK_ACTIVITY_CREATED, { async: true })
   handleTaskActivityCreated(event: TaskDetailRealtimeDomainEvent): void {
-    this.publishTaskDetailEvent(REALTIME_EVENT_TYPES.TASK_ACTIVITY_CREATED, event);
+    this.publishTaskDetailEvent(
+      REALTIME_EVENT_TYPES.TASK_ACTIVITY_CREATED,
+      event,
+    );
   }
 
   private publishTaskDetailEvent(type: RealtimeEventType, event: TaskDetailRealtimeDomainEvent): void {

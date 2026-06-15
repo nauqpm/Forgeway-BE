@@ -25,8 +25,10 @@ import { redisStore } from 'cache-manager-redis-yet';
           store: await redisStore({
             url: redisUrl,
             socket: {
-              reconnectStrategy: (retries: number) => Math.min(retries * 50, 1_000),
-              connectTimeout: config.get<number>('REDIS_CONNECT_TIMEOUT_MS') ?? 5_000,
+              reconnectStrategy: (retries: number) =>
+                Math.min(retries * 50, 1_000),
+              connectTimeout:
+                config.get<number>('REDIS_CONNECT_TIMEOUT_MS') ?? 5_000,
             },
             database: config.get<number>('REDIS_DB') ?? 0,
           }),

@@ -9,4 +9,5 @@ export const AUTH_ERROR_CODES = {
   TOKEN_REVOKED: 'TOKEN_REVOKED',
 } as const;
 
-export type AuthErrorCodeLiteral = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+export type AuthErrorCodeLiteral =
+  (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];

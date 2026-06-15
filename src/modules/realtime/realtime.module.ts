@@ -54,6 +54,6 @@ import { SocketAuthService } from './services/socket-auth.service';
     NotificationRealtimeListener,
     WorkspaceRealtimeListener,
   ],
-  exports: [RealtimeService, RealtimePublisher],
+  exports: [RealtimeService, RealtimePublisher, SocketAuthService],
 })
 export class RealtimeModule {}

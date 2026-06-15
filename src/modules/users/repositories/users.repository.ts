@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../schemas/users.schema';
 
 export interface SanitizedUserRecord {
@@ -46,18 +46,35 @@ export class UsersRepository {
   }
 
   async incrementFailedLoginAttempts(userId: string): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(userId, { $inc: { failedLoginAttempts: 1 } }, { new: true }).exec();
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $inc: { failedLoginAttempts: 1 } },
+        { new: true },
+      )
+      .exec();
   }
 
   async setLockout(userId: string, lockoutUntil: Date): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true }).exec();
+    return this.userModel
+      .findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true })
+      .exec();
   }
 
   /**
    * Partial update using $set to avoid overwriting unrelated fields.
    */
-  async updatePassword(userId: string, hashedPassword: string): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(userId, { $set: { password: hashedPassword } }, { new: true }).exec();
+  async updatePassword(
+    userId: string,
+    hashedPassword: string,
+  ): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { password: hashedPassword } },
+        { new: true },
+      )
+      .exec();
   }
 
   // 📢 Thêm hàm `findAll` để trả về tất cả người dùng
@@ -65,9 +82,13 @@ export class UsersRepository {
     return await this.userModel.find().exec();
   }
 
-  async findAllPaginated(page: number, limit: number): Promise<PaginatedUsersResult> {
+  async findAllPaginated(
+    page: number,
+    limit: number,
+  ): Promise<PaginatedUsersResult> {
     const skip = (page - 1) * limit;
-    const projection = '_id email role status fullName avatar createdAt updatedAt';
+    const projection =
+      '_id email role status fullName avatar createdAt updatedAt';
 
     const [users, total] = await Promise.all([
       this.userModel
@@ -82,6 +103,30 @@ export class UsersRepository {
     ]);
 
     return { users, total };
+  }
+
+  async search(query: string, excludeUserId: string): Promise<User[]> {
+    const regex = new RegExp(query, 'i');
+    return this.userModel
+      .find({
+        $and: [
+          { _id: { $ne: new Types.ObjectId(excludeUserId) } },
+          {
+            $or: [{ fullName: regex }, { email: regex }, { phone: regex }],
+          },
+        ],
+      })
+      .select('_id email fullName avatar status')
+      .limit(10)
+      .exec();
+  }
+
+  async findByIds(ids: string[]): Promise<User[]> {
+    return this.userModel
+      .find({ _id: { $in: ids.map(id => new Types.ObjectId(id)) } })
+      .select('_id email fullName avatar role status createdAt updatedAt')
+      .lean()
+      .exec();
   }
 
   // 📢 Thêm hàm `delete` để xóa người dùng

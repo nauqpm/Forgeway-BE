@@ -5,7 +5,8 @@ import { LabelDocument } from '../schemas/label.schema';
 @Injectable()
 export class LabelMapper {
   mapToDto(label: LabelDocument | any): LabelDto {
-    const plainLabel = typeof label?.toObject === 'function' ? label.toObject() : label;
+    const plainLabel =
+      typeof label?.toObject === 'function' ? label.toObject() : label;
 
     return {
       id: this.toId(plainLabel._id || plainLabel.id),
