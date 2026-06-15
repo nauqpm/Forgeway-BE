@@ -69,12 +69,18 @@ jobs:
             docker image ls "ghcr.io/automationland-dev/sdlc-platform-backend" \
               --format "{{.Repository}}:{{.Tag}}" | grep "sha-" | sort -r | \
               tail -n +3 | xargs docker rmi 2>/dev/null || true
-            sleep 20
+            sleep 30
             CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1)
             STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null)
+            RESTARTS=$(docker inspect --format='{{.RestartCount}}' "$CONTAINER" 2>/dev/null)
             if [ "$STATUS" != "running" ]; then
               echo "DEPLOY FAILED: backend is ${STATUS:-not found}"
-              docker compose logs --tail=30 backend
+              docker compose logs --tail=50 backend
               exit 1
             fi
-            echo "Backend deployed OK: $(date)"
+            if [ "${RESTARTS:-0}" -gt 0 ]; then
+              echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s) — crash loop detected"
+              docker compose logs --tail=50 backend
+              exit 1
+            fi
+            echo "Backend deployed OK (restarts=${RESTARTS}): $(date)"
