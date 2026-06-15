@@ -185,7 +185,13 @@ export class MessagesService {
       senderId: new Types.ObjectId(senderId),
     });
 
-    const populated = await message.populate('senderId', 'fullName avatar email');
+    const populated = await message.populate([
+      { path: 'senderId', select: 'fullName avatar email' },
+      {
+        path: 'replyToId',
+        populate: { path: 'senderId', select: 'fullName avatar email' }
+      }
+    ]);
     const [withReactions] = await this.populateReactions([populated]);
     return withReactions;
   }
@@ -221,7 +227,13 @@ export class MessagesService {
       .find(query)
       .sort({ _id: -1 })
       .limit(limit)
-      .populate('senderId', 'fullName avatar email')
+      .populate([
+        { path: 'senderId', select: 'fullName avatar email' },
+        {
+          path: 'replyToId',
+          populate: { path: 'senderId', select: 'fullName avatar email' }
+        }
+      ])
       .exec();
 
     const nextCursor =
@@ -253,7 +265,13 @@ export class MessagesService {
     message.editedAt = new Date();
     await message.save();
     
-    const populated = await message.populate('senderId', 'fullName avatar email');
+    const populated = await message.populate([
+      { path: 'senderId', select: 'fullName avatar email' },
+      {
+        path: 'replyToId',
+        populate: { path: 'senderId', select: 'fullName avatar email' }
+      }
+    ]);
     const [withReactions] = await this.populateReactions([populated]);
     return withReactions;
   }
@@ -311,7 +329,13 @@ export class MessagesService {
     }
     const message = await this.messageModel
       .findById(id)
-      .populate('senderId', 'fullName avatar email')
+      .populate([
+        { path: 'senderId', select: 'fullName avatar email' },
+        {
+          path: 'replyToId',
+          populate: { path: 'senderId', select: 'fullName avatar email' }
+        }
+      ])
       .exec();
     if (!message) {
       throw new NotFoundException('Message not found');
