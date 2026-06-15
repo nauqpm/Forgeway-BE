@@ -26,14 +26,12 @@ import {
   ApiParam,
   ApiQuery,
   ApiBody,
-  ApiResponse,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiForbiddenResponse,
   ApiUnauthorizedResponse,
   ApiNoContentResponse,
-  getSchemaPath,
   ApiExtraModels,
 } from '@nestjs/swagger';
 import { PagesService } from '../services/pages.service';

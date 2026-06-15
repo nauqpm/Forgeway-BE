@@ -7,7 +7,6 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
 import { PermissionsService } from '../services/permissions.service';
 import { CreatePermissionDto } from '../dtos/create-permission.dto';
 import { UpdateUserPermissionsDto } from '../dtos/update-user-permissions.dto';
@@ -17,7 +16,6 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
 import { UserPermissionDocument } from '../schemas/user-permission.schema';
-import { Permission } from '../schemas/permission.schema';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('permissionsapi')

@@ -11,8 +11,7 @@ import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 import { USER_STATUSES } from '../src/common/constants/user-status.constants';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
-import { Otp, OtpDocument } from '../src/modules/auth/schemas/otp.schema';
-import { Token, TokenDocument } from '../src/modules/auth/schemas/token.schema';
+import { Token } from '../src/modules/auth/schemas/token.schema';
 import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { InviteService } from '../src/modules/workspaces/services/invite.service';
 import { OtpService } from '../src/modules/auth/services/otp.service';
@@ -62,7 +61,10 @@ class InMemoryTokenModel {
     return record;
   }
 
-  async updateMany(query: Record<string, unknown>, update: { $set: Partial<TokenRecord> } | Partial<TokenRecord>) {
+  async updateMany(
+    query: Record<string, unknown>,
+    update: { $set: Partial<TokenRecord> } | Partial<TokenRecord>,
+  ) {
     let modifiedCount = 0;
     const changes = '$set' in update ? update.$set : update;
     for (const record of this.records) {
@@ -74,7 +76,10 @@ class InMemoryTokenModel {
     return { modifiedCount };
   }
 
-  async updateOne(query: Record<string, unknown>, update: Partial<TokenRecord>) {
+  async updateOne(
+    query: Record<string, unknown>,
+    update: Partial<TokenRecord>,
+  ) {
     const record = this.records.find(item => this.matches(item, query));
     if (record) {
       Object.assign(record, update, { updatedAt: new Date() });
@@ -83,11 +88,14 @@ class InMemoryTokenModel {
   }
 
   findOne(query: Record<string, unknown>) {
-    const resolve = async () => this.records.find(record => this.matches(record, query)) ?? null;
+    const resolve = async () =>
+      this.records.find(record => this.matches(record, query)) ?? null;
     return {
       exec: resolve,
-      then: (onFulfilled: (value: TokenRecord | null) => unknown, onRejected?: (reason: unknown) => unknown) =>
-        resolve().then(onFulfilled, onRejected),
+      then: (
+        onFulfilled: (value: TokenRecord | null) => unknown,
+        onRejected?: (reason: unknown) => unknown,
+      ) => resolve().then(onFulfilled, onRejected),
     };
   }
 
@@ -104,7 +112,10 @@ class InMemoryTokenModel {
     return before;
   }
 
-  private matches(record: TokenRecord, query: Record<string, unknown>): boolean {
+  private matches(
+    record: TokenRecord,
+    query: Record<string, unknown>,
+  ): boolean {
     return Object.entries(query).every(([key, expected]) => {
       const value = record[key as keyof TokenRecord];
       if (expected && typeof expected === 'object' && '$in' in expected) {
@@ -133,8 +144,14 @@ type OtpRecord = {
 class InMemoryOtpModel {
   records: OtpRecord[] = [];
 
-  async create(input: Omit<OtpRecord, '_id' | 'createdAt'>): Promise<OtpRecord> {
-    const record = { ...input, _id: new Types.ObjectId(), createdAt: new Date() };
+  async create(
+    input: Omit<OtpRecord, '_id' | 'createdAt'>,
+  ): Promise<OtpRecord> {
+    const record = {
+      ...input,
+      _id: new Types.ObjectId(),
+      createdAt: new Date(),
+    };
     this.records.push(record);
     return record;
   }
@@ -145,10 +162,17 @@ class InMemoryOtpModel {
         exec: async () =>
           [...this.records]
             .filter(record => {
-              const activeByExpiry = query.expiresAt?.$gt ? record.expiresAt > query.expiresAt.$gt : true;
-              return record.email === query.email && record.isUsed === query.isUsed && activeByExpiry;
+              const activeByExpiry = query.expiresAt?.$gt
+                ? record.expiresAt > query.expiresAt.$gt
+                : true;
+              return (
+                record.email === query.email &&
+                record.isUsed === query.isUsed &&
+                activeByExpiry
+              );
             })
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null,
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ??
+          null,
       }),
     };
   }
@@ -166,7 +190,9 @@ class InMemoryOtpModel {
   ): Promise<OtpRecord | null> {
     const record = this.records.find(
       item =>
-        String(item._id) === String(query._id) && item.isUsed === query.isUsed && item.expiresAt > query.expiresAt.$gt,
+        String(item._id) === String(query._id) &&
+        item.isUsed === query.isUsed &&
+        item.expiresAt > query.expiresAt.$gt,
     );
     if (!record) {
       return null;
@@ -179,7 +205,9 @@ class InMemoryOtpModel {
 
 describe('Auth security flows (integration)', () => {
   const userId = new Types.ObjectId().toString();
-  const jwtService = new JwtService({ secret: 'jwt-secret-that-is-long-enough-for-tests' });
+  const jwtService = new JwtService({
+    secret: 'jwt-secret-that-is-long-enough-for-tests',
+  });
   const configService = {
     get: jest.fn((key: string) => {
       const values: Record<string, string> = {
@@ -215,22 +243,34 @@ describe('Auth security flows (integration)', () => {
   });
 
   it('rotates refresh tokens and revokes the family on reused old refresh token', async () => {
-    const initial = await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
+    const initial = await tokenService.createAndSaveTokens(
+      userId,
+      'user@example.com',
+      GLOBAL_ROLES.USER,
+    );
     const rotated = await tokenService.refreshAccessToken(initial.refreshToken);
 
     expect(rotated.refreshToken).not.toBe(initial.refreshToken);
     expect(
-      tokenModel.records.find(record => record.token === tokenService.hashToken(initial.refreshToken))?.status,
+      tokenModel.records.find(
+        record => record.token === tokenService.hashToken(initial.refreshToken),
+      )?.status,
     ).toBe(false);
 
-    const oldRefresh = tokenModel.records.find(record => record.token === tokenService.hashToken(initial.refreshToken));
+    const oldRefresh = tokenModel.records.find(
+      record => record.token === tokenService.hashToken(initial.refreshToken),
+    );
     if (!oldRefresh) {
       throw new Error('Expected old refresh token record');
     }
     oldRefresh.updatedAt = new Date(Date.now() - 20_000);
 
-    await expect(tokenService.refreshAccessToken(initial.refreshToken)).rejects.toThrow();
-    const familyRecords = tokenModel.records.filter(record => record.familyId === oldRefresh.familyId);
+    await expect(
+      tokenService.refreshAccessToken(initial.refreshToken),
+    ).rejects.toThrow();
+    const familyRecords = tokenModel.records.filter(
+      record => record.familyId === oldRefresh.familyId,
+    );
     expect(familyRecords.every(record => record.status === false)).toBe(true);
   });
 
@@ -247,13 +287,17 @@ describe('Auth security flows (integration)', () => {
     expect(await otpService.getLatestActiveOtp('user@example.com')).toBeNull();
 
     await otpService.createOtp('expired@example.com', '654321', -1);
-    await expect(otpService.verifyOtp('expired@example.com', '654321')).rejects.toThrow();
+    await expect(
+      otpService.verifyOtp('expired@example.com', '654321'),
+    ).rejects.toThrow();
   });
 
   it('consumes OTP during verification and issues a one-time reset grant', async () => {
     const otpModel = new InMemoryOtpModel();
     const otpService = new OtpService(otpModel as unknown as never);
-    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const hashedPassword = await new PasswordService().hashPassword(
+      'OldPassword1!',
+    );
     const usersService = {
       findByEmail: jest.fn().mockResolvedValue({
         _id: { toString: () => userId },
@@ -299,10 +343,17 @@ describe('Auth security flows (integration)', () => {
   });
 
   it('rejects invalid and expired reset grants', async () => {
-    await expect(tokenService.consumeResetGrant('invalid-grant')).rejects.toThrow();
+    await expect(
+      tokenService.consumeResetGrant('invalid-grant'),
+    ).rejects.toThrow();
 
-    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
-    const record = tokenModel.records.find(item => item.token === tokenService.hashToken(resetGrant));
+    const { resetGrant } = await tokenService.createResetGrant(
+      userId,
+      'user@example.com',
+    );
+    const record = tokenModel.records.find(
+      item => item.token === tokenService.hashToken(resetGrant),
+    );
     if (!record) {
       throw new Error('Expected reset grant record');
     }
@@ -314,7 +365,9 @@ describe('Auth security flows (integration)', () => {
   it('invalidates existing sessions after successful grant reset', async () => {
     const otpModel = new InMemoryOtpModel();
     const otpService = new OtpService(otpModel as unknown as never);
-    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const hashedPassword = await new PasswordService().hashPassword(
+      'OldPassword1!',
+    );
     const usersService = {
       findByEmail: jest.fn().mockResolvedValue({
         _id: { toString: () => userId },
@@ -331,21 +384,32 @@ describe('Auth security flows (integration)', () => {
       {} as VerifyService,
     );
 
-    await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
-    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+    await tokenService.createAndSaveTokens(
+      userId,
+      'user@example.com',
+      GLOBAL_ROLES.USER,
+    );
+    const { resetGrant } = await tokenService.createResetGrant(
+      userId,
+      'user@example.com',
+    );
 
     await passwordResetService.resetPasswordWithGrant({
       resetGrant,
       newPassword: 'NewPassword1!',
     });
 
-    expect(tokenModel.records.every(record => record.status === false)).toBe(true);
+    expect(tokenModel.records.every(record => record.status === false)).toBe(
+      true,
+    );
   });
 
   it('does not consume reset grant when new password matches current password', async () => {
     const otpModel = new InMemoryOtpModel();
     const otpService = new OtpService(otpModel as unknown as never);
-    const hashedPassword = await new PasswordService().hashPassword('OldPassword1!');
+    const hashedPassword = await new PasswordService().hashPassword(
+      'OldPassword1!',
+    );
     const usersService = {
       findByEmail: jest.fn().mockResolvedValue({
         _id: { toString: () => userId },
@@ -362,7 +426,10 @@ describe('Auth security flows (integration)', () => {
       {} as VerifyService,
     );
 
-    const { resetGrant } = await tokenService.createResetGrant(userId, 'user@example.com');
+    const { resetGrant } = await tokenService.createResetGrant(
+      userId,
+      'user@example.com',
+    );
 
     await expect(
       passwordResetService.resetPasswordWithGrant({
@@ -371,7 +438,9 @@ describe('Auth security flows (integration)', () => {
       }),
     ).rejects.toThrow();
 
-    const grantRecord = tokenModel.records.find(record => record.token === tokenService.hashToken(resetGrant));
+    const grantRecord = tokenModel.records.find(
+      record => record.token === tokenService.hashToken(resetGrant),
+    );
     expect(grantRecord?.status).toBe(true);
     expect(usersService.updatePassword).not.toHaveBeenCalled();
 
@@ -426,9 +495,14 @@ describe('Auth security flows (integration)', () => {
       status: USER_STATUSES.PENDING_VERIFICATION,
     };
     const usersService = {
-      findByEmail: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(createdUser),
+      findByEmail: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(createdUser),
       createUser: jest.fn().mockResolvedValue(createdUser),
-      updateUser: jest.fn().mockResolvedValue({ ...createdUser, status: USER_STATUSES.ACTIVE }),
+      updateUser: jest
+        .fn()
+        .mockResolvedValue({ ...createdUser, status: USER_STATUSES.ACTIVE }),
     } as unknown as UsersService;
     const verifyService = {
       sendVerificationEmail: jest.fn(),
@@ -448,7 +522,10 @@ describe('Auth security flows (integration)', () => {
       email: 'new-user@example.com',
       password: 'StrongPassword1!',
     });
-    await authenticationService.verifyRegistrationEmail('new-user@example.com', '123456');
+    await authenticationService.verifyRegistrationEmail(
+      'new-user@example.com',
+      '123456',
+    );
 
     expect(usersService.createUser).toHaveBeenCalledWith({
       email: 'new-user@example.com',
@@ -456,8 +533,12 @@ describe('Auth security flows (integration)', () => {
       role: GLOBAL_ROLES.USER,
       status: USER_STATUSES.PENDING_VERIFICATION,
     });
-    expect(verifyService.sendVerificationEmail).toHaveBeenCalledWith('new-user@example.com');
-    expect(usersService.updateUser).toHaveBeenCalledWith(userId, { status: USER_STATUSES.ACTIVE });
+    expect(verifyService.sendVerificationEmail).toHaveBeenCalledWith(
+      'new-user@example.com',
+    );
+    expect(usersService.updateUser).toHaveBeenCalledWith(userId, {
+      status: USER_STATUSES.ACTIVE,
+    });
   });
 });
 
@@ -476,7 +557,9 @@ describe('Auth logout revoke path (e2e)', () => {
         JwtAuthGuard,
         {
           provide: JwtService,
-          useValue: new JwtService({ secret: 'jwt-secret-that-is-long-enough-for-tests' }),
+          useValue: new JwtService({
+            secret: 'jwt-secret-that-is-long-enough-for-tests',
+          }),
         },
         {
           provide: ConfigService,
@@ -522,7 +605,9 @@ describe('Auth logout revoke path (e2e)', () => {
 
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
     tokenService = moduleRef.get(TokenService);
   });
@@ -532,19 +617,27 @@ describe('Auth logout revoke path (e2e)', () => {
   });
 
   it('revokes access and refresh tokens supplied via cookies on logout', async () => {
-    const tokens = await tokenService.createAndSaveTokens(userId, 'user@example.com', GLOBAL_ROLES.USER);
+    const tokens = await tokenService.createAndSaveTokens(
+      userId,
+      'user@example.com',
+      GLOBAL_ROLES.USER,
+    );
 
     await request(app.getHttpServer())
       .post('/auth/logout')
-      .set('Cookie', [`access_token=${tokens.accessToken}`, `refresh_token=${tokens.refreshToken}`])
+      .set('Cookie', [
+        `access_token=${tokens.accessToken}`,
+        `refresh_token=${tokens.refreshToken}`,
+      ])
       .expect(200);
 
     expect(
       tokenModel.records
         .filter(record =>
-          [tokenService.hashToken(tokens.accessToken), tokenService.hashToken(tokens.refreshToken)].includes(
-            record.token,
-          ),
+          [
+            tokenService.hashToken(tokens.accessToken),
+            tokenService.hashToken(tokens.refreshToken),
+          ].includes(record.token),
         )
         .every(record => record.status === false),
     ).toBe(true);

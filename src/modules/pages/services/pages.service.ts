@@ -365,7 +365,7 @@ export class PagesService {
   }
 
   async delete(id: string): Promise<void> {
-    const page = await this.findById(id);
+    await this.findById(id);
 
     await this.deleteChildrenRecursively(id);
 

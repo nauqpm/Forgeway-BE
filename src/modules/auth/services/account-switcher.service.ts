@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -206,7 +205,7 @@ export class AccountSwitcherService {
     );
 
     this.logger.log(
-      `🔀 Account switch: ${ownerUserId} → ${targetUser._id} (${targetUser.email})`,
+      `🔀 Account switch: ${ownerUserId} → ${String(targetUser._id)} (${targetUser.email})`,
     );
 
     return {

@@ -37,7 +37,6 @@ export class SearchService {
     );
 
     const types = options?.types || ['task', 'workspace', 'page'];
-    const limit = options?.limit || 20;
 
     const result: SearchResult = {
       tasks: [],

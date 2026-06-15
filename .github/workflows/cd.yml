@@ -5,7 +5,7 @@ on:
     branches: [production]
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sdlc-platform-backend
+  IMAGE_NAME: ghcr.io/automationland-dev/sdlc-platform-backend
 
 jobs:
   build-and-push:
@@ -64,9 +64,9 @@ jobs:
           script: |
             echo "${{ secrets.VPS_GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/sdlc
-            docker pull ghcr.io/${{ github.repository_owner }}/sdlc-platform-backend:latest
+            docker pull ghcr.io/automationland-dev/sdlc-platform-backend:latest
             docker compose up -d --no-build --no-deps backend
-            docker image ls "ghcr.io/${{ github.repository_owner }}/sdlc-platform-backend" \
+            docker image ls "ghcr.io/automationland-dev/sdlc-platform-backend" \
               --format "{{.Repository}}:{{.Tag}}" | grep "sha-" | sort -r | \
               tail -n +3 | xargs docker rmi 2>/dev/null || true
             sleep 20

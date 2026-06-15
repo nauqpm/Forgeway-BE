@@ -81,7 +81,7 @@ export class AuthenticationService implements OnModuleInit {
         status: USER_STATUSES.PENDING_VERIFICATION,
       });
       this.logger.log(
-        `User created successfully: ${newUser.email} (ID: ${newUser._id})`,
+        `User created successfully: ${newUser.email} (ID: ${String(newUser._id)})`,
       );
 
       await this.verifyService.sendVerificationEmail(registerDto.email);
@@ -210,7 +210,9 @@ export class AuthenticationService implements OnModuleInit {
           user.avatar,
         );
 
-      this.logger.log(`Login successful: ${user.email} (ID: ${user._id})`);
+      this.logger.log(
+        `Login successful: ${user.email} (ID: ${String(user._id)})`,
+      );
 
       return {
         success: true,

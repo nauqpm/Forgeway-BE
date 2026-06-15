@@ -42,7 +42,7 @@ export class AdminSeedService implements OnModuleInit {
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(adminPassword, salt);
 
-      const admin = await this.usersRepository.create({
+      await this.usersRepository.create({
         email: adminEmail,
         password: hashedPassword,
         fullName: adminFullName || 'System Admin',

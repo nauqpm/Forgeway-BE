@@ -133,6 +133,7 @@ describe('TaskAttachmentService', () => {
       service.uploadForTask(workspaceId, taskId, file, userId),
     ).resolves.toEqual(mapped);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(attachmentService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId,
@@ -143,6 +144,7 @@ describe('TaskAttachmentService', () => {
       file,
       userId,
     );
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(taskActivitiesService.recordAttachmentAdded).toHaveBeenCalledWith(
       task,
       userId,
@@ -166,7 +168,9 @@ describe('TaskAttachmentService', () => {
       service.uploadForTask(workspaceId, taskId, file, userId),
     ).rejects.toThrow(BadRequestException);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(attachmentService.create).not.toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(taskActivitiesService.recordAttachmentAdded).not.toHaveBeenCalled();
   });
   it('returns download stream and increments download count', async () => {

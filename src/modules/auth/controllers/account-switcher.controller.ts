@@ -25,7 +25,7 @@ import { AccountSwitcherService } from '../services/account-switcher.service';
 import { SwitchAccountDto } from '../dtos/switch-account.dto';
 import { SavedAccountResponseDto } from '../dtos/saved-account.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { clearAuthCookies, setAuthCookies } from '../utils/cookie.utils';
+import { setAuthCookies } from '../utils/cookie.utils';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
