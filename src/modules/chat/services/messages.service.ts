@@ -276,7 +276,7 @@ export class MessagesService {
     return withReactions;
   }
 
-  async softDelete(messageId: string, userId: string): Promise<void> {
+  async softDelete(messageId: string, userId: string): Promise<{ updatedLastMessage: any | null }> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');
     }
@@ -321,6 +321,48 @@ export class MessagesService {
     // Do not overwrite message.content with English text so that FE can localize correctly
     message.deletedAt = new Date();
     await message.save();
+
+    // Check if this was the channel's last message and update it
+    let updatedLastMessage: any = null;
+    const channelId = message.channelId.toString();
+    
+    // Find the latest non-deleted message in this channel
+    const previousMessage = await this.messageModel
+      .findOne({
+        channelId: new Types.ObjectId(channelId),
+        deletedAt: null,
+      })
+      .sort({ createdAt: -1 })
+      .populate('senderId', 'fullName avatar email')
+      .exec();
+
+    if (previousMessage) {
+      const senderName = (previousMessage.senderId as any)?.fullName || 'User';
+      const sentAt = (previousMessage as any).createdAt || new Date();
+      await this.channelsService.updateLastMessage(channelId, {
+        content: previousMessage.content,
+        senderId: previousMessage.senderId,
+        senderName,
+        sentAt,
+      });
+      updatedLastMessage = {
+        content: previousMessage.content,
+        senderId: previousMessage.senderId,
+        senderName,
+        sentAt,
+      };
+    } else {
+      // No messages left, clear lastMessage
+      await this.channelsService.updateLastMessage(channelId, {
+        content: '',
+        senderId: null,
+        senderName: '',
+        sentAt: new Date(),
+      });
+      updatedLastMessage = null;
+    }
+
+    return { updatedLastMessage };
   }
 
   async findById(id: string): Promise<any> {
