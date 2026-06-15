@@ -9,11 +9,11 @@ import { JwtService } from '@nestjs/jwt';
 
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { AuditLogService } from '../../audit/services/audit-log.service';
-import { AUTH_ERROR_CODES } from '../constants/auth-error.constants';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { RequestWithUser } from '../interfaces/request-with-user.interface';
 import { TokenService } from '../services/token.service';
 import { JwtPayload } from '../types/jwt-payload.type';
+import { AUTH_ERROR_CODES } from '@/common/constants/error-codes.constants';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
