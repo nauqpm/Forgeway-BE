@@ -67,10 +67,14 @@ describe('Auth user-management authorization (e2e)', () => {
         {
           provide: TokenService,
           useValue: {
-            findActiveAccessToken: jest.fn((token: keyof typeof jwtPayloads) => {
-              const payload = jwtPayloads[token];
-              return payload ? { userId: { toString: () => payload.userId } } : null;
-            }),
+            findActiveAccessToken: jest.fn(
+              (token: keyof typeof jwtPayloads) => {
+                const payload = jwtPayloads[token];
+                return payload
+                  ? { userId: { toString: () => payload.userId } }
+                  : null;
+              },
+            ),
           },
         },
         {
@@ -123,11 +127,17 @@ describe('Auth user-management authorization (e2e)', () => {
   });
 
   it('rejects regular users with 403', async () => {
-    await request(app.getHttpServer()).get('/auth/users').set('Cookie', 'access_token=user-token').expect(403);
+    await request(app.getHttpServer())
+      .get('/auth/users')
+      .set('Cookie', 'access_token=user-token')
+      .expect(403);
   });
 
   it('rejects authenticated users without the super admin role with 403', async () => {
-    await request(app.getHttpServer()).get('/auth/users').set('Cookie', 'access_token=invalid-role-token').expect(403);
+    await request(app.getHttpServer())
+      .get('/auth/users')
+      .set('Cookie', 'access_token=invalid-role-token')
+      .expect(403);
   });
 
   it('allows super admins and sanitizes user list responses', async () => {

@@ -4,7 +4,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  GoneException,
   NotFoundException,
 } from '@nestjs/common';
 import { Types } from 'mongoose';

@@ -25,10 +25,6 @@ describe('ScrumController', () => {
   let scrumService: jest.Mocked<ScrumService>;
 
   const workspaceId = new Types.ObjectId().toString();
-  const mockWorkspace = {
-    _id: new Types.ObjectId(workspaceId),
-    name: 'Test Project',
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

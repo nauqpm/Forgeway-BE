@@ -44,14 +44,16 @@ export class PasswordResetService {
       return genericResponse;
     }
 
-    this.logger.debug(`Generating password reset OTP for userId: ${user._id}`);
+    this.logger.debug(
+      `Generating password reset OTP for userId: ${String(user._id)}`,
+    );
     const otp = this.otpService.generateOtp();
     await this.otpService.createOtp(dto.email, otp, 15 * 60 * 1000);
     this.logger.debug(`Password reset OTP stored for email: ${dto.email}`);
 
     await this.verifyService.sendPasswordResetEmail(dto.email, otp);
     this.logger.log(
-      `Password reset OTP email dispatched for userId: ${user._id}`,
+      `Password reset OTP email dispatched for userId: ${String(user._id)}`,
     );
 
     return genericResponse;
@@ -82,7 +84,7 @@ export class PasswordResetService {
       await this.tokenService.createResetGrant(user._id.toString(), user.email);
 
     this.logger.log(
-      `Password reset grant issued for userId: ${user._id}; expiresInMs: ${expiresInMs}`,
+      `Password reset grant issued for userId: ${String(user._id)}; expiresInMs: ${expiresInMs}`,
     );
     return {
       success: true,
@@ -116,7 +118,7 @@ export class PasswordResetService {
       : false;
     if (isSameAsCurrentPassword) {
       this.logger.warn(
-        `Password reset rejected because new password matches current password for userId: ${user._id}`,
+        `Password reset rejected because new password matches current password for userId: ${String(user._id)}`,
       );
       throw new BadRequestException(
         'The new password must be different from the current password.',
@@ -128,7 +130,7 @@ export class PasswordResetService {
     );
     if (consumedGrant.email !== email) {
       this.logger.error(
-        `Password reset grant email mismatch during consume for userId: ${user._id}`,
+        `Password reset grant email mismatch during consume for userId: ${String(user._id)}`,
       );
       throw new BadRequestException('Reset grant is invalid.');
     }
@@ -138,11 +140,11 @@ export class PasswordResetService {
       dto.newPassword,
     );
     await this.usersService.updatePassword(email, hashedPassword);
-    this.logger.log(`Password updated for userId: ${user._id}`);
+    this.logger.log(`Password updated for userId: ${String(user._id)}`);
 
     await this.tokenService.invalidateAllTokensForUser(user._id.toString());
     this.logger.log(
-      `Existing sessions invalidated after password reset for userId: ${user._id}`,
+      `Existing sessions invalidated after password reset for userId: ${String(user._id)}`,
     );
 
     return { success: true, message: 'Password has been reset successfully.' };

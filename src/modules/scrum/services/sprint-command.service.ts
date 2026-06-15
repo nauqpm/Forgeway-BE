@@ -185,7 +185,9 @@ export class SprintCommandService {
     }
 
     if (sprint.status !== 'planning') {
-      throw new BadRequestException(ErrorFactory.sprintInvalidStatus('planning', sprint.status));
+      throw new BadRequestException(
+        ErrorFactory.sprintInvalidStatus('planning', sprint.status),
+      );
     }
 
     await this.taskModel

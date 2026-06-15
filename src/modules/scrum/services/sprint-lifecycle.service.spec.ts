@@ -11,7 +11,7 @@ describe('SprintLifecycleService', () => {
   let service: SprintLifecycleService;
   let sprintModel: any;
   let taskModel: any;
-  let boardStatusService: jest.Mocked<BoardStatusService>;
+  let _boardStatusService: jest.Mocked<BoardStatusService>;
 
   const mockQuery = (val: any) => ({
     exec: jest.fn().mockResolvedValue(val),
@@ -50,7 +50,7 @@ describe('SprintLifecycleService', () => {
     service = module.get<SprintLifecycleService>(SprintLifecycleService);
     sprintModel = module.get(getModelToken(Sprint.name));
     taskModel = module.get(getModelToken(Task.name));
-    boardStatusService = module.get(BoardStatusService);
+    _boardStatusService = module.get(BoardStatusService);
   });
 
   describe('startSprint', () => {

@@ -276,7 +276,7 @@ export class TokenService {
     }
 
     this.logger.debug(
-      `Password reset grant consumed for userId: ${consumed.userId}`,
+      `Password reset grant consumed for userId: ${String(consumed.userId)}`,
     );
     return { email: consumed.email };
   }
@@ -353,7 +353,7 @@ export class TokenService {
               { $set: { status: false } },
             );
             this.logger.error(
-              `🚨 REFRESH TOKEN THEFT DETECTED — familyId: ${revokedToken.familyId}, userId: ${revokedToken.userId}`,
+              `🚨 REFRESH TOKEN THEFT DETECTED — familyId: ${String(revokedToken.familyId)}, userId: ${String(revokedToken.userId)}`,
             );
             this.auditLogService.log({
               type: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,

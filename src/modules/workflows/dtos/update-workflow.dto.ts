@@ -3,11 +3,10 @@ import {
   IsOptional,
   IsArray,
   ValidateNested,
-  IsEnum,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   WorkflowStatusDto,
   WorkflowTransitionDto,

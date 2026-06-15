@@ -4,7 +4,6 @@ import {
   ExecutionContext,
   Logger,
   Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PermissionsService } from '../services/permissions.service';
@@ -13,12 +12,6 @@ import { Model } from 'mongoose';
 import { Auth } from '../../auth/schemas/auth.schema';
 import { getModelToken } from '@nestjs/mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
-
-interface JwtPayload {
-  userId: string;
-  email: string;
-  role: string;
-}
 
 @Injectable()
 export class PermissionGuard implements CanActivate {

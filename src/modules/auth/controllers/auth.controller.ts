@@ -59,11 +59,6 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
-interface AuthError extends Error {
-  stack?: string;
-  message: string;
-}
-
 // Never put @SkipThrottle() at controller level; it can hide a global auth bypass.
 // Keep public auth routes explicitly throttled at method level.
 @ApiTags('Auth')
@@ -94,7 +89,7 @@ export class AuthController {
   })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Get('check-email')
-  async checkEmail(@Query('email') email: string) {
+  checkEmail(@Query('email') email: string) {
     if (!email) {
       throw new BadRequestException('Email is required');
     }
