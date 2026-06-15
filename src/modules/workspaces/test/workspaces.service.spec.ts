@@ -9,6 +9,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
+import { ChannelsService } from '@/modules/chat/services/channels.service';
 import { KanbanService } from '@/modules/kanban/services/kanban.service';
 import { ScrumService } from '@/modules/scrum/services/scrum.service';
 import { UsersService } from '@/modules/users/services/users.service';
@@ -146,6 +147,10 @@ describe('WorkspacesService', () => {
         {
           provide: getModelToken(DocumentEntity.name),
           useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
+        {
+          provide: ChannelsService,
+          useValue: { createDefaultChannel: jest.fn().mockResolvedValue({}) },
         },
       ],
     }).compile();

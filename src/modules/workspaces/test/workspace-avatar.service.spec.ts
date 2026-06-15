@@ -61,6 +61,8 @@ const createService = () => {
     countModel as any,
     countModel as any,
     countModel as any,
+    {} as any,
+    { createDefaultChannel: jest.fn().mockResolvedValue({}) } as any,
   );
 
   return {
