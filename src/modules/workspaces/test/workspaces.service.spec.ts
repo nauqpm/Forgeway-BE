@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 
@@ -13,7 +14,13 @@ import { ScrumService } from '@/modules/scrum/services/scrum.service';
 import { UsersService } from '@/modules/users/services/users.service';
 import { WorkflowsService } from '@/modules/workflows/services/workflows.service';
 import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspaces.repository';
+import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
+import { WorkspaceKeyService } from '@/modules/workspaces/services/workspace-key.service';
 import { WorkspacesService } from '@/modules/workspaces/services/workspaces.service';
+import { WorkspaceMemberService } from '@/modules/workspaces/services/workspace-member.service';
+import { Task } from '@/modules/tasks/schemas/task.schema';
+import { Page } from '@/modules/pages/schemas/page.schema';
+import { DocumentEntity } from '@/modules/documents/schemas/document.schema';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -78,6 +85,21 @@ const mockUsersService = () => ({
   findByEmail: jest.fn(),
 });
 
+const mockWorkspaceKeyService = () => ({
+  generateUniqueSlug: jest.fn(async (name: string) =>
+    name.toLowerCase().replace(/\s+/g, '-'),
+  ),
+  generateUniqueKey: jest.fn(async (key: string) => key.toUpperCase()),
+});
+
+const mockWorkspaceMemberService = () => ({
+  addMember: jest.fn(),
+  removeMember: jest.fn(),
+  updateMemberRole: jest.fn(),
+  getMembers: jest.fn(),
+  isMember: jest.fn(),
+});
+
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
 describe('WorkspacesService', () => {
@@ -87,6 +109,7 @@ describe('WorkspacesService', () => {
   let kanbanService: ReturnType<typeof mockKanbanService>;
   let scrumService: ReturnType<typeof mockScrumService>;
   let usersService: ReturnType<typeof mockUsersService>;
+  let workspaceMemberService: ReturnType<typeof mockWorkspaceMemberService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -97,6 +120,33 @@ describe('WorkspacesService', () => {
         { provide: KanbanService, useFactory: mockKanbanService },
         { provide: ScrumService, useFactory: mockScrumService },
         { provide: UsersService, useFactory: mockUsersService },
+        {
+          provide: WorkspaceMemberService,
+          useFactory: mockWorkspaceMemberService,
+        },
+        { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
+        {
+          provide: WorkspaceDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+            publishUpdated: jest.fn(),
+            publishDeleted: jest.fn(),
+            publishArchived: jest.fn(),
+            publishRestored: jest.fn(),
+          },
+        },
+        {
+          provide: getModelToken(Task.name),
+          useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
+        {
+          provide: getModelToken(Page.name),
+          useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
+        {
+          provide: getModelToken(DocumentEntity.name),
+          useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
       ],
     }).compile();
 
@@ -106,6 +156,7 @@ describe('WorkspacesService', () => {
     kanbanService = module.get(KanbanService);
     scrumService = module.get(ScrumService);
     usersService = module.get(UsersService);
+    workspaceMemberService = module.get(WorkspaceMemberService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -436,7 +487,9 @@ describe('WorkspacesService', () => {
     });
   });
 
-  describe('addMember', () => {
+  // ── addMember (moved to WorkspaceMemberService) ──────────────────────────
+
+  describe('WorkspaceMemberService.addMember', () => {
     const email = 'newmember@example.com';
     const newUser = { _id: new Types.ObjectId(MEMBER_USER_ID), email };
 
@@ -452,7 +505,7 @@ describe('WorkspacesService', () => {
       });
       repo.addMember.mockResolvedValue(updatedWorkspace);
 
-      const result = await service.addMember(
+      const result = await workspaceMemberService.addMember(
         WORKSPACE_ID,
         email,
         SPACE_ROLES.MEMBER,
@@ -470,7 +523,11 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(
-        service.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER),
+        workspaceMemberService.addMember(
+          WORKSPACE_ID,
+          email,
+          SPACE_ROLES.MEMBER,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -479,7 +536,11 @@ describe('WorkspacesService', () => {
       usersService.findByEmail.mockResolvedValue(null);
 
       await expect(
-        service.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER),
+        workspaceMemberService.addMember(
+          WORKSPACE_ID,
+          email,
+          SPACE_ROLES.MEMBER,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -496,14 +557,20 @@ describe('WorkspacesService', () => {
       usersService.findByEmail.mockResolvedValue(newUser);
 
       await expect(
-        service.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER),
+        workspaceMemberService.addMember(
+          WORKSPACE_ID,
+          email,
+          SPACE_ROLES.MEMBER,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
 
   // ── removeMember ───────────────────────────────────────────────────────────
 
-  describe('removeMember', () => {
+  // ── removeMember (moved to WorkspaceMemberService) ────────────────────────
+
+  describe('WorkspaceMemberService.removeMember', () => {
     it('removes a regular member successfully', async () => {
       const workspace = buildWorkspace({
         members: [
@@ -520,7 +587,7 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(workspace);
       repo.removeMember.mockResolvedValue({ ...workspace });
 
-      await service.removeMember(WORKSPACE_ID, MEMBER_USER_ID);
+      await workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID);
 
       expect(repo.removeMember).toHaveBeenCalledWith(
         WORKSPACE_ID,
@@ -532,7 +599,7 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(
-        service.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
+        workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -540,7 +607,7 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(buildWorkspace());
 
       await expect(
-        service.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
+        workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -556,14 +623,16 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(workspace);
 
       await expect(
-        service.removeMember(WORKSPACE_ID, OWNER_ID),
+        workspaceMemberService.removeMember(WORKSPACE_ID, OWNER_ID),
       ).rejects.toThrow(ForbiddenException);
     });
   });
 
   // ── updateMemberRole ───────────────────────────────────────────────────────
 
-  describe('updateMemberRole', () => {
+  // ── updateMemberRole (moved to WorkspaceMemberService) ────────────────────
+
+  describe('WorkspaceMemberService.updateMemberRole', () => {
     it('updates the role of a regular member', async () => {
       const workspace = buildWorkspace({
         members: [
@@ -580,7 +649,7 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(workspace);
       repo.updateMemberRole.mockResolvedValue(workspace);
 
-      await service.updateMemberRole(
+      await workspaceMemberService.updateMemberRole(
         WORKSPACE_ID,
         MEMBER_USER_ID,
         SPACE_ROLES.WORKSPACE_ADMIN,
@@ -597,7 +666,7 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateMemberRole(
+        workspaceMemberService.updateMemberRole(
           WORKSPACE_ID,
           MEMBER_USER_ID,
           SPACE_ROLES.MEMBER,
@@ -609,7 +678,7 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(buildWorkspace());
 
       await expect(
-        service.updateMemberRole(
+        workspaceMemberService.updateMemberRole(
           WORKSPACE_ID,
           MEMBER_USER_ID,
           SPACE_ROLES.MEMBER,
@@ -629,19 +698,25 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(workspace);
 
       await expect(
-        service.updateMemberRole(WORKSPACE_ID, OWNER_ID, SPACE_ROLES.MEMBER),
+        workspaceMemberService.updateMemberRole(
+          WORKSPACE_ID,
+          OWNER_ID,
+          SPACE_ROLES.MEMBER,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });
 
   // ── getMembers ─────────────────────────────────────────────────────────────
 
-  describe('getMembers', () => {
+  // ── getMembers (moved to WorkspaceMemberService) ──────────────────────────
+
+  describe('WorkspaceMemberService.getMembers', () => {
     it('returns the members array of the workspace', async () => {
       const workspace = buildWorkspace();
       repo.findByIdWithMembers.mockResolvedValue(workspace);
 
-      const result = await service.getMembers(WORKSPACE_ID);
+      const result = await workspaceMemberService.getMembers(WORKSPACE_ID);
 
       expect(result).toEqual(workspace.members);
     });
@@ -649,9 +724,9 @@ describe('WorkspacesService', () => {
     it('throws NotFoundException when workspace not found', async () => {
       repo.findByIdWithMembers.mockResolvedValue(null);
 
-      await expect(service.getMembers(WORKSPACE_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        workspaceMemberService.getMembers(WORKSPACE_ID),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

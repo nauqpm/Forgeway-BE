@@ -1,18 +1,17 @@
 import { Types } from 'mongoose';
-
 import { TaskSearchService } from '../services/task-search.service';
-import { TasksRepository } from './tasks.repository';
+import { TaskQueryBuilder } from './task-query.builder';
 
-describe('TasksRepository filters', () => {
-  let repository: TasksRepository;
+describe('TaskQueryBuilder', () => {
+  let queryBuilder: TaskQueryBuilder;
 
   beforeEach(() => {
-    repository = new TasksRepository({} as any, new TaskSearchService());
+    queryBuilder = new TaskQueryBuilder(new TaskSearchService());
   });
 
   it('builds a multi-select status filter with all requested status values', () => {
     const workspaceId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       status: ['todo', 'inprogress', 'testing', 'done'],
     });
@@ -27,7 +26,7 @@ describe('TasksRepository filters', () => {
 
   it('builds an exact task key filter scoped by workspace', () => {
     const workspaceId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       taskKey: 'TESKB-12',
     });
@@ -39,7 +38,7 @@ describe('TasksRepository filters', () => {
 
   it('normalizes explicit task key filters before querying', () => {
     const workspaceId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       taskKey: ' teskb-12 ',
     });
@@ -51,7 +50,7 @@ describe('TasksRepository filters', () => {
 
   it('auto-detects task key search and skips text search', () => {
     const workspaceId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       search: 'TESKB-12',
     });
@@ -64,7 +63,7 @@ describe('TasksRepository filters', () => {
 
   it('uses indexed search tokens for one-character search', () => {
     const workspaceId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       search: 'R',
     });
@@ -74,9 +73,10 @@ describe('TasksRepository filters', () => {
     expect(filter.$or).toBeUndefined();
     expect(filter.$text).toBeUndefined();
   });
+
   it('keeps partial regex search when search is not a full task key', () => {
     const workspaceId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       search: 'Re',
     });
@@ -94,7 +94,7 @@ describe('TasksRepository filters', () => {
   it('combines partial search with existing filters', () => {
     const workspaceId = new Types.ObjectId().toString();
     const assigneeId = new Types.ObjectId().toString();
-    const filter = (repository as any).buildFilter({
+    const filter = queryBuilder.buildFilter({
       workspaceId,
       assigneeId,
       status: ['todo'],

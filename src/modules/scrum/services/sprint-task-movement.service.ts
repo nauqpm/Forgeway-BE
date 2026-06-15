@@ -3,7 +3,11 @@
 // - move tasks về backlog
 // - kiểm tra task có thuộc workspace không
 // - chặn di chuyển task ra khỏi completed sprint nếu không phải super admin.
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
@@ -106,10 +110,15 @@ export class SprintTaskMovementService {
     return { modifiedCount: result.modifiedCount };
   }
 
-  private async ensureTaskWorkspaceOwnership(workspaceId: string, taskIds: string[]): Promise<void> {
+  private async ensureTaskWorkspaceOwnership(
+    workspaceId: string,
+    taskIds: string[],
+  ): Promise<void> {
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const uniqueTaskIds = [...new Set(taskIds)];
-    const taskObjectIds = uniqueTaskIds.map(taskId => new Types.ObjectId(taskId));
+    const taskObjectIds = uniqueTaskIds.map(
+      taskId => new Types.ObjectId(taskId),
+    );
 
     const count = await this.taskModel
       .countDocuments({
@@ -141,9 +150,9 @@ export class SprintTaskMovementService {
       .lean()
       .exec();
 
-    const sprintIds = [...new Set(tasks.map(task => task.sprintId?.toString()).filter(Boolean))].map(
-      id => new Types.ObjectId(id),
-    );
+    const sprintIds = [
+      ...new Set(tasks.map(task => task.sprintId?.toString()).filter(Boolean)),
+    ].map(id => new Types.ObjectId(id));
 
     if (!sprintIds.length) {
       return;
@@ -160,7 +169,9 @@ export class SprintTaskMovementService {
       .exec();
 
     if (completedSprint) {
-      throw new BadRequestException('Cant move tasks out of completed sprint without super_admin permission');
+      throw new BadRequestException(
+        'Cant move tasks out of completed sprint without super_admin permission',
+      );
     }
   }
 }

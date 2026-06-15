@@ -6,11 +6,17 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { TaskActivityCreatedEvent } from '../../../shared/events/domain-events/task';
-import { TASK_ACTIVITY_TYPES, TaskActivityType } from '../constants/task-activity.constants';
+import {
+  TASK_ACTIVITY_TYPES,
+  TaskActivityType,
+} from '../constants/task-activity.constants';
 import { FilterTaskActivityDto } from '../dtos/filter-task-activity.dto';
 import { TaskActivityListDto } from '../dtos/task-activity-list.dto';
 import { TaskActivityMapper } from '../mappers/task-activity.mapper';
-import { CreateTaskActivityData, TaskActivitiesRepository } from '../repositories/task-activities.repository';
+import {
+  CreateTaskActivityData,
+  TaskActivitiesRepository,
+} from '../repositories/task-activities.repository';
 
 interface TaskActivityRecordInput {
   workspaceId: string;
@@ -66,7 +72,11 @@ export class TaskActivitiesService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    const result = await this.taskActivitiesRepository.findByTaskInWorkspace(workspaceId, taskId, filterDto);
+    const result = await this.taskActivitiesRepository.findByTaskInWorkspace(
+      workspaceId,
+      taskId,
+      filterDto,
+    );
 
     return {
       activities: this.taskActivityMapper.mapToDtos(result.activities),
@@ -76,7 +86,11 @@ export class TaskActivitiesService {
     };
   }
 
-  async recordCommentUpdated(task: unknown, actorId: string, commentId: string): Promise<void> {
+  async recordCommentUpdated(
+    task: unknown,
+    actorId: string,
+    commentId: string,
+  ): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {
       return;
@@ -92,7 +106,11 @@ export class TaskActivitiesService {
     });
   }
 
-  async recordCommentDeleted(task: unknown, actorId: string, commentId: string): Promise<void> {
+  async recordCommentDeleted(
+    task: unknown,
+    actorId: string,
+    commentId: string,
+  ): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {
       return;
@@ -107,7 +125,11 @@ export class TaskActivitiesService {
       metadata: { commentId },
     });
   }
-  async recordCommentAdded(task: unknown, actorId: string, commentId: string): Promise<void> {
+  async recordCommentAdded(
+    task: unknown,
+    actorId: string,
+    commentId: string,
+  ): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {
       return;
@@ -142,7 +164,12 @@ export class TaskActivitiesService {
       metadata: { attachmentId, fileName },
     });
   }
-  async recordAttachmentAdded(task: unknown, actorId: string, attachmentId: string, fileName?: string): Promise<void> {
+  async recordAttachmentAdded(
+    task: unknown,
+    actorId: string,
+    attachmentId: string,
+    fileName?: string,
+  ): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {
       return;
@@ -232,7 +259,11 @@ export class TaskActivitiesService {
     });
   }
 
-  async recordTaskUpdated(beforeTask: unknown, afterTask: unknown, actorId: string): Promise<void> {
+  async recordTaskUpdated(
+    beforeTask: unknown,
+    afterTask: unknown,
+    actorId: string,
+  ): Promise<void> {
     const before = this.createSnapshot(beforeTask);
     const after = this.createSnapshot(afterTask);
     if (!before || !after) {
@@ -264,7 +295,11 @@ export class TaskActivitiesService {
     );
   }
 
-  async recordTaskMoved(beforeTask: unknown, afterTask: unknown, actorId: string): Promise<void> {
+  async recordTaskMoved(
+    beforeTask: unknown,
+    afterTask: unknown,
+    actorId: string,
+  ): Promise<void> {
     const before = this.createSnapshot(beforeTask);
     const after = this.createSnapshot(afterTask);
     if (!before || !after) {
@@ -272,23 +307,62 @@ export class TaskActivitiesService {
     }
 
     await Promise.all([
-      this.recordFieldChange(before, after, actorId, 'columnId', TASK_ACTIVITY_TYPES.COLUMN_CHANGED),
-      this.recordFieldChange(before, after, actorId, 'status', TASK_ACTIVITY_TYPES.STATUS_CHANGED),
-      this.recordFieldChange(before, after, actorId, 'sprintId', TASK_ACTIVITY_TYPES.SPRINT_CHANGED),
-      this.recordFieldChange(before, after, actorId, 'rank', TASK_ACTIVITY_TYPES.RANK_CHANGED),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'columnId',
+        TASK_ACTIVITY_TYPES.COLUMN_CHANGED,
+      ),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'status',
+        TASK_ACTIVITY_TYPES.STATUS_CHANGED,
+      ),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'sprintId',
+        TASK_ACTIVITY_TYPES.SPRINT_CHANGED,
+      ),
+      this.recordFieldChange(
+        before,
+        after,
+        actorId,
+        'rank',
+        TASK_ACTIVITY_TYPES.RANK_CHANGED,
+      ),
     ]);
   }
 
   async recordTaskArchived(task: unknown, actorId: string): Promise<void> {
-    await this.recordLifecycleActivity(task, actorId, TASK_ACTIVITY_TYPES.TASK_ARCHIVED);
+    await this.recordLifecycleActivity(
+      task,
+      actorId,
+      TASK_ACTIVITY_TYPES.TASK_ARCHIVED,
+    );
   }
 
   async recordTaskRestored(task: unknown, actorId: string): Promise<void> {
-    await this.recordLifecycleActivity(task, actorId, TASK_ACTIVITY_TYPES.TASK_RESTORED);
+    await this.recordLifecycleActivity(
+      task,
+      actorId,
+      TASK_ACTIVITY_TYPES.TASK_RESTORED,
+    );
   }
 
-  async recordTaskPermanentlyDeleted(task: unknown, actorId: string): Promise<void> {
-    await this.recordLifecycleActivity(task, actorId, TASK_ACTIVITY_TYPES.TASK_PERMANENTLY_DELETED);
+  async recordTaskPermanentlyDeleted(
+    task: unknown,
+    actorId: string,
+  ): Promise<void> {
+    await this.recordLifecycleActivity(
+      task,
+      actorId,
+      TASK_ACTIVITY_TYPES.TASK_PERMANENTLY_DELETED,
+    );
   }
 
   private async recordFieldChange(
@@ -315,7 +389,11 @@ export class TaskActivitiesService {
     });
   }
 
-  private async recordLifecycleActivity(task: unknown, actorId: string, type: TaskActivityType): Promise<void> {
+  private async recordLifecycleActivity(
+    task: unknown,
+    actorId: string,
+    type: TaskActivityType,
+  ): Promise<void> {
     const snapshot = this.createSnapshot(task);
     if (!snapshot) {
       return;
@@ -336,7 +414,9 @@ export class TaskActivitiesService {
       await this.record(input);
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Failed to record task activity ${input.type} for ${input.taskKey}: ${reason}`);
+      this.logger.warn(
+        `Failed to record task activity ${input.type} for ${input.taskKey}: ${reason}`,
+      );
     }
   }
 
@@ -405,21 +485,34 @@ export class TaskActivitiesService {
       columnId: this.toOptionalString(plain.columnId),
       sprintId: this.toOptionalId(plain.sprintId),
       assigneeId: this.toOptionalId(plain.assigneeId),
-      storyPoints: typeof plain.storyPoints === 'number' ? plain.storyPoints : undefined,
+      storyPoints:
+        typeof plain.storyPoints === 'number' ? plain.storyPoints : undefined,
       dueDate: this.toOptionalDateString(plain.dueDate),
       rank: this.toOptionalString(plain.rank),
     };
   }
 
-  private async assertWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
-    const isMember = await this.workspaceMemberService.isMember(workspaceId, userId);
+  private async assertWorkspaceMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
     if (!isMember) {
       throw new NotFoundException(`Task not found`);
     }
   }
 
-  private async findTaskInWorkspace(workspaceId: string, taskId: string): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(taskId)) {
+  private async findTaskInWorkspace(
+    workspaceId: string,
+    taskId: string,
+  ): Promise<TaskDocument | null> {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(taskId)
+    ) {
       return null;
     }
 

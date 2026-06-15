@@ -11,7 +11,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import { AuthenticatedSocket, REALTIME_EVENT_TYPES, RoomBuilder } from './contracts';
+import {
+  AuthenticatedSocket,
+  REALTIME_EVENT_TYPES,
+  RoomBuilder,
+} from './contracts';
 import { JoinPageRoomDto } from './dto/join-page-room.dto';
 import { JoinTaskRoomDto } from './dto/join-task-room.dto';
 import { JoinWorkspaceRoomDto } from './dto/join-workspace-room.dto';
@@ -27,7 +31,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { WsException } from '@nestjs/websockets';
 import { PagesService } from '../pages/services/pages.service';
-import { Workspace, WorkspaceDocument } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '../workspaces/schemas/workspace.schema';
 import { getPermissionsForWorkspaceRole } from '../../common/constants/workspace-permissions.constants';
 import { LeavePageRoomDto } from './dto/leave-page-room.dto';
 
@@ -46,7 +53,9 @@ const socketValidationPipe = new ValidationPipe({
   pingInterval: 10_000,
   pingTimeout: 5_000,
 })
-export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -72,12 +81,16 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     try {
       const user = await this.socketAuthService.authenticate(client);
       await client.join(RoomBuilder.user(user.userId));
-      const userIdentifier = user.email ? `${user.email} (${user.userId})` : user.userId;
+      const userIdentifier = user.email
+        ? `${user.email} (${user.userId})`
+        : user.userId;
       this.logger.log(
         `Realtime client connected: ${client.id} | User: ${userIdentifier}`,
       );
     } catch (error) {
-      this.logger.warn(`Rejected realtime connection ${client.id}: ${(error as Error).message}`);
+      this.logger.warn(
+        `Rejected realtime connection ${client.id}: ${(error as Error).message}`,
+      );
       client.disconnect(true);
     }
   }
@@ -160,7 +173,12 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   async joinPage(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: JoinPageRoomDto,
-  ): Promise<{ ok: boolean; yjsState?: number[]; title?: string; content?: string }> {
+  ): Promise<{
+    ok: boolean;
+    yjsState?: number[];
+    title?: string;
+    content?: string;
+  }> {
     if (!this.consumeClientEvent(client)) {
       return { ok: false };
     }
@@ -168,7 +186,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     const user = client.data.user!;
     const isAllowed = await this.authorizePageRead(user.userId, body.pageId);
     if (!isAllowed) {
-      throw new WsException('Forbidden: You do not have permission to access this page');
+      throw new WsException(
+        'Forbidden: You do not have permission to access this page',
+      );
     }
 
     const pageRoom = RoomBuilder.page(body.pageId);
@@ -181,7 +201,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
     return {
       ok: true,
-      yjsState: page.yjsState ? Array.from(new Uint8Array(page.yjsState)) : undefined,
+      yjsState: page.yjsState
+        ? Array.from(new Uint8Array(page.yjsState))
+        : undefined,
       title: page.title,
       content: page.content,
     };
@@ -236,12 +258,16 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
 
     if (!body.update?.length) {
-      this.logger.warn(`Empty yjs-update from ${user.userId} for page ${body.pageId}`);
+      this.logger.warn(
+        `Empty yjs-update from ${user.userId} for page ${body.pageId}`,
+      );
       return { ok: false };
     }
     const isAllowed = await this.authorizePageEdit(user.userId, body.pageId);
     if (!isAllowed) {
-      throw new WsException('Forbidden: You do not have permission to edit this page');
+      throw new WsException(
+        'Forbidden: You do not have permission to edit this page',
+      );
     }
 
     await this.pageCollabService.applyUpdate(
@@ -251,10 +277,12 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     );
 
     // Relay raw bytes to all OTHER clients in the page room
-    client.to(RoomBuilder.page(body.pageId)).emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
-      pageId: body.pageId,
-      update: body.update,
-    });
+    client
+      .to(RoomBuilder.page(body.pageId))
+      .emit(REALTIME_EVENT_TYPES.PAGE_YJS_UPDATE, {
+        pageId: body.pageId,
+        update: body.update,
+      });
 
     return { ok: true, updateId: body.updateId };
   }
@@ -272,7 +300,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     const user = client.data.user!;
     const isAllowed = await this.authorizePageRead(user.userId, body.pageId);
     if (!isAllowed) {
-      throw new WsException('Forbidden: You do not have permission to access this page');
+      throw new WsException(
+        'Forbidden: You do not have permission to access this page',
+      );
     }
 
     const pageRoom = RoomBuilder.page(body.pageId);
@@ -284,21 +314,24 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     return { ok: true };
   }
 
-  private async authorizePageEdit(userId: string, pageId: string): Promise<boolean> {
+  private async authorizePageEdit(
+    userId: string,
+    pageId: string,
+  ): Promise<boolean> {
     try {
       const page = await this.pagesService.findById(pageId);
       if (!page) return false;
 
-      const workspace = await this.workspaceModel.findById(page.workspaceId).exec();
+      const workspace = await this.workspaceModel
+        .findById(page.workspaceId)
+        .exec();
       if (!workspace) return false;
 
       const member = workspace.members.find(
-        (m) => m.userId.toString() === userId,
+        m => m.userId.toString() === userId,
       );
       const role =
-        workspace.ownerId.toString() === userId
-          ? 'admin'
-          : member?.role;
+        workspace.ownerId.toString() === userId ? 'admin' : member?.role;
 
       if (!role) return false;
 
@@ -309,12 +342,17 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
   }
 
-  private async authorizePageRead(userId: string, pageId: string): Promise<boolean> {
+  private async authorizePageRead(
+    userId: string,
+    pageId: string,
+  ): Promise<boolean> {
     try {
       const page = await this.pagesService.findById(pageId);
       if (!page) return false;
 
-      const workspace = await this.workspaceModel.findById(page.workspaceId).exec();
+      const workspace = await this.workspaceModel
+        .findById(page.workspaceId)
+        .exec();
       if (!workspace) return false;
 
       if (workspace.ownerId.toString() === userId) {
@@ -322,7 +360,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       }
 
       const member = workspace.members.find(
-        (m) => m.userId.toString() === userId,
+        m => m.userId.toString() === userId,
       );
       return !!member;
     } catch {

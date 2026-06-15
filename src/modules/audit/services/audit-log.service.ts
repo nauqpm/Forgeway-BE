@@ -114,7 +114,16 @@ export class AuditLogService {
   }
 
   async queryLogs(options: AuditQueryOptions = {}): Promise<AuditLogResult> {
-    const { userId, type, severity, ip, startDate, endDate, page = 1, limit = 20 } = options;
+    const {
+      userId,
+      type,
+      severity,
+      ip,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 20,
+    } = options;
 
     const filter: Record<string, unknown> = {};
 
@@ -139,7 +148,13 @@ export class AuditLogService {
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      this.securityEventModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean().exec(),
+      this.securityEventModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
       this.securityEventModel.countDocuments(filter).exec(),
     ]);
 
@@ -170,7 +185,9 @@ export class AuditLogService {
   }> {
     const [total, bySeverity, byType, recentCount] = await Promise.all([
       this.securityEventModel.countDocuments().exec(),
-      this.securityEventModel.aggregate([{ $group: { _id: '$severity', count: { $sum: 1 } } }]),
+      this.securityEventModel.aggregate([
+        { $group: { _id: '$severity', count: { $sum: 1 } } },
+      ]),
       this.securityEventModel.aggregate([
         { $group: { _id: '$type', count: { $sum: 1 } } },
         { $sort: { count: -1 } },

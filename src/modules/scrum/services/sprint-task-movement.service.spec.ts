@@ -52,7 +52,9 @@ describe('SprintTaskMovementService', () => {
     ];
 
     it('throws BadRequestException if taskIds is empty', async () => {
-      await expect(service.moveTasksToSprint(workspaceId, sprintId, [])).rejects.toThrow(BadRequestException);
+      await expect(
+        service.moveTasksToSprint(workspaceId, sprintId, []),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException if some tasks do not exist, are deleted, or belong to other workspace', async () => {
@@ -60,7 +62,9 @@ describe('SprintTaskMovementService', () => {
         exec: jest.fn().mockResolvedValue(taskIds.length - 1), // mismatch count
       });
 
-      await expect(service.moveTasksToSprint(workspaceId, sprintId, taskIds)).rejects.toThrow(BadRequestException);
+      await expect(
+        service.moveTasksToSprint(workspaceId, sprintId, taskIds),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException if target sprint does not exist', async () => {
@@ -71,7 +75,9 @@ describe('SprintTaskMovementService', () => {
       // sprint check return null
       sprintModel.findOne.mockReturnValue(mockQuery(null));
 
-      await expect(service.moveTasksToSprint(workspaceId, sprintId, taskIds)).rejects.toThrow(NotFoundException);
+      await expect(
+        service.moveTasksToSprint(workspaceId, sprintId, taskIds),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException if target sprint is already completed', async () => {
@@ -82,17 +88,23 @@ describe('SprintTaskMovementService', () => {
         mockQuery({ _id: new Types.ObjectId(sprintId), status: 'completed' }),
       );
 
-      await expect(service.moveTasksToSprint(workspaceId, sprintId, taskIds)).rejects.toThrow(BadRequestException);
+      await expect(
+        service.moveTasksToSprint(workspaceId, sprintId, taskIds),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException if non-admin tries to move task from a completed sprint', async () => {
       taskModel.countDocuments.mockReturnValue({
         exec: jest.fn().mockResolvedValue(taskIds.length),
       });
-      sprintModel.findOne.mockReturnValue(mockQuery({ _id: new Types.ObjectId(sprintId), status: 'active' }));
+      sprintModel.findOne.mockReturnValue(
+        mockQuery({ _id: new Types.ObjectId(sprintId), status: 'active' }),
+      );
 
       // tasks being moved belong to a completed sprint
-      const mockTasksWithSprints = [{ _id: new Types.ObjectId(taskIds[0]), sprintId: new Types.ObjectId() }];
+      const mockTasksWithSprints = [
+        { _id: new Types.ObjectId(taskIds[0]), sprintId: new Types.ObjectId() },
+      ];
       taskModel.find.mockReturnValue(mockQuery(mockTasksWithSprints));
 
       sprintModel.findOne
@@ -103,16 +115,18 @@ describe('SprintTaskMovementService', () => {
           mockQuery({ _id: new Types.ObjectId(), status: 'completed' }),
         ); // source sprint check (completed)
 
-      await expect(service.moveTasksToSprint(workspaceId, sprintId, taskIds, false)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.moveTasksToSprint(workspaceId, sprintId, taskIds, false),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('successfully moves tasks to sprint (non-admin, no completed source sprints)', async () => {
       taskModel.countDocuments.mockReturnValue({
         exec: jest.fn().mockResolvedValue(taskIds.length),
       });
-      sprintModel.findOne.mockReturnValue(mockQuery({ _id: new Types.ObjectId(sprintId), status: 'active' }));
+      sprintModel.findOne.mockReturnValue(
+        mockQuery({ _id: new Types.ObjectId(sprintId), status: 'active' }),
+      );
 
       // tasks being moved have no sprint (from backlog)
       taskModel.find.mockReturnValue(mockQuery([]));

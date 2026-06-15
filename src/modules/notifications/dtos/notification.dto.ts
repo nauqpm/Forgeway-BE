@@ -1,4 +1,7 @@
-import { NotificationEntityType, NotificationType } from '../constants/notification.constants';
+import {
+  NotificationEntityType,
+  NotificationType,
+} from '../constants/notification.constants';
 
 export interface NotificationActorDto {
   id: string;

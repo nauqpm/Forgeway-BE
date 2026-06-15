@@ -58,7 +58,9 @@ export class MessagesService {
   }
 
   async getReactions(messageId: string): Promise<Record<string, string[]>> {
-    const reactions = await this.reactionModel.find({ messageId: new Types.ObjectId(messageId) }).exec();
+    const reactions = await this.reactionModel
+      .find({ messageId: new Types.ObjectId(messageId) })
+      .exec();
     const result: Record<string, string[]> = {};
     reactions.forEach(r => {
       if (!result[r.emoji]) {
@@ -71,16 +73,18 @@ export class MessagesService {
 
   async populateReactions(messages: MessageDocument[]): Promise<any[]> {
     if (!messages.length) return [];
-    
+
     const messageIds = messages.map(m => m._id);
-    const reactions = await this.reactionModel.find({ messageId: { $in: messageIds } }).exec();
-    
+    const reactions = await this.reactionModel
+      .find({ messageId: { $in: messageIds } })
+      .exec();
+
     const reactionMap = new Map<string, Record<string, string[]>>();
     reactions.forEach(r => {
       const msgId = r.messageId.toString();
       const emoji = r.emoji;
       const userId = r.userId.toString();
-      
+
       if (!reactionMap.has(msgId)) {
         reactionMap.set(msgId, {});
       }
@@ -90,7 +94,7 @@ export class MessagesService {
       }
       msgReactions[emoji].push(userId);
     });
-    
+
     return messages.map(m => {
       const obj = m.toObject();
       obj.reactions = reactionMap.get(m._id.toString()) || {};
@@ -191,7 +195,10 @@ export class MessagesService {
       senderId: new Types.ObjectId(senderId),
     });
 
-    const populated = await message.populate('senderId', 'fullName avatar email');
+    const populated = await message.populate(
+      'senderId',
+      'fullName avatar email',
+    );
     const [withReactions] = await this.populateReactions([populated]);
     return withReactions;
   }
@@ -258,8 +265,11 @@ export class MessagesService {
     message.content = content;
     message.editedAt = new Date();
     await message.save();
-    
-    const populated = await message.populate('senderId', 'fullName avatar email');
+
+    const populated = await message.populate(
+      'senderId',
+      'fullName avatar email',
+    );
     const [withReactions] = await this.populateReactions([populated]);
     return withReactions;
   }

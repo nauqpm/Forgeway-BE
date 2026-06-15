@@ -7,7 +7,9 @@ import { RegisterDto, UpdateUserDto } from '../dtos/auth.dto';
 
 @Injectable()
 export class AuthRepository {
-  constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+  ) {}
 
   // 📢 Tạo người dùng mới khi đăng ký
   async createUser(registerDto: RegisterDto): Promise<User> {
@@ -26,8 +28,13 @@ export class AuthRepository {
   }
 
   // 📢 Cập nhật thông tin người dùng (ví dụ: đổi mật khẩu, cập nhật trạng thái)
-  async updateUser(userId: string, updateData: Partial<User>): Promise<User | null> {
-    return await this.userModel.findByIdAndUpdate(userId, updateData, { new: true }).exec();
+  async updateUser(
+    userId: string,
+    updateData: Partial<User>,
+  ): Promise<User | null> {
+    return await this.userModel
+      .findByIdAndUpdate(userId, updateData, { new: true })
+      .exec();
   }
 
   // 📢 Lấy tất cả người dùng (Dành cho quản trị viên)

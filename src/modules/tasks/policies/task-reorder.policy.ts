@@ -27,15 +27,25 @@ export class TaskReorderPolicy {
     }
 
     if (currentSprint?.status === 'completed') {
-      throw new BadRequestException('Task in a completed sprint cannot be reordered');
+      throw new BadRequestException(
+        'Task in a completed sprint cannot be reordered',
+      );
     }
 
     if (targetSprint?.status === 'completed') {
-      throw new BadRequestException('Cannot reorder task into a completed sprint');
+      throw new BadRequestException(
+        'Cannot reorder task into a completed sprint',
+      );
     }
 
-    if (beforeTask && afterTask && beforeTask._id.toString() === afterTask._id.toString()) {
-      throw new BadRequestException('beforeTaskId and afterTaskId must be different');
+    if (
+      beforeTask &&
+      afterTask &&
+      beforeTask._id.toString() === afterTask._id.toString()
+    ) {
+      throw new BadRequestException(
+        'beforeTaskId and afterTaskId must be different',
+      );
     }
 
     this.validateNeighbor(task, beforeTask, scope, 'beforeTaskId');

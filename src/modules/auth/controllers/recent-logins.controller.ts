@@ -10,7 +10,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { IsMongoId } from 'class-validator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -64,21 +69,24 @@ export class RecentLoginsController {
   @Delete(':accountId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Remove an account from the device\'s recent logins list',
+    summary: "Remove an account from the device's recent logins list",
   })
-  async forget(
-    @Req() req: RequestWithUser,
-    @Param() params: AccountIdParam,
-  ) {
+  async forget(@Req() req: RequestWithUser, @Param() params: AccountIdParam) {
     const deviceId = getDeviceIdFromRequest(req);
     if (!deviceId) {
       // Không có deviceId thì không có gì để xoá
-      return { success: true, message: 'Không có danh sách gần đây trên thiết bị này.' };
+      return {
+        success: true,
+        message: 'Không có danh sách gần đây trên thiết bị này.',
+      };
     }
     if (!params.accountId) {
       throw new BadRequestException('accountId không hợp lệ');
     }
     await this.recentLogins.forgetForDevice(deviceId, params.accountId);
-    return { success: true, message: 'Đã xoá account khỏi danh sách gần đây trên thiết bị này.' };
+    return {
+      success: true,
+      message: 'Đã xoá account khỏi danh sách gần đây trên thiết bị này.',
+    };
   }
 }

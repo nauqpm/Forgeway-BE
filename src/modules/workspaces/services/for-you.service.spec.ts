@@ -32,7 +32,9 @@ describe('ForYouService', () => {
   });
 
   it('rejects empty user IDs', async () => {
-    await expect(service.getForYouWorkspaces('  ')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.getForYouWorkspaces('  ')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
     expect(repository.findActiveForUserOverview).not.toHaveBeenCalled();
   });
 

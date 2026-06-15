@@ -1,6 +1,14 @@
 // 📁 src/modules/auth/controllers/oauth.controller.ts
 
-import { Controller, Get, BadRequestException, UseGuards, Req, Res, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  BadRequestException,
+  UseGuards,
+  Req,
+  Res,
+  Logger,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { OAuthService } from '../services/oauth.service';
@@ -49,7 +57,8 @@ export class OAuthController {
   // Provider callbacks can burst during retries, so this skip is explicit and local.
   @ApiOperation({
     summary: 'Google OAuth callback',
-    description: 'Callback từ Google sau khi xác thực. Token được set vào HttpOnly Cookie và redirect về frontend.',
+    description:
+      'Callback từ Google sau khi xác thực. Token được set vào HttpOnly Cookie và redirect về frontend.',
   })
   @ApiResponse({
     status: 302,

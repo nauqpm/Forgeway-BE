@@ -10,14 +10,19 @@ import { CreateAddressDto, UpdateAddressDto } from '../dtos/create-address.dto';
 
 @Injectable()
 export class AddressesService {
-  constructor(@InjectModel(Address.name) private addressModel: Model<AddressDocument>) {}
+  constructor(
+    @InjectModel(Address.name) private addressModel: Model<AddressDocument>,
+  ) {}
 
   async create(
     createAddressDto: CreateAddressDto,
     userId: string,
   ): Promise<Address> {
     if (createAddressDto.isDefault) {
-      await this.addressModel.updateMany({ userId: new Types.ObjectId(userId) }, { $set: { isDefault: false } });
+      await this.addressModel.updateMany(
+        { userId: new Types.ObjectId(userId) },
+        { $set: { isDefault: false } },
+      );
     }
 
     const address = new this.addressModel({
@@ -48,7 +53,11 @@ export class AddressesService {
     return address;
   }
 
-  async update(id: string, updateAddressDto: UpdateAddressDto, userId: string): Promise<Address> {
+  async update(
+    id: string,
+    updateAddressDto: UpdateAddressDto,
+    userId: string,
+  ): Promise<Address> {
     const address = await this.addressModel
       .findOne({
         _id: new Types.ObjectId(id),
@@ -99,7 +108,10 @@ export class AddressesService {
       throw new NotFoundException(`Address with ID ${id} not found`);
     }
 
-    await this.addressModel.updateMany({ userId: new Types.ObjectId(userId) }, { $set: { isDefault: false } });
+    await this.addressModel.updateMany(
+      { userId: new Types.ObjectId(userId) },
+      { $set: { isDefault: false } },
+    );
 
     address.isDefault = true;
     return address.save();

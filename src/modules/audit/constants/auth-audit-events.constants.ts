@@ -25,4 +25,5 @@ export const AUTH_AUDIT_EVENTS = {
   UNAUTHORIZED_ACCESS: 'UNAUTHORIZED_ACCESS',
 } as const;
 
-export type AuthAuditEventLiteral = (typeof AUTH_AUDIT_EVENTS)[keyof typeof AUTH_AUDIT_EVENTS];
+export type AuthAuditEventLiteral =
+  (typeof AUTH_AUDIT_EVENTS)[keyof typeof AUTH_AUDIT_EVENTS];

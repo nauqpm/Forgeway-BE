@@ -18,7 +18,10 @@ export class TaskKeyService {
     }
 
     const source = tokens.join('');
-    let prefix = tokens.length === 1 ? source.slice(0, this.maxPrefixLength) : this.createMultiTokenPrefix(tokens);
+    let prefix =
+      tokens.length === 1
+        ? source.slice(0, this.maxPrefixLength)
+        : this.createMultiTokenPrefix(tokens);
 
     if (prefix.length < this.minPrefixLength) {
       prefix = (prefix + source).slice(0, this.minPrefixLength);

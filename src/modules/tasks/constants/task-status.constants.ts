@@ -1,5 +1,11 @@
 export const TASK_TYPES = ['task', 'bug', 'story', 'epic'] as const;
-export const TASK_PRIORITIES = ['lowest', 'low', 'medium', 'high', 'highest'] as const;
+export const TASK_PRIORITIES = [
+  'lowest',
+  'low',
+  'medium',
+  'high',
+  'highest',
+] as const;
 
 export const TASK_STATUSES = {
   TODO: 'todo',

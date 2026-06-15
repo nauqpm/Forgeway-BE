@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { DOMAIN_EVENT_TYPES, DomainEventType } from '../../../shared/events/domain-events';
+import {
+  DOMAIN_EVENT_TYPES,
+  DomainEventType,
+} from '../../../shared/events/domain-events';
 import {
   BaseSprintEvent,
   SprintCompletedEventData,
@@ -11,7 +14,12 @@ import {
   SprintStartedEventData,
   SprintUpdatedEventData,
 } from '../../../shared/events/domain-events/sprint';
-import { REALTIME_EVENT_TYPES, RealtimeEnvelope, RealtimeEventType, RoomBuilder } from '../contracts';
+import {
+  REALTIME_EVENT_TYPES,
+  RealtimeEnvelope,
+  RealtimeEventType,
+  RoomBuilder,
+} from '../contracts';
 import { RealtimePublisher } from '../publishers/realtime.publisher';
 
 export type SprintRealtimeDomainEvent = BaseSprintEvent<
@@ -54,7 +62,10 @@ export class SprintRealtimeListener {
     this.publishSprintEvent(REALTIME_EVENT_TYPES.SPRINT_COMPLETED, event);
   }
 
-  private publishSprintEvent(type: RealtimeEventType, event: SprintRealtimeDomainEvent): void {
+  private publishSprintEvent(
+    type: RealtimeEventType,
+    event: SprintRealtimeDomainEvent,
+  ): void {
     try {
       const room = RoomBuilder.workspace(event.data.workspaceId);
       const envelope = this.buildEnvelope(type, event);
@@ -75,7 +86,10 @@ export class SprintRealtimeListener {
     event: BaseSprintEvent<DomainEventType, TData>,
   ): RealtimeEnvelope<TData> {
     return {
-      eventId: event.eventId ?? event.data.eventId ?? `${type}:${event.data.sprintId}:${event.occurredAt.getTime()}`,
+      eventId:
+        event.eventId ??
+        event.data.eventId ??
+        `${type}:${event.data.sprintId}:${event.occurredAt.getTime()}`,
       type,
       correlationId: event.correlationId ?? event.data.correlationId,
       causationId: event.causationId ?? event.data.causationId,

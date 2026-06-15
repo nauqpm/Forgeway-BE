@@ -11,7 +11,8 @@ export const INVITE_STATUS = {
   EXPIRED: 'expired',
 } as const;
 
-export type InviteStatusValue = (typeof INVITE_STATUS)[keyof typeof INVITE_STATUS];
+export type InviteStatusValue =
+  (typeof INVITE_STATUS)[keyof typeof INVITE_STATUS];
 
 export const INVITE_TYPES = {
   EMAIL: 'email',

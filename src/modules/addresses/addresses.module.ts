@@ -7,7 +7,10 @@ import { Address, AddressSchema } from './schemas/address.schema';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Address.name, schema: AddressSchema }]), forwardRef(() => AuthModule)],
+  imports: [
+    MongooseModule.forFeature([{ name: Address.name, schema: AddressSchema }]),
+    forwardRef(() => AuthModule),
+  ],
   controllers: [AddressesController],
   providers: [AddressesService, JwtAuthGuard],
   exports: [JwtAuthGuard, AddressesService],
