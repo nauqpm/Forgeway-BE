@@ -196,10 +196,13 @@ export class ChannelsService {
       channels.map(async (channel) => {
         const unreadCount = await this.messagesService.countUnread(channel._id.toString(), userId);
 
-        // Manual Populate members for all channels based on channel type
-        const memberIds = await this.getChannelMemberIds(channel._id.toString());
-        const validMemberIds = memberIds.filter(id => id && Types.ObjectId.isValid(id));
-        const userInfos = await this.usersService.getUsersByIds(validMemberIds);
+        // Manual Populate members based on channel type (skip for general/announcement)
+        let userInfos: any[] = [];
+        if (channel.type !== 'general' && channel.type !== 'announcement') {
+          const memberIds = await this.getChannelMemberIds(channel._id.toString());
+          const validMemberIds = memberIds.filter(id => id && Types.ObjectId.isValid(id));
+          userInfos = await this.usersService.getUsersByIds(validMemberIds);
+        }
 
         return {
           ...channel.toObject(),
@@ -305,6 +308,15 @@ export class ChannelsService {
       sentAt: Date;
     },
   ) {
+    const rawSenderId = message.senderId;
+    const senderStrId = typeof rawSenderId === 'object' && rawSenderId
+      ? (rawSenderId._id || rawSenderId.id || rawSenderId).toString()
+      : rawSenderId?.toString() || '';
+
+    const senderObjectId = Types.ObjectId.isValid(senderStrId)
+      ? new Types.ObjectId(senderStrId)
+      : null;
+
     return this.channelModel
       .findByIdAndUpdate(
         channelId,
@@ -312,7 +324,7 @@ export class ChannelsService {
           $set: {
             lastMessage: {
               content: message.content,
-              senderId: new Types.ObjectId(message.senderId.toString()),
+              senderId: senderObjectId,
               senderName: message.senderName,
               sentAt: message.sentAt,
             },
@@ -434,6 +446,71 @@ export class ChannelsService {
     return [];
   }
 
+  async searchMentionMembers(
+    channelId: string,
+    query: string,
+    userId: string,
+  ): Promise<any[]> {
+    const hasAccess = await this.validateUserAccess(channelId, userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const channel = await this.findById(channelId);
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    // 1. general / announcement
+    if (channel.type === 'general' || channel.type === 'announcement') {
+      return this.usersService.searchUsers(query, userId);
+    }
+
+    // 2. workspace
+    if (channel.type === 'workspace' && channel.workspaceId) {
+      const workspaceMembers = await this.workspaceMemberService.getMembers(
+        channel.workspaceId.toString(),
+      );
+      const memberIds = workspaceMembers
+        .map((m) => {
+          const uId = typeof m.userId === 'object' && m.userId ? (m.userId._id || (m.userId as any).id) : m.userId;
+          return uId ? uId.toString() : '';
+        })
+        .filter((id) => Types.ObjectId.isValid(id));
+
+      if (memberIds.length === 0) return [];
+
+      const regex = new RegExp(query, 'i');
+      const users = await this.usersService.getUsersByIds(memberIds);
+      return users.filter((user) => {
+        const nameMatch = user.fullName && regex.test(user.fullName);
+        const emailMatch = user.email && regex.test(user.email);
+        const phoneMatch = (user as any).phone && regex.test((user as any).phone);
+        return nameMatch || emailMatch || phoneMatch;
+      });
+    }
+
+    // 3. dm
+    if (channel.type === 'dm') {
+      const memberIds = channel.members
+        .map((m) => m.toString())
+        .filter((id) => Types.ObjectId.isValid(id));
+
+      if (memberIds.length === 0) return [];
+
+      const regex = new RegExp(query, 'i');
+      const users = await this.usersService.getUsersByIds(memberIds);
+      return users.filter((user) => {
+        const nameMatch = user.fullName && regex.test(user.fullName);
+        const emailMatch = user.email && regex.test(user.email);
+        const phoneMatch = (user as any).phone && regex.test((user as any).phone);
+        return nameMatch || emailMatch || phoneMatch;
+      });
+    }
+
+    return [];
+  }
+
   async getChannelDetailsForUser(channelId: string, userId: string): Promise<any> {
     const hasAccess = await this.validateUserAccess(channelId, userId);
     if (!hasAccess) {
@@ -442,9 +519,14 @@ export class ChannelsService {
 
     const channel = await this.findById(channelId);
     const unreadCount = await this.messagesService.countUnread(channelId, userId);
-    const memberIds = await this.getChannelMemberIds(channelId);
-    const validMemberIds = memberIds.filter(id => id && Types.ObjectId.isValid(id));
-    const userInfos = await this.usersService.getUsersByIds(validMemberIds);
+
+    // Skip member loading for general/announcement channels
+    let userInfos: any[] = [];
+    if (channel.type !== 'general' && channel.type !== 'announcement') {
+      const memberIds = await this.getChannelMemberIds(channelId);
+      const validMemberIds = memberIds.filter(id => id && Types.ObjectId.isValid(id));
+      userInfos = await this.usersService.getUsersByIds(validMemberIds);
+    }
 
     return {
       ...channel.toObject(),
