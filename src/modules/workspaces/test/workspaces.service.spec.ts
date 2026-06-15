@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
@@ -35,7 +40,9 @@ const buildWorkspace = (overrides: Partial<any> = {}) => ({
   access: 'public',
   status: 'active',
   ownerId: new Types.ObjectId(OWNER_ID),
-  members: [{ userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN }],
+  members: [
+    { userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN },
+  ],
   settings: {},
   ...overrides,
 });
@@ -79,7 +86,9 @@ const mockUsersService = () => ({
 });
 
 const mockWorkspaceKeyService = () => ({
-  generateUniqueSlug: jest.fn(async (name: string) => name.toLowerCase().replace(/\s+/g, '-')),
+  generateUniqueSlug: jest.fn(async (name: string) =>
+    name.toLowerCase().replace(/\s+/g, '-'),
+  ),
   generateUniqueKey: jest.fn(async (key: string) => key.toUpperCase()),
 });
 
@@ -111,12 +120,33 @@ describe('WorkspacesService', () => {
         { provide: KanbanService, useFactory: mockKanbanService },
         { provide: ScrumService, useFactory: mockScrumService },
         { provide: UsersService, useFactory: mockUsersService },
-        { provide: WorkspaceMemberService, useFactory: mockWorkspaceMemberService },
+        {
+          provide: WorkspaceMemberService,
+          useFactory: mockWorkspaceMemberService,
+        },
         { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
-        { provide: WorkspaceDomainEventPublisher, useValue: { publishCreated: jest.fn(), publishUpdated: jest.fn(), publishDeleted: jest.fn(), publishArchived: jest.fn(), publishRestored: jest.fn() } },
-        { provide: getModelToken(Task.name), useValue: { countDocuments: jest.fn().mockResolvedValue(0) } },
-        { provide: getModelToken(Page.name), useValue: { countDocuments: jest.fn().mockResolvedValue(0) } },
-        { provide: getModelToken(DocumentEntity.name), useValue: { countDocuments: jest.fn().mockResolvedValue(0) } },
+        {
+          provide: WorkspaceDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+            publishUpdated: jest.fn(),
+            publishDeleted: jest.fn(),
+            publishArchived: jest.fn(),
+            publishRestored: jest.fn(),
+          },
+        },
+        {
+          provide: getModelToken(Task.name),
+          useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
+        {
+          provide: getModelToken(Page.name),
+          useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
+        {
+          provide: getModelToken(DocumentEntity.name),
+          useValue: { countDocuments: jest.fn().mockResolvedValue(0) },
+        },
       ],
     }).compile();
 
@@ -151,11 +181,20 @@ describe('WorkspacesService', () => {
           name: dto.name,
           slug: dto.slug,
           ownerId: new Types.ObjectId(OWNER_ID),
-          members: [{ userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN }],
+          members: [
+            {
+              userId: new Types.ObjectId(OWNER_ID),
+              role: SPACE_ROLES.WORKSPACE_ADMIN,
+            },
+          ],
         }),
       );
-      expect(kanbanService.createDefaultBoard).toHaveBeenCalledWith(workspace._id.toString());
-      expect(workflowsService.createDefaultWorkflow).toHaveBeenCalledWith(workspace._id.toString());
+      expect(kanbanService.createDefaultBoard).toHaveBeenCalledWith(
+        workspace._id.toString(),
+      );
+      expect(workflowsService.createDefaultWorkflow).toHaveBeenCalledWith(
+        workspace._id.toString(),
+      );
       expect(result).toEqual(workspace);
     });
 
@@ -170,14 +209,18 @@ describe('WorkspacesService', () => {
 
       await service.create(OWNER_ID, noSlugDto);
 
-      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ slug: expect.any(String) }));
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ slug: expect.any(String) }),
+      );
     });
 
     it('throws BadRequestException when slug already exists', async () => {
       repo.findAnyBySlug.mockResolvedValue(buildWorkspace());
       repo.findAnyByKey.mockResolvedValue(null);
 
-      await expect(service.create(OWNER_ID, dto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(OWNER_ID, dto)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(repo.create).not.toHaveBeenCalled();
     });
 
@@ -185,7 +228,9 @@ describe('WorkspacesService', () => {
       repo.findAnyBySlug.mockResolvedValue(null);
       repo.findAnyByKey.mockResolvedValue(null);
       repo.create.mockResolvedValue(buildWorkspace());
-      kanbanService.createDefaultBoard.mockRejectedValue(new Error('board error'));
+      kanbanService.createDefaultBoard.mockRejectedValue(
+        new Error('board error'),
+      );
       workflowsService.createDefaultWorkflow.mockResolvedValue(undefined);
 
       await expect(service.create(OWNER_ID, dto)).resolves.not.toThrow();
@@ -196,7 +241,9 @@ describe('WorkspacesService', () => {
       repo.findAnyByKey.mockResolvedValue(null);
       repo.create.mockResolvedValue(buildWorkspace());
       kanbanService.createDefaultBoard.mockResolvedValue(undefined);
-      workflowsService.createDefaultWorkflow.mockRejectedValue(new ConflictException('workflow exists'));
+      workflowsService.createDefaultWorkflow.mockRejectedValue(
+        new ConflictException('workflow exists'),
+      );
 
       await expect(service.create(OWNER_ID, dto)).resolves.not.toThrow();
     });
@@ -248,7 +295,9 @@ describe('WorkspacesService', () => {
     it('throws NotFoundException when workspace does not exist', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(service.findById(WORKSPACE_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.findById(WORKSPACE_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -267,7 +316,9 @@ describe('WorkspacesService', () => {
     it('throws NotFoundException for unknown slug', async () => {
       repo.findBySlug.mockResolvedValue(null);
 
-      await expect(service.findBySlug('unknown')).rejects.toThrow(NotFoundException);
+      await expect(service.findBySlug('unknown')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -286,7 +337,9 @@ describe('WorkspacesService', () => {
     it('throws NotFoundException for unknown key', async () => {
       repo.findByKey.mockResolvedValue(null);
 
-      await expect(service.findByKey('UNKNOWN')).rejects.toThrow(NotFoundException);
+      await expect(service.findByKey('UNKNOWN')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -296,7 +349,9 @@ describe('WorkspacesService', () => {
     it('does not resolve public keys through workspace id lookup', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(service.findById('TESTWOR')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('TESTWOR')).rejects.toThrow(
+        NotFoundException,
+      );
       expect(repo.findById).toHaveBeenCalledWith('TESTWOR');
       expect(repo.findByKey).not.toHaveBeenCalled();
       expect((service as any).findByIdOrKey).toBeUndefined();
@@ -346,7 +401,9 @@ describe('WorkspacesService', () => {
     it('throws NotFoundException when workspace is missing', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(service.update(WORKSPACE_ID, { name: 'X' })).rejects.toThrow(NotFoundException);
+      await expect(service.update(WORKSPACE_ID, { name: 'X' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('generates a new unique key when key field is provided in dto', async () => {
@@ -357,7 +414,10 @@ describe('WorkspacesService', () => {
 
       await service.update(WORKSPACE_ID, { key: 'newkey' });
 
-      expect(repo.update).toHaveBeenCalledWith(WORKSPACE_ID, expect.objectContaining({ key: 'NEWKEY' }));
+      expect(repo.update).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+        expect.objectContaining({ key: 'NEWKEY' }),
+      );
     });
   });
 
@@ -371,12 +431,16 @@ describe('WorkspacesService', () => {
 
       await service.delete(WORKSPACE_ID);
 
-      expect(kanbanService.deleteByWorkspace).toHaveBeenCalledWith(WORKSPACE_ID);
+      expect(kanbanService.deleteByWorkspace).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+      );
       expect(repo.delete).toHaveBeenCalledWith(WORKSPACE_ID);
     });
 
     it('still attempts repo.delete even when cleanup throws', async () => {
-      kanbanService.deleteByWorkspace.mockRejectedValue(new Error('cleanup failed'));
+      kanbanService.deleteByWorkspace.mockRejectedValue(
+        new Error('cleanup failed'),
+      );
       scrumService.deleteByWorkspace.mockResolvedValue(undefined);
       repo.delete.mockResolvedValue(buildWorkspace());
 
@@ -390,7 +454,9 @@ describe('WorkspacesService', () => {
       scrumService.deleteByWorkspace.mockResolvedValue(undefined);
       repo.delete.mockResolvedValue(null);
 
-      await expect(service.delete(WORKSPACE_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.delete(WORKSPACE_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -405,14 +471,18 @@ describe('WorkspacesService', () => {
       const result = await service.restore(WORKSPACE_ID);
 
       expect(repo.restore).toHaveBeenCalledWith(WORKSPACE_ID);
-      expect(scrumService.restoreByWorkspace).toHaveBeenCalledWith(WORKSPACE_ID);
+      expect(scrumService.restoreByWorkspace).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+      );
       expect(result).toEqual(workspace);
     });
 
     it('throws NotFoundException when restore target is missing', async () => {
       repo.restore.mockResolvedValue(null);
 
-      await expect(service.restore(WORKSPACE_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.restore(WORKSPACE_ID)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(scrumService.restoreByWorkspace).not.toHaveBeenCalled();
     });
   });
@@ -428,37 +498,71 @@ describe('WorkspacesService', () => {
       repo.findById.mockResolvedValue(workspace);
       usersService.findByEmail.mockResolvedValue(newUser);
       const updatedWorkspace = buildWorkspace({
-        members: [...workspace.members, { userId: newUser._id, role: SPACE_ROLES.MEMBER }],
+        members: [
+          ...workspace.members,
+          { userId: newUser._id, role: SPACE_ROLES.MEMBER },
+        ],
       });
       repo.addMember.mockResolvedValue(updatedWorkspace);
 
-      const result = await workspaceMemberService.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER);
+      const result = await workspaceMemberService.addMember(
+        WORKSPACE_ID,
+        email,
+        SPACE_ROLES.MEMBER,
+      );
 
-      expect(repo.addMember).toHaveBeenCalledWith(WORKSPACE_ID, MEMBER_USER_ID, SPACE_ROLES.MEMBER);
+      expect(repo.addMember).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+        MEMBER_USER_ID,
+        SPACE_ROLES.MEMBER,
+      );
       expect(result).toEqual(updatedWorkspace);
     });
 
     it('throws NotFoundException when workspace not found', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(workspaceMemberService.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER)).rejects.toThrow(NotFoundException);
+      await expect(
+        workspaceMemberService.addMember(
+          WORKSPACE_ID,
+          email,
+          SPACE_ROLES.MEMBER,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when user email not found', async () => {
       repo.findById.mockResolvedValue(buildWorkspace());
       usersService.findByEmail.mockResolvedValue(null);
 
-      await expect(workspaceMemberService.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER)).rejects.toThrow(NotFoundException);
+      await expect(
+        workspaceMemberService.addMember(
+          WORKSPACE_ID,
+          email,
+          SPACE_ROLES.MEMBER,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws BadRequestException when user is already a member', async () => {
       const workspace = buildWorkspace({
-        members: [{ userId: new Types.ObjectId(MEMBER_USER_ID), role: SPACE_ROLES.MEMBER }],
+        members: [
+          {
+            userId: new Types.ObjectId(MEMBER_USER_ID),
+            role: SPACE_ROLES.MEMBER,
+          },
+        ],
       });
       repo.findById.mockResolvedValue(workspace);
       usersService.findByEmail.mockResolvedValue(newUser);
 
-      await expect(workspaceMemberService.addMember(WORKSPACE_ID, email, SPACE_ROLES.MEMBER)).rejects.toThrow(BadRequestException);
+      await expect(
+        workspaceMemberService.addMember(
+          WORKSPACE_ID,
+          email,
+          SPACE_ROLES.MEMBER,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -470,8 +574,14 @@ describe('WorkspacesService', () => {
     it('removes a regular member successfully', async () => {
       const workspace = buildWorkspace({
         members: [
-          { userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN },
-          { userId: new Types.ObjectId(MEMBER_USER_ID), role: SPACE_ROLES.MEMBER },
+          {
+            userId: new Types.ObjectId(OWNER_ID),
+            role: SPACE_ROLES.WORKSPACE_ADMIN,
+          },
+          {
+            userId: new Types.ObjectId(MEMBER_USER_ID),
+            role: SPACE_ROLES.MEMBER,
+          },
         ],
       });
       repo.findById.mockResolvedValue(workspace);
@@ -479,28 +589,42 @@ describe('WorkspacesService', () => {
 
       await workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID);
 
-      expect(repo.removeMember).toHaveBeenCalledWith(WORKSPACE_ID, MEMBER_USER_ID);
+      expect(repo.removeMember).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+        MEMBER_USER_ID,
+      );
     });
 
     it('throws NotFoundException when workspace not found', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(
+        workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when user is not a member', async () => {
       repo.findById.mockResolvedValue(buildWorkspace());
 
-      await expect(workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID)).rejects.toThrow(NotFoundException);
+      await expect(
+        workspaceMemberService.removeMember(WORKSPACE_ID, MEMBER_USER_ID),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws ForbiddenException when trying to remove the owner', async () => {
       const workspace = buildWorkspace({
-        members: [{ userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN }],
+        members: [
+          {
+            userId: new Types.ObjectId(OWNER_ID),
+            role: SPACE_ROLES.WORKSPACE_ADMIN,
+          },
+        ],
       });
       repo.findById.mockResolvedValue(workspace);
 
-      await expect(workspaceMemberService.removeMember(WORKSPACE_ID, OWNER_ID)).rejects.toThrow(ForbiddenException);
+      await expect(
+        workspaceMemberService.removeMember(WORKSPACE_ID, OWNER_ID),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -512,43 +636,74 @@ describe('WorkspacesService', () => {
     it('updates the role of a regular member', async () => {
       const workspace = buildWorkspace({
         members: [
-          { userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN },
-          { userId: new Types.ObjectId(MEMBER_USER_ID), role: SPACE_ROLES.MEMBER },
+          {
+            userId: new Types.ObjectId(OWNER_ID),
+            role: SPACE_ROLES.WORKSPACE_ADMIN,
+          },
+          {
+            userId: new Types.ObjectId(MEMBER_USER_ID),
+            role: SPACE_ROLES.MEMBER,
+          },
         ],
       });
       repo.findById.mockResolvedValue(workspace);
       repo.updateMemberRole.mockResolvedValue(workspace);
 
-      await workspaceMemberService.updateMemberRole(WORKSPACE_ID, MEMBER_USER_ID, SPACE_ROLES.WORKSPACE_ADMIN);
+      await workspaceMemberService.updateMemberRole(
+        WORKSPACE_ID,
+        MEMBER_USER_ID,
+        SPACE_ROLES.WORKSPACE_ADMIN,
+      );
 
-      expect(repo.updateMemberRole).toHaveBeenCalledWith(WORKSPACE_ID, MEMBER_USER_ID, SPACE_ROLES.WORKSPACE_ADMIN);
+      expect(repo.updateMemberRole).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+        MEMBER_USER_ID,
+        SPACE_ROLES.WORKSPACE_ADMIN,
+      );
     });
 
     it('throws NotFoundException when workspace not found', async () => {
       repo.findById.mockResolvedValue(null);
 
-      await expect(workspaceMemberService.updateMemberRole(WORKSPACE_ID, MEMBER_USER_ID, SPACE_ROLES.MEMBER)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        workspaceMemberService.updateMemberRole(
+          WORKSPACE_ID,
+          MEMBER_USER_ID,
+          SPACE_ROLES.MEMBER,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when user is not a member', async () => {
       repo.findById.mockResolvedValue(buildWorkspace());
 
-      await expect(workspaceMemberService.updateMemberRole(WORKSPACE_ID, MEMBER_USER_ID, SPACE_ROLES.MEMBER)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        workspaceMemberService.updateMemberRole(
+          WORKSPACE_ID,
+          MEMBER_USER_ID,
+          SPACE_ROLES.MEMBER,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws ForbiddenException when trying to change the owner role', async () => {
       const workspace = buildWorkspace({
-        members: [{ userId: new Types.ObjectId(OWNER_ID), role: SPACE_ROLES.WORKSPACE_ADMIN }],
+        members: [
+          {
+            userId: new Types.ObjectId(OWNER_ID),
+            role: SPACE_ROLES.WORKSPACE_ADMIN,
+          },
+        ],
       });
       repo.findById.mockResolvedValue(workspace);
 
-      await expect(workspaceMemberService.updateMemberRole(WORKSPACE_ID, OWNER_ID, SPACE_ROLES.MEMBER)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        workspaceMemberService.updateMemberRole(
+          WORKSPACE_ID,
+          OWNER_ID,
+          SPACE_ROLES.MEMBER,
+        ),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -569,7 +724,9 @@ describe('WorkspacesService', () => {
     it('throws NotFoundException when workspace not found', async () => {
       repo.findByIdWithMembers.mockResolvedValue(null);
 
-      await expect(workspaceMemberService.getMembers(WORKSPACE_ID)).rejects.toThrow(NotFoundException);
+      await expect(
+        workspaceMemberService.getMembers(WORKSPACE_ID),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -599,7 +756,9 @@ describe('WorkspacesService', () => {
 
       await service.create(OWNER_ID, dto);
 
-      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ slug: 'my-ws-1' }));
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ slug: 'my-ws-1' }),
+      );
     });
   });
 });

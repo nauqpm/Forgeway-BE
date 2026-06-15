@@ -118,7 +118,7 @@ export class DocumentConversionService {
     if (doc.extension === '.xlsx') {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
 
-      const sections = workbook.SheetNames.slice(0, 3).map((name) => {
+      const sections = workbook.SheetNames.slice(0, 3).map(name => {
         const sheet = workbook.Sheets[name];
         const html = XLSX.utils.sheet_to_html(sheet);
 
@@ -135,7 +135,7 @@ export class DocumentConversionService {
       const zip = await JSZip.loadAsync(buffer);
 
       const slideFiles = Object.keys(zip.files)
-        .filter((key) => /^ppt\/slides\/slide\d+\.xml$/.test(key))
+        .filter(key => /^ppt\/slides\/slide\d+\.xml$/.test(key))
         .sort((a, b) => {
           const numA = Number(a.match(/slide(\d+)\.xml$/)?.[1] || '0');
           const numB = Number(b.match(/slide(\d+)\.xml$/)?.[1] || '0');
@@ -151,14 +151,14 @@ export class DocumentConversionService {
         const matches = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)];
 
         const texts = matches
-          .map((m) => m[1])
+          .map(m => m[1])
           .filter(Boolean)
-          .map((t) => escapeHtml(t));
+          .map(t => escapeHtml(t));
 
         slidesHtml.push(
           `<div class="slide"><h3>Slide ${i + 1}</h3>${
             texts.length
-              ? texts.map((t) => `<p>${t}</p>`).join('')
+              ? texts.map(t => `<p>${t}</p>`).join('')
               : '<p>(No text)</p>'
           }</div>`,
         );

@@ -34,7 +34,9 @@ export class TaskAssignmentNotificationService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Failed to create task assigned notification: ${message}`);
+      this.logger.warn(
+        `Failed to create task assigned notification: ${message}`,
+      );
     }
   }
 

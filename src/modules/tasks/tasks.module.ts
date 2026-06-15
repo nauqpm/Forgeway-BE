@@ -25,7 +25,10 @@ import { TaskRankRepository } from './repositories/task-rank.repository';
 import { TaskQueryBuilder } from './repositories/task-query.builder';
 import { TaskCounter, TaskCounterSchema } from './schemas/task-counter.schema';
 import { Task, TaskSchema } from './schemas/task.schema';
-import { TaskDependency, TaskDependencySchema } from './schemas/task-dependency.schema';
+import {
+  TaskDependency,
+  TaskDependencySchema,
+} from './schemas/task-dependency.schema';
 import { TaskDependencyService } from './services/task-dependency.service';
 import { TaskCounterService } from './services/task-counter.service';
 import { TaskCreationValidationService } from './services/task-creation-validation.service';
@@ -100,8 +103,6 @@ import { TaskAuditService } from './shared/task-audit.service';
     TaskAuditService,
     WorkspaceRoleGuard,
   ],
-  exports: [
-    TasksService,
-  ],
+  exports: [TasksService],
 })
 export class TasksModule {}

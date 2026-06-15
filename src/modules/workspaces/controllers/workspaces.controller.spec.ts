@@ -8,7 +8,9 @@ import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 
 describe('WorkspacesController', () => {
   let controller: WorkspacesController;
-  let workspacesService: jest.Mocked<Pick<WorkspacesService, 'getAvatarSamples'>>;
+  let workspacesService: jest.Mocked<
+    Pick<WorkspacesService, 'getAvatarSamples'>
+  >;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -35,12 +37,16 @@ describe('WorkspacesController', () => {
   });
 
   it('returns sample workspace avatars from the service', async () => {
-    workspacesService.getAvatarSamples.mockReturnValue({ avatars: WORKSPACE_SAMPLE_AVATARS });
+    workspacesService.getAvatarSamples.mockReturnValue({
+      avatars: WORKSPACE_SAMPLE_AVATARS,
+    });
 
     const result = await controller.getAvatarSamples();
 
     expect(workspacesService.getAvatarSamples).toHaveBeenCalledTimes(1);
     expect(result.avatars).toHaveLength(25);
-    expect(result.avatars[0].publicId).toBe('sdlc-platform/sample avater workspace/viewavatar');
+    expect(result.avatars[0].publicId).toBe(
+      'sdlc-platform/sample avater workspace/viewavatar',
+    );
   });
 });

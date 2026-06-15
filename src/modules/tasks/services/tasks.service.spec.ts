@@ -114,91 +114,175 @@ describe('TasksService', () => {
 
   it('delegates createInWorkspaceKey to TaskCreateService', async () => {
     taskCreateService.createInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.createInWorkspaceKey('TESKB', { title: 'Task' }, userId)).resolves.toEqual(taskDto);
-    expect(taskCreateService.createInWorkspaceKey).toHaveBeenCalledWith('TESKB', { title: 'Task' }, userId);
+    await expect(
+      service.createInWorkspaceKey('TESKB', { title: 'Task' }, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskCreateService.createInWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      { title: 'Task' },
+      userId,
+    );
   });
 
   it('delegates createInWorkspaceId to TaskCreateService', async () => {
     taskCreateService.createInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.createInWorkspaceId(workspaceId, { title: 'Task' }, userId)).resolves.toEqual(taskDto);
-    expect(taskCreateService.createInWorkspaceId).toHaveBeenCalledWith(workspaceId, { title: 'Task' }, userId);
+    await expect(
+      service.createInWorkspaceId(workspaceId, { title: 'Task' }, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskCreateService.createInWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      { title: 'Task' },
+      userId,
+    );
   });
 
   // ─── Query delegation ─────────────────────────────────══════════════════
 
   it('delegates findAll to TaskQueryService', async () => {
     taskQueryService.findAll.mockResolvedValue(taskListDto);
-    await expect(service.findAll({ workspaceId }, userId)).resolves.toEqual(taskListDto);
-    expect(taskQueryService.findAll).toHaveBeenCalledWith({ workspaceId }, userId);
+    await expect(service.findAll({ workspaceId }, userId)).resolves.toEqual(
+      taskListDto,
+    );
+    expect(taskQueryService.findAll).toHaveBeenCalledWith(
+      { workspaceId },
+      userId,
+    );
   });
 
   it('delegates findByWorkspace to TaskQueryService', async () => {
     taskQueryService.findByWorkspace.mockResolvedValue([taskDto] as any);
-    await expect(service.findByWorkspace(workspaceId, userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findByWorkspace).toHaveBeenCalledWith(workspaceId, userId);
+    await expect(service.findByWorkspace(workspaceId, userId)).resolves.toEqual(
+      [taskDto],
+    );
+    expect(taskQueryService.findByWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
   });
 
   it('delegates findByWorkspaceKey to TaskQueryService', async () => {
     const filters = { status: ['todo'] };
     taskQueryService.findByWorkspaceKey.mockResolvedValue(taskListDto);
-    await expect(service.findByWorkspaceKey('TESKB', userId, filters as any)).resolves.toEqual(taskListDto);
-    expect(taskQueryService.findByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId, filters);
+    await expect(
+      service.findByWorkspaceKey('TESKB', userId, filters as any),
+    ).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findByWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      userId,
+      filters,
+    );
   });
 
   it('delegates findByWorkspaceId to TaskQueryService', async () => {
     taskQueryService.findByWorkspaceId.mockResolvedValue(taskListDto);
-    await expect(service.findByWorkspaceId(workspaceId, userId)).resolves.toEqual(taskListDto);
-    expect(taskQueryService.findByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId, {});
+    await expect(
+      service.findByWorkspaceId(workspaceId, userId),
+    ).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findByWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      {},
+    );
   });
 
   it('delegates findArchivedByWorkspaceKey to TaskQueryService', async () => {
     taskQueryService.findArchivedByWorkspaceKey.mockResolvedValue(taskListDto);
-    await expect(service.findArchivedByWorkspaceKey('TESKB', userId)).resolves.toEqual(taskListDto);
-    expect(taskQueryService.findArchivedByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId, {});
+    await expect(
+      service.findArchivedByWorkspaceKey('TESKB', userId),
+    ).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findArchivedByWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      userId,
+      {},
+    );
   });
 
   it('delegates findArchivedByWorkspaceId to TaskQueryService', async () => {
     taskQueryService.findArchivedByWorkspaceId.mockResolvedValue(taskListDto);
-    await expect(service.findArchivedByWorkspaceId(workspaceId, userId)).resolves.toEqual(taskListDto);
-    expect(taskQueryService.findArchivedByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId, {});
+    await expect(
+      service.findArchivedByWorkspaceId(workspaceId, userId),
+    ).resolves.toEqual(taskListDto);
+    expect(taskQueryService.findArchivedByWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      {},
+    );
   });
 
   it('delegates findBacklogByWorkspaceKey to TaskQueryService', async () => {
-    taskQueryService.findBacklogByWorkspaceKey.mockResolvedValue([taskDto] as any);
-    await expect(service.findBacklogByWorkspaceKey('TESKB', userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findBacklogByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId);
+    taskQueryService.findBacklogByWorkspaceKey.mockResolvedValue([
+      taskDto,
+    ] as any);
+    await expect(
+      service.findBacklogByWorkspaceKey('TESKB', userId),
+    ).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findBacklogByWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      userId,
+    );
   });
 
   it('delegates findBacklogByWorkspaceId to TaskQueryService', async () => {
-    taskQueryService.findBacklogByWorkspaceId.mockResolvedValue([taskDto] as any);
-    await expect(service.findBacklogByWorkspaceId(workspaceId, userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findBacklogByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+    taskQueryService.findBacklogByWorkspaceId.mockResolvedValue([
+      taskDto,
+    ] as any);
+    await expect(
+      service.findBacklogByWorkspaceId(workspaceId, userId),
+    ).resolves.toEqual([taskDto]);
+    expect(taskQueryService.findBacklogByWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
   });
 
   it('delegates findActiveSprintBoardByWorkspaceKey to TaskQueryService', async () => {
-    taskQueryService.findActiveSprintBoardByWorkspaceKey.mockResolvedValue([taskDto] as any);
-    await expect(service.findActiveSprintBoardByWorkspaceKey('TESKB', userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findActiveSprintBoardByWorkspaceKey).toHaveBeenCalledWith('TESKB', userId);
+    taskQueryService.findActiveSprintBoardByWorkspaceKey.mockResolvedValue([
+      taskDto,
+    ] as any);
+    await expect(
+      service.findActiveSprintBoardByWorkspaceKey('TESKB', userId),
+    ).resolves.toEqual([taskDto]);
+    expect(
+      taskQueryService.findActiveSprintBoardByWorkspaceKey,
+    ).toHaveBeenCalledWith('TESKB', userId);
   });
 
   it('delegates findActiveSprintBoardByWorkspaceId to TaskQueryService', async () => {
-    taskQueryService.findActiveSprintBoardByWorkspaceId.mockResolvedValue([taskDto] as any);
-    await expect(service.findActiveSprintBoardByWorkspaceId(workspaceId, userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findActiveSprintBoardByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+    taskQueryService.findActiveSprintBoardByWorkspaceId.mockResolvedValue([
+      taskDto,
+    ] as any);
+    await expect(
+      service.findActiveSprintBoardByWorkspaceId(workspaceId, userId),
+    ).resolves.toEqual([taskDto]);
+    expect(
+      taskQueryService.findActiveSprintBoardByWorkspaceId,
+    ).toHaveBeenCalledWith(workspaceId, userId);
   });
 
   it('delegates findTasksBySprintInWorkspaceKey to TaskQueryService', async () => {
     const sprintId = new Types.ObjectId().toString();
-    taskQueryService.findTasksBySprintInWorkspaceKey.mockResolvedValue([taskDto] as any);
-    await expect(service.findTasksBySprintInWorkspaceKey('TESKB', sprintId, userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findTasksBySprintInWorkspaceKey).toHaveBeenCalledWith('TESKB', sprintId, userId);
+    taskQueryService.findTasksBySprintInWorkspaceKey.mockResolvedValue([
+      taskDto,
+    ] as any);
+    await expect(
+      service.findTasksBySprintInWorkspaceKey('TESKB', sprintId, userId),
+    ).resolves.toEqual([taskDto]);
+    expect(
+      taskQueryService.findTasksBySprintInWorkspaceKey,
+    ).toHaveBeenCalledWith('TESKB', sprintId, userId);
   });
 
   it('delegates findTasksBySprintInWorkspaceId to TaskQueryService', async () => {
     const sprintId = new Types.ObjectId().toString();
-    taskQueryService.findTasksBySprintInWorkspaceId.mockResolvedValue([taskDto] as any);
-    await expect(service.findTasksBySprintInWorkspaceId(workspaceId, sprintId, userId)).resolves.toEqual([taskDto]);
-    expect(taskQueryService.findTasksBySprintInWorkspaceId).toHaveBeenCalledWith(workspaceId, sprintId, userId);
+    taskQueryService.findTasksBySprintInWorkspaceId.mockResolvedValue([
+      taskDto,
+    ] as any);
+    await expect(
+      service.findTasksBySprintInWorkspaceId(workspaceId, sprintId, userId),
+    ).resolves.toEqual([taskDto]);
+    expect(
+      taskQueryService.findTasksBySprintInWorkspaceId,
+    ).toHaveBeenCalledWith(workspaceId, sprintId, userId);
   });
 
   it('delegates findById to TaskQueryService', async () => {
@@ -209,20 +293,36 @@ describe('TasksService', () => {
 
   it('delegates findByIdInWorkspaceKey to TaskQueryService', async () => {
     taskQueryService.findByIdInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.findByIdInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
-    expect(taskQueryService.findByIdInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId);
+    await expect(
+      service.findByIdInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByIdInWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      taskId,
+      userId,
+    );
   });
 
   it('delegates findByIdInWorkspaceId to TaskQueryService', async () => {
     taskQueryService.findByIdInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.findByIdInWorkspaceId(workspaceId, taskId, userId)).resolves.toEqual(taskDto);
-    expect(taskQueryService.findByIdInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+    await expect(
+      service.findByIdInWorkspaceId(workspaceId, taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByIdInWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      taskId,
+      userId,
+    );
   });
 
   it('delegates findByIdForAccessCheck to TaskQueryService', async () => {
     taskQueryService.findByIdForAccessCheck.mockResolvedValue(taskDto as any);
-    await expect(service.findByIdForAccessCheck(taskId)).resolves.toEqual(taskDto);
-    expect(taskQueryService.findByIdForAccessCheck).toHaveBeenCalledWith(taskId);
+    await expect(service.findByIdForAccessCheck(taskId)).resolves.toEqual(
+      taskDto,
+    );
+    expect(taskQueryService.findByIdForAccessCheck).toHaveBeenCalledWith(
+      taskId,
+    );
   });
 
   it('delegates findByKey to TaskQueryService', async () => {
@@ -233,34 +333,65 @@ describe('TasksService', () => {
 
   it('delegates findByKeyInWorkspaceKey to TaskQueryService', async () => {
     taskQueryService.findByKeyInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
-    expect(taskQueryService.findByKeyInWorkspaceKey).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+    await expect(
+      service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKeyInWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      'TESKB-1',
+      userId,
+    );
   });
 
   it('delegates findByKeyInWorkspace to TaskQueryService', async () => {
     taskQueryService.findByKeyInWorkspace.mockResolvedValue(taskDto as any);
-    await expect(service.findByKeyInWorkspace('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
-    expect(taskQueryService.findByKeyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+    await expect(
+      service.findByKeyInWorkspace('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKeyInWorkspace).toHaveBeenCalledWith(
+      'TESKB',
+      'TESKB-1',
+      userId,
+    );
   });
 
   it('delegates findByKeyInWorkspaceId to TaskQueryService', async () => {
     taskQueryService.findByKeyInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.findByKeyInWorkspaceId(workspaceId, 'TESKB-1', userId)).resolves.toEqual(taskDto);
-    expect(taskQueryService.findByKeyInWorkspaceId).toHaveBeenCalledWith(workspaceId, 'TESKB-1', userId);
+    await expect(
+      service.findByKeyInWorkspaceId(workspaceId, 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskQueryService.findByKeyInWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      'TESKB-1',
+      userId,
+    );
   });
 
   it('delegates findCalendarByWorkspaceId to TaskQueryService', async () => {
     const result = { tasks: [taskDto] };
     taskQueryService.findCalendarByWorkspaceId.mockResolvedValue(result as any);
-    await expect(service.findCalendarByWorkspaceId(workspaceId, 2026, 6, userId)).resolves.toEqual(result);
-    expect(taskQueryService.findCalendarByWorkspaceId).toHaveBeenCalledWith(workspaceId, 2026, 6, userId);
+    await expect(
+      service.findCalendarByWorkspaceId(workspaceId, 2026, 6, userId),
+    ).resolves.toEqual(result);
+    expect(taskQueryService.findCalendarByWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      2026,
+      6,
+      userId,
+    );
   });
 
   it('delegates findTimelineHierarchyByWorkspaceId to TaskQueryService', async () => {
     const result = { epics: [], children: [], standalones: [taskDto] };
-    taskQueryService.findTimelineHierarchyByWorkspaceId.mockResolvedValue(result as any);
-    await expect(service.findTimelineHierarchyByWorkspaceId(workspaceId, userId)).resolves.toEqual(result);
-    expect(taskQueryService.findTimelineHierarchyByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+    taskQueryService.findTimelineHierarchyByWorkspaceId.mockResolvedValue(
+      result as any,
+    );
+    await expect(
+      service.findTimelineHierarchyByWorkspaceId(workspaceId, userId),
+    ).resolves.toEqual(result);
+    expect(
+      taskQueryService.findTimelineHierarchyByWorkspaceId,
+    ).toHaveBeenCalledWith(workspaceId, userId);
   });
 
   // ─── Update delegation ────────────────────────────────────────────────
@@ -275,75 +406,171 @@ describe('TasksService', () => {
   it('delegates updateInWorkspaceKey to TaskUpdateService', async () => {
     const dto: UpdateTaskDto = { title: 'Updated' };
     taskUpdateService.updateInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.updateInWorkspaceKey('TESKB', taskId, dto, userId)).resolves.toEqual(taskDto);
-    expect(taskUpdateService.updateInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, dto, userId);
+    await expect(
+      service.updateInWorkspaceKey('TESKB', taskId, dto, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskUpdateService.updateInWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      taskId,
+      dto,
+      userId,
+    );
   });
 
   it('delegates updateInWorkspaceId to TaskUpdateService', async () => {
     const dto: UpdateTaskDto = { title: 'Updated' };
     taskUpdateService.updateInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.updateInWorkspaceId(workspaceId, taskId, dto, userId)).resolves.toEqual(taskDto);
-    expect(taskUpdateService.updateInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, dto, userId, undefined);
+    await expect(
+      service.updateInWorkspaceId(workspaceId, taskId, dto, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskUpdateService.updateInWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      taskId,
+      dto,
+      userId,
+      undefined,
+    );
   });
 
   // ─── Lifecycle delegation ──────────────────────────────────────────────
 
   it('delegates archiveInWorkspaceKey to TaskLifecycleService', async () => {
-    taskLifecycleService.archiveInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.archiveInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.archiveInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId);
+    taskLifecycleService.archiveInWorkspaceKey.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.archiveInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.archiveInWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      taskId,
+      userId,
+    );
   });
 
   it('delegates archiveInWorkspaceId to TaskLifecycleService', async () => {
     taskLifecycleService.archiveInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.archiveInWorkspaceId(workspaceId, taskId, userId)).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.archiveInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+    await expect(
+      service.archiveInWorkspaceId(workspaceId, taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.archiveInWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      taskId,
+      userId,
+    );
   });
 
   it('delegates restoreInWorkspaceKey to TaskLifecycleService', async () => {
-    taskLifecycleService.restoreInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.restoreInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.restoreInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId);
+    taskLifecycleService.restoreInWorkspaceKey.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.restoreInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.restoreInWorkspaceKey).toHaveBeenCalledWith(
+      'TESKB',
+      taskId,
+      userId,
+    );
   });
 
   it('delegates restoreInWorkspaceId to TaskLifecycleService', async () => {
     taskLifecycleService.restoreInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.restoreInWorkspaceId(workspaceId, taskId, userId)).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.restoreInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+    await expect(
+      service.restoreInWorkspaceId(workspaceId, taskId, userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.restoreInWorkspaceId).toHaveBeenCalledWith(
+      workspaceId,
+      taskId,
+      userId,
+    );
   });
 
   it('delegates deletePermanentlyInWorkspaceKey to TaskLifecycleService', async () => {
-    taskLifecycleService.deletePermanentlyInWorkspaceKey.mockResolvedValue(taskDto as any);
-    await expect(service.deletePermanentlyInWorkspaceKey('TESKB', taskId, userId, 'delete')).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.deletePermanentlyInWorkspaceKey).toHaveBeenCalledWith('TESKB', taskId, userId, 'delete');
+    taskLifecycleService.deletePermanentlyInWorkspaceKey.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.deletePermanentlyInWorkspaceKey(
+        'TESKB',
+        taskId,
+        userId,
+        'delete',
+      ),
+    ).resolves.toEqual(taskDto);
+    expect(
+      taskLifecycleService.deletePermanentlyInWorkspaceKey,
+    ).toHaveBeenCalledWith('TESKB', taskId, userId, 'delete');
   });
 
   it('delegates deletePermanentlyInWorkspaceId to TaskLifecycleService', async () => {
-    taskLifecycleService.deletePermanentlyInWorkspaceId.mockResolvedValue(taskDto as any);
-    await expect(service.deletePermanentlyInWorkspaceId(workspaceId, taskId, userId, 'delete')).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.deletePermanentlyInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId, 'delete');
+    taskLifecycleService.deletePermanentlyInWorkspaceId.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.deletePermanentlyInWorkspaceId(
+        workspaceId,
+        taskId,
+        userId,
+        'delete',
+      ),
+    ).resolves.toEqual(taskDto);
+    expect(
+      taskLifecycleService.deletePermanentlyInWorkspaceId,
+    ).toHaveBeenCalledWith(workspaceId, taskId, userId, 'delete');
   });
 
   it('delegates archiveTaskKeyInWorkspace to TaskLifecycleService', async () => {
-    taskLifecycleService.archiveTaskKeyInWorkspace.mockResolvedValue(taskDto as any);
-    await expect(service.archiveTaskKeyInWorkspace('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.archiveTaskKeyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+    taskLifecycleService.archiveTaskKeyInWorkspace.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.archiveTaskKeyInWorkspace('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.archiveTaskKeyInWorkspace).toHaveBeenCalledWith(
+      'TESKB',
+      'TESKB-1',
+      userId,
+    );
   });
 
   it('delegates restoreTaskKeyInWorkspace to TaskLifecycleService', async () => {
-    taskLifecycleService.restoreTaskKeyInWorkspace.mockResolvedValue(taskDto as any);
-    await expect(service.restoreTaskKeyInWorkspace('TESKB', 'TESKB-1', userId)).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.restoreTaskKeyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId);
+    taskLifecycleService.restoreTaskKeyInWorkspace.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.restoreTaskKeyInWorkspace('TESKB', 'TESKB-1', userId),
+    ).resolves.toEqual(taskDto);
+    expect(taskLifecycleService.restoreTaskKeyInWorkspace).toHaveBeenCalledWith(
+      'TESKB',
+      'TESKB-1',
+      userId,
+    );
   });
 
   it('delegates deleteTaskKeyPermanentlyInWorkspace to TaskLifecycleService', async () => {
-    taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace.mockResolvedValue(taskDto as any);
-    await expect(service.deleteTaskKeyPermanentlyInWorkspace('TESKB', 'TESKB-1', userId, 'delete')).resolves.toEqual(taskDto);
-    expect(taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId, 'delete');
+    taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace.mockResolvedValue(
+      taskDto as any,
+    );
+    await expect(
+      service.deleteTaskKeyPermanentlyInWorkspace(
+        'TESKB',
+        'TESKB-1',
+        userId,
+        'delete',
+      ),
+    ).resolves.toEqual(taskDto);
+    expect(
+      taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace,
+    ).toHaveBeenCalledWith('TESKB', 'TESKB-1', userId, 'delete');
   });
 
   it('preserves error propagation from delegated services', async () => {
-    taskQueryService.findById.mockRejectedValue(new NotFoundException('Task not found'));
-    await expect(service.findById('nonexistent')).rejects.toThrow(NotFoundException);
+    taskQueryService.findById.mockRejectedValue(
+      new NotFoundException('Task not found'),
+    );
+    await expect(service.findById('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

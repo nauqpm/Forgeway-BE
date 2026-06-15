@@ -78,7 +78,9 @@ describe('TaskActivitiesService', () => {
     } as any);
     mapper.mapToDtos.mockReturnValue(mapped as any);
 
-    await expect(service.findByTaskInWorkspaceKey('TESKB', taskId, userId)).resolves.toEqual({
+    await expect(
+      service.findByTaskInWorkspaceKey('TESKB', taskId, userId),
+    ).resolves.toEqual({
       activities: mapped,
       total: 1,
       page: 1,
@@ -86,8 +88,15 @@ describe('TaskActivitiesService', () => {
     });
 
     expect(workspacesService.findById).toHaveBeenCalledWith('TESKB');
-    expect(workspaceMemberService.isMember).toHaveBeenCalledWith(workspaceId, userId);
-    expect(repository.findByTaskInWorkspace).toHaveBeenCalledWith(workspaceId, taskId, {});
+    expect(workspaceMemberService.isMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+    expect(repository.findByTaskInWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      taskId,
+      {},
+    );
   });
 
   it('returns not found when user is not a workspace member', async () => {
@@ -97,7 +106,9 @@ describe('TaskActivitiesService', () => {
     } as any);
     workspaceMemberService.isMember.mockResolvedValue(false);
 
-    await expect(service.findByTaskInWorkspaceKey('TESKB', taskId, userId)).rejects.toThrow(NotFoundException);
+    await expect(
+      service.findByTaskInWorkspaceKey('TESKB', taskId, userId),
+    ).rejects.toThrow(NotFoundException);
 
     expect(repository.findByTaskInWorkspace).not.toHaveBeenCalled();
   });

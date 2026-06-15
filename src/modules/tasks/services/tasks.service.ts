@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { CreateTaskDto, FilterTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
+import {
+  CreateTaskDto,
+  FilterTaskDto,
+  UpdateTaskDto,
+} from '../dtos/requests/create-task.dto';
 import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TaskCreateService } from './task-create.service';
 import { TaskLifecycleService } from './task-lifecycle.service';
@@ -25,21 +29,43 @@ export class TasksService {
     return this.taskCreateService.create(createTaskDto, userId);
   }
 
-  async createInWorkspaceKey(workspaceKey: string, createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
-    return this.taskCreateService.createInWorkspaceKey(workspaceKey, createTaskDto, userId);
+  async createInWorkspaceKey(
+    workspaceKey: string,
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskCreateService.createInWorkspaceKey(
+      workspaceKey,
+      createTaskDto,
+      userId,
+    );
   }
 
-  async createInWorkspaceId(workspaceId: string, createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
-    return this.taskCreateService.createInWorkspaceId(workspaceId, createTaskDto, userId);
+  async createInWorkspaceId(
+    workspaceId: string,
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskCreateService.createInWorkspaceId(
+      workspaceId,
+      createTaskDto,
+      userId,
+    );
   }
 
   // ─── Query / Read ─────────────────────────────────────────────────────────
 
-  async findAll(filterDto: FilterTaskDto, currentUserId?: string): Promise<TaskListDto> {
+  async findAll(
+    filterDto: FilterTaskDto,
+    currentUserId?: string,
+  ): Promise<TaskListDto> {
     return this.taskQueryService.findAll(filterDto, currentUserId);
   }
 
-  async findByWorkspace(workspaceId: string, currentUserId?: string): Promise<TaskDto[]> {
+  async findByWorkspace(
+    workspaceId: string,
+    currentUserId?: string,
+  ): Promise<TaskDto[]> {
     return this.taskQueryService.findByWorkspace(workspaceId, currentUserId);
   }
 
@@ -48,7 +74,11 @@ export class TasksService {
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    return this.taskQueryService.findByWorkspaceKey(workspaceKey, currentUserId, filterDto);
+    return this.taskQueryService.findByWorkspaceKey(
+      workspaceKey,
+      currentUserId,
+      filterDto,
+    );
   }
 
   async findByWorkspaceId(
@@ -56,7 +86,11 @@ export class TasksService {
     currentUserId?: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    return this.taskQueryService.findByWorkspaceId(workspaceId, currentUserId, filterDto);
+    return this.taskQueryService.findByWorkspaceId(
+      workspaceId,
+      currentUserId,
+      filterDto,
+    );
   }
 
   async findArchivedByWorkspaceKey(
@@ -64,7 +98,11 @@ export class TasksService {
     currentUserId: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    return this.taskQueryService.findArchivedByWorkspaceKey(workspaceKey, currentUserId, filterDto);
+    return this.taskQueryService.findArchivedByWorkspaceKey(
+      workspaceKey,
+      currentUserId,
+      filterDto,
+    );
   }
 
   async findArchivedByWorkspaceId(
@@ -72,23 +110,51 @@ export class TasksService {
     currentUserId: string,
     filterDto: Omit<FilterTaskDto, 'workspaceId'> = {},
   ): Promise<TaskListDto> {
-    return this.taskQueryService.findArchivedByWorkspaceId(workspaceId, currentUserId, filterDto);
+    return this.taskQueryService.findArchivedByWorkspaceId(
+      workspaceId,
+      currentUserId,
+      filterDto,
+    );
   }
 
-  async findBacklogByWorkspaceKey(workspaceKey: string, currentUserId: string): Promise<TaskDto[]> {
-    return this.taskQueryService.findBacklogByWorkspaceKey(workspaceKey, currentUserId);
+  async findBacklogByWorkspaceKey(
+    workspaceKey: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    return this.taskQueryService.findBacklogByWorkspaceKey(
+      workspaceKey,
+      currentUserId,
+    );
   }
 
-  async findBacklogByWorkspaceId(workspaceId: string, currentUserId: string): Promise<TaskDto[]> {
-    return this.taskQueryService.findBacklogByWorkspaceId(workspaceId, currentUserId);
+  async findBacklogByWorkspaceId(
+    workspaceId: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    return this.taskQueryService.findBacklogByWorkspaceId(
+      workspaceId,
+      currentUserId,
+    );
   }
 
-  async findActiveSprintBoardByWorkspaceKey(workspaceKey: string, currentUserId: string): Promise<TaskDto[]> {
-    return this.taskQueryService.findActiveSprintBoardByWorkspaceKey(workspaceKey, currentUserId);
+  async findActiveSprintBoardByWorkspaceKey(
+    workspaceKey: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    return this.taskQueryService.findActiveSprintBoardByWorkspaceKey(
+      workspaceKey,
+      currentUserId,
+    );
   }
 
-  async findActiveSprintBoardByWorkspaceId(workspaceId: string, currentUserId: string): Promise<TaskDto[]> {
-    return this.taskQueryService.findActiveSprintBoardByWorkspaceId(workspaceId, currentUserId);
+  async findActiveSprintBoardByWorkspaceId(
+    workspaceId: string,
+    currentUserId: string,
+  ): Promise<TaskDto[]> {
+    return this.taskQueryService.findActiveSprintBoardByWorkspaceId(
+      workspaceId,
+      currentUserId,
+    );
   }
 
   async findTasksBySprintInWorkspaceKey(
@@ -96,7 +162,11 @@ export class TasksService {
     sprintId: string,
     currentUserId: string,
   ): Promise<TaskDto[]> {
-    return this.taskQueryService.findTasksBySprintInWorkspaceKey(workspaceKey, sprintId, currentUserId);
+    return this.taskQueryService.findTasksBySprintInWorkspaceKey(
+      workspaceKey,
+      sprintId,
+      currentUserId,
+    );
   }
 
   async findTasksBySprintInWorkspaceId(
@@ -104,19 +174,39 @@ export class TasksService {
     sprintId: string,
     currentUserId: string,
   ): Promise<TaskDto[]> {
-    return this.taskQueryService.findTasksBySprintInWorkspaceId(workspaceId, sprintId, currentUserId);
+    return this.taskQueryService.findTasksBySprintInWorkspaceId(
+      workspaceId,
+      sprintId,
+      currentUserId,
+    );
   }
 
   async findById(id: string): Promise<TaskDto> {
     return this.taskQueryService.findById(id);
   }
 
-  async findByIdInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDto> {
-    return this.taskQueryService.findByIdInWorkspaceKey(workspaceKey, taskId, userId);
+  async findByIdInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskQueryService.findByIdInWorkspaceKey(
+      workspaceKey,
+      taskId,
+      userId,
+    );
   }
 
-  async findByIdInWorkspaceId(workspaceId: string, taskId: string, userId: string): Promise<TaskDto> {
-    return this.taskQueryService.findByIdInWorkspaceId(workspaceId, taskId, userId);
+  async findByIdInWorkspaceId(
+    workspaceId: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskQueryService.findByIdInWorkspaceId(
+      workspaceId,
+      taskId,
+      userId,
+    );
   }
 
   async findByIdForAccessCheck(id: string): Promise<TaskDto> {
@@ -127,16 +217,40 @@ export class TasksService {
     return this.taskQueryService.findByKey(key);
   }
 
-  async findByKeyInWorkspaceKey(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
-    return this.taskQueryService.findByKeyInWorkspaceKey(workspaceKey, taskKey, userId);
+  async findByKeyInWorkspaceKey(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskQueryService.findByKeyInWorkspaceKey(
+      workspaceKey,
+      taskKey,
+      userId,
+    );
   }
 
-  async findByKeyInWorkspace(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
-    return this.taskQueryService.findByKeyInWorkspace(workspaceKey, taskKey, userId);
+  async findByKeyInWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskQueryService.findByKeyInWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+    );
   }
 
-  async findByKeyInWorkspaceId(workspaceId: string, taskKey: string, userId: string): Promise<TaskDto> {
-    return this.taskQueryService.findByKeyInWorkspaceId(workspaceId, taskKey, userId);
+  async findByKeyInWorkspaceId(
+    workspaceId: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskQueryService.findByKeyInWorkspaceId(
+      workspaceId,
+      taskKey,
+      userId,
+    );
   }
 
   async findCalendarByWorkspaceId(
@@ -145,7 +259,12 @@ export class TasksService {
     month: number,
     userId: string,
   ): Promise<{ tasks: TaskDto[] }> {
-    return this.taskQueryService.findCalendarByWorkspaceId(workspaceId, year, month, userId);
+    return this.taskQueryService.findCalendarByWorkspaceId(
+      workspaceId,
+      year,
+      month,
+      userId,
+    );
   }
 
   async findTimelineHierarchyByWorkspaceId(
@@ -156,7 +275,10 @@ export class TasksService {
     children: TaskDto[];
     standalones: TaskDto[];
   }> {
-    return this.taskQueryService.findTimelineHierarchyByWorkspaceId(workspaceId, userId);
+    return this.taskQueryService.findTimelineHierarchyByWorkspaceId(
+      workspaceId,
+      userId,
+    );
   }
 
   // ─── Update ────────────────────────────────────────────────────────────────
@@ -171,7 +293,12 @@ export class TasksService {
     updateTaskDto: UpdateTaskDto,
     userId: string,
   ): Promise<TaskDto> {
-    return this.taskUpdateService.updateInWorkspaceKey(workspaceKey, taskId, updateTaskDto, userId);
+    return this.taskUpdateService.updateInWorkspaceKey(
+      workspaceKey,
+      taskId,
+      updateTaskDto,
+      userId,
+    );
   }
 
   async updateInWorkspaceId(
@@ -181,33 +308,87 @@ export class TasksService {
     userId: string,
     userRole?: string,
   ): Promise<TaskDto> {
-    return this.taskUpdateService.updateInWorkspaceId(workspaceId, taskId, updateTaskDto, userId, userRole);
+    return this.taskUpdateService.updateInWorkspaceId(
+      workspaceId,
+      taskId,
+      updateTaskDto,
+      userId,
+      userRole,
+    );
   }
 
   // ─── Lifecycle (archive / restore / delete) ────────────────────────────────
 
-  async archiveInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDto> {
-    return this.taskLifecycleService.archiveInWorkspaceKey(workspaceKey, taskId, userId);
+  async archiveInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskLifecycleService.archiveInWorkspaceKey(
+      workspaceKey,
+      taskId,
+      userId,
+    );
   }
 
-  async archiveTaskKeyInWorkspace(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
-    return this.taskLifecycleService.archiveTaskKeyInWorkspace(workspaceKey, taskKey, userId);
+  async archiveTaskKeyInWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskLifecycleService.archiveTaskKeyInWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+    );
   }
 
-  async archiveInWorkspaceId(workspaceId: string, taskId: string, userId: string): Promise<TaskDto> {
-    return this.taskLifecycleService.archiveInWorkspaceId(workspaceId, taskId, userId);
+  async archiveInWorkspaceId(
+    workspaceId: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskLifecycleService.archiveInWorkspaceId(
+      workspaceId,
+      taskId,
+      userId,
+    );
   }
 
-  async restoreInWorkspaceKey(workspaceKey: string, taskId: string, userId: string): Promise<TaskDto> {
-    return this.taskLifecycleService.restoreInWorkspaceKey(workspaceKey, taskId, userId);
+  async restoreInWorkspaceKey(
+    workspaceKey: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskLifecycleService.restoreInWorkspaceKey(
+      workspaceKey,
+      taskId,
+      userId,
+    );
   }
 
-  async restoreTaskKeyInWorkspace(workspaceKey: string, taskKey: string, userId: string): Promise<TaskDto> {
-    return this.taskLifecycleService.restoreTaskKeyInWorkspace(workspaceKey, taskKey, userId);
+  async restoreTaskKeyInWorkspace(
+    workspaceKey: string,
+    taskKey: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskLifecycleService.restoreTaskKeyInWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+    );
   }
 
-  async restoreInWorkspaceId(workspaceId: string, taskId: string, userId: string): Promise<TaskDto> {
-    return this.taskLifecycleService.restoreInWorkspaceId(workspaceId, taskId, userId);
+  async restoreInWorkspaceId(
+    workspaceId: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    return this.taskLifecycleService.restoreInWorkspaceId(
+      workspaceId,
+      taskId,
+      userId,
+    );
   }
 
   async deletePermanentlyInWorkspaceKey(
@@ -216,7 +397,12 @@ export class TasksService {
     userId: string,
     confirmText?: string,
   ): Promise<TaskDto> {
-    return this.taskLifecycleService.deletePermanentlyInWorkspaceKey(workspaceKey, taskId, userId, confirmText);
+    return this.taskLifecycleService.deletePermanentlyInWorkspaceKey(
+      workspaceKey,
+      taskId,
+      userId,
+      confirmText,
+    );
   }
 
   async deleteTaskKeyPermanentlyInWorkspace(
@@ -225,7 +411,12 @@ export class TasksService {
     userId: string,
     confirmText?: string,
   ): Promise<TaskDto> {
-    return this.taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace(workspaceKey, taskKey, userId, confirmText);
+    return this.taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace(
+      workspaceKey,
+      taskKey,
+      userId,
+      confirmText,
+    );
   }
 
   async deletePermanentlyInWorkspaceId(
@@ -234,6 +425,11 @@ export class TasksService {
     userId: string,
     confirmText?: string,
   ): Promise<TaskDto> {
-    return this.taskLifecycleService.deletePermanentlyInWorkspaceId(workspaceId, taskId, userId, confirmText);
+    return this.taskLifecycleService.deletePermanentlyInWorkspaceId(
+      workspaceId,
+      taskId,
+      userId,
+      confirmText,
+    );
   }
 }

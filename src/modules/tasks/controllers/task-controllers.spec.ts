@@ -127,8 +127,14 @@ describe('TaskControllers', () => {
         { provide: AuditLogService, useValue: auditLogService },
         TaskAuditService,
         // Guard dependencies
-        { provide: JwtService, useValue: { verify: jest.fn(), sign: jest.fn() } },
-        { provide: TokenService, useValue: { findActiveAccessToken: jest.fn(), hashToken: jest.fn() } },
+        {
+          provide: JwtService,
+          useValue: { verify: jest.fn(), sign: jest.fn() },
+        },
+        {
+          provide: TokenService,
+          useValue: { findActiveAccessToken: jest.fn(), hashToken: jest.fn() },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -153,43 +159,88 @@ describe('TaskControllers', () => {
       const result = { tasks: [makeTaskDto()], total: 1, page: 1, limit: 20 };
       tasksService.findByWorkspaceId.mockResolvedValue(result);
 
-      const response = await queryController.findByWorkspaceKey(workspaceId, mockFilterDto, mockUser, mockReq);
+      const response = await queryController.findByWorkspaceKey(
+        workspaceId,
+        mockFilterDto,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.findByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId, mockFilterDto);
+      expect(tasksService.findByWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        userId,
+        mockFilterDto,
+      );
       expect(response).toEqual(result);
       expect(auditLogService.logRequest).toHaveBeenCalled();
     });
 
     it('GET archives delegates to findArchivedByWorkspaceId', async () => {
-      tasksService.findArchivedByWorkspaceId.mockResolvedValue({ tasks: [], total: 0, page: 1, limit: 20 });
+      tasksService.findArchivedByWorkspaceId.mockResolvedValue({
+        tasks: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
 
-      await queryController.findArchivedByWorkspaceKey(workspaceId, mockFilterDto, mockUser, mockReq);
+      await queryController.findArchivedByWorkspaceKey(
+        workspaceId,
+        mockFilterDto,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.findArchivedByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId, mockFilterDto);
+      expect(tasksService.findArchivedByWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        userId,
+        mockFilterDto,
+      );
     });
 
     it('GET backlog delegates to findBacklogByWorkspaceId', async () => {
       tasksService.findBacklogByWorkspaceId.mockResolvedValue([]);
 
-      await queryController.findBacklogByWorkspaceKey(workspaceId, mockUser, mockReq);
+      await queryController.findBacklogByWorkspaceKey(
+        workspaceId,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.findBacklogByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+      expect(tasksService.findBacklogByWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        userId,
+      );
     });
 
     it('GET active-sprint/tasks delegates to findActiveSprintBoardByWorkspaceId', async () => {
       tasksService.findActiveSprintBoardByWorkspaceId.mockResolvedValue([]);
 
-      await queryController.findActiveSprintBoardByWorkspaceKey(workspaceId, mockUser, mockReq);
+      await queryController.findActiveSprintBoardByWorkspaceKey(
+        workspaceId,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.findActiveSprintBoardByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+      expect(
+        tasksService.findActiveSprintBoardByWorkspaceId,
+      ).toHaveBeenCalledWith(workspaceId, userId);
     });
 
     it('GET sprints/:sprintId/tasks delegates to findTasksBySprintInWorkspaceId', async () => {
       tasksService.findTasksBySprintInWorkspaceId.mockResolvedValue([]);
 
-      await queryController.findTasksBySprintInWorkspaceKey(workspaceId, sprintId, mockUser, mockReq);
+      await queryController.findTasksBySprintInWorkspaceKey(
+        workspaceId,
+        sprintId,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.findTasksBySprintInWorkspaceId).toHaveBeenCalledWith(workspaceId, sprintId, userId);
+      expect(tasksService.findTasksBySprintInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        sprintId,
+        userId,
+      );
     });
 
     it('GET calendar delegates to findCalendarByWorkspaceId', async () => {
@@ -197,29 +248,73 @@ describe('TaskControllers', () => {
 
       await queryController.getCalendarTasks(workspaceId, 2026, 6, mockUser);
 
-      expect(tasksService.findCalendarByWorkspaceId).toHaveBeenCalledWith(workspaceId, 2026, 6, userId);
+      expect(tasksService.findCalendarByWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        2026,
+        6,
+        userId,
+      );
     });
 
     it('GET timeline delegates to findTimelineHierarchyByWorkspaceId', async () => {
-      tasksService.findTimelineHierarchyByWorkspaceId.mockResolvedValue({ epics: [], children: [], standalones: [] });
+      tasksService.findTimelineHierarchyByWorkspaceId.mockResolvedValue({
+        epics: [],
+        children: [],
+        standalones: [],
+      });
 
       await queryController.getTimelineHierarchy(workspaceId, mockUser);
 
-      expect(tasksService.findTimelineHierarchyByWorkspaceId).toHaveBeenCalledWith(workspaceId, userId);
+      expect(
+        tasksService.findTimelineHierarchyByWorkspaceId,
+      ).toHaveBeenCalledWith(workspaceId, userId);
     });
 
     it('does NOT emit realtime events on any query endpoint', async () => {
-      tasksService.findByWorkspaceId.mockResolvedValue({ tasks: [], total: 0, page: 1, limit: 20 });
-      tasksService.findArchivedByWorkspaceId.mockResolvedValue({ tasks: [], total: 0, page: 1, limit: 20 });
+      tasksService.findByWorkspaceId.mockResolvedValue({
+        tasks: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
+      tasksService.findArchivedByWorkspaceId.mockResolvedValue({
+        tasks: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
       tasksService.findBacklogByWorkspaceId.mockResolvedValue([]);
       tasksService.findActiveSprintBoardByWorkspaceId.mockResolvedValue([]);
       tasksService.findTasksBySprintInWorkspaceId.mockResolvedValue([]);
 
-      await queryController.findByWorkspaceKey(workspaceId, mockFilterDto, mockUser, mockReq);
-      await queryController.findArchivedByWorkspaceKey(workspaceId, mockFilterDto, mockUser, mockReq);
-      await queryController.findBacklogByWorkspaceKey(workspaceId, mockUser, mockReq);
-      await queryController.findActiveSprintBoardByWorkspaceKey(workspaceId, mockUser, mockReq);
-      await queryController.findTasksBySprintInWorkspaceKey(workspaceId, sprintId, mockUser, mockReq);
+      await queryController.findByWorkspaceKey(
+        workspaceId,
+        mockFilterDto,
+        mockUser,
+        mockReq,
+      );
+      await queryController.findArchivedByWorkspaceKey(
+        workspaceId,
+        mockFilterDto,
+        mockUser,
+        mockReq,
+      );
+      await queryController.findBacklogByWorkspaceKey(
+        workspaceId,
+        mockUser,
+        mockReq,
+      );
+      await queryController.findActiveSprintBoardByWorkspaceKey(
+        workspaceId,
+        mockUser,
+        mockReq,
+      );
+      await queryController.findTasksBySprintInWorkspaceKey(
+        workspaceId,
+        sprintId,
+        mockUser,
+        mockReq,
+      );
 
       expect(realtimeService.emitBoardDelta).not.toHaveBeenCalled();
     });
@@ -229,12 +324,20 @@ describe('TaskControllers', () => {
       tasksService.findByWorkspaceId.mockRejectedValue(error);
 
       await expect(
-        queryController.findByWorkspaceKey(workspaceId, mockFilterDto, mockUser, mockReq),
+        queryController.findByWorkspaceKey(
+          workspaceId,
+          mockFilterDto,
+          mockUser,
+          mockReq,
+        ),
       ).rejects.toThrow(error);
 
       expect(auditLogService.logRequest).toHaveBeenCalledWith(
         mockReq,
-        expect.objectContaining({ severity: 'WARN', metadata: expect.objectContaining({ reason: 'DB error' }) }),
+        expect.objectContaining({
+          severity: 'WARN',
+          metadata: expect.objectContaining({ reason: 'DB error' }),
+        }),
       );
     });
   });
@@ -244,38 +347,67 @@ describe('TaskControllers', () => {
   describe('TaskDetailController', () => {
     it('GET :id delegates to getDetailByIdInWorkspaceKey', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(task as any);
+      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(
+        task as any,
+      );
 
-      const response = await detailController.findById(workspaceId, taskId, mockUser, mockReq);
+      const response = await detailController.findById(
+        workspaceId,
+        taskId,
+        mockUser,
+        mockReq,
+      );
 
-      expect(taskDetailService.getDetailByIdInWorkspaceKey).toHaveBeenCalledWith(workspaceId, taskId, userId);
+      expect(
+        taskDetailService.getDetailByIdInWorkspaceKey,
+      ).toHaveBeenCalledWith(workspaceId, taskId, userId);
       expect(response).toEqual(task);
     });
 
     it('GET key/:taskKey delegates to getDetailByKeyInWorkspaceKey', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(task as any);
+      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(
+        task as any,
+      );
 
-      const response = await detailController.findByTaskKey(workspaceId, 'TESKB-1', mockUser, mockReq);
+      const response = await detailController.findByTaskKey(
+        workspaceId,
+        'TESKB-1',
+        mockUser,
+        mockReq,
+      );
 
-      expect(taskDetailService.getDetailByKeyInWorkspaceKey).toHaveBeenCalledWith(workspaceId, 'TESKB-1', userId);
+      expect(
+        taskDetailService.getDetailByKeyInWorkspaceKey,
+      ).toHaveBeenCalledWith(workspaceId, 'TESKB-1', userId);
       expect(response).toEqual(task);
     });
 
     it('does NOT emit realtime events', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(task as any);
-      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(task as any);
+      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(
+        task as any,
+      );
+      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(
+        task as any,
+      );
 
       await detailController.findById(workspaceId, taskId, mockUser, mockReq);
-      await detailController.findByTaskKey(workspaceId, 'TESKB-1', mockUser, mockReq);
+      await detailController.findByTaskKey(
+        workspaceId,
+        'TESKB-1',
+        mockUser,
+        mockReq,
+      );
 
       expect(realtimeService.emitBoardDelta).not.toHaveBeenCalled();
     });
 
     it('logs audit for detail views', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(task as any);
+      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(
+        task as any,
+      );
 
       await detailController.findById(workspaceId, taskId, mockUser, mockReq);
 
@@ -293,21 +425,45 @@ describe('TaskControllers', () => {
       const task = makeTaskDto();
       tasksService.createInWorkspaceId.mockResolvedValue(task);
 
-      const response = await commandController.create(workspaceId, { title: 'New' } as any, mockUser, mockReq);
+      const response = await commandController.create(
+        workspaceId,
+        { title: 'New' } as any,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.createInWorkspaceId).toHaveBeenCalledWith(workspaceId, { title: 'New' }, userId);
+      expect(tasksService.createInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        { title: 'New' },
+        userId,
+      );
       expect(response).toEqual(task);
       expect(auditLogService.logRequest).toHaveBeenCalled();
-      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(workspaceId, 'task:created', { task });
+      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(
+        workspaceId,
+        'task:created',
+        { task },
+      );
     });
 
     it('PATCH :id delegates to updateInWorkspaceId with audit', async () => {
       const task = makeTaskDto();
       tasksService.updateInWorkspaceId.mockResolvedValue(task);
 
-      const response = await commandController.update(workspaceId, taskId, mockUpdateDto, mockUser, mockReq);
+      const response = await commandController.update(
+        workspaceId,
+        taskId,
+        mockUpdateDto,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.updateInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, mockUpdateDto, userId);
+      expect(tasksService.updateInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+        mockUpdateDto,
+        userId,
+      );
       expect(response).toEqual(task);
       expect(auditLogService.logRequest).toHaveBeenCalled();
     });
@@ -316,38 +472,77 @@ describe('TaskControllers', () => {
       const task = makeTaskDto({ isArchived: true });
       tasksService.archiveInWorkspaceId.mockResolvedValue(task);
 
-      const response = await commandController.archive(workspaceId, taskId, mockUser, mockReq);
+      const response = await commandController.archive(
+        workspaceId,
+        taskId,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.archiveInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+      expect(tasksService.archiveInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+        userId,
+      );
       expect(response).toEqual(task);
-      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(workspaceId, 'task:deleted', {
-        taskId: task.id,
-      });
+      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(
+        workspaceId,
+        'task:deleted',
+        {
+          taskId: task.id,
+        },
+      );
     });
 
     it('PATCH :id/restore delegates with audit and realtime updated', async () => {
       const task = makeTaskDto({ isArchived: false });
       tasksService.restoreInWorkspaceId.mockResolvedValue(task);
 
-      const response = await commandController.restore(workspaceId, taskId, mockUser, mockReq);
+      const response = await commandController.restore(
+        workspaceId,
+        taskId,
+        mockUser,
+        mockReq,
+      );
 
-      expect(tasksService.restoreInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, userId);
+      expect(tasksService.restoreInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+        userId,
+      );
       expect(response).toEqual(task);
-      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(workspaceId, 'task:updated', { task });
+      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(
+        workspaceId,
+        'task:updated',
+        { task },
+      );
     });
 
     it('DELETE :id delegates with audit and realtime deleted', async () => {
       const task = makeTaskDto({ isArchived: true, isDeleted: true });
       tasksService.deletePermanentlyInWorkspaceId.mockResolvedValue(task);
 
-      await commandController.delete(workspaceId, taskId, mockDeleteDto, mockUser, mockReq);
+      await commandController.delete(
+        workspaceId,
+        taskId,
+        mockDeleteDto,
+        mockUser,
+        mockReq,
+      );
 
       expect(tasksService.deletePermanentlyInWorkspaceId).toHaveBeenCalledWith(
-        workspaceId, taskId, userId, 'delete',
+        workspaceId,
+        taskId,
+        userId,
+        'delete',
       );
-      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(workspaceId, 'task:deleted', {
-        taskId: task.id,
-      });
+      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(
+        workspaceId,
+        'task:deleted',
+        {
+          taskId: task.id,
+        },
+      );
     });
   });
 
@@ -356,30 +551,66 @@ describe('TaskControllers', () => {
   describe('TaskWorkflowController', () => {
     it('PATCH :id/move delegates with audit and realtime', async () => {
       const task = makeTaskDto();
-      const moveResult = { task, auditMetadata: { taskId, taskKey: 'TESKB-1' } };
+      const moveResult = {
+        task,
+        auditMetadata: { taskId, taskKey: 'TESKB-1' },
+      };
       taskMoveService.moveInWorkspaceId.mockResolvedValue(moveResult as any);
 
-      const response = await workflowController.move(workspaceId, taskId, { columnId: 'done' } as any, mockUser, mockReq);
+      const response = await workflowController.move(
+        workspaceId,
+        taskId,
+        { columnId: 'done' } as any,
+        mockUser,
+        mockReq,
+      );
 
-      expect(taskMoveService.moveInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, { columnId: 'done' }, userId);
+      expect(taskMoveService.moveInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+        { columnId: 'done' },
+        userId,
+      );
       expect(response).toEqual(task);
       expect(auditLogService.logRequest).toHaveBeenCalled();
-      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(workspaceId, 'task:moved', { task });
+      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(
+        workspaceId,
+        'task:moved',
+        { task },
+      );
     });
 
     it('PATCH :id/reorder delegates with audit and realtime', async () => {
       const task = makeTaskDto();
-      const reorderResult = { task, auditMetadata: { taskId, taskKey: 'TESKB-1', reorder: true } };
-      taskReorderService.reorderInWorkspaceId.mockResolvedValue(reorderResult as any);
-
-      const response = await workflowController.reorder(
-        workspaceId, taskId, { beforeTaskId: 'abc' } as any, mockUser, mockReq,
+      const reorderResult = {
+        task,
+        auditMetadata: { taskId, taskKey: 'TESKB-1', reorder: true },
+      };
+      taskReorderService.reorderInWorkspaceId.mockResolvedValue(
+        reorderResult as any,
       );
 
-      expect(taskReorderService.reorderInWorkspaceId).toHaveBeenCalledWith(workspaceId, taskId, { beforeTaskId: 'abc' }, userId);
+      const response = await workflowController.reorder(
+        workspaceId,
+        taskId,
+        { beforeTaskId: 'abc' } as any,
+        mockUser,
+        mockReq,
+      );
+
+      expect(taskReorderService.reorderInWorkspaceId).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+        { beforeTaskId: 'abc' },
+        userId,
+      );
       expect(response).toEqual(task);
       expect(auditLogService.logRequest).toHaveBeenCalled();
-      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(workspaceId, 'task:moved', { task });
+      expect(realtimeService.emitBoardDelta).toHaveBeenCalledWith(
+        workspaceId,
+        'task:moved',
+        { task },
+      );
     });
   });
 
@@ -390,9 +621,12 @@ describe('TaskControllers', () => {
       const deps: any[] = [];
       taskDependencyService.findByWorkspace.mockResolvedValue(deps);
 
-      const response = await dependencyController.getWorkspaceDependencies(workspaceId);
+      const response =
+        await dependencyController.getWorkspaceDependencies(workspaceId);
 
-      expect(taskDependencyService.findByWorkspace).toHaveBeenCalledWith(workspaceId);
+      expect(taskDependencyService.findByWorkspace).toHaveBeenCalledWith(
+        workspaceId,
+      );
       expect(response).toEqual(deps);
     });
 
@@ -400,9 +634,15 @@ describe('TaskControllers', () => {
       const deps: any[] = [];
       taskDependencyService.findByTask.mockResolvedValue(deps);
 
-      const response = await dependencyController.getTaskDependencies(workspaceId, taskId);
+      const response = await dependencyController.getTaskDependencies(
+        workspaceId,
+        taskId,
+      );
 
-      expect(taskDependencyService.findByTask).toHaveBeenCalledWith(workspaceId, taskId);
+      expect(taskDependencyService.findByTask).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+      );
       expect(response).toEqual(deps);
     });
 
@@ -410,12 +650,21 @@ describe('TaskControllers', () => {
       const dep: any = { id: 'dep-1' };
       taskDependencyService.create.mockResolvedValue(dep);
 
-      const response = await dependencyController.createDependency(workspaceId, taskId, {
-        toTaskId: 'target-id',
-        type: 'blocks',
-      });
+      const response = await dependencyController.createDependency(
+        workspaceId,
+        taskId,
+        {
+          toTaskId: 'target-id',
+          type: 'blocks',
+        },
+      );
 
-      expect(taskDependencyService.create).toHaveBeenCalledWith(workspaceId, taskId, 'target-id', 'blocks');
+      expect(taskDependencyService.create).toHaveBeenCalledWith(
+        workspaceId,
+        taskId,
+        'target-id',
+        'blocks',
+      );
       expect(response).toEqual(dep);
     });
 
@@ -424,7 +673,10 @@ describe('TaskControllers', () => {
 
       await dependencyController.deleteDependency(workspaceId, 'dep-id');
 
-      expect(taskDependencyService.delete).toHaveBeenCalledWith(workspaceId, 'dep-id');
+      expect(taskDependencyService.delete).toHaveBeenCalledWith(
+        workspaceId,
+        'dep-id',
+      );
     });
 
     it('does NOT emit realtime events', async () => {
@@ -435,7 +687,10 @@ describe('TaskControllers', () => {
 
       await dependencyController.getWorkspaceDependencies(workspaceId);
       await dependencyController.getTaskDependencies(workspaceId, taskId);
-      await dependencyController.createDependency(workspaceId, taskId, { toTaskId: 't2', type: 'blocks' });
+      await dependencyController.createDependency(workspaceId, taskId, {
+        toTaskId: 't2',
+        type: 'blocks',
+      });
       await dependencyController.deleteDependency(workspaceId, 'dep-id');
 
       expect(realtimeService.emitBoardDelta).not.toHaveBeenCalled();

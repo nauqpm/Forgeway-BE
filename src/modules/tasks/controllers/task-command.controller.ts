@@ -63,30 +63,47 @@ export class TaskCommandController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.createInWorkspaceId(workspaceId, createTaskDto, user.userId);
-
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_CREATE_SUCCESS, {
+      const task = await this.tasksService.createInWorkspaceId(
         workspaceId,
-        taskId: task.id,
-        taskKey: task.key,
-        type: task.type,
-        priority: task.priority,
-        status: task.status,
-        columnId: task.columnId,
-        sprintId: task.sprintId,
-      });
+        createTaskDto,
+        user.userId,
+      );
 
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:created', { task });
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_CREATE_SUCCESS,
+        {
+          workspaceId,
+          taskId: task.id,
+          taskKey: task.key,
+          type: task.type,
+          priority: task.priority,
+          status: task.status,
+          columnId: task.columnId,
+          sprintId: task.sprintId,
+        },
+      );
+
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:created', {
+        task,
+      });
 
       return task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_CREATE_FAILED, error, {
-        workspaceId,
-        requestedType: createTaskDto.type,
-        requestedStatus: createTaskDto.status,
-        requestedColumnId: createTaskDto.columnId,
-        requestedSprintId: createTaskDto.sprintId,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_CREATE_FAILED,
+        error,
+        {
+          workspaceId,
+          requestedType: createTaskDto.type,
+          requestedStatus: createTaskDto.status,
+          requestedColumnId: createTaskDto.columnId,
+          requestedSprintId: createTaskDto.sprintId,
+        },
+      );
       throw error;
     }
   }
@@ -108,22 +125,38 @@ export class TaskCommandController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.updateInWorkspaceId(workspaceId, id, updateTaskDto, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_UPDATE_SUCCESS, {
+      const task = await this.tasksService.updateInWorkspaceId(
         workspaceId,
-        taskId: task.id,
-        taskKey: task.key,
-        status: task.status,
-        columnId: task.columnId,
-        changedFields: Object.keys(updateTaskDto),
-      });
+        id,
+        updateTaskDto,
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_UPDATE_SUCCESS,
+        {
+          workspaceId,
+          taskId: task.id,
+          taskKey: task.key,
+          status: task.status,
+          columnId: task.columnId,
+          changedFields: Object.keys(updateTaskDto),
+        },
+      );
       return task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-        changedFields: Object.keys(updateTaskDto),
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_UPDATE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+          changedFields: Object.keys(updateTaskDto),
+        },
+      );
       throw error;
     }
   }
@@ -143,21 +176,36 @@ export class TaskCommandController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.archiveInWorkspaceId(workspaceId, id, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_ARCHIVE_SUCCESS, {
+      const task = await this.tasksService.archiveInWorkspaceId(
         workspaceId,
-        taskId: task.id,
-        taskKey: task.key,
-      });
+        id,
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_ARCHIVE_SUCCESS,
+        {
+          workspaceId,
+          taskId: task.id,
+          taskKey: task.key,
+        },
+      );
       this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', {
         taskId: task.id,
       });
       return task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_ARCHIVE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -177,19 +225,36 @@ export class TaskCommandController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const task = await this.tasksService.restoreInWorkspaceId(workspaceId, id, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_RESTORE_SUCCESS, {
+      const task = await this.tasksService.restoreInWorkspaceId(
         workspaceId,
-        taskId: task.id,
-        taskKey: task.key,
+        id,
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_RESTORE_SUCCESS,
+        {
+          workspaceId,
+          taskId: task.id,
+          taskKey: task.key,
+        },
+      );
+      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', {
+        task,
       });
-      this.realtimeService.emitBoardDelta(workspaceId, 'task:updated', { task });
       return task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_RESTORE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -218,19 +283,30 @@ export class TaskCommandController {
         user.userId,
         deleteTaskDto.confirmText,
       );
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_SUCCESS, {
-        workspaceId,
-        taskId: id,
-        taskKey: task.key,
-      });
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_SUCCESS,
+        {
+          workspaceId,
+          taskId: id,
+          taskKey: task.key,
+        },
+      );
       this.realtimeService.emitBoardDelta(workspaceId, 'task:deleted', {
         taskId: task.id,
       });
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_DELETE_PERMANENT_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }

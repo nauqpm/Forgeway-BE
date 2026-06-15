@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 
@@ -13,7 +17,8 @@ export class TaskAccessService {
     workspaceKey: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
     const workspaceId = workspace._id.toString();
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
@@ -24,7 +29,8 @@ export class TaskAccessService {
     workspaceId: string,
     userId: string,
   ): Promise<{ workspace: any; workspaceId: string }> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceId);
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceId);
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
     return { workspace, workspaceId };
@@ -37,7 +43,11 @@ export class TaskAccessService {
   ): Promise<any> {
     this.validationService.validateObjectId(taskId, 'Task');
 
-    const task = await this.tasksRepository.findByIdInWorkspace(taskId, workspaceId, options);
+    const task = await this.tasksRepository.findByIdInWorkspace(
+      taskId,
+      workspaceId,
+      options,
+    );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
@@ -50,7 +60,11 @@ export class TaskAccessService {
     workspaceId: string,
     options: { includeArchived?: boolean } = {},
   ): Promise<any> {
-    const task = await this.tasksRepository.findByWorkspaceAndKey(workspaceId, taskKey, options);
+    const task = await this.tasksRepository.findByWorkspaceAndKey(
+      workspaceId,
+      taskKey,
+      options,
+    );
     if (!task) {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
@@ -81,7 +95,9 @@ export class TaskAccessService {
 
   ensureScrumWorkspace(workspace: any): void {
     if (workspace.type !== 'scrum') {
-      throw new BadRequestException('This endpoint is only available for Scrum workspaces');
+      throw new BadRequestException(
+        'This endpoint is only available for Scrum workspaces',
+      );
     }
   }
 }

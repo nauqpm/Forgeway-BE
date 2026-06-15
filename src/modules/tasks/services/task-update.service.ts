@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, forwardRef, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  forwardRef,
+  NotFoundException,
+} from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { UpdateTaskDto } from '../dtos/requests/create-task.dto';
@@ -45,13 +51,27 @@ export class TaskUpdateService {
     }
 
     const workspaceId = this.taskAccessService.toId(existing.workspaceId);
-    await this.ensureCompletedSprintIsNotReassigned(existing, updateTaskDto, workspaceId);
-    const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
-    await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
+    await this.ensureCompletedSprintIsNotReassigned(
+      existing,
+      updateTaskDto,
+      workspaceId,
+    );
+    const normalizedUpdateDto =
+      await this.normalizerService.normalizeUpdateForWorkspaceType(
+        updateTaskDto,
+        existing,
+      );
+    await this.validationService.validateUpdateRequest(
+      normalizedUpdateDto,
+      workspaceId,
+    );
 
     const task = await this.taskWriteRepository.update(
       id,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
+      this.transformerService.transformUpdateInput(
+        normalizedUpdateDto,
+        existing,
+      ),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${id} not found`);
@@ -67,35 +87,65 @@ export class TaskUpdateService {
     userId: string,
   ): Promise<TaskDto> {
     this.assertMetadataUpdateOnly(updateTaskDto);
-    const { workspaceId } = await this.taskAccessService.getWorkspaceContext(workspaceKey, userId);
+    const { workspaceId } = await this.taskAccessService.getWorkspaceContext(
+      workspaceKey,
+      userId,
+    );
     const existing = this.taskAccessService.isObjectIdString(taskId)
       ? await this.taskAccessService.getTaskForWorkspace(taskId, workspaceId, {
           includeArchived: true,
         })
-      : await this.taskAccessService.getTaskForWorkspaceKey(taskId, workspaceId, {
-          includeArchived: true,
-        });
+      : await this.taskAccessService.getTaskForWorkspaceKey(
+          taskId,
+          workspaceId,
+          {
+            includeArchived: true,
+          },
+        );
     const resolvedTaskId = this.taskAccessService.toId(existing._id);
 
     if (existing.isArchived) {
       throw new BadRequestException('Archived task cannot be updated');
     }
 
-    await this.ensureCompletedSprintIsNotReassigned(existing, updateTaskDto, workspaceId);
-    const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
-    await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
-    await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, undefined);
+    await this.ensureCompletedSprintIsNotReassigned(
+      existing,
+      updateTaskDto,
+      workspaceId,
+    );
+    const normalizedUpdateDto =
+      await this.normalizerService.normalizeUpdateForWorkspaceType(
+        updateTaskDto,
+        existing,
+      );
+    await this.validationService.validateUpdateRequest(
+      normalizedUpdateDto,
+      workspaceId,
+    );
+    await this.ensureCanMoveFromCurrentSprint(
+      existing,
+      normalizedUpdateDto,
+      undefined,
+    );
 
     const task = await this.taskWriteRepository.updateInWorkspace(
       resolvedTaskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
+      this.transformerService.transformUpdateInput(
+        normalizedUpdateDto,
+        existing,
+      ),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    await this.taskAssignmentNotificationService.notifyAssigneeChanged(existing, task, userId, workspaceId);
+    await this.taskAssignmentNotificationService.notifyAssigneeChanged(
+      existing,
+      task,
+      userId,
+      workspaceId,
+    );
     this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
     return this.taskMapper.mapToDto(task);
@@ -109,29 +159,56 @@ export class TaskUpdateService {
     userRole?: string,
   ): Promise<TaskDto> {
     await this.taskAccessService.getWorkspaceContextById(workspaceId, userId);
-    const existing = await this.taskAccessService.getTaskForWorkspace(taskId, workspaceId, {
-      includeArchived: true,
-    });
+    const existing = await this.taskAccessService.getTaskForWorkspace(
+      taskId,
+      workspaceId,
+      {
+        includeArchived: true,
+      },
+    );
 
     if (existing.isArchived) {
       throw new BadRequestException('Archived task cannot be updated');
     }
 
-    await this.ensureCompletedSprintIsNotReassigned(existing, updateTaskDto, workspaceId);
-    const normalizedUpdateDto = await this.normalizerService.normalizeUpdateForWorkspaceType(updateTaskDto, existing);
-    await this.validationService.validateUpdateRequest(normalizedUpdateDto, workspaceId);
-    await this.ensureCanMoveFromCurrentSprint(existing, normalizedUpdateDto, userRole);
+    await this.ensureCompletedSprintIsNotReassigned(
+      existing,
+      updateTaskDto,
+      workspaceId,
+    );
+    const normalizedUpdateDto =
+      await this.normalizerService.normalizeUpdateForWorkspaceType(
+        updateTaskDto,
+        existing,
+      );
+    await this.validationService.validateUpdateRequest(
+      normalizedUpdateDto,
+      workspaceId,
+    );
+    await this.ensureCanMoveFromCurrentSprint(
+      existing,
+      normalizedUpdateDto,
+      userRole,
+    );
 
     const task = await this.taskWriteRepository.updateInWorkspace(
       taskId,
       workspaceId,
-      this.transformerService.transformUpdateInput(normalizedUpdateDto, existing),
+      this.transformerService.transformUpdateInput(
+        normalizedUpdateDto,
+        existing,
+      ),
     );
     if (!task) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    await this.taskAssignmentNotificationService.notifyAssigneeChanged(existing, task, userId, workspaceId);
+    await this.taskAssignmentNotificationService.notifyAssigneeChanged(
+      existing,
+      task,
+      userId,
+      workspaceId,
+    );
     await this.taskActivitiesService.recordTaskUpdated(existing, task, userId);
     this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
@@ -157,9 +234,12 @@ export class TaskUpdateService {
       return;
     }
 
-    const currentSprint = await this.scrumService.findSprintById(currentSprintId);
+    const currentSprint =
+      await this.scrumService.findSprintById(currentSprintId);
     if (currentSprint?.status === 'completed') {
-      throw new BadRequestException('Cannot move tasks out of a completed sprint without super_admin role');
+      throw new BadRequestException(
+        'Cannot move tasks out of a completed sprint without super_admin role',
+      );
     }
   }
 
@@ -178,7 +258,9 @@ export class TaskUpdateService {
     );
 
     if (currentSprint.status === 'completed') {
-      throw new BadRequestException('Task in a completed sprint cannot be reassigned to another sprint');
+      throw new BadRequestException(
+        'Task in a completed sprint cannot be reassigned to another sprint',
+      );
     }
   }
 

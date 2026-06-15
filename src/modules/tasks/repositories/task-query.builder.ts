@@ -4,9 +4,21 @@ import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { TaskDocument } from '../schemas/task.schema';
 import { TaskSearchService } from '../services/task-search.service';
 import { normalizeTaskKey } from '../utils/task-key.util';
-import { TaskLookupOptions, TaskPaginationOptions, TaskRankScope } from './task-repository.types';
+import {
+  TaskLookupOptions,
+  TaskPaginationOptions,
+  TaskRankScope,
+} from './task-repository.types';
 
-const TASK_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'key', 'priority', 'status', 'rank', 'archivedAt']);
+const TASK_SORT_FIELDS = new Set([
+  'createdAt',
+  'updatedAt',
+  'key',
+  'priority',
+  'status',
+  'rank',
+  'archivedAt',
+]);
 
 @Injectable()
 export class TaskQueryBuilder {
@@ -23,7 +35,9 @@ export class TaskQueryBuilder {
       .populate('labelIds', 'name');
   }
 
-  buildVersionedSetUpdate(data: Record<string, unknown>): Record<string, unknown> {
+  buildVersionedSetUpdate(
+    data: Record<string, unknown>,
+  ): Record<string, unknown> {
     return {
       $set: data,
       $inc: { version: 1 },
@@ -44,7 +58,10 @@ export class TaskQueryBuilder {
     options: TaskPaginationOptions,
     defaultSort: Record<string, 1 | -1>,
   ): Record<string, 1 | -1> {
-    const sortBy = options.sortBy && TASK_SORT_FIELDS.has(options.sortBy) ? options.sortBy : undefined;
+    const sortBy =
+      options.sortBy && TASK_SORT_FIELDS.has(options.sortBy)
+        ? options.sortBy
+        : undefined;
     const direction = options.sortOrder === 'asc' ? 1 : -1;
 
     if (!sortBy) {
@@ -99,13 +116,18 @@ export class TaskQueryBuilder {
       filter.status = { $in: filterDto.status };
     }
     if (filterDto.search) {
-      Object.assign(filter, this.taskSearchService.buildSearchFilter(filterDto.search));
+      Object.assign(
+        filter,
+        this.taskSearchService.buildSearchFilter(filterDto.search),
+      );
     }
 
     return filter;
   }
 
-  buildVisibilityFilter(options: TaskLookupOptions = {}): FilterQuery<TaskDocument> {
+  buildVisibilityFilter(
+    options: TaskLookupOptions = {},
+  ): FilterQuery<TaskDocument> {
     const filter: FilterQuery<TaskDocument> = {};
 
     if (!options.includeArchived) {

@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
 
-type RedisClient = RedisClientType<{}, {}, {}, 3, {}>;
+type RedisClient = RedisClientType<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -19,7 +19,9 @@ export class RedisService implements OnModuleDestroy {
     const url = this.getRedisUrl();
 
     if (!url) {
-      this.logger.warn(`REDIS_URL is not configured. Skipping Redis client creation for ${label}.`);
+      this.logger.warn(
+        `REDIS_URL is not configured. Skipping Redis client creation for ${label}.`,
+      );
       return null;
     }
 
@@ -28,7 +30,8 @@ export class RedisService implements OnModuleDestroy {
       database: this.configService.get<number>('REDIS_DB') ?? 0,
       socket: {
         reconnectStrategy: (retries: number) => Math.min(retries * 50, 1_000),
-        connectTimeout: this.configService.get<number>('REDIS_CONNECT_TIMEOUT_MS') ?? 5_000,
+        connectTimeout:
+          this.configService.get<number>('REDIS_CONNECT_TIMEOUT_MS') ?? 5_000,
       },
     });
 

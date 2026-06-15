@@ -55,9 +55,18 @@ export class TaskQueryController {
     @Req() req: ExpressRequest,
   ): Promise<TaskListDto> {
     try {
-      const result = await this.tasksService.findByWorkspaceId(workspaceId, user.userId, filterDto);
-      const filterMetadata = this.taskAuditService.getTaskFilterAuditMetadata(filterDto, result.total);
-      this.taskAuditService.logSuccess(req, user.userId, 
+      const result = await this.tasksService.findByWorkspaceId(
+        workspaceId,
+        user.userId,
+        filterDto,
+      );
+      const filterMetadata = this.taskAuditService.getTaskFilterAuditMetadata(
+        filterDto,
+        result.total,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
         filterMetadata.filterCount > 0
           ? SECURITY_EVENT_TYPES.TASK_FILTER_APPLIED
           : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
@@ -65,8 +74,11 @@ export class TaskQueryController {
       );
       return result;
     } catch (error) {
-      const filterMetadata = this.taskAuditService.getTaskFilterAuditMetadata(filterDto);
-      this.taskAuditService.logFailure(req, user.userId,
+      const filterMetadata =
+        this.taskAuditService.getTaskFilterAuditMetadata(filterDto);
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
         filterMetadata.filterCount > 0
           ? SECURITY_EVENT_TYPES.TASK_FILTER_FAILED
           : SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
@@ -90,27 +102,44 @@ export class TaskQueryController {
     @Req() req: ExpressRequest,
   ): Promise<TaskListDto> {
     try {
-      const result = await this.tasksService.findArchivedByWorkspaceId(workspaceId, user.userId, filterDto);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, {
+      const result = await this.tasksService.findArchivedByWorkspaceId(
         workspaceId,
-        archived: true,
-        count: result.total,
-        page: result.page,
-        limit: result.limit,
-      });
+        user.userId,
+        filterDto,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        {
+          workspaceId,
+          archived: true,
+          count: result.total,
+          page: result.page,
+          limit: result.limit,
+        },
+      );
       return result;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        archived: true,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          archived: true,
+        },
+      );
       throw error;
     }
   }
 
   @Get('backlog')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'List Scrum backlog tasks without sprint assignment' })
+  @ApiOperation({
+    summary: 'List Scrum backlog tasks without sprint assignment',
+  })
   @ApiResponse({ status: HttpStatus.OK, type: [TaskDto] })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
@@ -120,18 +149,32 @@ export class TaskQueryController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findBacklogByWorkspaceId(workspaceId, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, {
+      const tasks = await this.tasksService.findBacklogByWorkspaceId(
         workspaceId,
-        queryScope: 'scrum_backlog',
-        resultCount: tasks.length,
-      });
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        {
+          workspaceId,
+          queryScope: 'scrum_backlog',
+          resultCount: tasks.length,
+        },
+      );
       return tasks;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        queryScope: 'scrum_backlog',
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          queryScope: 'scrum_backlog',
+        },
+      );
       throw error;
     }
   }
@@ -148,18 +191,32 @@ export class TaskQueryController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findActiveSprintBoardByWorkspaceId(workspaceId, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, {
+      const tasks = await this.tasksService.findActiveSprintBoardByWorkspaceId(
         workspaceId,
-        queryScope: 'scrum_active_sprint_board',
-        resultCount: tasks.length,
-      });
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        {
+          workspaceId,
+          queryScope: 'scrum_active_sprint_board',
+          resultCount: tasks.length,
+        },
+      );
       return tasks;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        queryScope: 'scrum_active_sprint_board',
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          queryScope: 'scrum_active_sprint_board',
+        },
+      );
       throw error;
     }
   }
@@ -178,20 +235,35 @@ export class TaskQueryController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto[]> {
     try {
-      const tasks = await this.tasksService.findTasksBySprintInWorkspaceId(workspaceId, sprintId, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, {
+      const tasks = await this.tasksService.findTasksBySprintInWorkspaceId(
         workspaceId,
         sprintId,
-        queryScope: 'scrum_sprint_tasks',
-        resultCount: tasks.length,
-      });
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        {
+          workspaceId,
+          sprintId,
+          queryScope: 'scrum_sprint_tasks',
+          resultCount: tasks.length,
+        },
+      );
       return tasks;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_LIST_VIEWED, error, {
-        workspaceId,
-        sprintId,
-        queryScope: 'scrum_sprint_tasks',
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_LIST_VIEWED,
+        error,
+        {
+          workspaceId,
+          sprintId,
+          queryScope: 'scrum_sprint_tasks',
+        },
+      );
       throw error;
     }
   }
@@ -200,7 +272,9 @@ export class TaskQueryController {
 
   @Get('calendar')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get tasks for calendar view (month ± 1-week buffer)' })
+  @ApiOperation({
+    summary: 'Get tasks for calendar view (month ± 1-week buffer)',
+  })
   @ApiResponse({ status: HttpStatus.OK })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
@@ -208,18 +282,29 @@ export class TaskQueryController {
     @Param('workspaceId') workspaceId: string,
     @Query('year', new DefaultValuePipe(new Date().getFullYear()), ParseIntPipe)
     year: number,
-    @Query('month', new DefaultValuePipe(new Date().getMonth() + 1), ParseIntPipe)
+    @Query(
+      'month',
+      new DefaultValuePipe(new Date().getMonth() + 1),
+      ParseIntPipe,
+    )
     month: number,
     @CurrentUser() user: JwtPayload,
   ): Promise<{ tasks: TaskDto[] }> {
-    return this.tasksService.findCalendarByWorkspaceId(workspaceId, year, month, user.userId);
+    return this.tasksService.findCalendarByWorkspaceId(
+      workspaceId,
+      year,
+      month,
+      user.userId,
+    );
   }
 
   // ─── Timeline hierarchy ────────────────────────────────────────────────────
 
   @Get('timeline')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get tasks grouped as epic hierarchy for timeline view' })
+  @ApiOperation({
+    summary: 'Get tasks grouped as epic hierarchy for timeline view',
+  })
   @ApiResponse({ status: HttpStatus.OK })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
@@ -231,6 +316,9 @@ export class TaskQueryController {
     children: TaskDto[];
     standalones: TaskDto[];
   }> {
-    return this.tasksService.findTimelineHierarchyByWorkspaceId(workspaceId, user.userId);
+    return this.tasksService.findTimelineHierarchyByWorkspaceId(
+      workspaceId,
+      user.userId,
+    );
   }
 }

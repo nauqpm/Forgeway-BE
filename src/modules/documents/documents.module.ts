@@ -12,7 +12,10 @@ import {
   DocumentVersionEntity,
   DocumentVersionSchema,
 } from './schemas/document-version.schema';
-import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 

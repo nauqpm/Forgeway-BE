@@ -33,12 +33,30 @@ export class TaskCreateService {
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
-    const workspaceId = this.taskAccessService.getRequiredWorkspaceId(createTaskDto);
-    const workspace = await this.validationService.validateCreateRequest(createTaskDto, workspaceId, userId);
-    const normalizedDto = await this.normalizerService.normalizeForWorkspaceType(createTaskDto, workspace);
+    const workspaceId =
+      this.taskAccessService.getRequiredWorkspaceId(createTaskDto);
+    const workspace = await this.validationService.validateCreateRequest(
+      createTaskDto,
+      workspaceId,
+      userId,
+    );
+    const normalizedDto =
+      await this.normalizerService.normalizeForWorkspaceType(
+        createTaskDto,
+        workspace,
+      );
     const key = await this.createTaskKey(workspace);
-    const taskData = this.transformerService.transformCreateInput(normalizedDto, workspaceId, userId, key);
-    taskData.rank = await this.createInitialRankForTask(workspace.type, workspaceId, normalizedDto);
+    const taskData = this.transformerService.transformCreateInput(
+      normalizedDto,
+      workspaceId,
+      userId,
+      key,
+    );
+    taskData.rank = await this.createInitialRankForTask(
+      workspace.type,
+      workspaceId,
+      normalizedDto,
+    );
 
     const task = await this.taskWriteRepository.create(taskData);
     await this.taskActivitiesService.recordTaskCreated(task, userId);
@@ -47,12 +65,25 @@ export class TaskCreateService {
     return this.taskMapper.mapToDto(task);
   }
 
-  async createInWorkspaceKey(workspaceKey: string, createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
-    const workspace = await this.validationService.getWorkspaceById(workspaceKey);
-    return this.createInWorkspaceId(workspace._id.toString(), createTaskDto, userId);
+  async createInWorkspaceKey(
+    workspaceKey: string,
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<TaskDto> {
+    const workspace =
+      await this.validationService.getWorkspaceById(workspaceKey);
+    return this.createInWorkspaceId(
+      workspace._id.toString(),
+      createTaskDto,
+      userId,
+    );
   }
 
-  async createInWorkspaceId(workspaceId: string, createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
+  async createInWorkspaceId(
+    workspaceId: string,
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<TaskDto> {
     return this.create({ ...createTaskDto, workspaceId }, userId);
   }
 
@@ -60,7 +91,10 @@ export class TaskCreateService {
     const workspaceId = workspace._id.toString();
     const taskNumber = await this.taskCounterService.nextSequence(workspaceId);
 
-    return this.taskKeyService.create(workspace.key || workspace.name, taskNumber);
+    return this.taskKeyService.create(
+      workspace.key || workspace.name,
+      taskNumber,
+    );
   }
 
   private async createInitialRankForTask(
@@ -78,7 +112,10 @@ export class TaskCreateService {
       .sort((left, right) => {
         const rankDiff = compareRanks(left.rank, right.rank);
         if (rankDiff !== 0) return rankDiff;
-        return this.taskAccessService.toTimestamp(left.createdAt) - this.taskAccessService.toTimestamp(right.createdAt);
+        return (
+          this.taskAccessService.toTimestamp(left.createdAt) -
+          this.taskAccessService.toTimestamp(right.createdAt)
+        );
       })
       .at(-1);
 

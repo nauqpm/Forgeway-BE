@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
@@ -99,7 +105,11 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 
-  private logUnauthorized(request: RequestWithUser, reason: string, userId?: string): void {
+  private logUnauthorized(
+    request: RequestWithUser,
+    reason: string,
+    userId?: string,
+  ): void {
     this.auditLogService.logRequest(request, {
       type: SECURITY_EVENT_TYPES.UNAUTHORIZED_ACCESS,
       severity: 'WARN',

@@ -1,4 +1,12 @@
-import { Body, Controller, HttpStatus, Param, Patch, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpStatus,
+  Param,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -40,7 +48,9 @@ export class TaskWorkflowController {
   @Patch(':id/move')
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_MOVE)
-  @ApiOperation({ summary: 'Move task/card across board columns or Scrum sprint scopes' })
+  @ApiOperation({
+    summary: 'Move task/card across board columns or Scrum sprint scopes',
+  })
   @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
   @ApiBadRequestResponse({ description: 'Invalid task move payload' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -54,12 +64,22 @@ export class TaskWorkflowController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const result = await this.taskMoveService.moveInWorkspaceId(workspaceId, id, moveTaskDto, user.userId);
-
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS, {
+      const result = await this.taskMoveService.moveInWorkspaceId(
         workspaceId,
-        ...result.auditMetadata,
-      });
+        id,
+        moveTaskDto,
+        user.userId,
+      );
+
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS,
+        {
+          workspaceId,
+          ...result.auditMetadata,
+        },
+      );
 
       this.realtimeService.emitBoardDelta(workspaceId, 'task:moved', {
         task: result.task,
@@ -67,14 +87,20 @@ export class TaskWorkflowController {
 
       return result.task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-        requestedColumnId: moveTaskDto.columnId,
-        requestedStatus: moveTaskDto.status,
-        requestedSprintId: moveTaskDto.sprintId,
-        requestedRank: moveTaskDto.rank,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_MOVE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+          requestedColumnId: moveTaskDto.columnId,
+          requestedStatus: moveTaskDto.status,
+          requestedSprintId: moveTaskDto.sprintId,
+          requestedRank: moveTaskDto.rank,
+        },
+      );
       throw error;
     }
   }
@@ -87,7 +113,9 @@ export class TaskWorkflowController {
   @ApiBadRequestResponse({ description: 'Invalid task reorder payload' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   @ApiForbiddenResponse({ description: 'Task reorder denied' })
-  @ApiNotFoundResponse({ description: 'Task, neighbor task, or sprint not found' })
+  @ApiNotFoundResponse({
+    description: 'Task, neighbor task, or sprint not found',
+  })
   async reorder(
     @Param('workspaceId') workspaceId: string,
     @Param('id') id: string,
@@ -96,13 +124,23 @@ export class TaskWorkflowController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDto> {
     try {
-      const result = await this.taskReorderService.reorderInWorkspaceId(workspaceId, id, reorderTaskDto, user.userId);
-
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS, {
+      const result = await this.taskReorderService.reorderInWorkspaceId(
         workspaceId,
-        reorder: true,
-        ...result.auditMetadata,
-      });
+        id,
+        reorderTaskDto,
+        user.userId,
+      );
+
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_MOVE_SUCCESS,
+        {
+          workspaceId,
+          reorder: true,
+          ...result.auditMetadata,
+        },
+      );
 
       this.realtimeService.emitBoardDelta(workspaceId, 'task:moved', {
         task: result.task,
@@ -110,16 +148,22 @@ export class TaskWorkflowController {
 
       return result.task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_MOVE_FAILED, error, {
-        workspaceId,
-        taskId: id,
-        reorder: true,
-        requestedColumnId: reorderTaskDto.columnId,
-        requestedStatus: reorderTaskDto.status,
-        requestedSprintId: reorderTaskDto.sprintId,
-        beforeTaskId: reorderTaskDto.beforeTaskId,
-        afterTaskId: reorderTaskDto.afterTaskId,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_MOVE_FAILED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+          reorder: true,
+          requestedColumnId: reorderTaskDto.columnId,
+          requestedStatus: reorderTaskDto.status,
+          requestedSprintId: reorderTaskDto.sprintId,
+          beforeTaskId: reorderTaskDto.beforeTaskId,
+          afterTaskId: reorderTaskDto.afterTaskId,
+        },
+      );
       throw error;
     }
   }

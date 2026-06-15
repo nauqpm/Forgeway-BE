@@ -79,7 +79,10 @@ export class PermissionsController {
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @RequirePermission('permissions', 'update')
-  async updateUserPermissions(@Param('userId') userId: string, @Body() updateDto: UpdateUserPermissionsDto) {
+  async updateUserPermissions(
+    @Param('userId') userId: string,
+    @Body() updateDto: UpdateUserPermissionsDto,
+  ) {
     try {
       console.log('Updating permissions for user:', userId);
       console.log('With data:', updateDto);
@@ -95,10 +98,11 @@ export class PermissionsController {
       }
 
       // Ensure userId in DTO matches URL parameter
-      const updatedPermissions = await this.permissionsService.updateUserPermissions({
-        userId: userId, // Use userId from URL parameter
-        permissionIds: updateDto.permissionIds,
-      });
+      const updatedPermissions =
+        await this.permissionsService.updateUserPermissions({
+          userId: userId, // Use userId from URL parameter
+          permissionIds: updateDto.permissionIds,
+        });
 
       return {
         success: true,
@@ -109,7 +113,8 @@ export class PermissionsController {
             id: permissionDoc._id.toString(),
             userId: permissionDoc.userId.toString(),
             permissionId:
-              permissionDoc.permissionId && typeof permissionDoc.permissionId === 'object'
+              permissionDoc.permissionId &&
+              typeof permissionDoc.permissionId === 'object'
                 ? {
                     id: permissionDoc.permissionId._id.toString(),
                     resource: permissionDoc.permissionId.resource,

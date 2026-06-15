@@ -1,4 +1,5 @@
-const RANK_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const RANK_ALPHABET =
+  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const MIN_DIGIT = 0;
 const MAX_DIGIT = RANK_ALPHABET.length - 1;
 const DEFAULT_RANK = RANK_ALPHABET[Math.floor(RANK_ALPHABET.length / 2)];
@@ -28,7 +29,9 @@ export const compareRanks = (left?: string, right?: string): number => {
   const maxLength = Math.max(leftRank.length, rightRank.length);
 
   for (let index = 0; index < maxLength; index += 1) {
-    const diff = toDigit(leftRank, index, MIN_DIGIT) - toDigit(rightRank, index, MIN_DIGIT);
+    const diff =
+      toDigit(leftRank, index, MIN_DIGIT) -
+      toDigit(rightRank, index, MIN_DIGIT);
 
     if (diff !== 0) {
       return diff;
@@ -39,7 +42,10 @@ export const compareRanks = (left?: string, right?: string): number => {
 };
 
 export const generateRebalanceRank = (index: number): string => {
-  return String((index + 1) * REBALANCE_STEP).padStart(REBALANCE_PAD_LENGTH, '0');
+  return String((index + 1) * REBALANCE_STEP).padStart(
+    REBALANCE_PAD_LENGTH,
+    '0',
+  );
 };
 
 /**
@@ -48,9 +54,14 @@ export const generateRebalanceRank = (index: number): string => {
  * @param beforeRank rank of the task immediately below this task, the upper bound.
  * @param afterRank rank of the task immediately above this task, the lower bound.
  */
-export const generateRankBetween = (beforeRank?: string, afterRank?: string): string => {
+export const generateRankBetween = (
+  beforeRank?: string,
+  afterRank?: string,
+): string => {
   if (beforeRank && afterRank && beforeRank === afterRank) {
-    throw new Error(`Cannot generate rank between identical ranks: "${beforeRank}"`);
+    throw new Error(
+      `Cannot generate rank between identical ranks: "${beforeRank}"`,
+    );
   }
 
   if (!beforeRank && !afterRank) {
@@ -63,8 +74,12 @@ export const generateRankBetween = (beforeRank?: string, afterRank?: string): st
   let index = 0;
 
   while (true) {
-    const lowerDigit = afterRank ? toDigit(lowerRank, index, MIN_DIGIT) : MIN_DIGIT;
-    const upperDigit = beforeRank ? toDigit(upperRank, index, MAX_DIGIT) : MAX_DIGIT;
+    const lowerDigit = afterRank
+      ? toDigit(lowerRank, index, MIN_DIGIT)
+      : MIN_DIGIT;
+    const upperDigit = beforeRank
+      ? toDigit(upperRank, index, MAX_DIGIT)
+      : MAX_DIGIT;
 
     if (upperDigit - lowerDigit > 1) {
       const middleDigit = Math.floor((lowerDigit + upperDigit) / 2);

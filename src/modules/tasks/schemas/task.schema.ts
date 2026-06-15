@@ -2,7 +2,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { TaskCover } from '../../task-covers/interfaces/task-cover.interface';
 import { TaskCoverSchema } from '../../task-covers/schemas/task-cover.schema';
-import { TASK_KEY_PATTERN, TASK_PRIORITIES, TASK_TYPES } from '../constants/task-status.constants';
+import {
+  TASK_KEY_PATTERN,
+  TASK_PRIORITIES,
+  TASK_TYPES,
+} from '../constants/task-status.constants';
 
 export type TaskDocument = Task & Document;
 

@@ -64,7 +64,9 @@ export class TaskAuditService {
     };
   }
 
-  private getAuditSafeTaskFilters(filterDto: FilterTaskDto): Record<string, unknown> {
+  private getAuditSafeTaskFilters(
+    filterDto: FilterTaskDto,
+  ): Record<string, unknown> {
     const {
       workspaceId,
       sprintId,

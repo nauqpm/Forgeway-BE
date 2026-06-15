@@ -66,7 +66,11 @@ describe('PagesService', () => {
     });
 
     await expect(
-      service.update(pageId, { title: 'Roadmap' }, new Types.ObjectId().toString()),
+      service.update(
+        pageId,
+        { title: 'Roadmap' },
+        new Types.ObjectId().toString(),
+      ),
     ).rejects.toThrow(
       new BadRequestException(
         'A document with this name already exists in this workspace',

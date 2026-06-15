@@ -46,8 +46,20 @@ describe('WorkspacesService workspace counts', () => {
         { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
         { provide: getModelToken(Task.name), useFactory: mockCountModel },
         { provide: getModelToken(Page.name), useFactory: mockCountModel },
-        { provide: getModelToken(DocumentEntity.name), useFactory: mockCountModel },
-        { provide: WorkspaceDomainEventPublisher, useValue: { publishCreated: jest.fn(), publishUpdated: jest.fn(), publishDeleted: jest.fn(), publishArchived: jest.fn(), publishRestored: jest.fn() } },
+        {
+          provide: getModelToken(DocumentEntity.name),
+          useFactory: mockCountModel,
+        },
+        {
+          provide: WorkspaceDomainEventPublisher,
+          useValue: {
+            publishCreated: jest.fn(),
+            publishUpdated: jest.fn(),
+            publishDeleted: jest.fn(),
+            publishArchived: jest.fn(),
+            publishRestored: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

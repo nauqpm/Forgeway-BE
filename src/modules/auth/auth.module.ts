@@ -22,7 +22,10 @@ import { TokenModule } from './token.module';
 import { Otp, OtpSchema } from './schemas/otp.schema';
 import { Token, TokenSchema } from './schemas/token.schema';
 import { Auth, AuthSchema } from './schemas/auth.schema';
-import { SavedAccount, SavedAccountSchema } from './schemas/saved-account.schema';
+import {
+  SavedAccount,
+  SavedAccountSchema,
+} from './schemas/saved-account.schema';
 import { RecentLogin, RecentLoginSchema } from './schemas/recent-login.schema';
 
 import { User, UserSchema } from '../users/schemas/users.schema';

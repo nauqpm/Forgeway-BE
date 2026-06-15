@@ -20,7 +20,10 @@ export const WorkspaceTypeGuard = (
 ): Type<CanActivate> => {
   @Injectable()
   class WorkspaceTypeGuardMixin implements CanActivate {
-    constructor(@InjectModel(Workspace.name) private readonly workspaceModel: Model<WorkspaceDocument>) {}
+    constructor(
+      @InjectModel(Workspace.name)
+      private readonly workspaceModel: Model<WorkspaceDocument>,
+    ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
@@ -47,7 +50,9 @@ export const WorkspaceTypeGuard = (
       }
 
       if (!workspace.type || workspace.type !== requiredType) {
-        throw new ForbiddenException(`This operation requires a ${requiredType} workspace`);
+        throw new ForbiddenException(
+          `This operation requires a ${requiredType} workspace`,
+        );
       }
 
       return true;

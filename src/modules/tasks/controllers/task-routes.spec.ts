@@ -59,18 +59,39 @@ describe('TaskControllers - Route Registration (smoke)', () => {
         {
           provide: TasksService,
           useValue: {
-            findByWorkspaceId: jest.fn().mockResolvedValue({ tasks: [taskDto], total: 1, page: 1, limit: 20 }),
-            findArchivedByWorkspaceId: jest.fn().mockResolvedValue({ tasks: [], total: 0, page: 1, limit: 20 }),
+            findByWorkspaceId: jest.fn().mockResolvedValue({
+              tasks: [taskDto],
+              total: 1,
+              page: 1,
+              limit: 20,
+            }),
+            findArchivedByWorkspaceId: jest
+              .fn()
+              .mockResolvedValue({ tasks: [], total: 0, page: 1, limit: 20 }),
             findBacklogByWorkspaceId: jest.fn().mockResolvedValue([taskDto]),
-            findActiveSprintBoardByWorkspaceId: jest.fn().mockResolvedValue([taskDto]),
-            findTasksBySprintInWorkspaceId: jest.fn().mockResolvedValue([taskDto]),
-            findCalendarByWorkspaceId: jest.fn().mockResolvedValue({ tasks: [taskDto] }),
-            findTimelineHierarchyByWorkspaceId: jest.fn().mockResolvedValue({ epics: [], children: [], standalones: [taskDto] }),
+            findActiveSprintBoardByWorkspaceId: jest
+              .fn()
+              .mockResolvedValue([taskDto]),
+            findTasksBySprintInWorkspaceId: jest
+              .fn()
+              .mockResolvedValue([taskDto]),
+            findCalendarByWorkspaceId: jest
+              .fn()
+              .mockResolvedValue({ tasks: [taskDto] }),
+            findTimelineHierarchyByWorkspaceId: jest.fn().mockResolvedValue({
+              epics: [],
+              children: [],
+              standalones: [taskDto],
+            }),
             createInWorkspaceId: jest.fn().mockResolvedValue(taskDto),
             updateInWorkspaceId: jest.fn().mockResolvedValue(taskDto),
-            archiveInWorkspaceId: jest.fn().mockResolvedValue({ ...taskDto, isArchived: true }),
+            archiveInWorkspaceId: jest
+              .fn()
+              .mockResolvedValue({ ...taskDto, isArchived: true }),
             restoreInWorkspaceId: jest.fn().mockResolvedValue(taskDto),
-            deletePermanentlyInWorkspaceId: jest.fn().mockResolvedValue(taskDto),
+            deletePermanentlyInWorkspaceId: jest
+              .fn()
+              .mockResolvedValue(taskDto),
           },
         },
         {
@@ -83,13 +104,17 @@ describe('TaskControllers - Route Registration (smoke)', () => {
         {
           provide: TaskMoveService,
           useValue: {
-            moveInWorkspaceId: jest.fn().mockResolvedValue({ task: taskDto, auditMetadata: {} }),
+            moveInWorkspaceId: jest
+              .fn()
+              .mockResolvedValue({ task: taskDto, auditMetadata: {} }),
           },
         },
         {
           provide: TaskReorderService,
           useValue: {
-            reorderInWorkspaceId: jest.fn().mockResolvedValue({ task: taskDto, auditMetadata: {} }),
+            reorderInWorkspaceId: jest
+              .fn()
+              .mockResolvedValue({ task: taskDto, auditMetadata: {} }),
           },
         },
         {
@@ -110,8 +135,14 @@ describe('TaskControllers - Route Registration (smoke)', () => {
           useValue: { logRequest: jest.fn() },
         },
         TaskAuditService,
-        { provide: JwtService, useValue: { verify: jest.fn(), sign: jest.fn() } },
-        { provide: TokenService, useValue: { findActiveAccessToken: jest.fn(), hashToken: jest.fn() } },
+        {
+          provide: JwtService,
+          useValue: { verify: jest.fn(), sign: jest.fn() },
+        },
+        {
+          provide: TokenService,
+          useValue: { findActiveAccessToken: jest.fn(), hashToken: jest.fn() },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -141,21 +172,15 @@ describe('TaskControllers - Route Registration (smoke)', () => {
   // ─── Static routes (must NOT be caught by /:id) ─────────────────────────
 
   it('GET /tasks resolves (not /:id)', () => {
-    return request(app.getHttpServer())
-      .get(basePath('/tasks'))
-      .expect(200);
+    return request(app.getHttpServer()).get(basePath('/tasks')).expect(200);
   });
 
   it('GET /archives resolves (not /:id)', () => {
-    return request(app.getHttpServer())
-      .get(basePath('/archives'))
-      .expect(200);
+    return request(app.getHttpServer()).get(basePath('/archives')).expect(200);
   });
 
   it('GET /backlog resolves (not /:id)', () => {
-    return request(app.getHttpServer())
-      .get(basePath('/backlog'))
-      .expect(200);
+    return request(app.getHttpServer()).get(basePath('/backlog')).expect(200);
   });
 
   it('GET /active-sprint/tasks resolves (not /:id)', () => {
@@ -165,15 +190,11 @@ describe('TaskControllers - Route Registration (smoke)', () => {
   });
 
   it('GET /calendar resolves (not /:id)', () => {
-    return request(app.getHttpServer())
-      .get(basePath('/calendar'))
-      .expect(200);
+    return request(app.getHttpServer()).get(basePath('/calendar')).expect(200);
   });
 
   it('GET /timeline resolves (not /:id)', () => {
-    return request(app.getHttpServer())
-      .get(basePath('/timeline'))
-      .expect(200);
+    return request(app.getHttpServer()).get(basePath('/timeline')).expect(200);
   });
 
   it('GET /dependencies resolves (not /:id)', () => {

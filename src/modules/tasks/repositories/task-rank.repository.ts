@@ -68,7 +68,10 @@ export class TaskRankRepository {
     workspaceId: string,
     session?: ClientSession,
   ): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(taskId) || !Types.ObjectId.isValid(workspaceId)) {
+    if (
+      !Types.ObjectId.isValid(taskId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
       return null;
     }
 
@@ -84,7 +87,10 @@ export class TaskRankRepository {
     return this.withRelations(query).exec();
   }
 
-  async findTasksInRankScope(scope: TaskRankScope, session?: ClientSession): Promise<TaskDocument[]> {
+  async findTasksInRankScope(
+    scope: TaskRankScope,
+    session?: ClientSession,
+  ): Promise<TaskDocument[]> {
     if (!Types.ObjectId.isValid(scope.workspaceId)) {
       return [];
     }

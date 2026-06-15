@@ -37,7 +37,11 @@ export function setDeviceIdCookie(
   configService: ConfigService,
   deviceId: string,
 ): void {
-  res.cookie(COOKIE_NAMES.DEVICE, deviceId, getDeviceCookieOptions(configService));
+  res.cookie(
+    COOKIE_NAMES.DEVICE,
+    deviceId,
+    getDeviceCookieOptions(configService),
+  );
 }
 
 export function setAuthCookies(
@@ -52,7 +56,9 @@ export function setAuthCookies(
 /**
  * Đọc device id từ cookie. Trả về null nếu chưa có — caller tự quyết định có sinh mới hay không.
  */
-export function getDeviceIdFromRequest(req: { cookies?: Record<string, unknown> }): string | null {
+export function getDeviceIdFromRequest(req: {
+  cookies?: Record<string, unknown>;
+}): string | null {
   const v = req.cookies?.[COOKIE_NAMES.DEVICE];
   return typeof v === 'string' && v.length > 0 ? v : null;
 }

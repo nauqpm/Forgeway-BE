@@ -1,4 +1,11 @@
-import { Controller, Get, HttpStatus, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -45,19 +52,34 @@ export class TaskDetailController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDetailDto> {
     try {
-      const task = await this.taskDetailService.getDetailByIdInWorkspaceKey(workspaceId, id, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, {
+      const task = await this.taskDetailService.getDetailByIdInWorkspaceKey(
         workspaceId,
-        taskId: task.id,
-        taskKey: task.key,
-        viewedFrom: 'id',
-      });
+        id,
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_VIEWED,
+        {
+          workspaceId,
+          taskId: task.id,
+          taskKey: task.key,
+          viewedFrom: 'id',
+        },
+      );
       return task;
     } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
-        workspaceId,
-        taskId: id,
-      });
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_VIEWED,
+        error,
+        {
+          workspaceId,
+          taskId: id,
+        },
+      );
       throw error;
     }
   }
@@ -76,19 +98,34 @@ export class TaskDetailController {
     @Req() req: ExpressRequest,
   ): Promise<TaskDetailDto> {
     try {
-      const task = await this.taskDetailService.getDetailByKeyInWorkspaceKey(workspaceId, taskKey, user.userId);
-      this.taskAuditService.logSuccess(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, {
-        workspaceId,
-        taskId: task.id,
-        taskKey: task.key,
-        viewedFrom: 'key',
-      });
-      return task;
-    } catch (error) {
-      this.taskAuditService.logFailure(req, user.userId, SECURITY_EVENT_TYPES.TASK_VIEWED, error, {
+      const task = await this.taskDetailService.getDetailByKeyInWorkspaceKey(
         workspaceId,
         taskKey,
-      });
+        user.userId,
+      );
+      this.taskAuditService.logSuccess(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_VIEWED,
+        {
+          workspaceId,
+          taskId: task.id,
+          taskKey: task.key,
+          viewedFrom: 'key',
+        },
+      );
+      return task;
+    } catch (error) {
+      this.taskAuditService.logFailure(
+        req,
+        user.userId,
+        SECURITY_EVENT_TYPES.TASK_VIEWED,
+        error,
+        {
+          workspaceId,
+          taskKey,
+        },
+      );
       throw error;
     }
   }

@@ -4,7 +4,11 @@
 // - lấy task trong sprint
 // - lấy preview khi complete sprint
 // - tìm sprint theo id
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
@@ -53,7 +57,10 @@ export class SprintQueryService {
     };
   }
 
-  async getSprintTasks(workspaceId: string, sprintId: string): Promise<TaskDocument[]> {
+  async getSprintTasks(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<TaskDocument[]> {
     const tasks = await this.taskModel
       .find({
         workspaceId: new Types.ObjectId(workspaceId),
@@ -65,7 +72,10 @@ export class SprintQueryService {
     return sortTasksByPriority(tasks);
   }
 
-  async getCompleteSprintPreview(workspaceId: string, sprintId: string): Promise<any> {
+  async getCompleteSprintPreview(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<any> {
     const workspaceObjectId = new Types.ObjectId(workspaceId);
     const sprintObjectId = new Types.ObjectId(sprintId);
 
@@ -88,7 +98,8 @@ export class SprintQueryService {
       );
     }
 
-    const completedStatuses = await this.boardStatusService.getCompletedStatuses(workspaceObjectId);
+    const completedStatuses =
+      await this.boardStatusService.getCompletedStatuses(workspaceObjectId);
 
     const tasks = await this.taskModel
       .find({
@@ -99,7 +110,9 @@ export class SprintQueryService {
       .lean()
       .exec();
 
-    const incompleteTasks = sortTasksByPriority(tasks.filter(task => !completedStatuses.includes(task.status)));
+    const incompleteTasks = sortTasksByPriority(
+      tasks.filter(task => !completedStatuses.includes(task.status)),
+    );
 
     return {
       sprintId: sprint._id,
@@ -120,7 +133,10 @@ export class SprintQueryService {
       .exec();
   }
 
-  async findByIdInWorkspace(workspaceId: string, sprintId: string): Promise<SprintDocument> {
+  async findByIdInWorkspace(
+    workspaceId: string,
+    sprintId: string,
+  ): Promise<SprintDocument> {
     this.validateObjectId(workspaceId, 'Workspace');
     this.validateObjectId(sprintId, 'Sprint');
 

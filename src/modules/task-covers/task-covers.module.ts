@@ -18,7 +18,12 @@ import { TaskCoverService } from './services/task-cover.service';
     forwardRef(() => TaskActivitiesModule),
   ],
   controllers: [TaskCoverController],
-  providers: [TaskCoverRepository, TaskCoverMapper, TaskCoverPolicy, TaskCoverService],
+  providers: [
+    TaskCoverRepository,
+    TaskCoverMapper,
+    TaskCoverPolicy,
+    TaskCoverService,
+  ],
   exports: [TaskCoverService],
 })
 export class TaskCoversModule {}

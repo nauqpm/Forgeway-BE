@@ -26,13 +26,19 @@ export class TaskWriteRepository {
           _id: new Types.ObjectId(id),
           ...this.queryBuilder.buildVisibilityFilter(),
         },
-        this.queryBuilder.buildVersionedSetUpdate(data as Record<string, unknown>),
+        this.queryBuilder.buildVersionedSetUpdate(
+          data as Record<string, unknown>,
+        ),
         { new: true, runValidators: true },
       ),
     ).exec();
   }
 
-  async updateInWorkspace(id: string, workspaceId: string, data: Partial<Task>): Promise<TaskDocument | null> {
+  async updateInWorkspace(
+    id: string,
+    workspaceId: string,
+    data: Partial<Task>,
+  ): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
@@ -44,7 +50,9 @@ export class TaskWriteRepository {
           workspaceId: new Types.ObjectId(workspaceId),
           ...this.queryBuilder.buildVisibilityFilter(),
         },
-        this.queryBuilder.buildVersionedSetUpdate(data as Record<string, unknown>),
+        this.queryBuilder.buildVersionedSetUpdate(
+          data as Record<string, unknown>,
+        ),
         { new: true, runValidators: true },
       ),
     ).exec();
@@ -74,8 +82,16 @@ export class TaskWriteRepository {
     ).exec();
   }
 
-  async archiveInWorkspace(id: string, workspaceId: string, archivedBy: string): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(archivedBy)) {
+  async archiveInWorkspace(
+    id: string,
+    workspaceId: string,
+    archivedBy: string,
+  ): Promise<TaskDocument | null> {
+    if (
+      !Types.ObjectId.isValid(id) ||
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(archivedBy)
+    ) {
       return null;
     }
 
@@ -121,7 +137,10 @@ export class TaskWriteRepository {
     ).exec();
   }
 
-  async restoreInWorkspace(id: string, workspaceId: string): Promise<TaskDocument | null> {
+  async restoreInWorkspace(
+    id: string,
+    workspaceId: string,
+  ): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId)) {
       return null;
     }
@@ -144,7 +163,10 @@ export class TaskWriteRepository {
     ).exec();
   }
 
-  async softDelete(id: string, deletedBy: string): Promise<TaskDocument | null> {
+  async softDelete(
+    id: string,
+    deletedBy: string,
+  ): Promise<TaskDocument | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -169,8 +191,16 @@ export class TaskWriteRepository {
     ).exec();
   }
 
-  async softDeleteInWorkspace(id: string, workspaceId: string, deletedBy: string): Promise<TaskDocument | null> {
-    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(deletedBy)) {
+  async softDeleteInWorkspace(
+    id: string,
+    workspaceId: string,
+    deletedBy: string,
+  ): Promise<TaskDocument | null> {
+    if (
+      !Types.ObjectId.isValid(id) ||
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(deletedBy)
+    ) {
       return null;
     }
 

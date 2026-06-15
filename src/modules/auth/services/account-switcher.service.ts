@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { SavedAccount, SavedAccountDocument } from '../schemas/saved-account.schema';
+import {
+  SavedAccount,
+  SavedAccountDocument,
+} from '../schemas/saved-account.schema';
 import { UsersService } from '../../users/services/users.service';
 import { TokenService } from './token.service';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
@@ -50,7 +53,7 @@ export class AccountSwitcherService {
       .lean()
       .exec();
 
-    return docs.map((d) => ({
+    return docs.map(d => ({
       accountId: d.accountId.toString(),
       email: d.email,
       fullName: d.fullName,
@@ -78,7 +81,10 @@ export class AccountSwitcherService {
     },
     meta: { ip?: string; userAgent?: string },
   ): Promise<void> {
-    if (!Types.ObjectId.isValid(ownerUserId) || !Types.ObjectId.isValid(account.id)) {
+    if (
+      !Types.ObjectId.isValid(ownerUserId) ||
+      !Types.ObjectId.isValid(account.id)
+    ) {
       this.logger.warn(`Skipping rememberAccount: invalid ObjectId`);
       return;
     }
@@ -113,7 +119,10 @@ export class AccountSwitcherService {
    * Idempotent: returns success even if the entry didn't exist.
    */
   async forgetAccount(ownerUserId: string, accountId: string): Promise<void> {
-    if (!Types.ObjectId.isValid(ownerUserId) || !Types.ObjectId.isValid(accountId)) {
+    if (
+      !Types.ObjectId.isValid(ownerUserId) ||
+      !Types.ObjectId.isValid(accountId)
+    ) {
       throw new BadRequestException('Invalid id');
     }
     await this.savedAccountModel.deleteOne({
@@ -140,7 +149,10 @@ export class AccountSwitcherService {
     targetAccountId: string,
     meta: { ip?: string; userAgent?: string },
   ): Promise<SwitchTokensResult> {
-    if (!Types.ObjectId.isValid(ownerUserId) || !Types.ObjectId.isValid(targetAccountId)) {
+    if (
+      !Types.ObjectId.isValid(ownerUserId) ||
+      !Types.ObjectId.isValid(targetAccountId)
+    ) {
       throw new BadRequestException('Invalid id');
     }
     if (ownerUserId === targetAccountId) {
@@ -166,13 +178,14 @@ export class AccountSwitcherService {
     }
 
     // 3. Issue new tokens for the target account
-    const { accessToken, refreshToken } = await this.tokenService.createAndSaveTokens(
-      targetUser._id.toString(),
-      targetUser.email,
-      targetUser.role,
-      targetUser.fullName,
-      targetUser.avatar,
-    );
+    const { accessToken, refreshToken } =
+      await this.tokenService.createAndSaveTokens(
+        targetUser._id.toString(),
+        targetUser.email,
+        targetUser.role,
+        targetUser.fullName,
+        targetUser.avatar,
+      );
 
     // 4. Update the saved-account entry timestamp
     await this.savedAccountModel.updateOne(

@@ -12,7 +12,10 @@ import { RealtimeRoomRepository } from '../repositories/realtime-room.repository
 export class RoomManagerService {
   constructor(private readonly roomRepository: RealtimeRoomRepository) {}
 
-  async joinWorkspace(client: AuthenticatedSocket, dto: JoinWorkspaceRoomDto): Promise<{ ok: boolean }> {
+  async joinWorkspace(
+    client: AuthenticatedSocket,
+    dto: JoinWorkspaceRoomDto,
+  ): Promise<{ ok: boolean }> {
     const user = this.getAuthenticatedUser(client);
     await this.authorizeWorkspaceJoin(user.userId, dto.workspaceId);
 
@@ -20,14 +23,20 @@ export class RoomManagerService {
     return { ok: true };
   }
 
-  async leaveWorkspace(client: AuthenticatedSocket, dto: LeaveWorkspaceRoomDto): Promise<{ ok: boolean }> {
+  async leaveWorkspace(
+    client: AuthenticatedSocket,
+    dto: LeaveWorkspaceRoomDto,
+  ): Promise<{ ok: boolean }> {
     this.getAuthenticatedUser(client);
 
     await client.leave(RoomBuilder.workspace(dto.workspaceId));
     return { ok: true };
   }
 
-  async joinTask(client: AuthenticatedSocket, dto: JoinTaskRoomDto): Promise<{ ok: boolean }> {
+  async joinTask(
+    client: AuthenticatedSocket,
+    dto: JoinTaskRoomDto,
+  ): Promise<{ ok: boolean }> {
     const user = this.getAuthenticatedUser(client);
     await this.authorizeTaskJoin(user.userId, dto.workspaceId, dto.taskId);
 
@@ -35,22 +44,35 @@ export class RoomManagerService {
     return { ok: true };
   }
 
-  async leaveTask(client: AuthenticatedSocket, dto: LeaveTaskRoomDto): Promise<{ ok: boolean }> {
+  async leaveTask(
+    client: AuthenticatedSocket,
+    dto: LeaveTaskRoomDto,
+  ): Promise<{ ok: boolean }> {
     this.getAuthenticatedUser(client);
 
     await client.leave(RoomBuilder.task(dto.taskId));
     return { ok: true };
   }
 
-  private async authorizeWorkspaceJoin(userId: string, workspaceId: string): Promise<void> {
-    const isMember = await this.roomRepository.workspaceMembershipExists(workspaceId, userId);
+  private async authorizeWorkspaceJoin(
+    userId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    const isMember = await this.roomRepository.workspaceMembershipExists(
+      workspaceId,
+      userId,
+    );
 
     if (!isMember) {
       throw new WsException('Unauthorized workspace room');
     }
   }
 
-  private async authorizeTaskJoin(userId: string, workspaceId: string, taskId: string): Promise<void> {
+  private async authorizeTaskJoin(
+    userId: string,
+    workspaceId: string,
+    taskId: string,
+  ): Promise<void> {
     const [isMember, taskExists] = await Promise.all([
       this.roomRepository.workspaceMembershipExists(workspaceId, userId),
       this.roomRepository.taskExistsInWorkspace(taskId, workspaceId),

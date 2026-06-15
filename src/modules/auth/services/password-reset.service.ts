@@ -1,8 +1,17 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { UsersService } from '../../users/services/users.service';
 import { VerifyService } from '../../verify/services/verify.service';
-import { RequestPasswordResetDto, ResetPasswordWithGrantDto, VerifyOtpDto } from '../dtos/password-reset.dto';
+import {
+  RequestPasswordResetDto,
+  ResetPasswordWithGrantDto,
+  VerifyOtpDto,
+} from '../dtos/password-reset.dto';
 import { OtpService } from './otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -41,7 +50,9 @@ export class PasswordResetService {
     this.logger.debug(`Password reset OTP stored for email: ${dto.email}`);
 
     await this.verifyService.sendPasswordResetEmail(dto.email, otp);
-    this.logger.log(`Password reset OTP email dispatched for userId: ${user._id}`);
+    this.logger.log(
+      `Password reset OTP email dispatched for userId: ${user._id}`,
+    );
 
     return genericResponse;
   }
@@ -61,11 +72,14 @@ export class PasswordResetService {
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      this.logger.warn(`Password reset OTP verified but user was not found: ${dto.email}`);
+      this.logger.warn(
+        `Password reset OTP verified but user was not found: ${dto.email}`,
+      );
       throw new BadRequestException('OTP is invalid or has expired.');
     }
 
-    const { resetGrant, expiresInMs } = await this.tokenService.createResetGrant(user._id.toString(), user.email);
+    const { resetGrant, expiresInMs } =
+      await this.tokenService.createResetGrant(user._id.toString(), user.email);
 
     this.logger.log(
       `Password reset grant issued for userId: ${user._id}; expiresInMs: ${expiresInMs}`,
@@ -88,7 +102,9 @@ export class PasswordResetService {
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      this.logger.warn(`Password reset grant validated but user was not found: ${email}`);
+      this.logger.warn(
+        `Password reset grant validated but user was not found: ${email}`,
+      );
       throw new NotFoundException('User not found.');
     }
 
@@ -99,15 +115,21 @@ export class PasswordResetService {
         )
       : false;
     if (isSameAsCurrentPassword) {
-      this.logger.warn(`Password reset rejected because new password matches current password for userId: ${user._id}`);
-      throw new BadRequestException('The new password must be different from the current password.');
+      this.logger.warn(
+        `Password reset rejected because new password matches current password for userId: ${user._id}`,
+      );
+      throw new BadRequestException(
+        'The new password must be different from the current password.',
+      );
     }
 
     const consumedGrant = await this.tokenService.consumeResetGrant(
       dto.resetGrant,
     );
     if (consumedGrant.email !== email) {
-      this.logger.error(`Password reset grant email mismatch during consume for userId: ${user._id}`);
+      this.logger.error(
+        `Password reset grant email mismatch during consume for userId: ${user._id}`,
+      );
       throw new BadRequestException('Reset grant is invalid.');
     }
     this.logger.debug(`Password reset grant consumed for email: ${email}`);

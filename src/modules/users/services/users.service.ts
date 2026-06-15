@@ -1,5 +1,10 @@
 // users.service.ts
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import type { SanitizedUserRecord } from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
@@ -21,13 +26,11 @@ export interface LoginFailureState {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(
-    private readonly usersRepository: UsersRepository,
-  ) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Fetching user by ID: ${id}`);
-    
+
     if (!Types.ObjectId.isValid(id)) {
       this.logger.warn(`Invalid user ID: ${id}`);
       throw new BadRequestException('Invalid User ID format');
@@ -57,12 +60,15 @@ export class UsersService {
     const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
 
     // Use atomic $inc to prevent race conditions from concurrent requests
-    const updatedUser = await this.usersRepository.incrementFailedLoginAttempts(userId);
+    const updatedUser =
+      await this.usersRepository.incrementFailedLoginAttempts(userId);
     const currentAttempts = updatedUser?.failedLoginAttempts ?? 0;
     const isLocked = currentAttempts >= maxAttempts;
 
     if (isLocked) {
-      const lockedUntil = new Date(Date.now() + PASSWORD_POLICY.lockoutDurationMs);
+      const lockedUntil = new Date(
+        Date.now() + PASSWORD_POLICY.lockoutDurationMs,
+      );
       await this.usersRepository.setLockout(userId, lockedUntil);
 
       return {
@@ -95,7 +101,9 @@ export class UsersService {
       return user;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to create user (${userData.email}): ${message}`);
+      this.logger.error(
+        `Failed to create user (${userData.email}): ${message}`,
+      );
       throw error;
     }
   }
@@ -121,11 +129,16 @@ export class UsersService {
     return updatedUser;
   }
 
-  private isPasswordUpdate(data: UpdateUsersDto | { $unset: Record<string, unknown> }): data is UpdateUsersDto {
+  private isPasswordUpdate(
+    data: UpdateUsersDto | { $unset: Record<string, unknown> },
+  ): data is UpdateUsersDto {
     return 'password' in data && !!data.password;
   }
 
-  private async handlePasswordUpdate(userId: string, updateData: UpdateUsersDto): Promise<void> {
+  private async handlePasswordUpdate(
+    userId: string,
+    updateData: UpdateUsersDto,
+  ): Promise<void> {
     this.logger.log(`Updating password for User ID: ${userId}`);
 
     const user = await this.usersRepository.findById(userId);
@@ -142,7 +155,10 @@ export class UsersService {
       throw new BadRequestException(PASSWORD_POLICY.noWhitespaceMessage);
     }
 
-    const isMatch = await bcrypt.compare(updateData.currentPassword, user.password);
+    const isMatch = await bcrypt.compare(
+      updateData.currentPassword,
+      user.password,
+    );
 
     if (!isMatch) {
       throw new BadRequestException('Current password is incorrect');
@@ -168,8 +184,13 @@ export class UsersService {
     };
   }> {
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-    const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.floor(limit))) : 20;
-    const { users, total } = await this.usersRepository.findAllPaginated(safePage, safeLimit);
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(100, Math.max(1, Math.floor(limit)))
+      : 20;
+    const { users, total } = await this.usersRepository.findAllPaginated(
+      safePage,
+      safeLimit,
+    );
 
     return {
       data: users,

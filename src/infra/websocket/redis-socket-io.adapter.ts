@@ -17,7 +17,9 @@ export class RedisSocketIoAdapter extends IoAdapter {
 
   async connectToRedis(): Promise<void> {
     if (!this.redisService.isEnabled()) {
-      this.logger.warn('REDIS_URL is not configured. Socket.IO will use the single-instance adapter.');
+      this.logger.warn(
+        'REDIS_URL is not configured. Socket.IO will use the single-instance adapter.',
+      );
       return;
     }
 
@@ -27,7 +29,9 @@ export class RedisSocketIoAdapter extends IoAdapter {
     ]);
 
     if (!pubClient || !subClient) {
-      this.logger.warn('Redis Socket.IO adapter was not initialized because Redis clients are unavailable.');
+      this.logger.warn(
+        'Redis Socket.IO adapter was not initialized because Redis clients are unavailable.',
+      );
       return;
     }
 

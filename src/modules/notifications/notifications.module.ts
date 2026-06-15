@@ -15,7 +15,9 @@ import { NotificationsService } from './services/notifications.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }]),
+    MongooseModule.forFeature([
+      { name: Notification.name, schema: NotificationSchema },
+    ]),
     forwardRef(() => AuthModule),
   ],
   controllers: [NotificationsController],

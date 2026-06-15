@@ -7,9 +7,12 @@ describe('TaskSearchService', () => {
     service = new TaskSearchService();
   });
 
-  it.each([undefined, '', '   '])('returns empty filter for empty search: %p', search => {
-    expect(service.buildSearchFilter(search)).toEqual({});
-  });
+  it.each([undefined, '', '   '])(
+    'returns empty filter for empty search: %p',
+    search => {
+      expect(service.buildSearchFilter(search)).toEqual({});
+    },
+  );
 
   it('uses searchTokens for one-character search', () => {
     expect(service.buildSearchFilter('R')).toEqual({
