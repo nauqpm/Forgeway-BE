@@ -27,7 +27,7 @@ jobs:
         run: npm run lint
 
       - name: Unit tests
-        run: npm run test -- --passWithNoTests --forceExit
+        run: npm run test -- --passWithNoTests --forceExit --coverage --coverageReporters=text-summary
 
   build-check:
     name: Build Check
