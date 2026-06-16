@@ -56,7 +56,8 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
     }
 
     const tracker = client.data?.user?.userId || 'anonymous';
-    const key = generateKey(context, tracker, throttler.name);
+    const eventMetadataKey = eventName || 'unknown';
+    const key = generateKey(context, `${tracker}-${eventMetadataKey}`, throttler.name);
 
     this.logger.log(
       `handleRequest: eventName=${eventName}, limit=${limit}, ttl=${ttl}, tracker=${tracker}`,
