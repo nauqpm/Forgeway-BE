@@ -21,6 +21,8 @@ import { extname } from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { getUploadPath } from '../../../config/upload-storage.config';
+import { MAX_ATTACHMENT_SIZE } from '../constants/attachment-file.constants';
+import { attachmentFileFilter } from '../validators/attachment-file.validator';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -87,7 +89,8 @@ export class TaskAttachmentController {
           callback(null, `${Date.now()}-${uuidv4()}${ext}`);
         },
       }),
-      limits: { fileSize: 10 * 1024 * 1024 },
+      limits: { fileSize: MAX_ATTACHMENT_SIZE },
+      fileFilter: attachmentFileFilter,
     }),
   )
   async uploadTaskAttachment(
