@@ -21,6 +21,12 @@ describe('validateAttachmentFile', () => {
     ).not.toThrow();
   });
 
+  it('allows mp4 video files', () => {
+    expect(() =>
+      validateAttachmentFile(file('demo.mp4', 'video/mp4')),
+    ).not.toThrow();
+  });
+
   it('blocks executable files by extension', () => {
     expect(() =>
       validateAttachmentFile(file('payload.exe', 'application/x-msdownload')),

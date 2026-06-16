@@ -46,6 +46,7 @@ export const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
   '.jpg',
   '.json',
   '.md',
+  '.mp4',
   '.pdf',
   '.png',
   '.ppt',
@@ -78,4 +79,5 @@ export const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   'text/csv',
   'text/markdown',
   'text/plain',
+  'video/mp4',
 ]);
