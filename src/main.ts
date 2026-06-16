@@ -6,7 +6,7 @@ import * as express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
-import { join } from 'path';
+// import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
 import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter';
@@ -19,7 +19,6 @@ import { getUploadDir } from './config/upload-storage.config';
 
 // Swagger documentation
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-
 
 async function bootstrap() {
   console.log('Starting NestJS application...');

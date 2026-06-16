@@ -86,7 +86,12 @@ export class AttachmentsController {
                 ? 'pages'
                 : 'others';
 
-          const uploadPath = getUploadPath(moduleFolder, String(year), month, day);
+          const uploadPath = getUploadPath(
+            moduleFolder,
+            String(year),
+            month,
+            day,
+          );
 
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });

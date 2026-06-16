@@ -10,7 +10,8 @@ import { Request } from 'express';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 
-const GOOGLE_OAUTH_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_OAUTH_AUTHORIZE_URL =
+  'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_OAUTH_SCOPE = ['email', 'profile'] as const;
 
 @Injectable()
