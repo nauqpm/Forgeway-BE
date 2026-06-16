@@ -84,6 +84,7 @@ export class TaskMapper {
       archivedBy: this.toOptionalId(plainTask.archivedBy),
       archivedByUser: this.mapUserSummary(plainTask.archivedBy),
       storyPoints: plainTask.storyPoints,
+      startDate: plainTask.startDate,
       dueDate: plainTask.dueDate,
       isArchived: plainTask.isArchived || false,
       archivedAt: plainTask.archivedAt,
