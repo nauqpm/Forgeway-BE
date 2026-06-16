@@ -54,6 +54,7 @@ export class AttachmentMapper {
     if (typeof value === 'object' && '_id' in value) {
       return String((value as { _id: unknown })._id);
     }
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     return String(value);
   }
 

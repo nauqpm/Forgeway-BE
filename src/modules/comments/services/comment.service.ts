@@ -169,6 +169,9 @@ export class CommentService {
     this.logger.log(`Resolving comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
+    if (comment.authorId.toString() !== userId) {
+      throw new ForbiddenException('You can only resolve your own comments');
+    }
     comment.isResolved = true;
     comment.resolvedBy = new Types.ObjectId(userId);
     comment.resolvedAt = new Date();
@@ -179,6 +182,9 @@ export class CommentService {
     this.logger.log(`Unresolving comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
+    if (comment.authorId.toString() !== userId) {
+      throw new ForbiddenException('You can only unresolve your own comments');
+    }
     comment.isResolved = false;
     comment.resolvedBy = undefined;
     comment.resolvedAt = undefined;

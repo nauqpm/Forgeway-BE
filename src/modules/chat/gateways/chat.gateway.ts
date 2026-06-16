@@ -332,7 +332,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @Throttle(CHAT_THROTTLE_CONFIG.TYPING)
   @SubscribeMessage('chat.typing')
-  async handleTyping(
+  handleTyping(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: { channelId: string },
   ) {

@@ -49,7 +49,6 @@ export class PermissionsService {
   async getUserPermissions(userId: string): Promise<PermissionWithSource[]> {
     try {
       const objectId = new Types.ObjectId(userId);
-      console.log('Getting permissions for userId:', objectId.toString());
 
       // Get user's direct permissions
       const userPermissions = await this.userPermissionModel
@@ -67,7 +66,6 @@ export class PermissionsService {
         }),
       );
 
-      console.log('Combined permissions:', allPermissions);
       return allPermissions;
     } catch (error) {
       console.error('Error getting user permissions:', error);
@@ -89,9 +87,6 @@ export class PermissionsService {
           permission.resource === resource && permission.action === action,
       );
 
-      console.log(
-        `Checking permission for ${resource}:${action} - Result: ${hasPermission}`,
-      );
       return hasPermission;
     } catch (error) {
       console.error('Error checking user permission:', error);
@@ -113,16 +108,10 @@ export class PermissionsService {
       const permissionIds = updateDto.permissionIds.map(id => {
         try {
           return new Types.ObjectId(id);
-        } catch (error) {
+        } catch {
           throw new Error(`Invalid permission ID format: ${id}`);
         }
       });
-
-      console.log('Updating permissions for user:', userId.toString());
-      console.log(
-        'New permission IDs:',
-        permissionIds.map(id => id.toString()),
-      );
 
       // Validate that all permission IDs exist
       const existingPermissions = await this.permissionModel
@@ -155,7 +144,6 @@ export class PermissionsService {
         .populate('permissionId')
         .exec();
 
-      console.log('Updated permissions:', updatedPermissions);
       return updatedPermissions;
     } catch (error) {
       const err = error as Error;

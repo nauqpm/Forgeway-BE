@@ -136,7 +136,9 @@ describe('ErrorFactory', () => {
     it('workspaceMemberNotFound() with userId', () => {
       const result = ErrorFactory.workspaceMemberNotFound('user-1');
       expect(result.message).toContain('user-1');
-      expect(result.code).toBe(WORKSPACE_ERROR_CODES.WORKSPACE_MEMBER_NOT_FOUND);
+      expect(result.code).toBe(
+        WORKSPACE_ERROR_CODES.WORKSPACE_MEMBER_NOT_FOUND,
+      );
     });
 
     it('workspaceKeyConflict() returns correct code', () => {
@@ -201,7 +203,9 @@ describe('ErrorFactory', () => {
 
     it('frontendUrlNotConfigured() returns correct code', () => {
       const result = ErrorFactory.frontendUrlNotConfigured();
-      expect(result.code).toBe(WORKSPACE_ERROR_CODES.FRONTEND_URL_NOT_CONFIGURED);
+      expect(result.code).toBe(
+        WORKSPACE_ERROR_CODES.FRONTEND_URL_NOT_CONFIGURED,
+      );
     });
   });
 

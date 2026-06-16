@@ -254,6 +254,8 @@ export class ImagesController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get list of images by filter' })
   @ApiResponse({
     status: 200,
@@ -293,6 +295,8 @@ export class ImagesController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get image info by ID' })
   @ApiResponse({
     status: 200,

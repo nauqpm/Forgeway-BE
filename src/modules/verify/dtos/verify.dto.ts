@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsEmail, IsString, IsEnum } from 'class-validator';
 
 export enum VerifyType {
   VERIFICATION = 'verification',

@@ -167,15 +167,20 @@ import { ChatModule } from './modules/chat/chat.module';
           pass: process.env.MAIL_PASSWORD ?? '',
         },
         tls: {
-          rejectUnauthorized: false,
+          rejectUnauthorized: process.env.NODE_ENV === 'production',
         },
       },
       defaults: {
         from: `"AL-TASK" <${process.env.MAIL_USER ?? ''}>`,
       },
       template: {
-        // Use workspace absolute path so templates resolve in both ts-node(dev) + dist(prod)
-        dir: join(process.cwd(), 'src', 'modules', 'verify', 'templates'),
+        dir: join(
+          process.cwd(),
+          process.env.NODE_ENV === 'production' ? 'dist' : 'src',
+          'modules',
+          'verify',
+          'templates',
+        ),
         adapter: new HandlebarsAdapter(),
         options: {
           strict: true,

@@ -49,7 +49,8 @@ export class InviteService {
     dto: CreateInviteDto,
   ): Promise<Invite> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
-    if (!workspace) throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
+    if (!workspace)
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
 
     const normalizedEmail = dto.email.toLowerCase();
 
@@ -137,7 +138,8 @@ export class InviteService {
     dto: CreateInviteLinkDto,
   ): Promise<Invite & { inviteUrl: string }> {
     const workspace = await this.workspacesRepository.findById(workspaceId);
-    if (!workspace) throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
+    if (!workspace)
+      throw new NotFoundException(ErrorFactory.workspaceNotFound(workspaceId));
 
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + this.inviteLinkTtlMs);
@@ -412,7 +414,10 @@ export class InviteService {
     const workspace = await this.workspacesRepository.findById(
       invite.workspaceId.toString(),
     );
-    if (!workspace) throw new NotFoundException(ErrorFactory.workspaceNotFound(invite.workspaceId.toString()));
+    if (!workspace)
+      throw new NotFoundException(
+        ErrorFactory.workspaceNotFound(invite.workspaceId.toString()),
+      );
 
     const alreadyMember = workspace.members.some(
       m => m.userId.toString() === userId,

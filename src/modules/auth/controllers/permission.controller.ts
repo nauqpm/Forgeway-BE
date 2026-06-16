@@ -118,7 +118,7 @@ export class PermissionController {
           source: up.source,
         })),
       };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Error checking permissions');
     }
   }

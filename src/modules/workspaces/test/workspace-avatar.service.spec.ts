@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import {
+  DEFAULT_WORKSPACE_AVATAR,
   WORKSPACE_SAMPLE_AVATARS,
   isWorkspaceSampleAvatar,
   pickRandomWorkspaceAvatar,
@@ -61,6 +62,8 @@ const createService = () => {
     countModel as any,
     countModel as any,
     countModel as any,
+    {} as any,
+    { createWorkspaceChannel: jest.fn().mockResolvedValue({}) } as any,
   );
 
   return {
@@ -151,24 +154,24 @@ describe('WorkspacesService avatar handling', () => {
     );
   });
 
-  it('returns the first sample avatar when a stored workspace has no avatar', async () => {
+  it('returns the default sample avatar when a stored workspace has no avatar', async () => {
     const workspace = buildWorkspace({ avatar: undefined });
     const { repository, service } = createService();
     repository.findById.mockResolvedValue(workspace);
 
     const result = await service.findById(workspaceId);
 
-    expect(result.avatar).toBe(WORKSPACE_SAMPLE_AVATARS[0].url);
+    expect(result.avatar).toBe(DEFAULT_WORKSPACE_AVATAR);
   });
 
-  it('returns the first sample avatar in workspace lists when stored workspaces have no avatar', async () => {
+  it('returns the default sample avatar in workspace lists when stored workspaces have no avatar', async () => {
     const workspace = buildWorkspace({ avatar: undefined });
     const { repository, service } = createService();
     repository.findByUserId.mockResolvedValue([workspace]);
 
     const result = await service.findByUserId(ownerId);
 
-    expect(result[0].avatar).toBe(WORKSPACE_SAMPLE_AVATARS[0].url);
+    expect(result[0].avatar).toBe(DEFAULT_WORKSPACE_AVATAR);
   });
 
   it('rejects workspace avatar values outside the sample list', async () => {

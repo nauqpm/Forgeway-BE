@@ -5,7 +5,7 @@ on:
     branches: [production]
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/al-task-backend
+  IMAGE_NAME: ghcr.io/automationland-dev/sdlc-platform-backend
 
 jobs:
   build-and-push:
@@ -62,18 +62,29 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            echo "${{ secrets.VPS_GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/sdlc
-            docker pull ghcr.io/${{ github.repository_owner }}/al-task-backend:latest
+            docker pull ghcr.io/automationland-dev/sdlc-platform-backend:latest
             docker compose up -d --no-build --no-deps backend
-            docker image ls "ghcr.io/${{ github.repository_owner }}/al-task-backend" \
+            docker image ls "ghcr.io/automationland-dev/sdlc-platform-backend" \
               --format "{{.Repository}}:{{.Tag}}" | grep "sha-" | sort -r | \
               tail -n +3 | xargs docker rmi 2>/dev/null || true
-            sleep 20
-            CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1)
-            STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null)
-            if [ "$STATUS" != "running" ]; then
-              echo "DEPLOY FAILED: backend is ${STATUS:-not found}"
-              docker compose logs --tail=30 backend
-              exit 1
-            fi
-            echo "Backend deployed OK: $(date)"
+            for i in $(seq 1 18); do
+              CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1)
+              STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null)
+              RESTARTS=$(docker inspect --format='{{.RestartCount}}' "$CONTAINER" 2>/dev/null)
+              if [ "${RESTARTS:-0}" -gt 0 ]; then
+                echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s) — crash loop detected"
+                docker compose logs --tail=50 backend
+                exit 1
+              fi
+              if [ "$STATUS" = "running" ]; then
+                echo "Backend deployed OK (restarts=0, attempt=$i): $(date)"
+                exit 0
+              fi
+              echo "Waiting... attempt $i/18 (status=${STATUS:-unknown})"
+              sleep 5
+            done
+            echo "DEPLOY FAILED: backend did not reach running state after 90s"
+            docker compose logs --tail=50 backend
+            exit 1

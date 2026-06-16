@@ -81,14 +81,14 @@ describe('ForYouService', () => {
         name: 'Owned Space',
         role: SPACE_ROLES.WORKSPACE_ADMIN,
         relationship: 'owner',
-        ownershipLabel: 'Sở hữu',
+        ownershipLabel: 'Owner',
       }),
       expect.objectContaining({
         id: memberWorkspaceId.toString(),
         name: 'Joined Space',
         role: SPACE_ROLES.MEMBER,
         relationship: 'member',
-        ownershipLabel: 'Tham gia',
+        ownershipLabel: 'Member',
       }),
     ]);
   });

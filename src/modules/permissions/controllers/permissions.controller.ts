@@ -7,7 +7,6 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
 import { PermissionsService } from '../services/permissions.service';
 import { CreatePermissionDto } from '../dtos/create-permission.dto';
 import { UpdateUserPermissionsDto } from '../dtos/update-user-permissions.dto';
@@ -17,7 +16,6 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
 import { UserPermissionDocument } from '../schemas/user-permission.schema';
-import { Permission } from '../schemas/permission.schema';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 @Controller('permissionsapi')
@@ -84,9 +82,6 @@ export class PermissionsController {
     @Body() updateDto: UpdateUserPermissionsDto,
   ) {
     try {
-      console.log('Updating permissions for user:', userId);
-      console.log('With data:', updateDto);
-
       // Validate input
       if (!userId || !updateDto.permissionIds) {
         throw new Error('Invalid input: userId and permissionIds are required');
@@ -154,8 +149,6 @@ export class PermissionsController {
   @RequirePermission('permissions', 'update')
   async assignAllPermissionsToSuperAdmin(@Param('userId') userId: string) {
     try {
-      console.log('Assigning all permissions to super admin user:', userId);
-
       // First, ensure all permissions are initialized
       await this.permissionsService.initializeDefaultPermissions();
 

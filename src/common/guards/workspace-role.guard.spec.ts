@@ -92,7 +92,7 @@ describe('WorkspaceRoleGuard', () => {
   it('allows a workspace member when their role grants every required permission', async () => {
     const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);
     const request = {
-      params: { key: 'ALTASK' },
+      params: { workspaceId: workspaceId.toString() },
       user: { userId: memberId.toString(), role: 'user' },
     };
 
@@ -119,7 +119,7 @@ describe('WorkspaceRoleGuard', () => {
   it('rejects a viewer when the role does not grant the required permission', async () => {
     const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);
     const request = {
-      params: { key: 'ALTASK' },
+      params: { workspaceId: workspaceId.toString() },
       user: { userId: viewerId.toString(), role: 'user' },
     };
 

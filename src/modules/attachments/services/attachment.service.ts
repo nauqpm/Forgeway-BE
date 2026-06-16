@@ -93,7 +93,11 @@ export class AttachmentService {
 
     const result = await this.attachmentModel
       .findOneAndUpdate(
-        { _id: new Types.ObjectId(id), isDeleted: { $ne: true } },
+        {
+          _id: new Types.ObjectId(id),
+          isDeleted: { $ne: true },
+          uploadedBy: new Types.ObjectId(userId),
+        },
         {
           $set: {
             isDeleted: true,
