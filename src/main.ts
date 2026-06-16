@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+﻿import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -6,6 +6,7 @@ import * as express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
+import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
 import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter';
