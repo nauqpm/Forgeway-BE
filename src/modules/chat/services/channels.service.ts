@@ -225,10 +225,17 @@ export class ChannelsService {
           userId,
         );
 
-        // Manual Populate members for all channels (important for DM to show other user)
-        const userInfos = await this.usersService.getUsersByIds(
-          channel.members.map(m => m.toString()),
-        );
+        // Manual Populate members based on channel type (skip for general/announcement)
+        let userInfos: any[] = [];
+        if (channel.type !== 'general' && channel.type !== 'announcement') {
+          const memberIds = await this.getChannelMemberIds(
+            channel._id.toString(),
+          );
+          const validMemberIds = memberIds.filter(
+            id => id && Types.ObjectId.isValid(id),
+          );
+          userInfos = await this.usersService.getUsersByIds(validMemberIds);
+        }
 
         return {
           ...channel.toObject(),
@@ -347,6 +354,16 @@ export class ChannelsService {
       sentAt: Date;
     },
   ) {
+    const rawSenderId = message.senderId;
+    const senderStrId =
+      typeof rawSenderId === 'object' && rawSenderId
+        ? (rawSenderId._id || rawSenderId.id || rawSenderId).toString()
+        : rawSenderId?.toString() || '';
+
+    const senderObjectId = Types.ObjectId.isValid(senderStrId)
+      ? new Types.ObjectId(senderStrId)
+      : null;
+
     return this.channelModel
       .findByIdAndUpdate(
         channelId,
@@ -354,7 +371,7 @@ export class ChannelsService {
           $set: {
             lastMessage: {
               content: message.content,
-              senderId: new Types.ObjectId(message.senderId.toString()),
+              senderId: senderObjectId,
               senderName: message.senderName,
               sentAt: message.sentAt,
             },
@@ -460,18 +477,104 @@ export class ChannelsService {
 
     if (channel.type === 'general' || channel.type === 'announcement') {
       const allUsers = await this.usersService.getAllUsers();
-      return allUsers.map(u => u._id.toString());
+      return allUsers
+        .map(u => u._id?.toString() || (u as any).id?.toString() || '')
+        .filter(id => Types.ObjectId.isValid(id));
     }
 
     if (channel.type === 'workspace' && channel.workspaceId) {
       const members = await this.workspaceMemberService.getMembers(
         channel.workspaceId.toString(),
       );
-      return members.map(m => m.userId.toString());
+      return members
+        .map(m => {
+          const uId =
+            typeof m.userId === 'object' && m.userId
+              ? m.userId._id || m.userId.id
+              : m.userId;
+          return uId ? uId.toString() : '';
+        })
+        .filter(id => Types.ObjectId.isValid(id));
     }
 
     if (channel.type === 'dm') {
-      return channel.members.map(m => m.toString());
+      return channel.members
+        .map(m => m.toString())
+        .filter(id => Types.ObjectId.isValid(id));
+    }
+
+    return [];
+  }
+
+  async searchMentionMembers(
+    channelId: string,
+    query: string,
+    userId: string,
+  ): Promise<any[]> {
+    const hasAccess = await this.validateUserAccess(channelId, userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const channel = await this.findById(channelId);
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    // 1. general / announcement
+    if (channel.type === 'general' || channel.type === 'announcement') {
+      return this.usersService.searchUsers(query, userId);
+    }
+
+    // 2. workspace
+    if (channel.type === 'workspace' && channel.workspaceId) {
+      const workspaceMembers = await this.workspaceMemberService.getMembers(
+        channel.workspaceId.toString(),
+      );
+      const memberIds = workspaceMembers
+        .map(m => {
+          const uId =
+            typeof m.userId === 'object' && m.userId
+              ? m.userId._id || m.userId.id
+              : m.userId;
+          return uId ? uId.toString() : '';
+        })
+        .filter(id => Types.ObjectId.isValid(id));
+
+      if (memberIds.length === 0) return [];
+
+      const regex = new RegExp(query, 'i');
+      const users = await this.usersService.getUsersByIds(memberIds);
+      return users
+        .filter(user => {
+          const nameMatch = user.fullName && regex.test(user.fullName);
+          const emailMatch = user.email && regex.test(user.email);
+          const phoneMatch =
+            (user as any).phone && regex.test((user as any).phone);
+          return nameMatch || emailMatch || phoneMatch;
+        })
+        .slice(0, 10);
+    }
+
+    // 3. dm
+    if (channel.type === 'dm') {
+      const memberIds = channel.members
+        .map(m => m.toString())
+        .filter(id => Types.ObjectId.isValid(id));
+
+      if (memberIds.length === 0) return [];
+
+      const regex = new RegExp(query, 'i');
+      const users = await this.usersService.getUsersByIds(memberIds);
+      return users
+        .filter(user => {
+          const nameMatch = user.fullName && regex.test(user.fullName);
+          const emailMatch = user.email && regex.test(user.email);
+          const phoneMatch =
+            (user as any).phone && regex.test((user as any).phone);
+          return nameMatch || emailMatch || phoneMatch;
+        })
+        .slice(0, 10);
     }
 
     return [];
@@ -491,14 +594,103 @@ export class ChannelsService {
       channelId,
       userId,
     );
-    const userInfos = await this.usersService.getUsersByIds(
-      channel.members.map(m => m.toString()),
-    );
+
+    // Skip member loading for general/announcement channels
+    let userInfos: any[] = [];
+    if (channel.type !== 'general' && channel.type !== 'announcement') {
+      const memberIds = await this.getChannelMemberIds(channelId);
+      const validMemberIds = memberIds.filter(
+        id => id && Types.ObjectId.isValid(id),
+      );
+      userInfos = await this.usersService.getUsersByIds(validMemberIds);
+    }
 
     return {
       ...channel.toObject(),
       members: userInfos,
       unreadCount,
     };
+  }
+  async getChannelMembers(channelId: string, userId: string): Promise<any[]> {
+    const hasAccess = await this.validateUserAccess(channelId, userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const channel = await this.findById(channelId);
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    // For workspace channels, include role info
+    if (channel.type === 'workspace' && channel.workspaceId) {
+      const workspaceMembers = await this.workspaceMemberService.getMembers(
+        channel.workspaceId.toString(),
+      );
+      const memberIds = workspaceMembers
+        .map(m => {
+          const uId =
+            typeof m.userId === 'object' && m.userId
+              ? m.userId._id || m.userId.id
+              : m.userId;
+          return uId ? uId.toString() : '';
+        })
+        .filter(id => Types.ObjectId.isValid(id));
+
+      if (memberIds.length === 0) return [];
+
+      const users = await this.usersService.getUsersByIds(memberIds);
+
+      // Build a role map from workspace members
+      const roleMap = new Map<string, string>();
+      for (const wm of workspaceMembers) {
+        const uId =
+          typeof wm.userId === 'object' && wm.userId
+            ? wm.userId._id || wm.userId.id
+            : wm.userId;
+        if (uId) roleMap.set(uId.toString(), wm.role || 'member');
+      }
+
+      return users.map(u => ({
+        _id: u._id?.toString() || (u as any).id?.toString(),
+        fullName: u.fullName,
+        email: u.email,
+        phone: (u as any).phone,
+        avatar: (u as any).avatar,
+        role: roleMap.get(u._id?.toString() || '') || 'member',
+      }));
+    }
+
+    // For general/announcement — all users
+    if (channel.type === 'general' || channel.type === 'announcement') {
+      const allUsers = await this.usersService.getAllUsers();
+      return allUsers.map(u => ({
+        _id: u._id?.toString() || (u as any).id?.toString(),
+        fullName: u.fullName,
+        email: u.email,
+        phone: (u as any).phone,
+        avatar: (u as any).avatar,
+        role: u.role || 'user',
+      }));
+    }
+
+    // For DM
+    if (channel.type === 'dm') {
+      const memberIds = channel.members
+        .map(m => m.toString())
+        .filter(id => Types.ObjectId.isValid(id));
+      if (memberIds.length === 0) return [];
+
+      const users = await this.usersService.getUsersByIds(memberIds);
+      return users.map(u => ({
+        _id: u._id?.toString() || (u as any).id?.toString(),
+        fullName: u.fullName,
+        email: u.email,
+        phone: (u as any).phone,
+        avatar: (u as any).avatar,
+      }));
+    }
+
+    return [];
   }
 }
