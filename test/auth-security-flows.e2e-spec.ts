@@ -3,9 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
-import * as cookieParser from 'cookie-parser';
+import cookieParser = require('cookie-parser');
 import { Types } from 'mongoose';
 import request = require('supertest');
+import { AccountSwitcherService } from '../src/modules/auth/services/account-switcher.service';
+import { RecentLoginsService } from '../src/modules/auth/services/recent-logins.service';
 
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 import { USER_STATUSES } from '../src/common/constants/user-status.constants';
@@ -600,6 +602,14 @@ describe('Auth logout revoke path (e2e)', () => {
           },
         },
         TokenService,
+        {
+          provide: AccountSwitcherService,
+          useValue: { rememberAccount: jest.fn() },
+        },
+        {
+          provide: RecentLoginsService,
+          useValue: { remember: jest.fn() },
+        },
       ],
     }).compile();
 

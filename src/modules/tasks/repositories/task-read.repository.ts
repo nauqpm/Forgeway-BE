@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, Types, FilterQuery } from 'mongoose';
 import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { Task, TaskDocument } from '../schemas/task.schema';
 import { normalizeTaskKey } from '../utils/task-key.util';
@@ -10,13 +10,20 @@ import {
   TaskPaginatedResult,
   TaskPaginationOptions,
 } from './task-repository.types';
+import { BaseRepository } from '../../../shared/repositories/base.repository';
 
 @Injectable()
-export class TaskReadRepository {
+export class TaskReadRepository extends BaseRepository<TaskDocument> {
   constructor(
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
     private readonly queryBuilder: TaskQueryBuilder,
-  ) {}
+  ) {
+    super(taskModel);
+  }
+
+  override buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TaskDocument> {
+    return includeDeleted ? {} : { isDeleted: { $ne: true } };
+  }
 
   async findById(
     id: string,

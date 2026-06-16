@@ -1,16 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, FilterQuery } from 'mongoose';
 import { Workspace, WorkspaceDocument } from '../schemas/workspace.schema';
+import { BaseRepository } from '../../../shared/repositories/base.repository';
 
 @Injectable()
-export class WorkspacesRepository {
+export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
   private readonly logger = new Logger(WorkspacesRepository.name);
 
   constructor(
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
-  ) {}
+  ) {
+    super(workspaceModel);
+  }
+
+  override buildSoftDeleteFilter(includeDeleted = false): FilterQuery<WorkspaceDocument> {
+    return includeDeleted ? {} : { deletedAt: null };
+  }
 
   async create(data: Partial<Workspace>): Promise<WorkspaceDocument> {
     const workspace = new this.workspaceModel(data);
@@ -21,7 +28,7 @@ export class WorkspacesRepository {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
-    return this.workspaceModel.findOne({ _id: id, deletedAt: null }).exec();
+    return this.workspaceModel.findOne({ _id: id, ...this.buildSoftDeleteFilter() }).exec();
   }
 
   async findByIdWithMembers(id: string): Promise<any | null> {
@@ -29,14 +36,14 @@ export class WorkspacesRepository {
       return null;
     }
     return this.workspaceModel
-      .findOne({ _id: id, deletedAt: null })
+      .findOne({ _id: id, ...this.buildSoftDeleteFilter() })
       .populate('members.userId', 'fullName email avatar')
       .lean()
       .exec();
   }
 
   async findBySlug(slug: string): Promise<WorkspaceDocument | null> {
-    return this.workspaceModel.findOne({ slug, deletedAt: null }).exec();
+    return this.workspaceModel.findOne({ slug, ...this.buildSoftDeleteFilter() }).exec();
   }
 
   async findAnyBySlug(slug: string): Promise<WorkspaceDocument | null> {
@@ -54,7 +61,7 @@ export class WorkspacesRepository {
     const objectUserId = new Types.ObjectId(userId);
     return this.workspaceModel
       .find({
-        deletedAt: null,
+        ...this.buildSoftDeleteFilter(),
         $or: [{ ownerId: objectUserId }, { 'members.userId': objectUserId }],
       })
       .exec();
@@ -70,7 +77,7 @@ export class WorkspacesRepository {
     return this.workspaceModel
       .find({
         status: 'active',
-        deletedAt: null,
+        ...this.buildSoftDeleteFilter(),
         $or: [{ ownerId: objectUserId }, { 'members.userId': objectUserId }],
       })
       .select(
@@ -81,7 +88,7 @@ export class WorkspacesRepository {
   }
 
   async findAll(): Promise<WorkspaceDocument[]> {
-    return this.workspaceModel.find({ deletedAt: null }).exec();
+    return this.workspaceModel.find({ ...this.buildSoftDeleteFilter() }).exec();
   }
 
   async findAllWithDeleted(): Promise<WorkspaceDocument[]> {

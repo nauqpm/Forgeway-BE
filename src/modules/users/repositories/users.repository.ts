@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../schemas/users.schema';
+import { BaseRepository } from '../../../shared/repositories/base.repository';
 
 export interface SanitizedUserRecord {
   _id: unknown;
@@ -25,18 +26,20 @@ type UserUpdatePayload =
   | { $set: Record<string, unknown>; $unset?: Record<string, unknown> };
 
 @Injectable()
-export class UsersRepository {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+export class UsersRepository extends BaseRepository<UserDocument> {
+  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {
+    super(userModel);
+  }
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: string): Promise<UserDocument | null> {
     return this.userModel.findById(id).exec();
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).exec();
   }
 
-  async create(userData: Partial<User>): Promise<User> {
+  async create(userData: Partial<User>): Promise<UserDocument> {
     const newUser = new this.userModel(userData);
     return newUser.save();
   }
@@ -44,13 +47,13 @@ export class UsersRepository {
   async update(
     userId: string,
     updateData: UserUpdatePayload,
-  ): Promise<User | null> {
+  ): Promise<UserDocument | null> {
     return await this.userModel
       .findByIdAndUpdate(userId, updateData, { new: true })
       .exec();
   }
 
-  async incrementFailedLoginAttempts(userId: string): Promise<User | null> {
+  async incrementFailedLoginAttempts(userId: string): Promise<UserDocument | null> {
     return this.userModel
       .findByIdAndUpdate(
         userId,
@@ -60,7 +63,7 @@ export class UsersRepository {
       .exec();
   }
 
-  async setLockout(userId: string, lockoutUntil: Date): Promise<User | null> {
+  async setLockout(userId: string, lockoutUntil: Date): Promise<UserDocument | null> {
     return this.userModel
       .findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true })
       .exec();
@@ -72,7 +75,7 @@ export class UsersRepository {
   async updatePassword(
     userId: string,
     hashedPassword: string,
-  ): Promise<User | null> {
+  ): Promise<UserDocument | null> {
     return this.userModel
       .findByIdAndUpdate(
         userId,
@@ -83,7 +86,7 @@ export class UsersRepository {
   }
 
   // 📢 Thêm hàm `findAll` để trả về tất cả người dùng
-  async findAll(): Promise<User[]> {
+  async findAll(): Promise<UserDocument[]> {
     return await this.userModel.find().exec();
   }
 
@@ -91,26 +94,24 @@ export class UsersRepository {
     page: number,
     limit: number,
   ): Promise<PaginatedUsersResult> {
-    const skip = (page - 1) * limit;
     const projection =
       '_id email role status fullName avatar createdAt updatedAt';
 
-    const [users, total] = await Promise.all([
-      this.userModel
-        .find()
-        .select(projection)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean<SanitizedUserRecord[]>()
-        .exec(),
-      this.userModel.countDocuments().exec(),
-    ]);
+    const result = await this.paginate({}, {
+      page,
+      limit,
+      projection,
+      sort: { createdAt: -1 },
+      lean: true,
+    });
 
-    return { users, total };
+    return {
+      users: result.items as unknown as SanitizedUserRecord[],
+      total: result.total,
+    };
   }
 
-  async search(query: string, excludeUserId: string): Promise<User[]> {
+  async search(query: string, excludeUserId: string): Promise<UserDocument[]> {
     const regex = new RegExp(query, 'i');
     return this.userModel
       .find({
@@ -126,7 +127,7 @@ export class UsersRepository {
       .exec();
   }
 
-  async findByIds(ids: string[]): Promise<User[]> {
+  async findByIds(ids: string[]): Promise<UserDocument[]> {
     return this.userModel
       .find({ _id: { $in: ids.map(id => new Types.ObjectId(id)) } })
       .select('_id email fullName avatar role status createdAt updatedAt phone')
@@ -135,7 +136,7 @@ export class UsersRepository {
   }
 
   // 📢 Thêm hàm `delete` để xóa người dùng
-  async delete(userId: string): Promise<User | null> {
+  async delete(userId: string): Promise<UserDocument | null> {
     return await this.userModel.findByIdAndDelete(userId).exec();
   }
 }

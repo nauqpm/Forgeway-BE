@@ -14,6 +14,8 @@ import { AuditLogService } from '../src/modules/audit/services/audit-log.service
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { UsersService } from '../src/modules/users/services/users.service';
+import { AccountSwitcherService } from '../src/modules/auth/services/account-switcher.service';
+import { RecentLoginsService } from '../src/modules/auth/services/recent-logins.service';
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 
 describe('Auth throttling (e2e)', () => {
@@ -40,6 +42,7 @@ describe('Auth throttling (e2e)', () => {
     }),
     revokeSessionTokens: jest.fn().mockResolvedValue({ message: 'ok' }),
     findActiveAccessToken: jest.fn(),
+    peekUserIdFromAccessToken: jest.fn(),
   };
 
   const passwordResetServiceMock = {
@@ -87,6 +90,8 @@ describe('Auth throttling (e2e)', () => {
           useValue: { verify: jest.fn(), sign: jest.fn() },
         },
         { provide: TokenService, useValue: tokenServiceMock },
+        { provide: AccountSwitcherService, useValue: { rememberAccount: jest.fn() } },
+        { provide: RecentLoginsService, useValue: { remember: jest.fn() } },
       ],
     }).compile();
 

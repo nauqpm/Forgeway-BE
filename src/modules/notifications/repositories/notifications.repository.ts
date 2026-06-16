@@ -6,13 +6,16 @@ import {
   Notification,
   NotificationDocument,
 } from '../schemas/notification.schema';
+import { BaseRepository } from '../../../shared/repositories/base.repository';
 
 @Injectable()
-export class NotificationsRepository {
+export class NotificationsRepository extends BaseRepository<NotificationDocument> {
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
-  ) {}
+  ) {
+    super(notificationModel);
+  }
 
   async create(input: CreateNotificationInput): Promise<NotificationDocument> {
     return new this.notificationModel(this.toPersistence(input)).save();
@@ -42,21 +45,20 @@ export class NotificationsRepository {
     page: number;
     limit: number;
   }> {
-    const skip = (page - 1) * limit;
     const filter = { recipientId: new Types.ObjectId(recipientId) };
+    const result = await this.paginate(filter, {
+      page,
+      limit,
+      populate: { path: 'actorId', select: 'email fullName avatar' },
+      sort: { readAt: 1, createdAt: -1 },
+    });
 
-    const [notifications, total] = await Promise.all([
-      this.notificationModel
-        .find(filter)
-        .populate('actorId', 'email fullName avatar')
-        .sort({ readAt: 1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.notificationModel.countDocuments(filter).exec(),
-    ]);
-
-    return { notifications, total, page, limit };
+    return {
+      notifications: result.items,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   async countUnread(recipientId: string): Promise<number> {

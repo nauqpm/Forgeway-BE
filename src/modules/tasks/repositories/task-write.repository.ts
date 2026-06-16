@@ -1,15 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, FilterQuery } from 'mongoose';
 import { Task, TaskDocument } from '../schemas/task.schema';
 import { TaskQueryBuilder } from './task-query.builder';
+import { BaseRepository } from '../../../shared/repositories/base.repository';
 
 @Injectable()
-export class TaskWriteRepository {
+export class TaskWriteRepository extends BaseRepository<TaskDocument> {
   constructor(
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
     private readonly queryBuilder: TaskQueryBuilder,
-  ) {}
+  ) {
+    super(taskModel);
+  }
+
+  override buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TaskDocument> {
+    return includeDeleted ? {} : { isDeleted: { $ne: true } };
+  }
 
   async create(data: Partial<Task>): Promise<TaskDocument> {
     return new this.taskModel(data).save();
