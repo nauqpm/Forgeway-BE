@@ -8,6 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { createReadStream, existsSync, ReadStream } from 'fs';
 import { extname, resolve, sep } from 'path';
+import { getUploadDir } from '../../../config/upload-storage.config';
 import { Model, Types } from 'mongoose';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
@@ -32,7 +33,7 @@ export interface TaskAttachmentFileStream {
 
 @Injectable()
 export class TaskAttachmentService {
-  private readonly uploadsDir = resolve(process.cwd(), 'uploads');
+  private readonly uploadsDir = getUploadDir();
 
   constructor(
     @InjectModel(Attachment.name)

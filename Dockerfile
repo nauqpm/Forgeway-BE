@@ -13,6 +13,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV UPLOAD_DIR=/app/uploads
+RUN mkdir -p /app/uploads
 
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force && apk add --no-cache curl

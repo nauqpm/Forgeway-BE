@@ -14,9 +14,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { extname } from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { getUploadPath } from '../../../config/upload-storage.config';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -83,13 +84,7 @@ export class AttachmentsController {
                 ? 'pages'
                 : 'others';
 
-          const uploadPath = join(
-            'uploads',
-            moduleFolder,
-            String(year),
-            month,
-            day,
-          );
+          const uploadPath = getUploadPath(moduleFolder, String(year), month, day);
 
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
