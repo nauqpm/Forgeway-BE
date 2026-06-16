@@ -98,7 +98,6 @@ export class ChannelsController {
     return this.channelsService.getChannelMembers(id, userId);
   }
 
-
   @Post('channels/:id/read')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)

@@ -87,7 +87,9 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile, curl, etc.)
-        const normalizedOrigin = origin ? normalizeCorsOrigin(origin) : undefined;
+        const normalizedOrigin = origin
+          ? normalizeCorsOrigin(origin)
+          : undefined;
         if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
           callback(null, true);
         } else {

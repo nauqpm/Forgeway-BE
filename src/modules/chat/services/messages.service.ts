@@ -189,8 +189,8 @@ export class MessagesService {
       { path: 'senderId', select: 'fullName avatar email' },
       {
         path: 'replyToId',
-        populate: { path: 'senderId', select: 'fullName avatar email' }
-      }
+        populate: { path: 'senderId', select: 'fullName avatar email' },
+      },
     ]);
     const [withReactions] = await this.populateReactions([populated]);
     return withReactions;
@@ -231,8 +231,8 @@ export class MessagesService {
         { path: 'senderId', select: 'fullName avatar email' },
         {
           path: 'replyToId',
-          populate: { path: 'senderId', select: 'fullName avatar email' }
-        }
+          populate: { path: 'senderId', select: 'fullName avatar email' },
+        },
       ])
       .exec();
 
@@ -264,19 +264,22 @@ export class MessagesService {
     message.content = content;
     message.editedAt = new Date();
     await message.save();
-    
+
     const populated = await message.populate([
       { path: 'senderId', select: 'fullName avatar email' },
       {
         path: 'replyToId',
-        populate: { path: 'senderId', select: 'fullName avatar email' }
-      }
+        populate: { path: 'senderId', select: 'fullName avatar email' },
+      },
     ]);
     const [withReactions] = await this.populateReactions([populated]);
     return withReactions;
   }
 
-  async softDelete(messageId: string, userId: string): Promise<{ updatedLastMessage: any | null }> {
+  async softDelete(
+    messageId: string,
+    userId: string,
+  ): Promise<{ updatedLastMessage: any | null }> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');
     }
@@ -325,7 +328,7 @@ export class MessagesService {
     // Check if this was the channel's last message and update it
     let updatedLastMessage: any = null;
     const channelId = message.channelId.toString();
-    
+
     // Find the latest non-deleted message in this channel
     const previousMessage = await this.messageModel
       .findOne({
@@ -375,8 +378,8 @@ export class MessagesService {
         { path: 'senderId', select: 'fullName avatar email' },
         {
           path: 'replyToId',
-          populate: { path: 'senderId', select: 'fullName avatar email' }
-        }
+          populate: { path: 'senderId', select: 'fullName avatar email' },
+        },
       ])
       .exec();
     if (!message) {

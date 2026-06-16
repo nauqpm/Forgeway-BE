@@ -13,9 +13,12 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
 
     // 1. Resolve event name từ metadata của handler
     const eventMetadata = handler
-      ? (this.reflector.get<string>('message', handler) || this.reflector.get<string | string[]>('events', handler))
+      ? this.reflector.get<string>('message', handler) ||
+        this.reflector.get<string | string[]>('events', handler)
       : null;
-    const eventNames = Array.isArray(eventMetadata) ? eventMetadata : [eventMetadata];
+    const eventNames = Array.isArray(eventMetadata)
+      ? eventMetadata
+      : [eventMetadata];
     const eventName = eventNames[0];
 
     // 2. Resolve limit và ttl
@@ -25,8 +28,14 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
 
     // A. Lần đầu thử: Đọc từ @Throttle metadata của method
     if (handler) {
-      const metadataLimit = this.reflector.get<number>('THROTTLER:LIMITdefault', handler);
-      const metadataTtl = this.reflector.get<number>('THROTTLER:TTLdefault', handler);
+      const metadataLimit = this.reflector.get<number>(
+        'THROTTLER:LIMITdefault',
+        handler,
+      );
+      const metadataTtl = this.reflector.get<number>(
+        'THROTTLER:TTLdefault',
+        handler,
+      );
 
       if (metadataLimit !== undefined) {
         limit = metadataLimit;
@@ -41,7 +50,9 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       let config: { limit: number; ttl: number } | null = null;
       if (eventName === 'chat.send') {
         config = CHAT_THROTTLE_CONFIG.MESSAGE_SEND.default;
-      } else if (['chat.edit', 'chat.delete', 'chat.mark_read'].includes(eventName)) {
+      } else if (
+        ['chat.edit', 'chat.delete', 'chat.mark_read'].includes(eventName)
+      ) {
         config = CHAT_THROTTLE_CONFIG.MESSAGE_ACTION.default;
       } else if (eventName === 'chat.typing') {
         config = CHAT_THROTTLE_CONFIG.TYPING.default;
@@ -57,7 +68,11 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
 
     const tracker = client.data?.user?.userId || 'anonymous';
     const eventMetadataKey = eventName || 'unknown';
-    const key = generateKey(context, `${tracker}-${eventMetadataKey}`, throttler.name);
+    const key = generateKey(
+      context,
+      `${tracker}-${eventMetadataKey}`,
+      throttler.name,
+    );
 
     this.logger.log(
       `handleRequest: eventName=${eventName}, limit=${limit}, ttl=${ttl}, tracker=${tracker}`,
@@ -98,8 +113,9 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       });
 
       // Chỉ phát 'rate_limited' với TTL còn lại (mili giây) cho các hành động foreground (tin nhắn)
-      const isForegroundAction = eventNames.some(name => 
-        name && ['chat.send', 'chat.edit', 'chat.delete'].includes(name)
+      const isForegroundAction = eventNames.some(
+        name =>
+          name && ['chat.send', 'chat.edit', 'chat.delete'].includes(name),
       );
 
       if (isForegroundAction) {

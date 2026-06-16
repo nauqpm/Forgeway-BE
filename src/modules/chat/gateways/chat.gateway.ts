@@ -258,14 +258,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId) return { ok: false };
 
-    const { updatedLastMessage } = await this.messagesService.softDelete(payload.messageId, userId);
+    const { updatedLastMessage } = await this.messagesService.softDelete(
+      payload.messageId,
+      userId,
+    );
     const room = RoomBuilder.channel(payload.channelId);
 
     const envelope: RealtimeEnvelope<any> = {
       eventId: new Types.ObjectId().toString(),
       type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED,
-      data: { 
-        messageId: payload.messageId, 
+      data: {
+        messageId: payload.messageId,
         channelId: payload.channelId,
         lastMessage: updatedLastMessage || undefined,
       },

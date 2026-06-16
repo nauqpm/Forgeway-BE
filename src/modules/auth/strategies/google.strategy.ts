@@ -25,7 +25,8 @@ interface GoogleUserProfile {
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(configService: ConfigService) {
     const googleClientId = configService.get<string>('GOOGLE_CLIENT_ID') || '';
-    const googleRedirectUrl = configService.get<string>('GOOGLE_REDIRECT_URL') || '';
+    const googleRedirectUrl =
+      configService.get<string>('GOOGLE_REDIRECT_URL') || '';
 
     super({
       clientID: googleClientId,
