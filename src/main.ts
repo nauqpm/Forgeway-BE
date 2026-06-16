@@ -10,20 +10,15 @@ import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
 import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter';
+import {
+  assertProductionCorsOriginsConfigured,
+  getAllowedCorsOrigins,
+  isCorsOriginAllowed,
+} from './config/cors-origins.config';
 
 // 👇 thêm
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
-function normalizeCorsOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, '');
-}
-
-function parseCorsOrigins(value?: string): string[] {
-  return (value ?? '')
-    .split(',')
-    .map(origin => normalizeCorsOrigin(origin))
-    .filter(Boolean);
-}
 
 async function bootstrap() {
   console.log('🚀 Đang khởi tạo ứng dụng NestJS...');
@@ -58,37 +53,13 @@ async function bootstrap() {
     // CORS - cho phép nhiều frontend origins
     const PORT = process.env.PORT || 5512;
     const isProduction = process.env.NODE_ENV === 'production';
-    const configuredOrigins = [
-      ...parseCorsOrigins(process.env.FRONTEND_URL),
-      ...parseCorsOrigins(process.env.CORS_ORIGINS),
-    ];
-
-    const developmentOrigins = !isProduction
-      ? [
-          `http://localhost:${PORT}`,
-          'http://localhost:5173',
-          'http://localhost:5174',
-          'http://localhost:5175',
-          'http://localhost:3000',
-          'http://localhost:3001',
-        ]
-      : [];
-
-    const allowedOrigins = Array.from(
-      new Set([...configuredOrigins, ...developmentOrigins]),
-    );
-
-    if (isProduction && allowedOrigins.length === 0) {
-      throw new Error(
-        'Production CORS requires FRONTEND_URL or CORS_ORIGINS to be configured',
-      );
-    }
+    const allowedOrigins = getAllowedCorsOrigins();
+    assertProductionCorsOriginsConfigured(allowedOrigins);
 
     app.enableCors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile, curl, etc.)
-        const normalizedOrigin = origin ? normalizeCorsOrigin(origin) : undefined;
-        if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
+        if (isCorsOriginAllowed(origin, allowedOrigins)) {
           callback(null, true);
         } else {
           callback(new Error(`Origin ${origin} not allowed by CORS policy`));
