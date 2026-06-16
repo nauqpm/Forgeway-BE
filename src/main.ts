@@ -5,7 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
 import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
@@ -16,17 +16,17 @@ import {
   isCorsOriginAllowed,
 } from './config/cors-origins.config';
 
-// 👇 thêm
+// Swagger documentation
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 
 async function bootstrap() {
-  console.log('🚀 Đang khởi tạo ứng dụng NestJS...');
+  console.log('Starting NestJS application...');
 
   try {
-    console.log('📦 Đang chờ kết nối MongoDB hoàn tất...');
+    console.log('Waiting for MongoDB connection...');
     await mongoose.connection.asPromise();
-    console.log('✅ Kết nối MongoDB đã sẵn sàng, khởi động ứng dụng...');
+    console.log('MongoDB connection is ready. Bootstrapping application...');
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     const redisService = app.get(RedisService);
@@ -43,14 +43,14 @@ async function bootstrap() {
     // Compression
     app.use(compression());
 
-    // Hỗ trợ dữ liệu lớn
+    // Large payload support
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
     // Cookie parser
     app.use(cookieParser());
 
-    // CORS - cho phép nhiều frontend origins
+    // CORS - allow configured frontend origins
     const PORT = process.env.PORT || 5512;
     const isProduction = process.env.NODE_ENV === 'production';
     const allowedOrigins = getAllowedCorsOrigins();
@@ -115,13 +115,13 @@ async function bootstrap() {
     // await app.listen(PORT, '0.0.0.0'); // for LAN network deploy
     await app.listen(PORT);
 
-    console.log(`🚀 Backend đang chạy tại: http://localhost:${PORT}`);
+    console.log(`Backend is running at: http://localhost:${PORT}`);
 
     if (swaggerEnabled) {
-      console.log(`📄 Swagger docs: http://localhost:${PORT}/api-docs`);
+      console.log(`Swagger docs: http://localhost:${PORT}/api-docs`);
     }
   } catch (error) {
-    console.error('❌ Lỗi khởi động ứng dụng:', error);
+    console.error('Application startup failed:', error);
     process.exit(1);
   }
 }
