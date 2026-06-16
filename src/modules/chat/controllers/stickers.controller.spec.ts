@@ -32,7 +32,9 @@ describe('StickersController', () => {
 
   beforeEach(async () => {
     const mockStickersService = {
-      getAllActivePacksWithStickers: jest.fn().mockResolvedValue(mockPacksWithStickers),
+      getAllActivePacksWithStickers: jest
+        .fn()
+        .mockResolvedValue(mockPacksWithStickers),
     };
 
     const module: TestingModule = await Test.createTestingModule({

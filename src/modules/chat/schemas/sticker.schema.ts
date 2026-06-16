@@ -5,7 +5,12 @@ export type StickerDocument = Sticker & Document;
 
 @Schema({ timestamps: true })
 export class Sticker {
-  @Prop({ type: Types.ObjectId, ref: 'StickerPack', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'StickerPack',
+    required: true,
+    index: true,
+  })
   packId!: Types.ObjectId;
 
   @Prop({ required: true, unique: true })

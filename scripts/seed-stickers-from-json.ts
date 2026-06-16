@@ -2,8 +2,14 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
-import { StickerPack, StickerPackSchema } from '../src/modules/chat/schemas/sticker-pack.schema';
-import { Sticker, StickerSchema } from '../src/modules/chat/schemas/sticker.schema';
+import {
+  StickerPack,
+  StickerPackSchema,
+} from '../src/modules/chat/schemas/sticker-pack.schema';
+import {
+  Sticker,
+  StickerSchema,
+} from '../src/modules/chat/schemas/sticker.schema';
 
 async function seedFromJson() {
   const dbUri = process.env.DB_CONNECTION_STRING;
@@ -11,10 +17,17 @@ async function seedFromJson() {
     throw new Error('Missing DB_CONNECTION_STRING in .env');
   }
 
-  const metadataPath = path.join(__dirname, '../stickers/stickers-metadata.json');
+  const metadataPath = path.join(
+    __dirname,
+    '../stickers/stickers-metadata.json',
+  );
   if (!fs.existsSync(metadataPath)) {
-    console.error(`\n❌ Error: File "stickers-metadata.json" not found at: ${metadataPath}`);
-    console.log('Please run "npm run upload:stickers:cloud" first to generate the metadata file.');
+    console.error(
+      `\n❌ Error: File "stickers-metadata.json" not found at: ${metadataPath}`,
+    );
+    console.log(
+      'Please run "npm run upload:stickers:cloud" first to generate the metadata file.',
+    );
     return;
   }
 
@@ -67,14 +80,18 @@ async function seedFromJson() {
       totalStickersSeeded += stickersToInsert.length;
     }
     totalPacksSeeded++;
-    console.log(`✅ Seeded ${stickersToInsert.length} stickers for pack: ${name}`);
+    console.log(
+      `✅ Seeded ${stickersToInsert.length} stickers for pack: ${name}`,
+    );
   }
 
-  console.log(`\n🎉 Database Seeding Completed! Synced ${totalPacksSeeded} packs and ${totalStickersSeeded} stickers to MongoDB.`);
+  console.log(
+    `\n🎉 Database Seeding Completed! Synced ${totalPacksSeeded} packs and ${totalStickersSeeded} stickers to MongoDB.`,
+  );
 }
 
 seedFromJson()
-  .catch((err) => {
+  .catch(err => {
     console.error('❌ Database Seeding Failed:', err);
     process.exitCode = 1;
   })

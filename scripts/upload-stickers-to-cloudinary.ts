@@ -27,7 +27,7 @@ function isAnimatedImage(filePath: string, buffer: Buffer): boolean {
 function formatPackName(folderName: string): string {
   return folderName
     .split(/[-_]+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
@@ -36,21 +36,27 @@ async function uploadToCloudinary() {
   if (!fs.existsSync(stickersDir)) {
     fs.mkdirSync(stickersDir, { recursive: true });
     console.log(`\n📂 Created folder "stickers" at: ${stickersDir}`);
-    console.log('👉 Please put your sticker pack subfolders there (e.g. stickers/quby_pack/).');
+    console.log(
+      '👉 Please put your sticker pack subfolders there (e.g. stickers/quby_pack/).',
+    );
     return;
   }
 
   const packFolders = fs
     .readdirSync(stickersDir)
-    .filter((file) => fs.statSync(path.join(stickersDir, file)).isDirectory());
+    .filter(file => fs.statSync(path.join(stickersDir, file)).isDirectory());
 
   if (packFolders.length === 0) {
     console.log(`\n📂 Folder "stickers" is empty.`);
-    console.log('👉 Please place a subdirectory for your pack (e.g. stickers/quby_pack/) containing images.');
+    console.log(
+      '👉 Please place a subdirectory for your pack (e.g. stickers/quby_pack/) containing images.',
+    );
     return;
   }
 
-  console.log(`Scanning local folder... Found ${packFolders.length} packs to upload.`);
+  console.log(
+    `Scanning local folder... Found ${packFolders.length} packs to upload.`,
+  );
   const metadataList: any[] = [];
 
   for (const folder of packFolders) {
@@ -61,7 +67,11 @@ async function uploadToCloudinary() {
     const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
     const files = fs
       .readdirSync(folderPath)
-      .filter((file) => allowedExtensions.includes(path.extname(file).toLowerCase()) && fs.statSync(path.join(folderPath, file)).isFile());
+      .filter(
+        file =>
+          allowedExtensions.includes(path.extname(file).toLowerCase()) &&
+          fs.statSync(path.join(folderPath, file)).isFile(),
+      );
 
     if (files.length === 0) {
       console.log(`⚠️ Folder "${folder}" contains no valid images. Skipping.`);
@@ -71,12 +81,14 @@ async function uploadToCloudinary() {
     console.log(`\n📦 Uploading pack: ${packName} (${files.length} files)...`);
 
     // Determine banner: look for banner.png/webp/etc, otherwise use the first file
-    let bannerFile = files.find((f) => path.basename(f, path.extname(f)).toLowerCase() === 'banner');
+    let bannerFile = files.find(
+      f => path.basename(f, path.extname(f)).toLowerCase() === 'banner',
+    );
     if (!bannerFile) {
       bannerFile = files[0];
     }
 
-    const stickerFiles = files.filter((f) => f !== bannerFile);
+    const stickerFiles = files.filter(f => f !== bannerFile);
 
     // Upload banner
     const bannerPath = path.join(folderPath, bannerFile);
@@ -97,10 +109,15 @@ async function uploadToCloudinary() {
       const filePath = path.join(folderPath, file);
       const fileBuffer = fs.readFileSync(filePath);
       const isAnimated = isAnimatedImage(filePath, fileBuffer);
-      const fileNameOnly = path.basename(file, path.extname(file)).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const fileNameOnly = path
+        .basename(file, path.extname(file))
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '_');
       const stickerCode = `${packKey}_${fileNameOnly}`;
 
-      console.log(`[${index}/${stickerFiles.length}] Uploading sticker: ${file} (Animated: ${isAnimated})...`);
+      console.log(
+        `[${index}/${stickerFiles.length}] Uploading sticker: ${file} (Animated: ${isAnimated})...`,
+      );
 
       const uploadResult = await cloudinary.uploader.upload(filePath, {
         folder: `sdlc-platform/stickers/${packKey}`,
@@ -129,12 +146,21 @@ async function uploadToCloudinary() {
   }
 
   // Save generated metadata list to JSON file
-  const metadataPath = path.join(__dirname, '../stickers/stickers-metadata.json');
-  fs.writeFileSync(metadataPath, JSON.stringify(metadataList, null, 2), 'utf-8');
-  console.log(`\n🎉 Cloudinary Upload Completed! Metadata saved to: ${metadataPath}`);
+  const metadataPath = path.join(
+    __dirname,
+    '../stickers/stickers-metadata.json',
+  );
+  fs.writeFileSync(
+    metadataPath,
+    JSON.stringify(metadataList, null, 2),
+    'utf-8',
+  );
+  console.log(
+    `\n🎉 Cloudinary Upload Completed! Metadata saved to: ${metadataPath}`,
+  );
 }
 
-uploadToCloudinary().catch((err) => {
+uploadToCloudinary().catch(err => {
   console.error('❌ Cloudinary Upload Failed:', err);
   process.exitCode = 1;
 });

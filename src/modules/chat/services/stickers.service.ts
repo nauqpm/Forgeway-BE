@@ -16,7 +16,7 @@ export class StickersService {
       { sort: { displayOrder: 1, createdAt: 1 } },
     );
 
-    const packIds = packs.map((p) => p._id);
+    const packIds = packs.map(p => p._id);
     const stickers = await this.stickersRepository.find(
       { packId: { $in: packIds } },
       undefined,
@@ -32,7 +32,7 @@ export class StickersService {
       stickersByPackId.get(packIdStr)!.push(sticker);
     }
 
-    return packs.map((pack) => {
+    return packs.map(pack => {
       const packObj = pack.toObject ? pack.toObject() : pack;
       return {
         ...packObj,
