@@ -180,6 +180,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       senderId: userId,
       senderName: message.senderId?.fullName || '',
       sentAt: message.createdAt,
+      type: message.type,
     });
 
     const room = RoomBuilder.channel(payload.channelId);

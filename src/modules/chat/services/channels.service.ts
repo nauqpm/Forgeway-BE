@@ -351,6 +351,7 @@ export class ChannelsService {
       senderId: any;
       senderName: string;
       sentAt: Date;
+      type?: string;
     },
   ) {
     const rawSenderId = message.senderId;
@@ -373,6 +374,7 @@ export class ChannelsService {
               senderId: senderObjectId,
               senderName: message.senderName,
               sentAt: message.sentAt,
+              type: message.type,
             },
           },
         },

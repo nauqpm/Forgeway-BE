@@ -34,6 +34,7 @@ export class Channel {
       senderId: { type: Types.ObjectId, ref: 'User' },
       senderName: String,
       sentAt: Date,
+      type: String,
     },
     _id: false,
   })
@@ -42,6 +43,7 @@ export class Channel {
     senderId: Types.ObjectId;
     senderName: string;
     sentAt: Date;
+    type?: string;
   };
 
   @Prop({ default: false })

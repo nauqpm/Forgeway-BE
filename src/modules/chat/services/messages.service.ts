@@ -346,12 +346,14 @@ export class MessagesService {
         senderId: previousMessage.senderId,
         senderName,
         sentAt,
+        type: previousMessage.type,
       });
       updatedLastMessage = {
         content: previousMessage.content,
         senderId: previousMessage.senderId,
         senderName,
         sentAt,
+        type: previousMessage.type,
       };
     } else {
       // No messages left, clear lastMessage
@@ -360,6 +362,7 @@ export class MessagesService {
         senderId: null,
         senderName: '',
         sentAt: new Date(),
+        type: undefined,
       });
       updatedLastMessage = null;
     }

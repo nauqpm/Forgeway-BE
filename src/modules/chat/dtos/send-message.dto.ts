@@ -17,7 +17,7 @@ export class AttachmentDto {
 
 export class SendMessageDto {
   @IsString() @MaxLength(4000) content!: string;
-  @IsEnum(['text', 'file', 'image']) @IsOptional() type?: string;
+  @IsEnum(['text', 'file', 'image', 'sticker']) @IsOptional() type?: string;
   @IsMongoId() @IsOptional() replyToId?: string;
   @IsArray() @IsOptional() attachments?: AttachmentDto[];
 }

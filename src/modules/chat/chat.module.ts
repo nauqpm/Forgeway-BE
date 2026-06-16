@@ -10,9 +10,11 @@ import { RedisModule } from '../../infra/redis/redis.module';
 import { ChannelsService } from './services/channels.service';
 import { MessagesService } from './services/messages.service';
 import { MeetingService } from './services/meeting.service';
+import { StickersService } from './services/stickers.service';
 import { ChatGateway } from './gateways/chat.gateway';
 import { ChannelsController } from './controllers/channels.controller';
 import { MeetingsController } from './controllers/meetings.controller';
+import { StickersController } from './controllers/stickers.controller';
 import { Channel, ChannelSchema } from './schemas/channel.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { Meeting, MeetingSchema } from './schemas/meeting.schema';
@@ -24,6 +26,10 @@ import { ChannelsRepository } from './repositories/channels.repository';
 import { MessagesRepository } from './repositories/messages.repository';
 import { MeetingsRepository } from './repositories/meetings.repository';
 import { ChannelReadMarkersRepository } from './repositories/channel-read-markers.repository';
+import { StickerPack, StickerPackSchema } from './schemas/sticker-pack.schema';
+import { Sticker, StickerSchema } from './schemas/sticker.schema';
+import { StickerPacksRepository } from './repositories/sticker-packs.repository';
+import { StickersRepository } from './repositories/stickers.repository';
 
 @Module({
   imports: [
@@ -32,6 +38,8 @@ import { ChannelReadMarkersRepository } from './repositories/channel-read-marker
       { name: Message.name, schema: MessageSchema },
       { name: Meeting.name, schema: MeetingSchema },
       { name: ChannelReadMarker.name, schema: ChannelReadMarkerSchema },
+      { name: StickerPack.name, schema: StickerPackSchema },
+      { name: Sticker.name, schema: StickerSchema },
     ]),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => AuthModule),
@@ -41,16 +49,19 @@ import { ChannelReadMarkersRepository } from './repositories/channel-read-marker
     RealtimeModule,
     RedisModule,
   ],
-  controllers: [ChannelsController, MeetingsController],
+  controllers: [StickersController, ChannelsController, MeetingsController],
   providers: [
     ChannelsService,
     MessagesService,
     MeetingService,
+    StickersService,
     ChatGateway,
     ChannelsRepository,
     MessagesRepository,
     MeetingsRepository,
     ChannelReadMarkersRepository,
+    StickerPacksRepository,
+    StickersRepository,
   ],
   exports: [
     ChannelsService,
@@ -58,6 +69,9 @@ import { ChannelReadMarkersRepository } from './repositories/channel-read-marker
     MessagesRepository,
     MeetingsRepository,
     ChannelReadMarkersRepository,
+    StickerPacksRepository,
+    StickersRepository,
+    StickersService,
   ],
 })
 export class ChatModule implements OnModuleInit {

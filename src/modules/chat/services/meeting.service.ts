@@ -87,6 +87,7 @@ export class MeetingService {
       senderId: userId,
       senderName: message.senderId?.fullName || 'System',
       sentAt: message.createdAt,
+      type: message.type,
     });
 
     this.realtimePublisher.emit(
