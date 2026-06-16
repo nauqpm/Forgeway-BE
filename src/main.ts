@@ -5,7 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
 import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
