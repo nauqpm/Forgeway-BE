@@ -1,7 +1,7 @@
 import { Model, Document, FilterQuery, UpdateQuery, ProjectionType, QueryOptions, ClientSession } from 'mongoose';
 
 export abstract class BaseRepository<TDocument extends Document> {
-  protected constructor(protected readonly model: Model<TDocument>) {}
+  constructor(public readonly model: Model<TDocument>) {}
 
   normalizePagination(options: { page?: number; limit?: number }): {
     page: number;

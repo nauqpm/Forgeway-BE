@@ -7,13 +7,13 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   Meeting,
   MeetingDocument,
   MeetingType,
 } from '../schemas/meeting.schema';
+import { MeetingsRepository } from '../repositories/meetings.repository';
 import { ChannelsService } from './channels.service';
 import { MessagesService } from './messages.service';
 import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
@@ -25,8 +25,7 @@ export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
 
   constructor(
-    @InjectModel(Meeting.name)
-    private readonly meetingModel: Model<MeetingDocument>,
+    private readonly meetingsRepository: MeetingsRepository,
     private readonly channelsService: ChannelsService,
     @Inject(forwardRef(() => MessagesService))
     private readonly messagesService: MessagesService,
@@ -59,7 +58,7 @@ export class MeetingService {
 
     const channel = await this.channelsService.findById(channelId);
 
-    const meeting = await this.meetingModel.create({
+    const meeting = await this.meetingsRepository.model.create({
       channelId: new Types.ObjectId(channelId),
       workspaceId: channel.workspaceId,
       createdBy: new Types.ObjectId(userId),
@@ -124,7 +123,7 @@ export class MeetingService {
       throw new NotFoundException('Invalid Meeting ID');
     }
 
-    const meeting = await this.meetingModel.findById(meetingId);
+    const meeting = await this.meetingsRepository.model.findById(meetingId);
     if (!meeting || meeting.status === 'ended') {
       throw new NotFoundException('Meeting not found or already ended');
     }
@@ -164,7 +163,7 @@ export class MeetingService {
       throw new NotFoundException('Invalid Meeting ID');
     }
 
-    const meeting = await this.meetingModel.findById(meetingId);
+    const meeting = await this.meetingsRepository.model.findById(meetingId);
     if (!meeting) {
       throw new NotFoundException('Meeting not found');
     }
@@ -186,7 +185,7 @@ export class MeetingService {
     userId: string,
     isOn: boolean,
   ): Promise<void> {
-    await this.meetingModel.updateOne(
+    await this.meetingsRepository.model.updateOne(
       { _id: meetingId, 'participants.userId': new Types.ObjectId(userId) },
       { $set: { 'participants.$.isAudioOn': isOn } },
     );
@@ -197,7 +196,7 @@ export class MeetingService {
     userId: string,
     isOn: boolean,
   ): Promise<void> {
-    const meeting = await this.meetingModel
+    const meeting = await this.meetingsRepository.model
       .findById(meetingId)
       .select('type')
       .exec();
@@ -209,7 +208,7 @@ export class MeetingService {
       throw new BadRequestException('Voice calls do not support video');
     }
 
-    await this.meetingModel.updateOne(
+    await this.meetingsRepository.model.updateOne(
       { _id: meetingId, 'participants.userId': new Types.ObjectId(userId) },
       { $set: { 'participants.$.isVideoOn': isOn } },
     );
@@ -220,7 +219,7 @@ export class MeetingService {
       throw new NotFoundException('Invalid Meeting ID');
     }
 
-    const meeting = await this.meetingModel.findById(meetingId);
+    const meeting = await this.meetingsRepository.model.findById(meetingId);
     if (!meeting) {
       throw new NotFoundException('Meeting not found');
     }
@@ -241,7 +240,7 @@ export class MeetingService {
     if (!Types.ObjectId.isValid(channelId)) {
       return null;
     }
-    return this.meetingModel
+    return this.meetingsRepository.model
       .findOne({
         channelId: new Types.ObjectId(channelId),
         status: { $in: ['waiting', 'active'] },
@@ -254,7 +253,7 @@ export class MeetingService {
       throw new NotFoundException('Invalid Meeting ID');
     }
 
-    const meeting = await this.meetingModel.findById(meetingId).exec();
+    const meeting = await this.meetingsRepository.model.findById(meetingId).exec();
     if (!meeting) {
       throw new NotFoundException('Meeting not found');
     }
@@ -266,7 +265,7 @@ export class MeetingService {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
     }
-    return this.meetingModel
+    return this.meetingsRepository.model
       .find({
         'participants.userId': new Types.ObjectId(userId),
         status: { $in: ['waiting', 'active'] },

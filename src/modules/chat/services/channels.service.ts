@@ -7,9 +7,9 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Channel, ChannelDocument } from '../schemas/channel.schema';
+import { ChannelsRepository } from '../repositories/channels.repository';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { MessagesService } from './messages.service';
@@ -22,8 +22,7 @@ export class ChannelsService {
   private syncPromise: Promise<void> | null = null;
 
   constructor(
-    @InjectModel(Channel.name)
-    private readonly channelModel: Model<ChannelDocument>,
+    private readonly channelsRepository: ChannelsRepository,
     @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
     private readonly workspaceMemberService: WorkspaceMemberService,
@@ -53,12 +52,12 @@ export class ChannelsService {
         const systemId = new Types.ObjectId('000000000000000000000000');
 
         // Check #general
-        const general = await this.channelModel.findOne({ type: 'general' });
+        const general = await this.channelsRepository.model.findOne({ type: 'general' });
         if (!general) {
           this.logger.log(
             'Self-healing: Initializing missing #general channel',
           );
-          await this.channelModel.create({
+          await this.channelsRepository.model.create({
             name: 'general',
             type: 'general',
             description: 'General discussion for all members.',
@@ -69,14 +68,14 @@ export class ChannelsService {
         }
 
         // Check #announcements
-        const announcements = await this.channelModel.findOne({
+        const announcements = await this.channelsRepository.model.findOne({
           type: 'announcement',
         });
         if (!announcements) {
           this.logger.log(
             'Self-healing: Initializing missing #announcements channel',
           );
-          await this.channelModel.create({
+          await this.channelsRepository.model.create({
             name: 'announcements',
             type: 'announcement',
             description: 'Official system-wide announcements.',
@@ -109,7 +108,7 @@ export class ChannelsService {
 
         for (const workspace of allWorkspaces) {
           const workspaceId = workspace._id.toString();
-          const channel = await this.channelModel.findOne({
+          const channel = await this.channelsRepository.model.findOne({
             workspaceId: new Types.ObjectId(workspaceId),
             type: 'workspace',
           });
@@ -118,7 +117,7 @@ export class ChannelsService {
             this.logger.log(
               `Sync: Creating missing channel for workspace "${workspace.name}" (${workspaceId})`,
             );
-            await this.channelModel.create({
+            await this.channelsRepository.model.create({
               name: workspace.name,
               type: 'workspace',
               description: `Discussion channel for the ${workspace.name} workspace.`,
@@ -153,7 +152,7 @@ export class ChannelsService {
       throw new NotFoundException('Workspace not found');
     }
 
-    return this.channelModel.create({
+    return this.channelsRepository.model.create({
       name: workspace.name,
       type: 'workspace',
       workspaceId: new Types.ObjectId(workspaceId),
@@ -166,7 +165,7 @@ export class ChannelsService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid Channel ID');
     }
-    const channel = await this.channelModel.findById(id).exec();
+    const channel = await this.channelsRepository.model.findById(id).exec();
     if (!channel) {
       this.logger.debug(`Channel not found: ${id}`);
       throw new NotFoundException('Channel not found');
@@ -186,7 +185,7 @@ export class ChannelsService {
     const userWorkspaces = await this.workspacesService.findByUserId(userId);
     const userWorkspaceIds = userWorkspaces.map(w => w._id);
 
-    let channels = await this.channelModel
+    let channels = await this.channelsRepository.model
       .find({
         $or: [
           { type: 'general' },
@@ -204,7 +203,7 @@ export class ChannelsService {
       );
       await this.syncWorkspaceChannels();
       // Re-fetch after sync
-      channels = await this.channelModel
+      channels = await this.channelsRepository.model
         .find({
           $or: [
             { type: 'general' },
@@ -267,7 +266,7 @@ export class ChannelsService {
     const memberObjectIds = members.map(id => new Types.ObjectId(id));
 
     // 1. Tìm kênh cũ bằng .lean()
-    let channel: any = await this.channelModel
+    let channel: any = await this.channelsRepository.model
       .findOne({
         type: 'dm',
         members: { $all: memberObjectIds, $size: 2 },
@@ -278,7 +277,7 @@ export class ChannelsService {
     // 2. Nếu không thấy, tạo kênh mới
     if (!channel) {
       try {
-        const created = await this.channelModel.create({
+        const created = await this.channelsRepository.model.create({
           type: 'dm',
           name: 'Direct Message',
           members: memberObjectIds,
@@ -315,7 +314,7 @@ export class ChannelsService {
   }
 
   async getRecentDMs(userId: string): Promise<any[]> {
-    const channels = await this.channelModel
+    const channels = await this.channelsRepository.model
       .find({
         type: 'dm',
         members: new Types.ObjectId(userId),
@@ -364,7 +363,7 @@ export class ChannelsService {
       ? new Types.ObjectId(senderStrId)
       : null;
 
-    return this.channelModel
+    return this.channelsRepository.model
       .findByIdAndUpdate(
         channelId,
         {
@@ -391,7 +390,7 @@ export class ChannelsService {
     if (!Types.ObjectId.isValid(userId)) return [];
 
     // Use a direct query instead of workspacesService to avoid heavy counting logic
-    const channels = await this.channelModel
+    const channels = await this.channelsRepository.model
       .find(
         {
           $or: [
@@ -417,7 +416,7 @@ export class ChannelsService {
     if (!Types.ObjectId.isValid(workspaceId)) {
       return [];
     }
-    const channels = await this.channelModel
+    const channels = await this.channelsRepository.model
       .find({ workspaceId: new Types.ObjectId(workspaceId) })
       .exec();
     this.logger.debug(

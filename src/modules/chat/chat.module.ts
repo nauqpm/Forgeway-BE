@@ -20,6 +20,10 @@ import {
   ChannelReadMarker,
   ChannelReadMarkerSchema,
 } from './schemas/channel-read-marker.schema';
+import { ChannelsRepository } from './repositories/channels.repository';
+import { MessagesRepository } from './repositories/messages.repository';
+import { MeetingsRepository } from './repositories/meetings.repository';
+import { ChannelReadMarkersRepository } from './repositories/channel-read-markers.repository';
 
 @Module({
   imports: [
@@ -38,8 +42,23 @@ import {
     RedisModule,
   ],
   controllers: [ChannelsController, MeetingsController],
-  providers: [ChannelsService, MessagesService, MeetingService, ChatGateway],
-  exports: [ChannelsService],
+  providers: [
+    ChannelsService,
+    MessagesService,
+    MeetingService,
+    ChatGateway,
+    ChannelsRepository,
+    MessagesRepository,
+    MeetingsRepository,
+    ChannelReadMarkersRepository,
+  ],
+  exports: [
+    ChannelsService,
+    ChannelsRepository,
+    MessagesRepository,
+    MeetingsRepository,
+    ChannelReadMarkersRepository,
+  ],
 })
 export class ChatModule implements OnModuleInit {
   constructor(private readonly channelsService: ChannelsService) {}

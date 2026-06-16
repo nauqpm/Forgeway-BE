@@ -6,13 +6,14 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Message, MessageDocument } from '../schemas/message.schema';
 import {
   ChannelReadMarker,
   ChannelReadMarkerDocument,
 } from '../schemas/channel-read-marker.schema';
+import { MessagesRepository } from '../repositories/messages.repository';
+import { ChannelReadMarkersRepository } from '../repositories/channel-read-markers.repository';
 import { ChannelsService } from './channels.service';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
@@ -26,10 +27,8 @@ export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
 
   constructor(
-    @InjectModel(Message.name)
-    private readonly messageModel: Model<MessageDocument>,
-    @InjectModel(ChannelReadMarker.name)
-    private readonly readMarkerModel: Model<ChannelReadMarkerDocument>,
+    private readonly messagesRepository: MessagesRepository,
+    private readonly readMarkersRepository: ChannelReadMarkersRepository,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
     @Inject(forwardRef(() => UsersService))
@@ -39,14 +38,14 @@ export class MessagesService {
   ) {}
 
   async countUnread(channelId: string, userId: string): Promise<number> {
-    const marker = await this.readMarkerModel.findOne({
+    const marker = await this.readMarkersRepository.model.findOne({
       channelId: new Types.ObjectId(channelId),
       userId: new Types.ObjectId(userId),
     });
 
     const lastReadAt = marker?.lastReadAt || new Date(0);
 
-    return this.messageModel.countDocuments({
+    return this.messagesRepository.model.countDocuments({
       channelId: new Types.ObjectId(channelId),
       senderId: { $ne: new Types.ObjectId(userId) },
       createdAt: { $gt: lastReadAt },
@@ -55,7 +54,7 @@ export class MessagesService {
   }
 
   async getReactions(messageId: string): Promise<Record<string, string[]>> {
-    const message = await this.messageModel.findById(messageId).exec();
+    const message = await this.messagesRepository.findById(messageId);
     if (!message) return {};
 
     const result: Record<string, string[]> = {};
@@ -82,7 +81,7 @@ export class MessagesService {
   }
 
   async markAsRead(channelId: string, userId: string): Promise<void> {
-    await this.readMarkerModel.updateOne(
+    await this.readMarkersRepository.model.updateOne(
       {
         channelId: new Types.ObjectId(channelId),
         userId: new Types.ObjectId(userId),
@@ -103,7 +102,7 @@ export class MessagesService {
       throw new NotFoundException('Invalid Message ID');
     }
 
-    const message = await this.messageModel.findById(messageId);
+    const message = await this.messagesRepository.findById(messageId);
     if (!message) {
       throw new NotFoundException('Message not found');
     }
@@ -171,7 +170,7 @@ export class MessagesService {
       if (!Types.ObjectId.isValid(dto.replyToId)) {
         throw new NotFoundException('Invalid replyToId');
       }
-      const parentMessage = await this.messageModel.findById(dto.replyToId);
+      const parentMessage = await this.messagesRepository.findById(dto.replyToId);
       if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
         throw new ForbiddenException(
           'Cannot reply to message in a different channel',
@@ -179,7 +178,7 @@ export class MessagesService {
       }
     }
 
-    const message = await this.messageModel.create({
+    const message = await this.messagesRepository.create({
       ...dto,
       channelId: new Types.ObjectId(channelId),
       senderId: new Types.ObjectId(senderId),
@@ -223,7 +222,7 @@ export class MessagesService {
       query._id = { $lt: new Types.ObjectId(dto.cursor) };
     }
 
-    const messages = await this.messageModel
+    const messages = await this.messagesRepository.model
       .find(query)
       .sort({ _id: -1 })
       .limit(limit)
@@ -252,7 +251,7 @@ export class MessagesService {
       throw new NotFoundException('Invalid Message ID');
     }
 
-    const message = await this.messageModel.findById(messageId);
+    const message = await this.messagesRepository.findById(messageId);
     if (!message) {
       throw new NotFoundException('Message not found');
     }
@@ -284,7 +283,7 @@ export class MessagesService {
       throw new NotFoundException('Invalid Message ID');
     }
 
-    const message = await this.messageModel.findById(messageId);
+    const message = await this.messagesRepository.findById(messageId);
     if (!message) {
       throw new NotFoundException('Message not found');
     }
@@ -330,7 +329,7 @@ export class MessagesService {
     const channelId = message.channelId.toString();
 
     // Find the latest non-deleted message in this channel
-    const previousMessage = await this.messageModel
+    const previousMessage = await this.messagesRepository.model
       .findOne({
         channelId: new Types.ObjectId(channelId),
         deletedAt: null,
@@ -372,7 +371,7 @@ export class MessagesService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid Message ID');
     }
-    const message = await this.messageModel
+    const message = await this.messagesRepository.model
       .findById(id)
       .populate([
         { path: 'senderId', select: 'fullName avatar email' },
