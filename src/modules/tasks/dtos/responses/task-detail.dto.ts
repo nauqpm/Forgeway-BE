@@ -98,6 +98,9 @@ export class TaskDetailDto {
   storyPoints?: number;
 
   @ApiPropertyOptional()
+  startDate?: Date;
+
+  @ApiPropertyOptional()
   dueDate?: Date;
 
   @ApiProperty()
