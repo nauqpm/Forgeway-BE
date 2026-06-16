@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -75,6 +75,27 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
   ) {
     return this.channelsService.getChannelDetailsForUser(id, userId);
+  }
+
+  @Get('channels/:id/mention-members')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @SkipThrottle()
+  async getMentionMembers(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @Query('q') query?: string,
+  ) {
+    return this.channelsService.searchMentionMembers(id, query || '', userId);
+  }
+
+  @Get('channels/:id/members')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getChannelMembers(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.channelsService.getChannelMembers(id, userId);
   }
 
   @Post('channels/:id/read')

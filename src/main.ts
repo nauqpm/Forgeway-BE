@@ -5,7 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import compression from 'compression';
+import * as compression from 'compression';
 import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
@@ -87,7 +87,9 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile, curl, etc.)
-        const normalizedOrigin = origin ? normalizeCorsOrigin(origin) : undefined;
+        const normalizedOrigin = origin
+          ? normalizeCorsOrigin(origin)
+          : undefined;
         if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
           callback(null, true);
         } else {

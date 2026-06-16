@@ -16,7 +16,6 @@ import { MeetingsController } from './controllers/meetings.controller';
 import { Channel, ChannelSchema } from './schemas/channel.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { Meeting, MeetingSchema } from './schemas/meeting.schema';
-import { Reaction, ReactionSchema } from './schemas/reaction.schema';
 import {
   ChannelReadMarker,
   ChannelReadMarkerSchema,
@@ -28,7 +27,6 @@ import {
       { name: Channel.name, schema: ChannelSchema },
       { name: Message.name, schema: MessageSchema },
       { name: Meeting.name, schema: MeetingSchema },
-      { name: Reaction.name, schema: ReactionSchema },
       { name: ChannelReadMarker.name, schema: ChannelReadMarkerSchema },
     ]),
     forwardRef(() => WorkspacesModule),
