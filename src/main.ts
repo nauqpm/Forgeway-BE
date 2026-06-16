@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+﻿import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -6,32 +6,27 @@ import * as express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
-import { join } from 'path';
+// import { join } from 'path';
 import mongoose from 'mongoose';
 import { RedisService } from './infra/redis/redis.service';
 import { RedisSocketIoAdapter } from './infra/websocket/redis-socket-io.adapter';
+import {
+  assertProductionCorsOriginsConfigured,
+  getAllowedCorsOrigins,
+  isCorsOriginAllowed,
+} from './config/cors-origins.config';
+import { getUploadDir } from './config/upload-storage.config';
 
-// 👇 thêm
+// Swagger documentation
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
-function normalizeCorsOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, '');
-}
-
-function parseCorsOrigins(value?: string): string[] {
-  return (value ?? '')
-    .split(',')
-    .map(origin => normalizeCorsOrigin(origin))
-    .filter(Boolean);
-}
-
 async function bootstrap() {
-  console.log('🚀 Đang khởi tạo ứng dụng NestJS...');
+  console.log('Starting NestJS application...');
 
   try {
-    console.log('📦 Đang chờ kết nối MongoDB hoàn tất...');
+    console.log('Waiting for MongoDB connection...');
     await mongoose.connection.asPromise();
-    console.log('✅ Kết nối MongoDB đã sẵn sàng, khởi động ứng dụng...');
+    console.log('MongoDB connection is ready. Bootstrapping application...');
 
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     const redisService = app.get(RedisService);
@@ -48,49 +43,23 @@ async function bootstrap() {
     // Compression
     app.use(compression());
 
-    // Hỗ trợ dữ liệu lớn
+    // Large payload support
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
     // Cookie parser
     app.use(cookieParser());
 
-    // CORS - cho phép nhiều frontend origins
+    // CORS - allow configured frontend origins
     const PORT = process.env.PORT || 5512;
     const isProduction = process.env.NODE_ENV === 'production';
-    const configuredOrigins = [
-      ...parseCorsOrigins(process.env.FRONTEND_URL),
-      ...parseCorsOrigins(process.env.CORS_ORIGINS),
-    ];
-
-    const developmentOrigins = !isProduction
-      ? [
-          `http://localhost:${PORT}`,
-          'http://localhost:5173',
-          'http://localhost:5174',
-          'http://localhost:5175',
-          'http://localhost:3000',
-          'http://localhost:3001',
-        ]
-      : [];
-
-    const allowedOrigins = Array.from(
-      new Set([...configuredOrigins, ...developmentOrigins]),
-    );
-
-    if (isProduction && allowedOrigins.length === 0) {
-      throw new Error(
-        'Production CORS requires FRONTEND_URL or CORS_ORIGINS to be configured',
-      );
-    }
+    const allowedOrigins = getAllowedCorsOrigins();
+    assertProductionCorsOriginsConfigured(allowedOrigins);
 
     app.enableCors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile, curl, etc.)
-        const normalizedOrigin = origin
-          ? normalizeCorsOrigin(origin)
-          : undefined;
-        if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
+        if (isCorsOriginAllowed(origin, allowedOrigins)) {
           callback(null, true);
         } else {
           callback(new Error(`Origin ${origin} not allowed by CORS policy`));
@@ -111,7 +80,7 @@ async function bootstrap() {
     );
 
     // Static assets
-    app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    app.useStaticAssets(getUploadDir(), {
       prefix: '/uploads',
     });
 
@@ -146,13 +115,13 @@ async function bootstrap() {
     // await app.listen(PORT, '0.0.0.0'); // for LAN network deploy
     await app.listen(PORT);
 
-    console.log(`🚀 Backend đang chạy tại: http://localhost:${PORT}`);
+    console.log(`Backend is running at: http://localhost:${PORT}`);
 
     if (swaggerEnabled) {
-      console.log(`📄 Swagger docs: http://localhost:${PORT}/api-docs`);
+      console.log(`Swagger docs: http://localhost:${PORT}/api-docs`);
     }
   } catch (error) {
-    console.error('❌ Lỗi khởi động ứng dụng:', error);
+    console.error('Application startup failed:', error);
     process.exit(1);
   }
 }

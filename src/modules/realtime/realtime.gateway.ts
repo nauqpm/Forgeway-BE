@@ -37,6 +37,7 @@ import {
 } from '../workspaces/schemas/workspace.schema';
 import { getPermissionsForWorkspaceRole } from '../../common/constants/workspace-permissions.constants';
 import { LeavePageRoomDto } from './dto/leave-page-room.dto';
+import { getAllowedCorsOrigins } from '../../config/cors-origins.config';
 
 const socketValidationPipe = new ValidationPipe({
   transform: true,
@@ -47,7 +48,7 @@ const socketValidationPipe = new ValidationPipe({
 @WebSocketGateway({
   namespace: '/realtime',
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: getAllowedCorsOrigins(),
     credentials: true,
   },
   pingInterval: 10_000,

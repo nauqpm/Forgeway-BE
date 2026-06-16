@@ -6,6 +6,7 @@ import {
   CreateAttachmentInput,
 } from '../dtos/attachment-input.dto';
 import { Attachment, AttachmentDocument } from '../schemas/attachment.schema';
+import { getStorageKeyFromDestination } from '../../../config/upload-storage.config';
 
 @Injectable()
 export class AttachmentService {
@@ -25,13 +26,10 @@ export class AttachmentService {
       `Creating attachment for ${input.targetType}:${input.targetId}`,
     );
 
-    const relativePath = file.destination
-      ? file.destination.replace(/\\/g, '/')
-      : 'uploads/others';
-    const storageDir = relativePath.startsWith('uploads/')
-      ? relativePath.slice('uploads/'.length)
-      : relativePath;
-    const storageKey = `${storageDir}/${file.filename}`.replace(/\/+/g, '/');
+    const storageKey = getStorageKeyFromDestination(
+      file.destination,
+      file.filename,
+    );
     const url = `/uploads/${storageKey}`.replace(/\/+/g, '/');
 
     const attachment = new this.attachmentModel({
