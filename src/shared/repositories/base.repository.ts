@@ -33,9 +33,9 @@ export abstract class BaseRepository<TDocument extends Document> {
     return { [sortBy]: direction, _id: direction };
   }
 
-  // buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TDocument> {
-  //   return {};
-  // }
+  buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TDocument> {
+    return {};
+  }
 
   async create(
     data: Partial<TDocument> | any,

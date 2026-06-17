@@ -58,4 +58,3 @@ export class Channel {
 export const ChannelSchema = SchemaFactory.createForClass(Channel);
 
 ChannelSchema.index({ type: 1 });
-ChannelSchema.index({ workspaceId: 1 });

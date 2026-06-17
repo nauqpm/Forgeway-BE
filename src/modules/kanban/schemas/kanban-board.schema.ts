@@ -60,4 +60,3 @@ export class Board {
 }
 
 export const BoardSchema = SchemaFactory.createForClass(Board);
-BoardSchema.index({ workspaceId: 1 });

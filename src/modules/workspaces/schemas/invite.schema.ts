@@ -71,6 +71,5 @@ export class Invite {
 
 export const InviteSchema = SchemaFactory.createForClass(Invite);
 InviteSchema.index({ workspaceId: 1, invitedEmail: 1, status: 1 });
-InviteSchema.index({ token: 1 }, { unique: true });
 InviteSchema.index({ invitedEmail: 1, status: 1 });
 InviteSchema.index({ workspaceId: 1, status: 1, type: 1 });
