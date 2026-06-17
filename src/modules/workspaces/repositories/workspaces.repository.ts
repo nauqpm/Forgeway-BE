@@ -15,7 +15,9 @@ export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
     super(workspaceModel);
   }
 
-  override buildSoftDeleteFilter(includeDeleted = false): FilterQuery<WorkspaceDocument> {
+  override buildSoftDeleteFilter(
+    includeDeleted = false,
+  ): FilterQuery<WorkspaceDocument> {
     return includeDeleted ? {} : { deletedAt: null };
   }
 
@@ -28,7 +30,9 @@ export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
-    return this.workspaceModel.findOne({ _id: id, ...this.buildSoftDeleteFilter() }).exec();
+    return this.workspaceModel
+      .findOne({ _id: id, ...this.buildSoftDeleteFilter() })
+      .exec();
   }
 
   async findByIdWithMembers(id: string): Promise<any | null> {
@@ -43,7 +47,9 @@ export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
   }
 
   async findBySlug(slug: string): Promise<WorkspaceDocument | null> {
-    return this.workspaceModel.findOne({ slug, ...this.buildSoftDeleteFilter() }).exec();
+    return this.workspaceModel
+      .findOne({ slug, ...this.buildSoftDeleteFilter() })
+      .exec();
   }
 
   async findAnyBySlug(slug: string): Promise<WorkspaceDocument | null> {

@@ -27,7 +27,9 @@ type UserUpdatePayload =
 
 @Injectable()
 export class UsersRepository extends BaseRepository<UserDocument> {
-  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+  ) {
     super(userModel);
   }
 
@@ -53,7 +55,9 @@ export class UsersRepository extends BaseRepository<UserDocument> {
       .exec();
   }
 
-  async incrementFailedLoginAttempts(userId: string): Promise<UserDocument | null> {
+  async incrementFailedLoginAttempts(
+    userId: string,
+  ): Promise<UserDocument | null> {
     return this.userModel
       .findByIdAndUpdate(
         userId,
@@ -63,7 +67,10 @@ export class UsersRepository extends BaseRepository<UserDocument> {
       .exec();
   }
 
-  async setLockout(userId: string, lockoutUntil: Date): Promise<UserDocument | null> {
+  async setLockout(
+    userId: string,
+    lockoutUntil: Date,
+  ): Promise<UserDocument | null> {
     return this.userModel
       .findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true })
       .exec();
@@ -97,13 +104,16 @@ export class UsersRepository extends BaseRepository<UserDocument> {
     const projection =
       '_id email role status fullName avatar createdAt updatedAt';
 
-    const result = await this.paginate({}, {
-      page,
-      limit,
-      projection,
-      sort: { createdAt: -1 },
-      lean: true,
-    });
+    const result = await this.paginate(
+      {},
+      {
+        page,
+        limit,
+        projection,
+        sort: { createdAt: -1 },
+        lean: true,
+      },
+    );
 
     return {
       users: result.items as unknown as SanitizedUserRecord[],

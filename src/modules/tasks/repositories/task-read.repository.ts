@@ -21,7 +21,9 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
     super(taskModel);
   }
 
-  override buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TaskDocument> {
+  override buildSoftDeleteFilter(
+    includeDeleted = false,
+  ): FilterQuery<TaskDocument> {
     return includeDeleted ? {} : { isDeleted: { $ne: true } };
   }
 

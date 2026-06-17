@@ -6,12 +6,8 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
-import { Message, MessageDocument } from '../schemas/message.schema';
-import {
-  ChannelReadMarker,
-  ChannelReadMarkerDocument,
-} from '../schemas/channel-read-marker.schema';
+import { Types } from 'mongoose';
+import { MessageDocument } from '../schemas/message.schema';
 import { MessagesRepository } from '../repositories/messages.repository';
 import { ChannelReadMarkersRepository } from '../repositories/channel-read-markers.repository';
 import { ChannelsService } from './channels.service';
@@ -170,7 +166,9 @@ export class MessagesService {
       if (!Types.ObjectId.isValid(dto.replyToId)) {
         throw new NotFoundException('Invalid replyToId');
       }
-      const parentMessage = await this.messagesRepository.findById(dto.replyToId);
+      const parentMessage = await this.messagesRepository.findById(
+        dto.replyToId,
+      );
       if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
         throw new ForbiddenException(
           'Cannot reply to message in a different channel',

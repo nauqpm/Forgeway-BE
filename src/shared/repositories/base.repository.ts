@@ -1,4 +1,12 @@
-import { Model, Document, FilterQuery, UpdateQuery, ProjectionType, QueryOptions, ClientSession } from 'mongoose';
+import {
+  Model,
+  Document,
+  FilterQuery,
+  UpdateQuery,
+  ProjectionType,
+  QueryOptions,
+  ClientSession,
+} from 'mongoose';
 
 export abstract class BaseRepository<TDocument extends Document> {
   constructor(public readonly model: Model<TDocument>) {}
@@ -25,11 +33,14 @@ export abstract class BaseRepository<TDocument extends Document> {
     return { [sortBy]: direction, _id: direction };
   }
 
-  buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TDocument> {
-    return {};
-  }
+  // buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TDocument> {
+  //   return {};
+  // }
 
-  async create(data: Partial<TDocument> | any, session?: ClientSession): Promise<TDocument> {
+  async create(
+    data: Partial<TDocument> | any,
+    session?: ClientSession,
+  ): Promise<TDocument> {
     const created = new this.model(data);
     if (session) {
       return created.save({ session }) as Promise<TDocument>;
@@ -83,7 +94,12 @@ export abstract class BaseRepository<TDocument extends Document> {
       projection?: ProjectionType<TDocument>;
       lean?: boolean;
     } = {},
-  ): Promise<{ items: TDocument[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: TDocument[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const { page, limit, skip } = this.normalizePagination(options);
     const query = this.model.find(filter);
 

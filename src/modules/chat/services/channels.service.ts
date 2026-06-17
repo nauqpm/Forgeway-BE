@@ -7,8 +7,8 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
-import { Channel, ChannelDocument } from '../schemas/channel.schema';
+import { Types } from 'mongoose';
+import { ChannelDocument } from '../schemas/channel.schema';
 import { ChannelsRepository } from '../repositories/channels.repository';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
@@ -52,7 +52,9 @@ export class ChannelsService {
         const systemId = new Types.ObjectId('000000000000000000000000');
 
         // Check #general
-        const general = await this.channelsRepository.model.findOne({ type: 'general' });
+        const general = await this.channelsRepository.model.findOne({
+          type: 'general',
+        });
         if (!general) {
           this.logger.log(
             'Self-healing: Initializing missing #general channel',

@@ -90,7 +90,10 @@ describe('Auth throttling (e2e)', () => {
           useValue: { verify: jest.fn(), sign: jest.fn() },
         },
         { provide: TokenService, useValue: tokenServiceMock },
-        { provide: AccountSwitcherService, useValue: { rememberAccount: jest.fn() } },
+        {
+          provide: AccountSwitcherService,
+          useValue: { rememberAccount: jest.fn() },
+        },
         { provide: RecentLoginsService, useValue: { remember: jest.fn() } },
       ],
     }).compile();

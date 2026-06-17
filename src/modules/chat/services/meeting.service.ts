@@ -7,12 +7,8 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
-import {
-  Meeting,
-  MeetingDocument,
-  MeetingType,
-} from '../schemas/meeting.schema';
+import { Types } from 'mongoose';
+import { MeetingDocument, MeetingType } from '../schemas/meeting.schema';
 import { MeetingsRepository } from '../repositories/meetings.repository';
 import { ChannelsService } from './channels.service';
 import { MessagesService } from './messages.service';
@@ -254,7 +250,9 @@ export class MeetingService {
       throw new NotFoundException('Invalid Meeting ID');
     }
 
-    const meeting = await this.meetingsRepository.model.findById(meetingId).exec();
+    const meeting = await this.meetingsRepository.model
+      .findById(meetingId)
+      .exec();
     if (!meeting) {
       throw new NotFoundException('Meeting not found');
     }

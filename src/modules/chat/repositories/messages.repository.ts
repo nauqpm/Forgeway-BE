@@ -13,7 +13,9 @@ export class MessagesRepository extends BaseRepository<MessageDocument> {
     super(messageModel);
   }
 
-  override buildSoftDeleteFilter(includeDeleted = false): FilterQuery<MessageDocument> {
+  override buildSoftDeleteFilter(
+    includeDeleted = false,
+  ): FilterQuery<MessageDocument> {
     return includeDeleted ? {} : { deletedAt: null };
   }
 }
