@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { Page, PageSchema } from '../pages/schemas/page.schema';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
@@ -17,6 +18,7 @@ import { TaskCommentService } from './services/task-comment.service';
     MongooseModule.forFeature([
       { name: Comment.name, schema: CommentSchema },
       { name: Task.name, schema: TaskSchema },
+      { name: Page.name, schema: PageSchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkspacesModule),

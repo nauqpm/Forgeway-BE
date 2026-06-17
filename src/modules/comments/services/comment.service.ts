@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -9,6 +10,9 @@ import { Model, Types } from 'mongoose';
 import { CreateCommentDto } from '../dtos/create-comment.dto';
 import { UpdateCommentDto } from '../dtos/update-comment.dto';
 import { Comment, CommentDocument } from '../schemas/comment.schema';
+import { Page, PageDocument } from '../../pages/schemas/page.schema';
+import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
+import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 
 @Injectable()
 export class CommentService {
@@ -17,6 +21,11 @@ export class CommentService {
   constructor(
     @InjectModel(Comment.name)
     private readonly commentModel: Model<CommentDocument>,
+    @InjectModel(Task.name)
+    private readonly taskModel: Model<TaskDocument>,
+    @InjectModel(Page.name)
+    private readonly pageModel: Model<PageDocument>,
+    private readonly workspaceMemberService: WorkspaceMemberService,
   ) {}
 
   async create(
@@ -27,7 +36,12 @@ export class CommentService {
       `Creating comment for ${dto.targetType}:${dto.targetId} by user ${userId}`,
     );
 
+    await this.assertWorkspaceMember(dto.workspaceId, userId);
+    await this.assertTargetInWorkspace(dto.workspaceId, dto.targetType, dto.targetId);
+    await this.assertParentInTarget(dto.workspaceId, dto);
+
     const comment = new this.commentModel({
+      workspaceId: new Types.ObjectId(dto.workspaceId),
       content: dto.content,
       authorId: new Types.ObjectId(userId),
       targetType: dto.targetType,
@@ -59,27 +73,47 @@ export class CommentService {
   }
 
   async findByTarget(
+    workspaceId: string,
     targetType: string,
     targetId: string,
+    userId: string,
   ): Promise<CommentDocument[]> {
-    this.logger.debug(`Finding comments for ${targetType}:${targetId}`);
+    this.logger.debug(
+      `Finding comments for ${targetType}:${targetId} in workspace ${workspaceId}`,
+    );
+    await this.assertWorkspaceMember(workspaceId, userId);
+    await this.assertTargetInWorkspace(workspaceId, targetType, targetId);
 
     return this.commentModel
-      .find({ targetType, targetId, isDeleted: { $ne: true } })
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        targetType,
+        targetId,
+        isDeleted: { $ne: true },
+      })
       .sort({ createdAt: 1 })
       .exec();
   }
 
   async findByTargetThreaded(
+    workspaceId: string,
     targetType: string,
     targetId: string,
+    userId: string,
   ): Promise<CommentDocument[]> {
     this.logger.debug(
-      `Finding threaded comments for ${targetType}:${targetId}`,
+      `Finding threaded comments for ${targetType}:${targetId} in workspace ${workspaceId}`,
     );
+    await this.assertWorkspaceMember(workspaceId, userId);
+    await this.assertTargetInWorkspace(workspaceId, targetType, targetId);
 
     const comments = await this.commentModel
-      .find({ targetType, targetId, isDeleted: { $ne: true } })
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        targetType,
+        targetId,
+        isDeleted: { $ne: true },
+      })
       .sort({ createdAt: 1 })
       .exec();
 
@@ -107,8 +141,13 @@ export class CommentService {
     return rootComments;
   }
 
-  async findByParent(parentId: string): Promise<CommentDocument[]> {
+  async findByParent(
+    workspaceId: string,
+    parentId: string,
+    userId: string,
+  ): Promise<CommentDocument[]> {
     this.logger.debug(`Finding replies for parent comment: ${parentId}`);
+    await this.assertWorkspaceMember(workspaceId, userId);
 
     if (!Types.ObjectId.isValid(parentId)) {
       throw new NotFoundException(`Comment with id ${parentId} not found`);
@@ -116,6 +155,7 @@ export class CommentService {
 
     return this.commentModel
       .find({
+        workspaceId: new Types.ObjectId(workspaceId),
         parentId: new Types.ObjectId(parentId),
         isDeleted: { $ne: true },
       })
@@ -131,6 +171,7 @@ export class CommentService {
     this.logger.log(`Updating comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
+    await this.assertCommentWorkspaceAccess(comment, userId);
 
     if (comment.authorId.toString() !== userId) {
       throw new ForbiddenException('You can only update your own comments');
@@ -145,6 +186,7 @@ export class CommentService {
     this.logger.log(`Deleting comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
+    await this.assertCommentWorkspaceAccess(comment, userId);
 
     if (comment.authorId.toString() !== userId) {
       throw new ForbiddenException('You can only delete your own comments');
@@ -157,11 +199,25 @@ export class CommentService {
     this.logger.log(`Comment ${id} deleted`);
   }
 
-  async countByTarget(targetType: string, targetId: string): Promise<number> {
-    this.logger.debug(`Counting comments for ${targetType}:${targetId}`);
+  async countByTarget(
+    workspaceId: string,
+    targetType: string,
+    targetId: string,
+    userId: string,
+  ): Promise<number> {
+    this.logger.debug(
+      `Counting comments for ${targetType}:${targetId} in workspace ${workspaceId}`,
+    );
+    await this.assertWorkspaceMember(workspaceId, userId);
+    await this.assertTargetInWorkspace(workspaceId, targetType, targetId);
 
     return this.commentModel
-      .countDocuments({ targetType, targetId, isDeleted: { $ne: true } })
+      .countDocuments({
+        workspaceId: new Types.ObjectId(workspaceId),
+        targetType,
+        targetId,
+        isDeleted: { $ne: true },
+      })
       .exec();
   }
 
@@ -169,6 +225,7 @@ export class CommentService {
     this.logger.log(`Resolving comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
+    await this.assertCommentWorkspaceAccess(comment, userId);
     if (comment.authorId.toString() !== userId) {
       throw new ForbiddenException('You can only resolve your own comments');
     }
@@ -182,6 +239,7 @@ export class CommentService {
     this.logger.log(`Unresolving comment ${id} by user ${userId}`);
 
     const comment = await this.findById(id);
+    await this.assertCommentWorkspaceAccess(comment, userId);
     if (comment.authorId.toString() !== userId) {
       throw new ForbiddenException('You can only unresolve your own comments');
     }
@@ -192,16 +250,21 @@ export class CommentService {
   }
 
   async findByInlineId(
+    workspaceId: string,
     targetType: string,
     targetId: string,
     inlineId: string,
+    userId: string,
   ): Promise<CommentDocument[]> {
     this.logger.debug(
-      `Finding comments for inline ${inlineId} in ${targetType}:${targetId}`,
+      `Finding comments for inline ${inlineId} in ${targetType}:${targetId} workspace ${workspaceId}`,
     );
+    await this.assertWorkspaceMember(workspaceId, userId);
+    await this.assertTargetInWorkspace(workspaceId, targetType, targetId);
 
     return this.commentModel
       .find({
+        workspaceId: new Types.ObjectId(workspaceId),
         targetType,
         targetId,
         inlineId,
@@ -210,5 +273,86 @@ export class CommentService {
       })
       .sort({ createdAt: 1 })
       .exec();
+  }
+
+  private async assertWorkspaceMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    this.validateObjectId(workspaceId, 'Workspace');
+    const isMember = await this.workspaceMemberService.isMember(
+      workspaceId,
+      userId,
+    );
+    if (!isMember) {
+      throw new ForbiddenException('Workspace access denied');
+    }
+  }
+
+  private async assertTargetInWorkspace(
+    workspaceId: string,
+    targetType: string,
+    targetId: string,
+  ): Promise<void> {
+    if (!['task', 'page'].includes(targetType)) {
+      throw new BadRequestException('targetType must be "task" or "page"');
+    }
+    this.validateObjectId(workspaceId, 'Workspace');
+    this.validateObjectId(targetId, 'Target');
+
+    const query = {
+      _id: new Types.ObjectId(targetId),
+      workspaceId: new Types.ObjectId(workspaceId),
+    };
+
+    const exists =
+      targetType === 'task'
+        ? await this.taskModel.exists({
+            ...query,
+            isDeleted: { $ne: true },
+          })
+        : await this.pageModel.exists(query);
+
+    if (!exists) {
+      throw new NotFoundException(`${targetType} target not found`);
+    }
+  }
+
+  private async assertParentInTarget(
+    workspaceId: string,
+    dto: CreateCommentDto,
+  ): Promise<void> {
+    if (!dto.parentId) return;
+    this.validateObjectId(dto.parentId, 'Parent comment');
+
+    const parent = await this.commentModel
+      .findOne({
+        _id: new Types.ObjectId(dto.parentId),
+        workspaceId: new Types.ObjectId(workspaceId),
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+        isDeleted: { $ne: true },
+      })
+      .exec();
+
+    if (!parent) {
+      throw new NotFoundException('Parent comment not found');
+    }
+  }
+
+  private async assertCommentWorkspaceAccess(
+    comment: CommentDocument,
+    userId: string,
+  ): Promise<void> {
+    if (!comment.workspaceId) {
+      throw new NotFoundException('Comment not found');
+    }
+    await this.assertWorkspaceMember(comment.workspaceId.toString(), userId);
+  }
+
+  private validateObjectId(value: string, label: string): void {
+    if (!Types.ObjectId.isValid(value)) {
+      throw new NotFoundException(`${label} not found`);
+    }
   }
 }

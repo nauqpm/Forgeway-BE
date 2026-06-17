@@ -1,7 +1,11 @@
-import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, IsMongoId } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCommentDto {
+  @ApiProperty()
+  @IsMongoId()
+  workspaceId!: string;
+
   @ApiProperty()
   @IsString()
   content!: string;
