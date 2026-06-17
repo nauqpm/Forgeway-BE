@@ -27,6 +27,18 @@ describe('validateAttachmentFile', () => {
     ).not.toThrow();
   });
 
+  it('allows common mp4 MIME variants', () => {
+    expect(() =>
+      validateAttachmentFile(file('demo.mp4', 'application/mp4')),
+    ).not.toThrow();
+    expect(() =>
+      validateAttachmentFile(file('demo.mp4', 'video/x-m4v')),
+    ).not.toThrow();
+    expect(() =>
+      validateAttachmentFile(file('demo.mp4', 'application/octet-stream')),
+    ).not.toThrow();
+  });
+
   it('blocks executable files by extension', () => {
     expect(() =>
       validateAttachmentFile(file('payload.exe', 'application/x-msdownload')),
@@ -42,6 +54,12 @@ describe('validateAttachmentFile', () => {
   it('blocks unsupported MIME type for otherwise safe extension', () => {
     expect(() =>
       validateAttachmentFile(file('report.pdf', 'application/x-msdownload')),
+    ).toThrow(BadRequestException);
+  });
+
+  it('keeps generic binary MIME limited to mp4 fallback', () => {
+    expect(() =>
+      validateAttachmentFile(file('report.pdf', 'application/octet-stream')),
     ).toThrow(BadRequestException);
   });
 });

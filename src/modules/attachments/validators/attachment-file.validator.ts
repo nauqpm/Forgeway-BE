@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { extname } from 'path';
 import {
+  ADDITIONAL_ATTACHMENT_MIME_TYPES_BY_EXTENSION,
   ALLOWED_ATTACHMENT_EXTENSIONS,
   ALLOWED_ATTACHMENT_MIME_TYPES,
   BLOCKED_ATTACHMENT_EXTENSIONS,
@@ -27,7 +28,13 @@ export function validateAttachmentFile(file: Express.Multer.File): void {
     );
   }
 
-  if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType)) {
+  const extensionMimeTypes =
+    ADDITIONAL_ATTACHMENT_MIME_TYPES_BY_EXTENSION.get(extension);
+
+  if (
+    !ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType) &&
+    !extensionMimeTypes?.has(mimeType)
+  ) {
     throw new BadRequestException(
       `Attachment MIME type ${mimeType || 'unknown'} is not supported`,
     );
