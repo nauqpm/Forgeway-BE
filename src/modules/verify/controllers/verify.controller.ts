@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
+import { randomInt } from 'crypto';
 import { VerifyService } from '../services/verify.service';
 import { SendVerifyDto, CheckVerifyDto, VerifyType } from '../dtos/verify.dto';
 
@@ -30,7 +31,7 @@ export class VerifyController {
     if (type === VerifyType.VERIFICATION) {
       await this.verifyService.sendVerificationEmail(email);
     } else if (type === VerifyType.PASSWORD_RESET) {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = randomInt(100000, 1_000_000).toString();
       await this.verifyService.sendPasswordResetEmail(email, otp);
     }
 
@@ -88,7 +89,7 @@ export class VerifyController {
     if (type === 'verification') {
       await this.verifyService.sendVerificationEmail(email);
     } else if (type === 'password-reset') {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = randomInt(100000, 1_000_000).toString();
       await this.verifyService.sendPasswordResetEmail(email, otp);
     }
 

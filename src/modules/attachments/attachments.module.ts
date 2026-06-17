@@ -5,7 +5,6 @@ import { AuthModule } from '../auth/auth.module';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
-import { AttachmentsController } from './controllers/attachments.controller';
 import { TaskAttachmentController } from './controllers/task-attachment.controller';
 import { AttachmentMapper } from './mappers/attachment.mapper';
 import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
@@ -23,7 +22,7 @@ import { TaskAttachmentService } from './services/task-attachment.service';
     forwardRef(() => WorkspacesModule),
     forwardRef(() => TaskActivitiesModule),
   ],
-  controllers: [AttachmentsController, TaskAttachmentController],
+  controllers: [TaskAttachmentController],
   providers: [AttachmentService, TaskAttachmentService, AttachmentMapper],
   exports: [AttachmentService, TaskAttachmentService],
 })

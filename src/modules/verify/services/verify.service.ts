@@ -5,6 +5,10 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { Verify, VerifyDocument } from '../schemas/verify.schema';
 import { VerifyType } from '../dtos/verify.dto';
 import { randomInt } from 'crypto';
+import {
+  hashOtpCode,
+  verifyOtpCode,
+} from '../../../common/utils/otp-hash.util';
 
 @Injectable()
 export class VerifyService {
@@ -32,7 +36,7 @@ export class VerifyService {
 
     await this.verifyModel.create({
       email,
-      code,
+      code: hashOtpCode(code),
       type: VerifyType.VERIFICATION,
       isUsed: false,
       expiresAt,
@@ -47,30 +51,28 @@ export class VerifyService {
     type: VerifyType,
   ): Promise<{ valid: boolean; message: string }> {
     this.logger.log(`Attempting to verify code for ${email} (Type: ${type})`);
-    const verification = await this.verifyModel.findOne({
-      email,
-      code,
-      type,
-      isUsed: false,
-    });
+    const verification = await this.verifyModel
+      .findOne({
+        email,
+        type,
+        isUsed: false,
+        expiresAt: { $gt: new Date() },
+      })
+      .sort({ createdAt: -1 });
 
-    if (!verification) {
+    const storedCodeHash = verification?.code ?? hashOtpCode('000000');
+    const isValid =
+      Boolean(verification) && verifyOtpCode(code, storedCodeHash);
+
+    if (!isValid) {
       this.logger.warn(
         `Verification failed for ${email}: Invalid or expired code`,
       );
       throw new BadRequestException('Invalid or expired verification code');
     }
 
-    const now = new Date();
-    if (verification.expiresAt < now) {
-      this.logger.warn(
-        `Verification failed for ${email}: Code expired at ${verification.expiresAt}`,
-      );
-      throw new BadRequestException('Verification code has expired');
-    }
-
-    verification.isUsed = true;
-    await verification.save();
+    verification!.isUsed = true;
+    await verification!.save();
 
     this.logger.log(`Successfully verified code for ${email}`);
     return {
@@ -95,9 +97,14 @@ export class VerifyService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
+    await this.verifyModel.updateMany(
+      { email, type: VerifyType.PASSWORD_RESET, isUsed: false },
+      { isUsed: true },
+    );
+
     await this.verifyModel.create({
       email,
-      code: otp,
+      code: hashOtpCode(otp),
       type: VerifyType.PASSWORD_RESET,
       isUsed: false,
       expiresAt,
@@ -125,7 +132,10 @@ export class VerifyService {
   }
 
   async markAsUsed(email: string, code: string): Promise<void> {
-    await this.verifyModel.updateOne({ email, code }, { isUsed: true });
+    await this.verifyModel.updateOne(
+      { email, code: hashOtpCode(code) },
+      { isUsed: true },
+    );
   }
 
   async cleanupExpiredCodes(): Promise<number> {

@@ -36,46 +36,87 @@ export class CommentsController {
 
   @Get()
   @ApiOperation({ summary: 'List generic comments' })
+  @ApiQuery({ name: 'workspaceId', required: true })
   @ApiQuery({ name: 'targetType', required: true, enum: ['task', 'page'] })
   @ApiQuery({ name: 'targetId', required: true })
   async findAll(
+    @Query('workspaceId') workspaceId: string,
     @Query('targetType') targetType: string,
     @Query('targetId') targetId: string,
+    @Request() req: any,
   ) {
-    return this.commentService.findByTarget(targetType, targetId);
+    return this.commentService.findByTarget(
+      workspaceId,
+      targetType,
+      targetId,
+      req.user.userId,
+    );
   }
 
   @Get('target/:targetType/:targetId/threaded')
   @ApiOperation({ summary: 'Get all comments for a target as threads' })
+  @ApiQuery({ name: 'workspaceId', required: true })
   async findByTargetThreaded(
     @Param('targetType') targetType: string,
     @Param('targetId') targetId: string,
+    @Query('workspaceId') workspaceId: string,
+    @Request() req: any,
   ) {
-    return this.commentService.findByTargetThreaded(targetType, targetId);
+    return this.commentService.findByTargetThreaded(
+      workspaceId,
+      targetType,
+      targetId,
+      req.user.userId,
+    );
   }
 
   @Get('target/:targetType/:targetId')
   @ApiOperation({ summary: 'Get all comments for a target (task or page)' })
+  @ApiQuery({ name: 'workspaceId', required: true })
   async findByTarget(
     @Param('targetType') targetType: string,
     @Param('targetId') targetId: string,
+    @Query('workspaceId') workspaceId: string,
+    @Request() req: any,
   ) {
-    return this.commentService.findByTarget(targetType, targetId);
+    return this.commentService.findByTarget(
+      workspaceId,
+      targetType,
+      targetId,
+      req.user.userId,
+    );
   }
 
   @Get('parent/:parentId')
   @ApiOperation({ summary: 'Get replies to a comment' })
-  async findByParent(@Param('parentId') parentId: string) {
-    return this.commentService.findByParent(parentId);
+  @ApiQuery({ name: 'workspaceId', required: true })
+  async findByParent(
+    @Param('parentId') parentId: string,
+    @Query('workspaceId') workspaceId: string,
+    @Request() req: any,
+  ) {
+    return this.commentService.findByParent(
+      workspaceId,
+      parentId,
+      req.user.userId,
+    );
   }
 
   @Get('count/:targetType/:targetId')
   @ApiOperation({ summary: 'Count comments for a target' })
+  @ApiQuery({ name: 'workspaceId', required: true })
   async countByTarget(
     @Param('targetType') targetType: string,
     @Param('targetId') targetId: string,
+    @Query('workspaceId') workspaceId: string,
+    @Request() req: any,
   ) {
-    const count = await this.commentService.countByTarget(targetType, targetId);
+    const count = await this.commentService.countByTarget(
+      workspaceId,
+      targetType,
+      targetId,
+      req.user.userId,
+    );
     return { count };
   }
 
