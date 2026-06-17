@@ -85,10 +85,6 @@ export const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
 export const ADDITIONAL_ATTACHMENT_MIME_TYPES_BY_EXTENSION = new Map([
   [
     '.mp4',
-    new Set([
-      'application/mp4',
-      'application/octet-stream',
-      'video/x-m4v',
-    ]),
+    new Set(['application/mp4', 'application/octet-stream', 'video/x-m4v']),
   ],
 ]);
