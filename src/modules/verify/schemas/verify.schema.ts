@@ -26,4 +26,3 @@ export class Verify {
 
 export const VerifySchema = SchemaFactory.createForClass(Verify);
 VerifySchema.index({ email: 1, type: 1 });
-VerifySchema.index({ code: 1 });

@@ -1,9 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as bcrypt from 'bcrypt';
 import { Otp, OtpDocument } from '../schemas/otp.schema';
 import { generateOtpCode } from '../utils/otp.utils';
+import {
+  hashOtpCode,
+  verifyOtpCode,
+} from '../../../common/utils/otp-hash.util';
+
+const INVALID_OTP_MESSAGE = 'OTP is invalid or has expired.';
 
 @Injectable()
 export class OtpService {
@@ -17,8 +22,8 @@ export class OtpService {
   }
 
   /** SEC-6: Hash OTP before persist */
-  hashOtp(otp: string): Promise<string> {
-    return bcrypt.hash(otp, 10);
+  hashOtp(otp: string): string {
+    return hashOtpCode(otp);
   }
 
   async createOtp(
@@ -26,7 +31,7 @@ export class OtpService {
     otpPlaintext: string,
     ttlMs: number,
   ): Promise<void> {
-    const hashedOtp = await this.hashOtp(otpPlaintext);
+    const hashedOtp = this.hashOtp(otpPlaintext);
     await this.otpModel.create({
       email,
       code: hashedOtp,
@@ -45,10 +50,10 @@ export class OtpService {
 
   async verifyOtp(email: string, otpPlaintext: string): Promise<void> {
     const otpRecord = await this.getLatestActiveOtp(email);
-    const isValid =
-      otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
-    if (!isValid) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+    const storedCodeHash = otpRecord?.code ?? hashOtpCode('000000');
+    const isValid = verifyOtpCode(otpPlaintext, storedCodeHash);
+    if (!otpRecord || !isValid) {
+      throw new BadRequestException(INVALID_OTP_MESSAGE);
     }
   }
 
@@ -57,10 +62,10 @@ export class OtpService {
     otpPlaintext: string,
   ): Promise<OtpDocument> {
     const otpRecord = await this.getLatestActiveOtp(email);
-    const isValid =
-      otpRecord && (await bcrypt.compare(otpPlaintext, otpRecord.code));
-    if (!isValid) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+    const storedCodeHash = otpRecord?.code ?? hashOtpCode('000000');
+    const isValid = verifyOtpCode(otpPlaintext, storedCodeHash);
+    if (!otpRecord || !isValid) {
+      throw new BadRequestException(INVALID_OTP_MESSAGE);
     }
 
     const consumed = await this.otpModel.findOneAndUpdate(
@@ -74,7 +79,7 @@ export class OtpService {
     );
 
     if (!consumed) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+      throw new BadRequestException(INVALID_OTP_MESSAGE);
     }
 
     return consumed;

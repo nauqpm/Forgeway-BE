@@ -37,7 +37,11 @@ export class CommentService {
     );
 
     await this.assertWorkspaceMember(dto.workspaceId, userId);
-    await this.assertTargetInWorkspace(dto.workspaceId, dto.targetType, dto.targetId);
+    await this.assertTargetInWorkspace(
+      dto.workspaceId,
+      dto.targetType,
+      dto.targetId,
+    );
     await this.assertParentInTarget(dto.workspaceId, dto);
 
     const comment = new this.commentModel({
