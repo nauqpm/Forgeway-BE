@@ -76,11 +76,23 @@ export class RealtimeGateway
 
   afterInit(server: Server): void {
     this.realtimeService.bindServer(server);
+    server.use(async (socket: AuthenticatedSocket, next) => {
+      try {
+        await this.socketAuthService.authenticate(socket);
+        next();
+      } catch (error) {
+        next(new Error((error as Error).message));
+      }
+    });
   }
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
-      const user = await this.socketAuthService.authenticate(client);
+      const user = client.data.user;
+      if (!user) {
+        client.disconnect(true);
+        return;
+      }
       await client.join(RoomBuilder.user(user.userId));
       const userIdentifier = user.email
         ? `${user.email} (${user.userId})`

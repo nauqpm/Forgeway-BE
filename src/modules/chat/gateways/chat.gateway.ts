@@ -43,9 +43,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly meetingService: MeetingService,
   ) {}
 
+  afterInit(server: Server) {
+    server.use(async (client: AuthenticatedSocket, next) => {
+      try {
+        await this.socketAuthService.authenticate(client);
+        next();
+      } catch (error) {
+        next(new Error((error as Error).message));
+      }
+    });
+  }
+
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
-      const user = await this.socketAuthService.authenticate(client);
+      const user = client.data.user;
+      if (!user) {
+        client.disconnect(true);
+        return;
+      }
       const userIdentifier = user.email
         ? `${user.email} (${user.userId})`
         : user.userId;
@@ -355,14 +370,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('meeting.join')
   async handleMeetingJoin(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { meetingId: string; displayName?: string },
+    @MessageBody()
+    body: {
+      meetingId: string;
+      displayName?: string;
+      isAudioOn?: boolean;
+      isVideoOn?: boolean;
+    },
   ) {
     const userId = client.data.user?.userId;
-    if (!userId || !body.meetingId)
-      return { ok: false, message: 'Missing meetingId' };
+    if (!userId) return { ok: false, message: 'Unauthorized session' };
+    if (!body.meetingId) return { ok: false, message: 'Missing meetingId' };
 
     try {
-      const meeting = await this.meetingService.join(body.meetingId, userId);
+      const meeting = await this.meetingService.join(body.meetingId, userId, {
+        isAudioOn: body.isAudioOn,
+        isVideoOn: body.isVideoOn,
+      });
 
       const meetingId = meeting._id.toString();
       await client.join(RoomBuilder.meeting(meetingId));

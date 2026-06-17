@@ -115,7 +115,11 @@ export class MeetingService {
     return meeting;
   }
 
-  async join(meetingId: string, userId: string): Promise<MeetingDocument> {
+  async join(
+    meetingId: string,
+    userId: string,
+    options?: { isAudioOn?: boolean; isVideoOn?: boolean },
+  ): Promise<MeetingDocument> {
     if (!Types.ObjectId.isValid(meetingId)) {
       throw new NotFoundException('Invalid Meeting ID');
     }
@@ -133,18 +137,39 @@ export class MeetingService {
       throw new ForbiddenException('You do not have access to this channel');
     }
 
-    const isAlreadyIn = meeting.participants.some(
+    const existingParticipant = meeting.participants.find(
       p => p.userId.toString() === userId,
     );
-    if (isAlreadyIn) {
+
+    if (existingParticipant) {
+      let modified = false;
+      if (
+        options?.isAudioOn !== undefined &&
+        existingParticipant.isAudioOn !== options.isAudioOn
+      ) {
+        existingParticipant.isAudioOn = options.isAudioOn;
+        modified = true;
+      }
+      if (
+        options?.isVideoOn !== undefined &&
+        existingParticipant.isVideoOn !== options.isVideoOn
+      ) {
+        existingParticipant.isVideoOn = options.isVideoOn;
+        modified = true;
+      }
+
+      if (modified) {
+        meeting.markModified('participants');
+        return meeting.save();
+      }
       return meeting;
     }
 
     meeting.participants.push({
       userId: new Types.ObjectId(userId),
       joinedAt: new Date(),
-      isAudioOn: true,
-      isVideoOn: meeting.type === 'video',
+      isAudioOn: options?.isAudioOn ?? true,
+      isVideoOn: options?.isVideoOn ?? meeting.type === 'video',
       isMuted: false,
     });
 
