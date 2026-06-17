@@ -33,7 +33,7 @@ export abstract class BaseRepository<TDocument extends Document> {
     return { [sortBy]: direction, _id: direction };
   }
 
-  buildSoftDeleteFilter(includeDeleted = false): FilterQuery<TDocument> {
+  buildSoftDeleteFilter(_includeDeleted = false): FilterQuery<TDocument> {
     return {};
   }
 
