@@ -52,11 +52,11 @@ export class TaskDataTransformerService {
     if (dto.boardId) {
       updateData.boardId = new Types.ObjectId(dto.boardId);
     }
-    if (dto.startDate) {
-      updateData.startDate = new Date(dto.startDate);
+    if (dto.startDate !== undefined) {
+      updateData.startDate = dto.startDate ? new Date(dto.startDate) : null;
     }
-    if (dto.dueDate) {
-      updateData.dueDate = new Date(dto.dueDate);
+    if (dto.dueDate !== undefined) {
+      updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     }
     if (dto.title !== undefined && existingTask) {
       updateData.searchTokens = buildTaskSearchTokens(

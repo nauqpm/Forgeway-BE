@@ -8,6 +8,7 @@ import {
   MaxLength,
   Min,
   IsMongoId,
+  ValidateIf,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -55,15 +56,17 @@ export class UpdateTaskDto {
   @Min(0)
   storyPoints?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
+  @ValidateIf(o => o.startDate !== null)
   @IsDateString()
-  startDate?: string;
+  startDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
+  @ValidateIf(o => o.dueDate !== null)
   @IsDateString()
-  dueDate?: string;
+  dueDate?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

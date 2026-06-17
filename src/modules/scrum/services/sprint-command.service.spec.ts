@@ -30,6 +30,7 @@ describe('SprintCommandService', () => {
             find: jest.fn(),
             findById: jest.fn(),
             countDocuments: jest.fn(),
+            exists: jest.fn(),
             deleteOne: jest.fn(),
             deleteMany: jest.fn(),
             updateMany: jest.fn(),
@@ -58,6 +59,9 @@ describe('SprintCommandService', () => {
     sprintModel = module.get(getModelToken(Sprint.name));
     sprintModel.countDocuments.mockReturnValue({
       exec: jest.fn().mockResolvedValue(2),
+    });
+    sprintModel.exists.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
     });
 
     // Define mock class for Sprint model constructor
@@ -109,6 +113,16 @@ describe('SprintCommandService', () => {
         result,
         actorId,
       );
+    });
+
+    it('throws BadRequestException when sprint name already exists in workspace', async () => {
+      sprintModel.exists.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }),
+      });
+      const dto = { name: 'Sprint 3' };
+      await expect(
+        service.createSprint(workspaceId, dto as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -165,6 +179,22 @@ describe('SprintCommandService', () => {
         service.updateSprint(workspaceId, sprintId, {
           endDate: new Date('2026-06-05').toISOString(),
         }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when renaming to an existing sprint name', async () => {
+      const mockSprint: any = {
+        _id: new Types.ObjectId(sprintId),
+        status: 'planning',
+        name: 'Sprint Old Name',
+      };
+      sprintModel.findOne.mockReturnValue(mockQuery(mockSprint));
+      sprintModel.exists.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }),
+      });
+
+      await expect(
+        service.updateSprint(workspaceId, sprintId, { name: 'Sprint 3' }),
       ).rejects.toThrow(BadRequestException);
     });
 

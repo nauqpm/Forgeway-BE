@@ -43,10 +43,26 @@ export class SprintCommandService {
       })
       .exec();
 
+    const sprintName = dto.name?.trim() || `Sprint ${count + 1}`;
+
+    const nameExists = await this.sprintModel
+      .exists({
+        workspaceId: workspaceObjectId,
+        name: sprintName,
+        deletedAt: null,
+      })
+      .exec();
+
+    if (nameExists) {
+      throw new BadRequestException(
+        'Sprint name already exists, please choose another name',
+      );
+    }
+
     const sprint = new this.sprintModel({
       ...dto,
       workspaceId: workspaceObjectId,
-      name: dto.name?.trim() || `Sprint ${count + 1}`,
+      name: sprintName,
       status: 'planning',
     });
 
@@ -106,7 +122,26 @@ export class SprintCommandService {
         duration: sprint.duration,
       };
 
-      if (dto.name !== undefined) sprint.name = dto.name;
+      if (dto.name !== undefined) {
+        const trimmedName = dto.name.trim();
+        if (trimmedName !== sprint.name) {
+          const nameExists = await this.sprintModel
+            .exists({
+              workspaceId: new Types.ObjectId(workspaceId),
+              name: trimmedName,
+              deletedAt: null,
+              _id: { $ne: new Types.ObjectId(sprintId) },
+            })
+            .exec();
+
+          if (nameExists) {
+            throw new BadRequestException(
+              'Sprint name already exists, please choose another name',
+            );
+          }
+        }
+        sprint.name = trimmedName;
+      }
       if (dto.goal !== undefined) sprint.goal = dto.goal;
       if (dto.duration !== undefined) sprint.duration = dto.duration;
 
