@@ -19,8 +19,11 @@ export class Message {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   senderId!: Types.ObjectId;
 
-  @Prop({ required: true, maxlength: 4000 })
-  content!: string;
+  @Prop({ required: false, default: '', maxlength: 4000 })
+  content?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Sticker', default: null, index: true })
+  stickerId?: Types.ObjectId;
 
   @Prop({
     type: String,

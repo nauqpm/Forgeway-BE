@@ -161,6 +161,7 @@ export class FilterTaskDto {
       'status',
       'rank',
       'archivedAt',
+      'dueDate',
     ],
     default: 'createdAt',
   })
@@ -174,6 +175,7 @@ export class FilterTaskDto {
     'status',
     'rank',
     'archivedAt',
+    'dueDate',
   ])
   sortBy?: string;
 
