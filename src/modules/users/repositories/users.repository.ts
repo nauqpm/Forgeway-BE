@@ -20,6 +20,12 @@ export interface PaginatedUsersResult {
   total: number;
 }
 
+export interface UserSearchRecord {
+  _id: unknown;
+  fullName?: string;
+  avatar?: string;
+}
+
 type UserUpdatePayload =
   | Partial<User>
   | { $unset: Record<string, unknown> }
@@ -121,19 +127,22 @@ export class UsersRepository extends BaseRepository<UserDocument> {
     };
   }
 
-  async search(query: string, excludeUserId: string): Promise<UserDocument[]> {
-    const regex = new RegExp(query, 'i');
+  async search(
+    query: string,
+    excludeUserId: string,
+    limit: number,
+  ): Promise<UserSearchRecord[]> {
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedQuery, 'i');
+
     return this.userModel
       .find({
-        $and: [
-          { _id: { $ne: new Types.ObjectId(excludeUserId) } },
-          {
-            $or: [{ fullName: regex }, { email: regex }, { phone: regex }],
-          },
-        ],
+        _id: { $ne: new Types.ObjectId(excludeUserId) },
+        fullName: regex,
       })
-      .select('_id email fullName avatar status')
-      .limit(10)
+      .select('_id fullName avatar')
+      .limit(limit)
+      .lean<UserSearchRecord[]>()
       .exec();
   }
 

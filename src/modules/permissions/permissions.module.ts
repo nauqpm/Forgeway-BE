@@ -9,7 +9,8 @@ import {
 } from './schemas/user-permission.schema';
 import { AuthModule } from '../auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthTokenConfigModule } from '../auth/config/auth-token-config.module';
+import { AuthTokenConfigService } from '../auth/config/auth-token-config.service';
 import { CommonModule } from '../../common/common.module';
 import { User, UserSchema } from '../users/schemas/users.schema';
 
@@ -23,18 +24,18 @@ import { User, UserSchema } from '../users/schemas/users.schema';
     forwardRef(() => AuthModule),
     CommonModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+      imports: [AuthTokenConfigModule],
+      inject: [AuthTokenConfigService],
+      useFactory: async (authTokenConfig: AuthTokenConfigService) => ({
+        secret: authTokenConfig.jwtSecret,
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1d',
+          expiresIn: authTokenConfig.accessTokenJwtExpiresIn,
         },
       }),
     }),
   ],
   controllers: [PermissionsController],
-  providers: [PermissionsService, ConfigService],
+  providers: [PermissionsService],
   exports: [PermissionsService, MongooseModule],
 })
 export class PermissionsModule {}

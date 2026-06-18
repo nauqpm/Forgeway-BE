@@ -5,7 +5,7 @@ export type PageDraftDocument = PageDraft & Document;
 
 @Schema({ timestamps: true })
 export class PageDraft {
-  @Prop({ type: Types.ObjectId, ref: 'Page', required: true, unique: true })
+  @Prop({ type: Types.ObjectId, ref: 'Page', required: true })
   pageId!: Types.ObjectId;
 
   /** HTML content derived from Yjs state — used for search and fallback */

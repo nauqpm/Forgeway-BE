@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -20,7 +20,7 @@ describe('TaskCommentService', () => {
   let workspaceMemberService: jest.Mocked<
     Pick<
       WorkspaceMemberService,
-      'isMember' | 'filterNonMembers' | 'filterMembers'
+      'isMember' | 'filterNonMembers' | 'filterMembers' | 'getMembers'
     >
   >;
   let commentMapper: jest.Mocked<Pick<CommentMapper, 'mapToDto' | 'mapToDtos'>>;
@@ -42,7 +42,30 @@ describe('TaskCommentService', () => {
   const taskId = new Types.ObjectId().toString();
   const userId = new Types.ObjectId().toString();
   const memberId = new Types.ObjectId().toString();
-  const nonMemberId = new Types.ObjectId().toString();
+  const memberFullName = 'John Doe';
+  const nonMemberName = 'Evil Hacker';
+
+  /** Helper: returns a workspace member shaped like getMembers() returns */
+  function memberEntry(
+    id: string,
+    fullName: string,
+    role = 'member',
+  ): { userId: { _id: Types.ObjectId; fullName: string }; role: string } {
+    return {
+      userId: { _id: new Types.ObjectId(id), fullName },
+      role,
+    };
+  }
+
+  /** Helper: set getMembers to return the given members */
+  function mockGetMembers(
+    ...entries: {
+      userId: { _id: Types.ObjectId; fullName: string };
+      role: string;
+    }[]
+  ): void {
+    workspaceMemberService.getMembers.mockResolvedValue(entries);
+  }
 
   beforeEach(async () => {
     const saveMock = jest.fn();
@@ -63,6 +86,7 @@ describe('TaskCommentService', () => {
       isMember: jest.fn(),
       filterNonMembers: jest.fn(),
       filterMembers: jest.fn(),
+      getMembers: jest.fn(),
     } as any;
 
     commentMapper = {
@@ -134,7 +158,6 @@ describe('TaskCommentService', () => {
     function mockSuccess(): void {
       workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
       workspaceMemberService.isMember.mockResolvedValue(true);
-      workspaceMemberService.filterNonMembers.mockResolvedValue([]);
       workspaceMemberService.filterMembers.mockImplementation(
         (_wsId: string, ids: string[]) => Promise.resolve(ids),
       );
@@ -151,6 +174,7 @@ describe('TaskCommentService', () => {
 
     it('creates task comment scoped to workspace and records activity', async () => {
       mockSuccess();
+      mockGetMembers(memberEntry(userId, 'Current User'));
 
       const result = await service.createForTask(
         workspaceId,
@@ -193,78 +217,273 @@ describe('TaskCommentService', () => {
       expect(taskActivitiesService.recordCommentAdded).not.toHaveBeenCalled();
     });
 
-    it('rejects mentioning non-workspace members', async () => {
+    it('rejects mentioning non-workspace members by parsing @Name from content', async () => {
       workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
       workspaceMemberService.isMember.mockResolvedValue(true);
-      workspaceMemberService.filterNonMembers.mockResolvedValue([nonMemberId]);
       taskModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(task),
       });
+      // Only "John Doe" is a workspace member
+      mockGetMembers(memberEntry(memberId, memberFullName));
 
       await expect(
         service.createForTask(
           workspaceId,
           taskId,
-          { content: 'Hello @outsider', mentions: [nonMemberId] },
+          { content: `Hello @${nonMemberName}` },
           userId,
         ),
-      ).rejects.toThrow('Mentioned users must be members of this workspace');
+      ).rejects.toThrow(
+        `Mentioned users not found in workspace: ${nonMemberName}`,
+      );
 
-      expect(workspaceMemberService.filterNonMembers).toHaveBeenCalledWith(
+      expect(workspaceMemberService.getMembers).toHaveBeenCalledWith(
         workspaceId,
-        [nonMemberId],
       );
       expect(commentModel).not.toHaveBeenCalled();
     });
 
-    it('accepts mentioning workspace members', async () => {
+    it('accepts mentioning workspace members via @Name in content', async () => {
       mockSuccess();
-      workspaceMemberService.filterNonMembers.mockResolvedValue([]);
+      mockGetMembers(
+        memberEntry(userId, 'Current User'),
+        memberEntry(memberId, memberFullName),
+      );
 
       const result = await service.createForTask(
         workspaceId,
         taskId,
-        { content: 'Hello @member', mentions: [memberId] },
+        { content: `Hello @${memberFullName}` },
         userId,
       );
 
       expect(result).toEqual(mapped);
-      expect(workspaceMemberService.filterNonMembers).toHaveBeenCalledWith(
+      expect(workspaceMemberService.getMembers).toHaveBeenCalledWith(
         workspaceId,
-        [memberId],
       );
       expect(commentModel).toHaveBeenCalledWith(
         expect.objectContaining({
-          content: 'Hello @member',
+          content: `Hello @${memberFullName}`,
           mentions: [new Types.ObjectId(memberId)],
         }),
       );
     });
 
-    it('accepts empty mentions array', async () => {
+    it('does not call getMembers when content has no @ patterns', async () => {
       mockSuccess();
+      mockGetMembers(memberEntry(userId, 'Current User'));
 
-      await service.createForTask(
+      const result = await service.createForTask(
         workspaceId,
         taskId,
-        { content: 'No mentions', mentions: [] },
+        { content: 'No mentions here' },
         userId,
       );
 
-      expect(workspaceMemberService.filterNonMembers).not.toHaveBeenCalled();
+      expect(result).toEqual(mapped);
+      // No @ patterns → getMembers should NOT be called
+      expect(workspaceMemberService.getMembers).not.toHaveBeenCalled();
+      // No @ patterns → mentions should be empty
+      expect(commentModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'No mentions here',
+          mentions: [],
+        }),
+      );
+    });
+  });
+
+  describe('updateForTask', () => {
+    const originalCommentId = new Types.ObjectId().toString();
+    const task = {
+      _id: new Types.ObjectId(taskId),
+      workspaceId: new Types.ObjectId(workspaceId),
+      key: 'TESKB-1',
+      title: 'Test task',
+      isArchived: false,
+      isDeleted: false,
+      assigneeId: new Types.ObjectId(memberId),
+      reporterId: new Types.ObjectId(userId),
+      version: 1,
+    };
+
+    let existingComment: any;
+    let saveMock: jest.Mock;
+    let populateMock: jest.Mock;
+    const mapped = {
+      id: originalCommentId,
+      content: 'Updated content',
+      mentions: [memberId],
+    };
+
+    function mockUpdateBase(): void {
+      workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
+      workspaceMemberService.isMember.mockResolvedValue(true);
+      taskModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(task),
+      });
+
+      existingComment = {
+        _id: new Types.ObjectId(originalCommentId),
+        workspaceId: new Types.ObjectId(workspaceId),
+        targetType: 'task',
+        targetId: taskId,
+        authorId: new Types.ObjectId(userId),
+        content: 'Original content',
+        mentions: [],
+        editedAt: undefined,
+        isDeleted: false,
+        $set: undefined,
+      };
+
+      saveMock = jest.fn().mockResolvedValue(existingComment);
+      existingComment.save = saveMock;
+
+      populateMock = jest.fn().mockResolvedValue(existingComment);
+      existingComment.populate = populateMock;
+
+      commentModel.findOne.mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(existingComment),
+        }),
+      });
+
+      commentMapper.mapToDto.mockReturnValue(mapped as any);
+    }
+
+    it('rejects updating when user is not the author', async () => {
+      mockUpdateBase();
+      existingComment.authorId = new Types.ObjectId(memberId);
+
+      await expect(
+        service.updateForTask(
+          workspaceId,
+          taskId,
+          originalCommentId,
+          { content: 'Hacked content' },
+          userId,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(saveMock).not.toHaveBeenCalled();
     });
 
-    it('accepts undefined mentions', async () => {
-      mockSuccess();
+    it('rejects updating with mention of non-workspace member via @Name in content', async () => {
+      mockUpdateBase();
+      mockGetMembers(memberEntry(memberId, memberFullName));
 
-      await service.createForTask(
+      await expect(
+        service.updateForTask(
+          workspaceId,
+          taskId,
+          originalCommentId,
+          { content: `Hello @${nonMemberName}` },
+          userId,
+        ),
+      ).rejects.toThrow(
+        `Mentioned users not found in workspace: ${nonMemberName}`,
+      );
+
+      expect(workspaceMemberService.getMembers).toHaveBeenCalledWith(
+        workspaceId,
+      );
+      expect(saveMock).not.toHaveBeenCalled();
+    });
+
+    it('updates comment with mention of workspace member via @Name in content', async () => {
+      mockUpdateBase();
+      mockGetMembers(
+        memberEntry(userId, 'Current User'),
+        memberEntry(memberId, memberFullName),
+      );
+
+      const result = await service.updateForTask(
         workspaceId,
         taskId,
-        { content: 'No mentions' },
+        originalCommentId,
+        { content: `Hello @${memberFullName}` },
         userId,
       );
 
-      expect(workspaceMemberService.filterNonMembers).not.toHaveBeenCalled();
+      expect(result).toEqual(mapped);
+      expect(workspaceMemberService.getMembers).toHaveBeenCalledWith(
+        workspaceId,
+      );
+      expect(existingComment.content).toBe(`Hello @${memberFullName}`);
+      expect(existingComment.mentions).toEqual([new Types.ObjectId(memberId)]);
+      expect(existingComment.editedAt).toBeInstanceOf(Date);
+      expect(saveMock).toHaveBeenCalled();
+      expect(taskActivitiesService.recordCommentUpdated).toHaveBeenCalled();
+    });
+
+    it('clears mentions when updated content has no @ symbols', async () => {
+      mockUpdateBase();
+      existingComment.mentions = [new Types.ObjectId(memberId)];
+
+      const result = await service.updateForTask(
+        workspaceId,
+        taskId,
+        originalCommentId,
+        { content: 'Just content update, no symbols' },
+        userId,
+      );
+
+      expect(result).toEqual(mapped);
+      expect(existingComment.content).toBe('Just content update, no symbols');
+      // No @ symbols → getMembers should NOT be called
+      expect(workspaceMemberService.getMembers).not.toHaveBeenCalled();
+      // Mentions should be empty because no @Name in content
+      expect(existingComment.mentions).toEqual([]);
+      expect(saveMock).toHaveBeenCalled();
+      expect(taskActivitiesService.recordCommentUpdated).toHaveBeenCalled();
+    });
+
+    it('rejects updating with content containing @Name of someone outside workspace', async () => {
+      mockUpdateBase();
+      mockGetMembers(memberEntry(memberId, memberFullName));
+
+      const rawPayload = {
+        content: `Hacked @${nonMemberName}`,
+      };
+
+      await expect(
+        service.updateForTask(
+          workspaceId,
+          taskId,
+          originalCommentId,
+          rawPayload,
+          userId,
+        ),
+      ).rejects.toThrow(
+        `Mentioned users not found in workspace: ${nonMemberName}`,
+      );
+
+      expect(saveMock).not.toHaveBeenCalled();
+      expect(taskActivitiesService.recordCommentUpdated).not.toHaveBeenCalled();
+    });
+
+    it('rejects updating on archived task', async () => {
+      workspacesService.findById.mockResolvedValue({ _id: workspaceId } as any);
+      workspaceMemberService.isMember.mockResolvedValue(true);
+      taskModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: new Types.ObjectId(taskId),
+          workspaceId: new Types.ObjectId(workspaceId),
+          isArchived: true,
+        }),
+      });
+
+      await expect(
+        service.updateForTask(
+          workspaceId,
+          taskId,
+          originalCommentId,
+          { content: 'Nope' },
+          userId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(taskActivitiesService.recordCommentUpdated).not.toHaveBeenCalled();
     });
   });
 });
