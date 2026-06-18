@@ -60,13 +60,14 @@ export class DashboardService {
       .select('title key columnId type createdAt')
       .exec();
 
-    // My tasks (assigned to current user)
+    // My tasks (assigned to current user) — all tasks sorted by due date ascending, nulls last
     const myTasks = await this.taskModel
       .find({
         workspaceId: { $in: workspaceIds },
         assigneeId: new Types.ObjectId(userId),
       })
-      .select('title key columnId type priority workspaceId createdAt')
+      .sort({ dueDate: 1 })
+      .select('title key columnId type priority workspaceId createdAt dueDate')
       .exec();
 
     // Active sprints

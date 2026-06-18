@@ -18,6 +18,7 @@ const TASK_SORT_FIELDS = new Set([
   'status',
   'rank',
   'archivedAt',
+  'dueDate',
 ]);
 
 @Injectable()
