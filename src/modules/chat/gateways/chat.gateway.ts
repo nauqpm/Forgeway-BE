@@ -399,6 +399,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           meetingId,
           participants: meeting.participants,
           displayName: body.displayName,
+          type: meeting.type,
+          isAudioOn: body.isAudioOn ?? true,
+          isVideoOn: body.isVideoOn ?? meeting.type === 'video',
         },
         occurredAt: new Date().toISOString(),
       };
@@ -406,8 +409,30 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server
         .to(RoomBuilder.meeting(meetingId))
         .emit(REALTIME_EVENT_TYPES.MEETING_USER_JOINED, envelope);
-      return { ok: true, meetingId };
+
+      const maxParticipants = this.meetingService.maxMeshClients;
+      return {
+        ok: true,
+        meetingId,
+        isFirstInTheCall: meeting.participants.length === 1,
+        membersOnCall: meeting.participants.length,
+        maxParticipants,
+        roomFull: meeting.participants.length >= maxParticipants,
+        existingUsers: meeting.participants
+          .filter(p => p.userId.toString() !== userId)
+          .map(p => p.userId.toString()),
+        participants: meeting.participants,
+      };
     } catch (error) {
+      if ((error as Error).message === 'ROOM_FULL') {
+        return {
+          ok: false,
+          isFirstInTheCall: false,
+          membersOnCall: this.meetingService.maxMeshClients,
+          maxParticipants: this.meetingService.maxMeshClients,
+          roomFull: true,
+        };
+      }
       return { ok: false, message: (error as Error).message };
     }
   }
@@ -495,12 +520,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     await this.meetingService.toggleAudio(body.meetingId, userId, body.isOn);
 
+    const envelope: RealtimeEnvelope<any> = {
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED,
+      data: {
+        userId,
+        meetingId: body.meetingId,
+        isOn: body.isOn,
+      },
+      occurredAt: new Date().toISOString(),
+    };
+
     this.server
       .to(RoomBuilder.meeting(body.meetingId))
-      .emit(REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED, {
-        userId,
-        isOn: body.isOn,
-      });
+      .emit(REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED, envelope);
   }
 
   @SubscribeMessage('meeting.toggle.video')
@@ -513,12 +546,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     await this.meetingService.toggleVideo(body.meetingId, userId, body.isOn);
 
+    const envelope: RealtimeEnvelope<any> = {
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED,
+      data: {
+        userId,
+        meetingId: body.meetingId,
+        isOn: body.isOn,
+      },
+      occurredAt: new Date().toISOString(),
+    };
+
     this.server
       .to(RoomBuilder.meeting(body.meetingId))
-      .emit(REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED, {
-        userId,
-        isOn: body.isOn,
-      });
+      .emit(REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED, envelope);
   }
 
   // 5.4 WebRTC Signaling

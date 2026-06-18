@@ -16,9 +16,15 @@ import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher'
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 
+const MAX_MESH_CLIENTS = 6;
+
 @Injectable()
 export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
+
+  get maxMeshClients(): number {
+    return MAX_MESH_CLIENTS;
+  }
 
   constructor(
     private readonly meetingsRepository: MeetingsRepository,
@@ -140,6 +146,10 @@ export class MeetingService {
     const existingParticipant = meeting.participants.find(
       p => p.userId.toString() === userId,
     );
+
+    if (!existingParticipant && meeting.participants.length >= MAX_MESH_CLIENTS) {
+      throw new BadRequestException('ROOM_FULL');
+    }
 
     if (existingParticipant) {
       let modified = false;
