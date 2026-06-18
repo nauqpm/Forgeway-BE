@@ -46,6 +46,12 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { ChatModule } from './modules/chat/chat.module';
 
+const mailPort = Number.parseInt(process.env.MAIL_PORT ?? '587', 10);
+const mailSecure = mailPort === 465;
+const mailRejectUnauthorized =
+  process.env.NODE_ENV === 'production' &&
+  process.env.MAIL_TLS_INSECURE !== 'true';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -160,14 +166,14 @@ import { ChatModule } from './modules/chat/chat.module';
     MailerModule.forRoot({
       transport: {
         host: process.env.MAIL_HOST ?? '',
-        port: parseInt(process.env.MAIL_PORT ?? '587', 10),
-        secure: false,
+        port: mailPort,
+        secure: mailSecure,
         auth: {
           user: process.env.MAIL_USER ?? '',
           pass: process.env.MAIL_PASSWORD ?? '',
         },
         tls: {
-          rejectUnauthorized: process.env.NODE_ENV === 'production',
+          rejectUnauthorized: mailRejectUnauthorized,
         },
       },
       defaults: {
