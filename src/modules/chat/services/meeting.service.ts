@@ -16,9 +16,15 @@ import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher'
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 
+const MAX_MESH_CLIENTS = 6;
+
 @Injectable()
 export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
+
+  get maxMeshClients(): number {
+    return MAX_MESH_CLIENTS;
+  }
 
   constructor(
     private readonly meetingsRepository: MeetingsRepository,
@@ -115,7 +121,11 @@ export class MeetingService {
     return meeting;
   }
 
-  async join(meetingId: string, userId: string): Promise<MeetingDocument> {
+  async join(
+    meetingId: string,
+    userId: string,
+    options?: { isAudioOn?: boolean; isVideoOn?: boolean },
+  ): Promise<MeetingDocument> {
     if (!Types.ObjectId.isValid(meetingId)) {
       throw new NotFoundException('Invalid Meeting ID');
     }
@@ -133,18 +143,43 @@ export class MeetingService {
       throw new ForbiddenException('You do not have access to this channel');
     }
 
-    const isAlreadyIn = meeting.participants.some(
+    const existingParticipant = meeting.participants.find(
       p => p.userId.toString() === userId,
     );
-    if (isAlreadyIn) {
+
+    if (!existingParticipant && meeting.participants.length >= MAX_MESH_CLIENTS) {
+      throw new BadRequestException('ROOM_FULL');
+    }
+
+    if (existingParticipant) {
+      let modified = false;
+      if (
+        options?.isAudioOn !== undefined &&
+        existingParticipant.isAudioOn !== options.isAudioOn
+      ) {
+        existingParticipant.isAudioOn = options.isAudioOn;
+        modified = true;
+      }
+      if (
+        options?.isVideoOn !== undefined &&
+        existingParticipant.isVideoOn !== options.isVideoOn
+      ) {
+        existingParticipant.isVideoOn = options.isVideoOn;
+        modified = true;
+      }
+
+      if (modified) {
+        meeting.markModified('participants');
+        return meeting.save();
+      }
       return meeting;
     }
 
     meeting.participants.push({
       userId: new Types.ObjectId(userId),
       joinedAt: new Date(),
-      isAudioOn: true,
-      isVideoOn: meeting.type === 'video',
+      isAudioOn: options?.isAudioOn ?? true,
+      isVideoOn: options?.isVideoOn ?? meeting.type === 'video',
       isMuted: false,
     });
 

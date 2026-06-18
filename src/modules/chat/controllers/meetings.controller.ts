@@ -21,7 +21,11 @@ export class MeetingsController {
   // @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getActiveMeetingByChannel(@Param('channelId') channelId: string) {
     const meeting = await this.meetingService.findActive(channelId);
-    return meeting || null;
+    if (!meeting) return null;
+    return {
+      ...meeting.toJSON(),
+      maxParticipants: this.meetingService.maxMeshClients,
+    };
   }
 
   /**
@@ -32,6 +36,10 @@ export class MeetingsController {
   @Get(':id')
   // @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getMeetingById(@Param('id') id: string) {
-    return this.meetingService.findById(id);
+    const meeting = await this.meetingService.findById(id);
+    return {
+      ...meeting.toJSON(),
+      maxParticipants: this.meetingService.maxMeshClients,
+    };
   }
 }

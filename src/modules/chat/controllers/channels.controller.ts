@@ -179,7 +179,12 @@ export class ChannelsController {
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
   async getActiveMeeting(@Param('id') id: string) {
-    return this.meetingService.findActive(id);
+    const meeting = await this.meetingService.findActive(id);
+    if (!meeting) return null;
+    return {
+      ...meeting.toJSON(),
+      maxParticipants: this.meetingService.maxMeshClients,
+    };
   }
 
   @Post('meeting/:id/join')
