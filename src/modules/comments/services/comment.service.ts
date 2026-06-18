@@ -13,6 +13,7 @@ import { Comment, CommentDocument } from '../schemas/comment.schema';
 import { Page, PageDocument } from '../../pages/schemas/page.schema';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
+import { resolveAndValidateMentions } from '../utils/mention-validator.util';
 
 @Injectable()
 export class CommentService {
@@ -44,6 +45,12 @@ export class CommentService {
     );
     await this.assertParentInTarget(dto.workspaceId, dto);
 
+    const resolvedMentions = await resolveAndValidateMentions(
+      this.workspaceMemberService,
+      dto.workspaceId,
+      dto.content,
+    );
+
     const comment = new this.commentModel({
       workspaceId: new Types.ObjectId(dto.workspaceId),
       content: dto.content,
@@ -52,7 +59,7 @@ export class CommentService {
       targetId: dto.targetId,
       inlineId: dto.inlineId,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
-      mentions: dto.mentions?.map(id => new Types.ObjectId(id)) || [],
+      mentions: resolvedMentions,
     });
 
     const savedComment = await comment.save();
@@ -181,7 +188,19 @@ export class CommentService {
       throw new ForbiddenException('You can only update your own comments');
     }
 
+    const wsId = comment.workspaceId?.toString();
+    if (!wsId) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    const resolvedMentions = await resolveAndValidateMentions(
+      this.workspaceMemberService,
+      wsId,
+      dto.content,
+    );
+
     comment.content = dto.content;
+    comment.mentions = resolvedMentions;
     comment.editedAt = new Date();
     return comment.save();
   }
