@@ -3,6 +3,26 @@ import { Document, Types } from 'mongoose';
 
 export type ChannelDocument = Channel & Document;
 
+@Schema({ _id: false })
+export class LastMessageEmbedded {
+  @Prop({ type: String })
+  content?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  senderId?: Types.ObjectId;
+
+  @Prop({ type: String })
+  senderName?: string;
+
+  @Prop({ type: Date })
+  sentAt?: Date;
+
+  @Prop({ type: String })
+  type?: string;
+}
+
+export const LastMessageSchema = SchemaFactory.createForClass(LastMessageEmbedded);
+
 @Schema({ timestamps: true })
 export class Channel {
   @Prop({
@@ -29,22 +49,10 @@ export class Channel {
   members!: Types.ObjectId[];
 
   @Prop({
-    type: {
-      content: String,
-      senderId: { type: Types.ObjectId, ref: 'User' },
-      senderName: String,
-      sentAt: Date,
-      type: String,
-    },
-    _id: false,
+    type: LastMessageSchema,
+    default: null,
   })
-  lastMessage?: {
-    content: string;
-    senderId: Types.ObjectId;
-    senderName: string;
-    sentAt: Date;
-    type?: string;
-  };
+  lastMessage?: LastMessageEmbedded;
 
   @Prop({ default: false })
   isPrivate!: boolean;

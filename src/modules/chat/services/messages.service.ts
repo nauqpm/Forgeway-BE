@@ -184,9 +184,13 @@ export class MessagesService {
 
     const populated = await message.populate([
       { path: 'senderId', select: 'fullName avatar email' },
+      { path: 'stickerId' },
       {
         path: 'replyToId',
-        populate: { path: 'senderId', select: 'fullName avatar email' },
+        populate: [
+          { path: 'senderId', select: 'fullName avatar email' },
+          { path: 'stickerId' },
+        ],
       },
     ]);
     const [withReactions] = await this.populateReactions([populated]);
@@ -226,9 +230,13 @@ export class MessagesService {
       .limit(limit)
       .populate([
         { path: 'senderId', select: 'fullName avatar email' },
+        { path: 'stickerId' },
         {
           path: 'replyToId',
-          populate: { path: 'senderId', select: 'fullName avatar email' },
+          populate: [
+            { path: 'senderId', select: 'fullName avatar email' },
+            { path: 'stickerId' },
+          ],
         },
       ])
       .exec();
@@ -264,9 +272,13 @@ export class MessagesService {
 
     const populated = await message.populate([
       { path: 'senderId', select: 'fullName avatar email' },
+      { path: 'stickerId' },
       {
         path: 'replyToId',
-        populate: { path: 'senderId', select: 'fullName avatar email' },
+        populate: [
+          { path: 'senderId', select: 'fullName avatar email' },
+          { path: 'stickerId' },
+        ],
       },
     ]);
     const [withReactions] = await this.populateReactions([populated]);
@@ -376,9 +388,13 @@ export class MessagesService {
       .findById(id)
       .populate([
         { path: 'senderId', select: 'fullName avatar email' },
+        { path: 'stickerId' },
         {
           path: 'replyToId',
-          populate: { path: 'senderId', select: 'fullName avatar email' },
+          populate: [
+            { path: 'senderId', select: 'fullName avatar email' },
+            { path: 'stickerId' },
+          ],
         },
       ])
       .exec();

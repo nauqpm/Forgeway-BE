@@ -48,16 +48,19 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
     // B. Lần hai thử: Fallback tự động map bằng tên event nếu limit/ttl chưa đúng cấu hình chat mong muốn
     if (eventName) {
       let config: { limit: number; ttl: number } | null = null;
-      if (eventName === 'chat.send') {
-        config = CHAT_THROTTLE_CONFIG.MESSAGE_SEND.default;
-      } else if (
-        ['chat.edit', 'chat.delete', 'chat.mark_read'].includes(eventName)
-      ) {
+      if (['chat.join', 'chat.leave', 'chat.mark_read'].includes(eventName)) {
+        // mark_read luôn đi kèm join khi đổi channel — cùng TTL
+        config = CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT.default;
+      } else if (['chat.edit', 'chat.delete'].includes(eventName)) {
+        // Chỉ edit và delete — hành động chủ ý
         config = CHAT_THROTTLE_CONFIG.MESSAGE_ACTION.default;
+      } else if (eventName === 'chat.reaction') {
+        // Tách riêng — user có thể react nhiều tin cùng lúc
+        config = CHAT_THROTTLE_CONFIG.REACTION.default;
+      } else if (eventName === 'chat.send') {
+        config = CHAT_THROTTLE_CONFIG.MESSAGE_SEND.default;
       } else if (eventName === 'chat.typing') {
         config = CHAT_THROTTLE_CONFIG.TYPING.default;
-      } else if (['chat.join', 'chat.leave'].includes(eventName)) {
-        config = CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT.default;
       }
 
       if (config) {
@@ -66,16 +69,18 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       }
     }
 
-    const tracker = client.data?.user?.userId || 'anonymous';
+    const tracker = client.data?.user?.userId;
+    if (!tracker) {
+      this.logger.warn(`Disconnecting socket ${client.id} due to missing userId in authenticated context`);
+      client.disconnect(true);
+      return false;
+    }
+
     const eventMetadataKey = eventName || 'unknown';
     const key = generateKey(
       context,
       `${tracker}-${eventMetadataKey}`,
       throttler.name,
-    );
-
-    this.logger.log(
-      `handleRequest: eventName=${eventName}, limit=${limit}, ttl=${ttl}, tracker=${tracker}`,
     );
 
     const { totalHits, timeToExpire } = await this.storageService.increment(
@@ -84,6 +89,10 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       limit,
       throttler.blockDuration ?? ttl,
       throttler.name,
+    );
+
+    this.logger.debug(
+      `[THROTTLE] ${eventName} | user=${tracker} | hits=${totalHits}/${limit} | ttl=${ttl}ms`,
     );
 
     // 3. Đồng bộ hóa với cấu trúc dữ liệu của Realtime Module
@@ -95,6 +104,7 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
         now - client.data.rateLimit.windowStartedAt > ttl
       ) {
         client.data.rateLimit = { windowStartedAt: now, count: totalHits };
+        this.logger.debug(`[THROTTLE] New window started for ${tracker} on ${eventName}`);
       } else {
         client.data.rateLimit.count = totalHits;
       }
@@ -102,7 +112,7 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
 
     if (totalHits > limit) {
       this.logger.warn(
-        `Rate limit exceeded: key=${key}, totalHits=${totalHits}, limit=${limit}, eventName=${eventName}`,
+        `[RATE_LIMIT] ${eventName} BLOCKED | user=${tracker} | hits=${totalHits}/${limit} | retry=${timeToExpire}s`,
       );
 
       // Phát sự kiện lỗi tương thích với cả Chat và Realtime module (dùng 'exception' thay vì 'error' để tránh ngắt kết nối socket)
@@ -113,14 +123,14 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       });
 
       // Chỉ phát 'rate_limited' với TTL còn lại (mili giây) cho các hành động foreground (tin nhắn)
-      const isForegroundAction = eventNames.some(
-        name =>
-          name && ['chat.send', 'chat.edit', 'chat.delete'].includes(name),
+      const NOTIFY_USER_EVENTS = ['chat.send', 'chat.edit', 'chat.delete', 'chat.reaction'];
+      const shouldNotifyUser = eventNames.some(
+        name => name && NOTIFY_USER_EVENTS.includes(name),
       );
 
-      if (isForegroundAction) {
+      if (shouldNotifyUser) {
         const remainingMs = timeToExpire ? timeToExpire * 1000 : ttl;
-        client.emit('rate_limited', { retryAfterMs: remainingMs });
+        client.emit('rate_limited', { retryAfterMs: remainingMs, eventName });
       }
 
       throw new ThrottlerException();
