@@ -36,6 +36,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(ChatGateway.name);
 
+  private readonly emptyMeetingTimers = new Map<string, NodeJS.Timeout>();
+
+  private readonly DELAY_END_MEETING = 10000;
+
   constructor(
     private readonly socketAuthService: SocketAuthService,
     private readonly channelsService: ChannelsService,
@@ -117,23 +121,39 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           .to(RoomBuilder.channel(updatedMeeting.channelId.toString()))
           .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
 
-        if (updatedMeeting.status === 'ended') {
-          const endedEnvelope: RealtimeEnvelope<any> = {
-            eventId: new Types.ObjectId().toString(),
-            type: REALTIME_EVENT_TYPES.MEETING_ENDED,
-            data: {
-              meetingId,
-              channelId: updatedMeeting.channelId.toString(),
-              type: updatedMeeting.type,
-            },
-            occurredAt: new Date().toISOString(),
-          };
-          this.server
-            .to(RoomBuilder.meeting(meetingId))
-            .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
-          this.server
-            .to(RoomBuilder.channel(updatedMeeting.channelId.toString()))
-            .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+        if (updatedMeeting.participants.length === 0) {
+          const existingTimer = this.emptyMeetingTimers.get(meetingId);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+          }
+          const timer = setTimeout(async () => {
+            try {
+              const endedMeeting = await this.meetingService.endIfEmpty(meetingId);
+              if (endedMeeting) {
+                const endedEnvelope: RealtimeEnvelope<any> = {
+                  eventId: new Types.ObjectId().toString(),
+                  type: REALTIME_EVENT_TYPES.MEETING_ENDED,
+                  data: {
+                    meetingId,
+                    channelId: endedMeeting.channelId.toString(),
+                    type: endedMeeting.type,
+                  },
+                  occurredAt: new Date().toISOString(),
+                };
+                this.server
+                  .to(RoomBuilder.meeting(meetingId))
+                  .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+                this.server
+                  .to(RoomBuilder.channel(endedMeeting.channelId.toString()))
+                  .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+              }
+            } catch (error) {
+              this.logger.error(`Failed to end empty meeting ${meetingId}: ${(error as Error).message}`);
+            } finally {
+              this.emptyMeetingTimers.delete(meetingId);
+            }
+          }, this.DELAY_END_MEETING);
+          this.emptyMeetingTimers.set(meetingId, timer);
         }
       }
     } catch (error) {
@@ -388,6 +408,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         isVideoOn: body.isVideoOn,
       });
 
+      const existingTimer = this.emptyMeetingTimers.get(body.meetingId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        this.emptyMeetingTimers.delete(body.meetingId);
+      }
+
       const meetingId = meeting._id.toString();
       await client.join(RoomBuilder.meeting(meetingId));
 
@@ -463,12 +489,39 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .to(RoomBuilder.meeting(body.meetingId))
       .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
 
-    if (meeting.status === 'ended') {
-      this.server
-        .to(RoomBuilder.meeting(body.meetingId))
-        .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, {
-          meetingId: body.meetingId,
-        });
+    if (meeting.participants.length === 0) {
+      const existingTimer = this.emptyMeetingTimers.get(body.meetingId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      const timer = setTimeout(async () => {
+        try {
+          const endedMeeting = await this.meetingService.endIfEmpty(body.meetingId);
+          if (endedMeeting) {
+            const endedEnvelope: RealtimeEnvelope<any> = {
+              eventId: new Types.ObjectId().toString(),
+              type: REALTIME_EVENT_TYPES.MEETING_ENDED,
+              data: {
+                meetingId: body.meetingId,
+                channelId: endedMeeting.channelId.toString(),
+                type: endedMeeting.type,
+              },
+              occurredAt: new Date().toISOString(),
+            };
+            this.server
+              .to(RoomBuilder.meeting(body.meetingId))
+              .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+            this.server
+              .to(RoomBuilder.channel(endedMeeting.channelId.toString()))
+              .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
+          }
+        } catch (error) {
+          this.logger.error(`Failed to end empty meeting ${body.meetingId}: ${(error as Error).message}`);
+        } finally {
+          this.emptyMeetingTimers.delete(body.meetingId);
+        }
+      }, 10000);
+      this.emptyMeetingTimers.set(body.meetingId, timer);
     }
 
     return { ok: true };
@@ -485,6 +538,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const meeting = await this.meetingService.findById(body.meetingId);
       await this.meetingService.end(body.meetingId, userId);
+
+      const existingTimer = this.emptyMeetingTimers.get(body.meetingId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        this.emptyMeetingTimers.delete(body.meetingId);
+      }
 
       const envelope: RealtimeEnvelope<any> = {
         eventId: new Types.ObjectId().toString(),

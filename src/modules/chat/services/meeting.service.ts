@@ -204,12 +204,21 @@ export class MeetingService {
       p => p.userId.toString() !== userId,
     );
 
+    return meeting.save();
+  }
+
+  async endIfEmpty(meetingId: string): Promise<MeetingDocument | null> {
+    if (!Types.ObjectId.isValid(meetingId)) return null;
+
+    const meeting = await this.meetingsRepository.model.findById(meetingId);
+    if (!meeting || meeting.status === 'ended') return null;
+
     if (meeting.participants.length === 0) {
       meeting.status = 'ended';
       meeting.endedAt = new Date();
+      return meeting.save();
     }
-
-    return meeting.save();
+    return null;
   }
 
   async toggleAudio(
