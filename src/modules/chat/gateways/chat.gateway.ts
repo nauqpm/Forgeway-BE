@@ -250,6 +250,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
       payload.content,
     );
+
+    // Update last message preview in channel if this was the last message
+    const channel = await this.channelsService.findById(payload.channelId);
+    if (
+      channel?.lastMessage?.sentAt &&
+      message.createdAt &&
+      new Date(channel.lastMessage.sentAt).getTime() === new Date(message.createdAt).getTime()
+    ) {
+      await this.channelsService.updateLastMessage(payload.channelId, {
+        content: message.content,
+        senderId: message.senderId?._id || message.senderId?.id || message.senderId,
+        senderName: message.senderId?.fullName || channel.lastMessage.senderName || '',
+        sentAt: message.createdAt,
+        type: message.type,
+      });
+    }
+
     const room = RoomBuilder.channel(payload.channelId);
 
     const envelope: RealtimeEnvelope<any> = {
@@ -297,6 +314,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { ok: true };
   }
 
+  @Throttle(CHAT_THROTTLE_CONFIG.REACTION)
   @SubscribeMessage('chat.reaction')
   async handleReaction(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -327,7 +345,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { ok: true };
   }
 
-  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   @SubscribeMessage('chat.mark_read')
   async handleMarkRead(
     @ConnectedSocket() client: AuthenticatedSocket,
