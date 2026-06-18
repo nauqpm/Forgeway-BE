@@ -37,7 +37,9 @@ export class UsersController {
   ) {
     const normalizedSearch = search?.trim() ?? '';
     if (normalizedSearch.length < 2) {
-      throw new BadRequestException('Search query must be at least 2 characters.');
+      throw new BadRequestException(
+        'Search query must be at least 2 characters.',
+      );
     }
 
     const parsedLimit = limit ? Number.parseInt(limit, 10) : 20;

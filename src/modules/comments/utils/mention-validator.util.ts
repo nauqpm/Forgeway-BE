@@ -58,10 +58,12 @@ export async function resolveAndValidateMentions(
   // Build lookup: lowercase fullName → userId string
   const nameToUserId = new Map<string, string>();
   for (const member of members) {
-    const userDoc = member.userId as any;
+    const userDoc = member.userId;
     if (!userDoc) continue;
-    const fullName =
-      (userDoc.fullName || userDoc.name || '').toString().toLowerCase().trim();
+    const fullName = (userDoc.fullName || userDoc.name || '')
+      .toString()
+      .toLowerCase()
+      .trim();
     if (fullName) {
       nameToUserId.set(fullName, (userDoc._id || userDoc).toString());
     }

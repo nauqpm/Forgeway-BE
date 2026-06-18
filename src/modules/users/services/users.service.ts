@@ -255,13 +255,19 @@ export class UsersService {
     excludeUserId: string,
     limit = 20,
   ): Promise<UserSearchResult[]> {
-    const users = await this.usersRepository.search(query, excludeUserId, limit);
+    const users = await this.usersRepository.search(
+      query,
+      excludeUserId,
+      limit,
+    );
     return users.map(user => this.toUserSearchResult(user));
   }
 
   private toUserSearchResult(user: UserSearchRecord): UserSearchResult {
     const id =
-      typeof user._id === 'object' && user._id !== null && 'toString' in user._id
+      typeof user._id === 'object' &&
+      user._id !== null &&
+      'toString' in user._id
         ? user._id.toString()
         : String(user._id);
 

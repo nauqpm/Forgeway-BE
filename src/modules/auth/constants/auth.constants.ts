@@ -1,4 +1,4 @@
-  // Centralized non-token durations/constants. Auth token TTLs live in AuthTokenConfigService.
+// Centralized non-token durations/constants. Auth token TTLs live in AuthTokenConfigService.
 
 export const AUTH_CONSTANTS = {
   PASSWORD_RESET_EXPIRES_MS: 15 * 60 * 1000,

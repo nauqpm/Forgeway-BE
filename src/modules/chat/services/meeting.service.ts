@@ -147,7 +147,10 @@ export class MeetingService {
       p => p.userId.toString() === userId,
     );
 
-    if (!existingParticipant && meeting.participants.length >= MAX_MESH_CLIENTS) {
+    if (
+      !existingParticipant &&
+      meeting.participants.length >= MAX_MESH_CLIENTS
+    ) {
       throw new BadRequestException('ROOM_FULL');
     }
 

@@ -42,7 +42,6 @@ describe('TaskCommentService', () => {
   const taskId = new Types.ObjectId().toString();
   const userId = new Types.ObjectId().toString();
   const memberId = new Types.ObjectId().toString();
-  const nonMemberId = new Types.ObjectId().toString();
   const memberFullName = 'John Doe';
   const nonMemberName = 'Evil Hacker';
 
@@ -60,7 +59,10 @@ describe('TaskCommentService', () => {
 
   /** Helper: set getMembers to return the given members */
   function mockGetMembers(
-    ...entries: { userId: { _id: Types.ObjectId; fullName: string }; role: string }[]
+    ...entries: {
+      userId: { _id: Types.ObjectId; fullName: string };
+      role: string;
+    }[]
   ): void {
     workspaceMemberService.getMembers.mockResolvedValue(entries);
   }
@@ -427,9 +429,7 @@ describe('TaskCommentService', () => {
       );
 
       expect(result).toEqual(mapped);
-      expect(existingComment.content).toBe(
-        'Just content update, no symbols',
-      );
+      expect(existingComment.content).toBe('Just content update, no symbols');
       // No @ symbols → getMembers should NOT be called
       expect(workspaceMemberService.getMembers).not.toHaveBeenCalled();
       // Mentions should be empty because no @Name in content
@@ -459,9 +459,7 @@ describe('TaskCommentService', () => {
       );
 
       expect(saveMock).not.toHaveBeenCalled();
-      expect(
-        taskActivitiesService.recordCommentUpdated,
-      ).not.toHaveBeenCalled();
+      expect(taskActivitiesService.recordCommentUpdated).not.toHaveBeenCalled();
     });
 
     it('rejects updating on archived task', async () => {
