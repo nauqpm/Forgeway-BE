@@ -10,13 +10,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Token, TokenDocument } from '../schemas/token.schema';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../../users/services/users.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { RefreshJwtPayload } from '../types/jwt-payload.type';
+import { AuthTokenConfigService } from '../config/auth-token-config.service';
 
 @Injectable()
 export class TokenService {
@@ -25,7 +25,7 @@ export class TokenService {
   constructor(
     @InjectModel(Token.name) private readonly tokenModel: Model<TokenDocument>,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly authTokenConfig: AuthTokenConfigService,
     private readonly usersService: UsersService,
     private readonly auditLogService: AuditLogService,
   ) {}
@@ -76,11 +76,7 @@ export class TokenService {
       const payload = { userId, email, role, fullName, avatar };
       const token = this.jwtService.sign(payload);
 
-      const expiresInDays = parseInt(
-        this.configService.get<string>('JWT_EXPIRES_IN_DAYS') || '7',
-      );
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      const expiresAt = this.authTokenConfig.getAccessTokenExpiresAt();
 
       const newToken = new this.tokenModel({
         userId,
@@ -124,8 +120,8 @@ export class TokenService {
       const refreshToken = this.createRefreshToken(userId);
 
       const familyId = randomBytes(16).toString('hex');
-      const accessExpiry = new Date(Date.now() + 60 * 60 * 1000);
-      const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const accessExpiry = this.authTokenConfig.getAccessTokenExpiresAt();
+      const refreshExpiry = this.authTokenConfig.getRefreshTokenExpiresAt();
 
       await this.tokenModel.create({
         userId,
@@ -188,9 +184,8 @@ export class TokenService {
       jti: randomBytes(8).toString('hex'),
     };
     return this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
-      expiresIn:
-        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') || '7d',
+      secret: this.authTokenConfig.refreshTokenSecret,
+      expiresIn: this.authTokenConfig.refreshTokenJwtExpiresIn,
     });
   }
 
@@ -319,7 +314,7 @@ export class TokenService {
   ): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
     try {
       const decoded = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
-        secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+        secret: this.authTokenConfig.refreshTokenSecret,
       });
 
       if (decoded.type !== TOKEN_TYPES.REFRESH) {
@@ -407,8 +402,8 @@ export class TokenService {
 
       const familyId = consumed.familyId ?? randomBytes(16).toString('hex');
 
-      const accessExpiry = new Date(Date.now() + 15 * 60 * 1000);
-      const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const accessExpiry = this.authTokenConfig.getAccessTokenExpiresAt();
+      const refreshExpiry = this.authTokenConfig.getRefreshTokenExpiresAt();
 
       await this.tokenModel.create({
         userId: user._id.toString(),
