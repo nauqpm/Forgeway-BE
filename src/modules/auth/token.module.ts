@@ -2,7 +2,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthTokenConfigModule } from './config/auth-token-config.module';
+import { AuthTokenConfigService } from './config/auth-token-config.service';
 
 import { TokenService } from './services/token.service';
 
@@ -18,18 +19,16 @@ import { AuditModule } from '../audit/audit.module';
 
     // Needed for TokenService(JwtService)
     JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+      imports: [AuthTokenConfigModule],
+      inject: [AuthTokenConfigService],
+      useFactory: (authTokenConfig: AuthTokenConfigService) => ({
+        secret: authTokenConfig.jwtSecret,
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1d',
+          expiresIn: authTokenConfig.accessTokenJwtExpiresIn,
         },
       }),
     }),
-
-    // Needed for TokenService(ConfigService)
-    ConfigModule,
+    AuthTokenConfigModule,
 
     // Needed for TokenService(UsersService)
     forwardRef(() => UsersModule),

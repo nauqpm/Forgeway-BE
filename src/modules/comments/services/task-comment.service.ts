@@ -23,6 +23,7 @@ import { CreateTaskCommentDto } from '../dtos/create-task-comment.dto';
 import { UpdateCommentDto } from '../dtos/update-comment.dto';
 import { CommentMapper } from '../mappers/comment.mapper';
 import { Comment, CommentDocument } from '../schemas/comment.schema';
+import { resolveAndValidateMentions } from '../utils/mention-validator.util';
 
 @Injectable()
 export class TaskCommentService {
@@ -50,9 +51,11 @@ export class TaskCommentService {
     const task = await this.getCommentableTask(workspaceId, taskId, userId);
     await this.validateParentComment(workspaceId, taskId, dto.parentId);
 
-    if (dto.mentions && dto.mentions.length > 0) {
-      await this.validateMentionsAreMembers(workspaceId, dto.mentions);
-    }
+    const resolvedMentions = await resolveAndValidateMentions(
+      this.workspaceMemberService,
+      workspaceId,
+      dto.content,
+    );
 
     const comment = await new this.commentModel({
       workspaceId: new Types.ObjectId(workspaceId),
@@ -61,7 +64,7 @@ export class TaskCommentService {
       targetType: 'task',
       targetId: taskId,
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
-      mentions: dto.mentions?.map(id => new Types.ObjectId(id)) || [],
+      mentions: resolvedMentions,
     }).save();
 
     await this.taskActivitiesService.recordCommentAdded(
@@ -133,7 +136,14 @@ export class TaskCommentService {
       throw new ForbiddenException('You can only update your own comments');
     }
 
+    const resolvedMentions = await resolveAndValidateMentions(
+      this.workspaceMemberService,
+      workspaceId,
+      dto.content,
+    );
+
     comment.content = dto.content;
+    comment.mentions = resolvedMentions;
     comment.editedAt = new Date();
     const saved = await comment.save();
     await saved.populate('authorId', 'fullName email avatar');
@@ -339,23 +349,6 @@ export class TaskCommentService {
       );
     }
   }
-  private async validateMentionsAreMembers(
-    workspaceId: string,
-    mentionedUserIds: string[],
-  ): Promise<void> {
-    // Single query — fetches workspace once and checks membership in memory
-    const nonMembers = await this.workspaceMemberService.filterNonMembers(
-      workspaceId,
-      mentionedUserIds,
-    );
-
-    if (nonMembers.length > 0) {
-      throw new BadRequestException(
-        'Mentioned users must be members of this workspace',
-      );
-    }
-  }
-
   private async filterWorkspaceMembers(
     workspaceId: string,
     userIds: string[],

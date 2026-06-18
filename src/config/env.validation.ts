@@ -1,3 +1,9 @@
+import {
+  DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+  DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+  parsePositiveTtlSeconds,
+} from '../modules/auth/config/auth-token-config.util';
+
 type Env = Record<string, string | undefined>;
 
 const REQUIRED_ENV_VARS = [
@@ -38,6 +44,17 @@ export function validateEnv(config: Env): Env {
 
   requireStrongSecret(config, 'JWT_SECRET');
   requireStrongSecret(config, 'REFRESH_TOKEN_SECRET');
+
+  parsePositiveTtlSeconds(
+    config.ACCESS_TOKEN_TTL_SECONDS,
+    'ACCESS_TOKEN_TTL_SECONDS',
+    DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+  );
+  parsePositiveTtlSeconds(
+    config.REFRESH_TOKEN_TTL_SECONDS,
+    'REFRESH_TOKEN_TTL_SECONDS',
+    DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+  );
 
   return config;
 }

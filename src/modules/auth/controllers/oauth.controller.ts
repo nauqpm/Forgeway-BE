@@ -68,14 +68,14 @@ export class OAuthController {
   @SkipThrottle()
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req: RequestWithUser, @Res() res: Response) {
-    // 🐛 DEBUG LOG — REMOVE AFTER PRODUCTION INVESTIGATION
-    console.log('=============== GOOGLE CALLBACK ====================');
-    console.log('Callback reached');
-    console.log('Query:', req.query);
-    console.log('Host:', req.headers.host);
-    console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
-    console.log('X-Forwarded-Host:', req.headers['x-forwarded-host']);
-    console.log('===================================================');
+    // // 🐛 DEBUG LOG — REMOVE AFTER PRODUCTION INVESTIGATION
+    // console.log('=============== GOOGLE CALLBACK ====================');
+    // console.log('Callback reached');
+    // console.log('Query:', req.query);
+    // console.log('Host:', req.headers.host);
+    // console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
+    // console.log('X-Forwarded-Host:', req.headers['x-forwarded-host']);
+    // console.log('===================================================');
 
     try {
       if (!req.user) {

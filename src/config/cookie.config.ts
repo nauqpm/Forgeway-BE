@@ -1,4 +1,9 @@
 import { ConfigService } from '@nestjs/config';
+import {
+  DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+  DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+  parsePositiveTtlSeconds,
+} from '../modules/auth/config/auth-token-config.util';
 
 export interface CookieOptions {
   httpOnly: boolean;
@@ -24,20 +29,30 @@ const BASE_COOKIE_OPTIONS = (
   };
 };
 
-// Access token cookie: khớp với JWT_EXPIRES_IN (mặc định 15m)
+// Access token cookie maxAge follows ACCESS_TOKEN_TTL_SECONDS.
 export const getAccessCookieOptions = (
   configService: ConfigService,
 ): CookieOptions => ({
   ...BASE_COOKIE_OPTIONS(configService),
-  maxAge: 15 * 60 * 1000, // 15 phút
+  maxAge:
+    parsePositiveTtlSeconds(
+      configService.get<string>('ACCESS_TOKEN_TTL_SECONDS'),
+      'ACCESS_TOKEN_TTL_SECONDS',
+      DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+    ) * 1000,
 });
 
-// Refresh token cookie: 7 ngày
+// Refresh token cookie maxAge follows REFRESH_TOKEN_TTL_SECONDS.
 export const getRefreshCookieOptions = (
   configService: ConfigService,
 ): CookieOptions => ({
   ...BASE_COOKIE_OPTIONS(configService),
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+  maxAge:
+    parsePositiveTtlSeconds(
+      configService.get<string>('REFRESH_TOKEN_TTL_SECONDS'),
+      'REFRESH_TOKEN_TTL_SECONDS',
+      DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+    ) * 1000,
 });
 
 // Device id cookie: 1 năm. HttpOnly + lax để browser tự gửi theo mọi request trong cùng site.

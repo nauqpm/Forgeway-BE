@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthTokenConfigModule } from '../config/auth-token-config.module';
+import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { PassportModule } from '@nestjs/passport';
 
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -14,12 +15,12 @@ import { TokenModule } from '../token.module';
     forwardRef(() => AuditModule),
     forwardRef(() => TokenModule),
     JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+      imports: [AuthTokenConfigModule],
+      inject: [AuthTokenConfigService],
+      useFactory: (authTokenConfig: AuthTokenConfigService) => ({
+        secret: authTokenConfig.jwtSecret,
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1d',
+          expiresIn: authTokenConfig.accessTokenJwtExpiresIn,
         },
       }),
     }),
