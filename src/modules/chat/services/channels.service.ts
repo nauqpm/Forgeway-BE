@@ -349,7 +349,7 @@ export class ChannelsService {
   async updateLastMessage(
     channelId: string,
     message: {
-      content: string;
+      content?: string;
       senderId: any;
       senderName: string;
       sentAt: Date;
@@ -372,7 +372,7 @@ export class ChannelsService {
         {
           $set: {
             lastMessage: {
-              content: message.content,
+              content: message.content || '',
               senderId: senderObjectId,
               senderName: message.senderName,
               sentAt: message.sentAt,
