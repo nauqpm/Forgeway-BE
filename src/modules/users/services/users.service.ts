@@ -6,7 +6,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
-import type { SanitizedUserRecord } from '../repositories/users.repository';
+import type {
+  SanitizedUserRecord,
+  UserSearchRecord,
+} from '../repositories/users.repository';
 import { User } from '../schemas/users.schema';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUsersDto } from '../dtos/update-users.dto';
@@ -14,6 +17,12 @@ import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { ErrorFactory } from '../../../common/factories/error.factory';
+
+export interface UserSearchResult {
+  id: string;
+  fullName?: string;
+  avatar?: string;
+}
 
 export interface LoginFailureState {
   failedAttempts: number;
@@ -241,9 +250,26 @@ export class UsersService {
     return updated;
   }
 
-  async searchUsers(query: string, excludeUserId: string): Promise<User[]> {
-    const users = await this.usersRepository.search(query, excludeUserId);
-    return users;
+  async searchUsers(
+    query: string,
+    excludeUserId: string,
+    limit = 20,
+  ): Promise<UserSearchResult[]> {
+    const users = await this.usersRepository.search(query, excludeUserId, limit);
+    return users.map(user => this.toUserSearchResult(user));
+  }
+
+  private toUserSearchResult(user: UserSearchRecord): UserSearchResult {
+    const id =
+      typeof user._id === 'object' && user._id !== null && 'toString' in user._id
+        ? user._id.toString()
+        : String(user._id);
+
+    return {
+      id,
+      fullName: user.fullName,
+      avatar: user.avatar,
+    };
   }
 
   async getUsersByIds(ids: string[]): Promise<User[]> {

@@ -30,14 +30,30 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Get('all')
-  async getAllUsersForSearch(@Request() req, @Query('search') search?: string) {
-    this.logger.log(
-      `Fetching all users for search. Query: ${search}, User: ${req.user.userId}`,
-    );
-    if (search) {
-      return await this.usersService.searchUsers(search, req.user.userId);
+  async getAllUsersForSearch(
+    @Request() req,
+    @Query('search') search?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const normalizedSearch = search?.trim() ?? '';
+    if (normalizedSearch.length < 2) {
+      throw new BadRequestException('Search query must be at least 2 characters.');
     }
-    return await this.usersService.getAllUsers();
+
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : 20;
+    const safeLimit = Number.isFinite(parsedLimit)
+      ? Math.min(50, Math.max(1, parsedLimit))
+      : 20;
+
+    this.logger.log(
+      `Searching users. Query: ${normalizedSearch}, Limit: ${safeLimit}, User: ${req.user.userId}`,
+    );
+
+    return await this.usersService.searchUsers(
+      normalizedSearch,
+      req.user.userId,
+      safeLimit,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
