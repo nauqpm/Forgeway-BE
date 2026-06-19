@@ -174,7 +174,7 @@ export class AuditLogService {
 
   async getLogById(id: string): Promise<SecurityEventDocument | null> {
     if (!Types.ObjectId.isValid(id)) return null;
-    return this.securityEventModel.findById(id).lean().exec();
+    return this.securityEventModel.findById(id).exec();
   }
 
   async getStats(): Promise<{

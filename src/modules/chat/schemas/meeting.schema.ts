@@ -48,6 +48,9 @@ export class Meeting {
   @Prop({ type: String, default: null })
   routerId?: string;
 
+  @Prop({ type: String, unique: true, sparse: true })
+  roomName?: string;
+
   @Prop({ type: Date, default: null }) startedAt?: Date;
   @Prop({ type: Date, default: null }) endedAt?: Date;
 

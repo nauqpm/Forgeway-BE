@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 import request = require('supertest');
 import { AccountSwitcherService } from '../src/modules/auth/services/account-switcher.service';
 import { RecentLoginsService } from '../src/modules/auth/services/recent-logins.service';
+import { AuthTokenConfigService } from '../src/modules/auth/config/auth-token-config.service';
 
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 import { USER_STATUSES } from '../src/common/constants/user-status.constants';
@@ -227,10 +228,11 @@ describe('Auth security flows (integration)', () => {
 
   beforeEach(() => {
     tokenModel = new InMemoryTokenModel();
+    const authTokenConfigService = new AuthTokenConfigService(configService as unknown as ConfigService);
     tokenService = new TokenService(
       tokenModel as unknown as never,
       jwtService,
-      configService as unknown as ConfigService,
+      authTokenConfigService,
       {
         getUserById: jest.fn().mockResolvedValue({
           _id: { toString: () => userId },

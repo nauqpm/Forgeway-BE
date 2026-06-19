@@ -150,7 +150,6 @@ export class UsersRepository extends BaseRepository<UserDocument> {
     return this.userModel
       .find({ _id: { $in: ids.map(id => new Types.ObjectId(id)) } })
       .select('_id email fullName avatar role status createdAt updatedAt phone')
-      .lean()
       .exec();
   }
 

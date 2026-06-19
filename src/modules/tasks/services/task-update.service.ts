@@ -41,7 +41,7 @@ export class TaskUpdateService {
     this.validationService.validateObjectId(id, 'Task');
     this.assertMetadataUpdateOnly(updateTaskDto);
 
-    const existing = await this.taskReadRepository.findById(id, {
+    const existing = await this.taskReadRepository.findTaskById(id, {
       includeArchived: true,
     });
     if (!existing) {

@@ -27,7 +27,7 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
     return includeDeleted ? {} : { isDeleted: { $ne: true } };
   }
 
-  async findById(
+  async findTaskById(
     id: string,
     options: TaskLookupOptions = {},
     session?: ClientSession,

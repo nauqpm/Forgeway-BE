@@ -185,7 +185,7 @@ export class TokenService {
     };
     return this.jwtService.sign(payload, {
       secret: this.authTokenConfig.refreshTokenSecret,
-      expiresIn: this.authTokenConfig.refreshTokenJwtExpiresIn,
+      expiresIn: this.authTokenConfig.refreshTokenTtlSeconds,
     });
   }
 

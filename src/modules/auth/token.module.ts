@@ -24,7 +24,7 @@ import { AuditModule } from '../audit/audit.module';
       useFactory: (authTokenConfig: AuthTokenConfigService) => ({
         secret: authTokenConfig.jwtSecret,
         signOptions: {
-          expiresIn: authTokenConfig.accessTokenJwtExpiresIn,
+          expiresIn: authTokenConfig.accessTokenTtlSeconds,
         },
       }),
     }),

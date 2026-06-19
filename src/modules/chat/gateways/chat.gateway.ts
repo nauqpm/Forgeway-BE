@@ -13,7 +13,7 @@ import { Server } from 'socket.io';
 import { Types } from 'mongoose';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
-import { MeetingService } from '../services/meeting.service';
+import { MeetingService } from '../../meetings/meeting.service';
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RealtimeEnvelope } from '../../realtime/contracts/realtime-envelope.interface';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
@@ -35,10 +35,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly server!: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
-
-  private readonly emptyMeetingTimers = new Map<string, NodeJS.Timeout>();
-
-  private readonly DELAY_END_MEETING = 10000;
 
   constructor(
     private readonly socketAuthService: SocketAuthService,
@@ -120,41 +116,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server
           .to(RoomBuilder.channel(updatedMeeting.channelId.toString()))
           .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
-
-        if (updatedMeeting.participants.length === 0) {
-          const existingTimer = this.emptyMeetingTimers.get(meetingId);
-          if (existingTimer) {
-            clearTimeout(existingTimer);
-          }
-          const timer = setTimeout(async () => {
-            try {
-              const endedMeeting = await this.meetingService.endIfEmpty(meetingId);
-              if (endedMeeting) {
-                const endedEnvelope: RealtimeEnvelope<any> = {
-                  eventId: new Types.ObjectId().toString(),
-                  type: REALTIME_EVENT_TYPES.MEETING_ENDED,
-                  data: {
-                    meetingId,
-                    channelId: endedMeeting.channelId.toString(),
-                    type: endedMeeting.type,
-                  },
-                  occurredAt: new Date().toISOString(),
-                };
-                this.server
-                  .to(RoomBuilder.meeting(meetingId))
-                  .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
-                this.server
-                  .to(RoomBuilder.channel(endedMeeting.channelId.toString()))
-                  .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
-              }
-            } catch (error) {
-              this.logger.error(`Failed to end empty meeting ${meetingId}: ${(error as Error).message}`);
-            } finally {
-              this.emptyMeetingTimers.delete(meetingId);
-            }
-          }, this.DELAY_END_MEETING);
-          this.emptyMeetingTimers.set(meetingId, timer);
-        }
       }
     } catch (error) {
       this.logger.error(
@@ -426,12 +387,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         isVideoOn: body.isVideoOn,
       });
 
-      const existingTimer = this.emptyMeetingTimers.get(body.meetingId);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
-        this.emptyMeetingTimers.delete(body.meetingId);
-      }
-
       const meetingId = meeting._id.toString();
       await client.join(RoomBuilder.meeting(meetingId));
 
@@ -454,29 +409,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         .to(RoomBuilder.meeting(meetingId))
         .emit(REALTIME_EVENT_TYPES.MEETING_USER_JOINED, envelope);
 
-      const maxParticipants = this.meetingService.maxMeshClients;
       return {
         ok: true,
         meetingId,
         isFirstInTheCall: meeting.participants.length === 1,
         membersOnCall: meeting.participants.length,
-        maxParticipants,
-        roomFull: meeting.participants.length >= maxParticipants,
         existingUsers: meeting.participants
           .filter(p => p.userId.toString() !== userId)
           .map(p => p.userId.toString()),
         participants: meeting.participants,
       };
     } catch (error) {
-      if ((error as Error).message === 'ROOM_FULL') {
-        return {
-          ok: false,
-          isFirstInTheCall: false,
-          membersOnCall: this.meetingService.maxMeshClients,
-          maxParticipants: this.meetingService.maxMeshClients,
-          roomFull: true,
-        };
-      }
       return { ok: false, message: (error as Error).message };
     }
   }
@@ -507,41 +450,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .to(RoomBuilder.meeting(body.meetingId))
       .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
 
-    if (meeting.participants.length === 0) {
-      const existingTimer = this.emptyMeetingTimers.get(body.meetingId);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
-      }
-      const timer = setTimeout(async () => {
-        try {
-          const endedMeeting = await this.meetingService.endIfEmpty(body.meetingId);
-          if (endedMeeting) {
-            const endedEnvelope: RealtimeEnvelope<any> = {
-              eventId: new Types.ObjectId().toString(),
-              type: REALTIME_EVENT_TYPES.MEETING_ENDED,
-              data: {
-                meetingId: body.meetingId,
-                channelId: endedMeeting.channelId.toString(),
-                type: endedMeeting.type,
-              },
-              occurredAt: new Date().toISOString(),
-            };
-            this.server
-              .to(RoomBuilder.meeting(body.meetingId))
-              .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
-            this.server
-              .to(RoomBuilder.channel(endedMeeting.channelId.toString()))
-              .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, endedEnvelope);
-          }
-        } catch (error) {
-          this.logger.error(`Failed to end empty meeting ${body.meetingId}: ${(error as Error).message}`);
-        } finally {
-          this.emptyMeetingTimers.delete(body.meetingId);
-        }
-      }, 10000);
-      this.emptyMeetingTimers.set(body.meetingId, timer);
-    }
-
     return { ok: true };
   }
 
@@ -556,12 +464,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const meeting = await this.meetingService.findById(body.meetingId);
       await this.meetingService.end(body.meetingId, userId);
-
-      const existingTimer = this.emptyMeetingTimers.get(body.meetingId);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
-        this.emptyMeetingTimers.delete(body.meetingId);
-      }
 
       const envelope: RealtimeEnvelope<any> = {
         eventId: new Types.ObjectId().toString(),
@@ -637,57 +539,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .to(RoomBuilder.meeting(body.meetingId))
       .emit(REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED, envelope);
-  }
-
-  // 5.4 WebRTC Signaling
-  @SubscribeMessage('rtc.offer')
-  async handleRtcOffer(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody()
-    payload: { meetingId: string; targetUserId: string; sdp: any },
-  ) {
-    const senderId = client.data.user?.userId;
-    if (!senderId) return;
-
-    this.server
-      .to(RoomBuilder.user(payload.targetUserId))
-      .emit(REALTIME_EVENT_TYPES.RTC_OFFER, {
-        ...payload,
-        senderId,
-      });
-  }
-
-  @SubscribeMessage('rtc.answer')
-  async handleRtcAnswer(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody()
-    payload: { meetingId: string; targetUserId: string; sdp: any },
-  ) {
-    const senderId = client.data.user?.userId;
-    if (!senderId) return;
-
-    this.server
-      .to(RoomBuilder.user(payload.targetUserId))
-      .emit(REALTIME_EVENT_TYPES.RTC_ANSWER, {
-        ...payload,
-        senderId,
-      });
-  }
-
-  @SubscribeMessage('rtc.ice')
-  async handleRtcIce(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody()
-    payload: { meetingId: string; targetUserId: string; candidate: any },
-  ) {
-    const senderId = client.data.user?.userId;
-    if (!senderId) return;
-
-    this.server
-      .to(RoomBuilder.user(payload.targetUserId))
-      .emit(REALTIME_EVENT_TYPES.RTC_ICE_CANDIDATE, {
-        ...payload,
-        senderId,
-      });
   }
 }

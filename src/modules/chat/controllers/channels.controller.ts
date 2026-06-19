@@ -17,7 +17,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
-import { MeetingService } from '../services/meeting.service';
+import { MeetingService } from '../../meetings/meeting.service';
 import { MeetingType } from '../schemas/meeting.schema';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { EditMessageDto } from '../dtos/edit-message.dto';

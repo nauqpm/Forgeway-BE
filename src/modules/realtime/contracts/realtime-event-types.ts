@@ -13,13 +13,7 @@ export const REALTIME_EVENT_TYPES = {
   MEETING_USER_AUDIO_CHANGED: 'meeting.user.audio_changed',
   MEETING_USER_VIDEO_CHANGED: 'meeting.user.video_changed',
   MEETING_ENDED: 'meeting.ended',
-  MEETING_CAPACITY_WARNING: 'meeting.capacity_warning',
   MEETING_STARTED: 'meeting.started',
-
-  // WebRTC signaling
-  RTC_OFFER: 'rtc.offer',
-  RTC_ANSWER: 'rtc.answer',
-  RTC_ICE_CANDIDATE: 'rtc.ice',
 
   // Task events
   TASK_CREATED: 'task.created',

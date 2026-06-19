@@ -20,7 +20,7 @@ import { TokenModule } from '../token.module';
       useFactory: (authTokenConfig: AuthTokenConfigService) => ({
         secret: authTokenConfig.jwtSecret,
         signOptions: {
-          expiresIn: authTokenConfig.accessTokenJwtExpiresIn,
+          expiresIn: authTokenConfig.accessTokenTtlSeconds,
         },
       }),
     }),

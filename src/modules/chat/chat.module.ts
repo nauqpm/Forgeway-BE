@@ -1,15 +1,17 @@
 import { Module, OnModuleInit, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
 import { TokenModule } from '../auth/token.module';
 import { AuditModule } from '../audit/audit.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { MeetingsModule } from '../meetings/meetings.module';
 import { RedisModule } from '../../infra/redis/redis.module';
 import { ChannelsService } from './services/channels.service';
 import { MessagesService } from './services/messages.service';
-import { MeetingService } from './services/meeting.service';
+import { MeetingService } from '../meetings/meeting.service';
 import { StickersService } from './services/stickers.service';
 import { ChatGateway } from './gateways/chat.gateway';
 import { ChannelsController } from './controllers/channels.controller';
@@ -47,6 +49,8 @@ import { StickersRepository } from './repositories/stickers.repository';
     TokenModule,
     AuditModule,
     RealtimeModule,
+    MeetingsModule,
+    ConfigModule,
     RedisModule,
   ],
   controllers: [StickersController, ChannelsController, MeetingsController],
@@ -68,6 +72,7 @@ import { StickersRepository } from './repositories/stickers.repository';
     ChannelsRepository,
     MessagesRepository,
     MeetingsRepository,
+    MeetingService,
     ChannelReadMarkersRepository,
     StickerPacksRepository,
     StickersRepository,

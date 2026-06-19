@@ -29,7 +29,7 @@ import { User, UserSchema } from '../users/schemas/users.schema';
       useFactory: async (authTokenConfig: AuthTokenConfigService) => ({
         secret: authTokenConfig.jwtSecret,
         signOptions: {
-          expiresIn: authTokenConfig.accessTokenJwtExpiresIn,
+          expiresIn: authTokenConfig.accessTokenTtlSeconds,
         },
       }),
     }),
