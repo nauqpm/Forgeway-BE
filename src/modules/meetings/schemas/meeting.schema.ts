@@ -8,6 +8,7 @@ export type MeetingType = 'voice' | 'video';
 export class MeetingParticipant {
   @Prop({ type: Types.ObjectId, ref: 'User' }) userId!: Types.ObjectId;
   @Prop({ default: () => new Date() }) joinedAt!: Date;
+  @Prop({ default: null }) leftAt?: Date;
   @Prop({ default: true }) isAudioOn!: boolean;
   @Prop({ default: false }) isVideoOn!: boolean;
   @Prop({ default: false }) isMuted!: boolean;

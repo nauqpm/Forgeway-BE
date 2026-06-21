@@ -13,7 +13,6 @@ import { Server } from 'socket.io';
 import { Types } from 'mongoose';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
-import { MeetingService } from '../../meetings/meeting.service';
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RealtimeEnvelope } from '../../realtime/contracts/realtime-envelope.interface';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
@@ -39,8 +38,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly socketAuthService: SocketAuthService,
     private readonly channelsService: ChannelsService,
-    private readonly messagesService: MessagesService,
-    private readonly meetingService: MeetingService,
+    private readonly messagesService: MessagesService
   ) {}
 
   afterInit(server: Server) {
@@ -88,35 +86,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         `Chat client disconnected: ${client.id} | User: ${userId}`,
       );
 
-      const activeMeetings =
-        await this.meetingService.findActiveByParticipant(userId);
-      for (const meeting of activeMeetings) {
-        const meetingId = meeting._id.toString();
-        const updatedMeeting = await this.meetingService.leave(
-          meetingId,
-          userId,
-        );
-
-        const envelope: RealtimeEnvelope<any> = {
-          eventId: new Types.ObjectId().toString(),
-          type: REALTIME_EVENT_TYPES.MEETING_USER_LEFT,
-          data: {
-            userId,
-            meetingId,
-            participants: updatedMeeting.participants,
-            channelId: updatedMeeting.channelId.toString(),
-            type: updatedMeeting.type,
-          },
-          occurredAt: new Date().toISOString(),
-        };
-
-        this.server
-          .to(RoomBuilder.meeting(meetingId))
-          .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
-        this.server
-          .to(RoomBuilder.channel(updatedMeeting.channelId.toString()))
-          .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
-      }
     } catch (error) {
       this.logger.error(
         `Error in handleDisconnect for ${client.id}: ${(error as Error).message}`,
@@ -363,181 +332,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       channelId: body.channelId,
       timestamp: new Date().toISOString(),
     });
-  }
-
-  // 5.3 Meeting Events
-  @SubscribeMessage('meeting.join')
-  async handleMeetingJoin(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody()
-    body: {
-      meetingId: string;
-      displayName?: string;
-      isAudioOn?: boolean;
-      isVideoOn?: boolean;
-    },
-  ) {
-    const userId = client.data.user?.userId;
-    if (!userId) return { ok: false, message: 'Unauthorized session' };
-    if (!body.meetingId) return { ok: false, message: 'Missing meetingId' };
-
-    try {
-      const meeting = await this.meetingService.join(body.meetingId, userId, {
-        isAudioOn: body.isAudioOn,
-        isVideoOn: body.isVideoOn,
-      });
-
-      const meetingId = meeting._id.toString();
-      await client.join(RoomBuilder.meeting(meetingId));
-
-      const envelope: RealtimeEnvelope<any> = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.MEETING_USER_JOINED,
-        data: {
-          userId,
-          meetingId,
-          participants: meeting.participants,
-          displayName: body.displayName,
-          type: meeting.type,
-          isAudioOn: body.isAudioOn ?? true,
-          isVideoOn: body.isVideoOn ?? meeting.type === 'video',
-        },
-        occurredAt: new Date().toISOString(),
-      };
-
-      this.server
-        .to(RoomBuilder.meeting(meetingId))
-        .emit(REALTIME_EVENT_TYPES.MEETING_USER_JOINED, envelope);
-
-      return {
-        ok: true,
-        meetingId,
-        isFirstInTheCall: meeting.participants.length === 1,
-        membersOnCall: meeting.participants.length,
-        existingUsers: meeting.participants
-          .filter(p => p.userId.toString() !== userId)
-          .map(p => p.userId.toString()),
-        participants: meeting.participants,
-      };
-    } catch (error) {
-      return { ok: false, message: (error as Error).message };
-    }
-  }
-
-  @SubscribeMessage('meeting.leave')
-  async handleMeetingLeave(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { meetingId: string },
-  ) {
-    const userId = client.data.user?.userId;
-    if (!userId || !body.meetingId) return { ok: false };
-
-    const meeting = await this.meetingService.leave(body.meetingId, userId);
-    await client.leave(RoomBuilder.meeting(body.meetingId));
-
-    const envelope: RealtimeEnvelope<any> = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.MEETING_USER_LEFT,
-      data: {
-        userId,
-        meetingId: body.meetingId,
-        participants: meeting.participants,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-
-    this.server
-      .to(RoomBuilder.meeting(body.meetingId))
-      .emit(REALTIME_EVENT_TYPES.MEETING_USER_LEFT, envelope);
-
-    return { ok: true };
-  }
-
-  @SubscribeMessage('meeting.end')
-  async handleMeetingEnd(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { meetingId: string },
-  ) {
-    const userId = client.data.user?.userId;
-    if (!userId || !body.meetingId) return { ok: false };
-
-    try {
-      const meeting = await this.meetingService.findById(body.meetingId);
-      await this.meetingService.end(body.meetingId, userId);
-
-      const envelope: RealtimeEnvelope<any> = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.MEETING_ENDED,
-        data: {
-          meetingId: body.meetingId,
-          channelId: meeting.channelId.toString(),
-          type: meeting.type,
-        },
-        occurredAt: new Date().toISOString(),
-      };
-
-      this.server
-        .to(RoomBuilder.meeting(body.meetingId))
-        .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, envelope);
-      this.server
-        .to(RoomBuilder.channel(meeting.channelId.toString()))
-        .emit(REALTIME_EVENT_TYPES.MEETING_ENDED, envelope);
-
-      return { ok: true };
-    } catch (error) {
-      return { ok: false, message: (error as Error).message };
-    }
-  }
-
-  @SubscribeMessage('meeting.toggle.audio')
-  async handleToggleAudio(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { meetingId: string; isOn: boolean },
-  ) {
-    const userId = client.data.user?.userId;
-    if (!userId || !body.meetingId) return;
-
-    await this.meetingService.toggleAudio(body.meetingId, userId, body.isOn);
-
-    const envelope: RealtimeEnvelope<any> = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED,
-      data: {
-        userId,
-        meetingId: body.meetingId,
-        isOn: body.isOn,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-
-    this.server
-      .to(RoomBuilder.meeting(body.meetingId))
-      .emit(REALTIME_EVENT_TYPES.MEETING_USER_AUDIO_CHANGED, envelope);
-  }
-
-  @SubscribeMessage('meeting.toggle.video')
-  async handleToggleVideo(
-    @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { meetingId: string; isOn: boolean },
-  ) {
-    const userId = client.data.user?.userId;
-    if (!userId || !body.meetingId) return;
-
-    await this.meetingService.toggleVideo(body.meetingId, userId, body.isOn);
-
-    const envelope: RealtimeEnvelope<any> = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED,
-      data: {
-        userId,
-        meetingId: body.meetingId,
-        isOn: body.isOn,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-
-    this.server
-      .to(RoomBuilder.meeting(body.meetingId))
-      .emit(REALTIME_EVENT_TYPES.MEETING_USER_VIDEO_CHANGED, envelope);
   }
 }

@@ -17,12 +17,11 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { ChannelsService } from '../services/channels.service';
 import { MessagesService } from '../services/messages.service';
-import { MeetingService } from '../../meetings/meeting.service';
-import { MeetingType } from '../schemas/meeting.schema';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { EditMessageDto } from '../dtos/edit-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
 import { CHAT_THROTTLE_CONFIG } from '../constants/chat-throttler.constants';
+import { MeetingService } from '@/modules/meetings/services/meeting.service';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -162,80 +161,5 @@ export class ChannelsController {
   ) {
     // This method needs to be implemented in MessagesService
     return this.messagesService.toggleReaction(id, userId, body.emoji);
-  }
-
-  @Post('channels/:id/meeting')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async createMeeting(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-    @Body() body: { type?: MeetingType },
-  ) {
-    return this.meetingService.create(id, userId, body.type ?? 'video');
-  }
-
-  @Get('channels/:id/meeting')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
-  async getActiveMeeting(@Param('id') id: string) {
-    const meeting = await this.meetingService.findActive(id);
-    if (!meeting) return null;
-    return {
-      ...meeting.toJSON(),
-      maxParticipants: this.meetingService.maxMeshClients,
-    };
-  }
-
-  @Post('meeting/:id/join')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async joinMeeting(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-  ) {
-    return this.meetingService.join(id, userId);
-  }
-
-  @Post('meeting/:id/leave')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async leaveMeeting(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-  ) {
-    return this.meetingService.leave(id, userId);
-  }
-
-  @Patch('meeting/:id/audio')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
-  async toggleAudio(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-    @Body() body: { isOn: boolean },
-  ) {
-    return this.meetingService.toggleAudio(id, userId, body.isOn);
-  }
-
-  @Patch('meeting/:id/video')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
-  async toggleVideo(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-    @Body() body: { isOn: boolean },
-  ) {
-    return this.meetingService.toggleVideo(id, userId, body.isOn);
-  }
-
-  @Post('meeting/:id/end')
-  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
-  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
-  async endMeeting(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: string,
-  ) {
-    return this.meetingService.end(id, userId);
   }
 }

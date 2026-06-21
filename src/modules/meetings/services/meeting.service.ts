@@ -9,27 +9,28 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Types } from 'mongoose';
-import { RoomServiceClient } from 'livekit-server-sdk';
 import { randomUUID } from 'crypto';
-import { MeetingDocument, MeetingType } from '../chat/schemas/meeting.schema';
-import { MeetingsRepository } from '../chat/repositories/meetings.repository';
-import { ChannelsService } from '../chat/services/channels.service';
-import { MessagesService } from '../chat/services/messages.service';
+import { MeetingDocument, MeetingType } from '../schemas/meeting.schema';
+import { MeetingsRepository } from '../meetings.repository';
+import { ChannelsService } from '../../chat/services/channels.service';
+import { MessagesService } from '../../chat/services/messages.service';
+import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
+import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
+import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { LivekitTokenService } from './livekit-token.service';
-import { RealtimePublisher } from '../realtime/publishers/realtime.publisher';
-import { REALTIME_EVENT_TYPES } from '../realtime/contracts/realtime-event-types';
-import { RoomBuilder } from '../realtime/contracts/realtime-rooms';
+import { LivekitRoomService } from './livekit-room.service';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 
 /** @deprecated LiveKit Cloud manages capacity; kept for backward compat */
-const MAX_MESH_CLIENTS = 6;
+const MAX_PARTICIPANTS = 30;
 
 @Injectable()
 export class MeetingService {
   private readonly logger = new Logger(MeetingService.name);
 
   /** @deprecated LiveKit Cloud manages capacity */
-  get maxMeshClients(): number {
-    return MAX_MESH_CLIENTS;
+  get maxParticipants(): number {
+    return MAX_PARTICIPANTS;
   }
 
   constructor(
@@ -38,9 +39,12 @@ export class MeetingService {
     @Inject(forwardRef(() => MessagesService))
     private readonly messagesService: MessagesService,
     private readonly realtimePublisher: RealtimePublisher,
-    private readonly livekitTokenService: LivekitTokenService,
     private readonly configService: ConfigService,
-  ) {}
+    private readonly livekitTokenService: LivekitTokenService,
+    private readonly livekitRoomService: LivekitRoomService,
+    @Inject(forwardRef(() => WorkspacesService))
+    private readonly workspacesService: WorkspacesService,
+  ) { }
 
   async create(
     channelId: string,
@@ -68,7 +72,7 @@ export class MeetingService {
 
     const channel = await this.channelsService.findById(channelId);
 
-    const roomName = `ws_${channel.workspaceId}_meeting_${randomUUID()}`;
+    const roomName = `ws_${channel.workspaceId ?? 'general'}_meeting_${randomUUID()}`;
 
     const meeting = await this.meetingsRepository.model.create({
       channelId: new Types.ObjectId(channelId),
@@ -88,6 +92,22 @@ export class MeetingService {
       ],
       startedAt: new Date(),
     });
+
+    try {
+      await this.livekitRoomService.createRoom({
+        roomName,
+        meetingId: meeting._id.toString(),
+        channelId,
+        workspaceId: channel.workspaceId?.toString(),
+        maxParticipants: this.maxParticipants,
+      });
+    } catch (error) {
+      meeting.status = 'ended';
+      meeting.endedAt = new Date();
+      await meeting.save();
+
+      throw error;
+    }
 
     const message = await this.messagesService.send(channelId, userId, {
       content:
@@ -132,11 +152,7 @@ export class MeetingService {
     return meeting;
   }
 
-  async join(
-    meetingId: string,
-    userId: string,
-    options?: { isAudioOn?: boolean; isVideoOn?: boolean },
-  ): Promise<MeetingDocument> {
+  async leave(meetingId: string, userId: string) {
     if (!Types.ObjectId.isValid(meetingId)) {
       throw new NotFoundException('Invalid Meeting ID');
     }
@@ -146,149 +162,37 @@ export class MeetingService {
       throw new NotFoundException('Meeting not found or already ended');
     }
 
+    // Authorization: check channel membership
     const hasAccess = await this.channelsService.validateUserAccess(
       meeting.channelId.toString(),
       userId,
     );
     if (!hasAccess) {
-      throw new ForbiddenException('You do not have access to this channel');
+      throw new ForbiddenException(
+        'You are not a member of the channel for this meeting',
+      );
     }
 
-    const existingParticipant = meeting.participants.find(
+    const participant = meeting.participants.find(
       p => p.userId.toString() === userId,
     );
-
-    if (existingParticipant) {
-      let modified = false;
-      if (
-        options?.isAudioOn !== undefined &&
-        existingParticipant.isAudioOn !== options.isAudioOn
-      ) {
-        existingParticipant.isAudioOn = options.isAudioOn;
-        modified = true;
-      }
-      if (
-        options?.isVideoOn !== undefined &&
-        existingParticipant.isVideoOn !== options.isVideoOn
-      ) {
-        existingParticipant.isVideoOn = options.isVideoOn;
-        modified = true;
-      }
-
-      if (modified) {
-        meeting.markModified('participants');
-        return meeting.save();
-      }
-      return meeting;
+    if (!participant) {
+      throw new NotFoundException('Participant not found');
     }
 
-    meeting.participants.push({
-      userId: new Types.ObjectId(userId),
-      joinedAt: new Date(),
-      isAudioOn: options?.isAudioOn ?? true,
-      isVideoOn: options?.isVideoOn ?? meeting.type === 'video',
-      isMuted: false,
-    });
-
-    if (meeting.status === 'waiting') {
-      meeting.status = 'active';
-    }
-
-    return meeting.save();
-  }
-
-  async leave(meetingId: string, userId: string): Promise<MeetingDocument> {
-    if (!Types.ObjectId.isValid(meetingId)) {
-      throw new NotFoundException('Invalid Meeting ID');
-    }
-
-    const meeting = await this.meetingsRepository.model.findById(meetingId);
-    if (!meeting) {
-      throw new NotFoundException('Meeting not found');
-    }
-
-    meeting.participants = meeting.participants.filter(
-      p => p.userId.toString() !== userId,
-    );
-
-    return meeting.save();
-  }
-
-  async toggleAudio(
-    meetingId: string,
-    userId: string,
-    isOn: boolean,
-  ): Promise<void> {
-    await this.meetingsRepository.model.updateOne(
-      { _id: meetingId, 'participants.userId': new Types.ObjectId(userId) },
-      { $set: { 'participants.$.isAudioOn': isOn } },
-    );
-  }
-
-  async toggleVideo(
-    meetingId: string,
-    userId: string,
-    isOn: boolean,
-  ): Promise<void> {
-    const meeting = await this.meetingsRepository.model
-      .findById(meetingId)
-      .select('type')
-      .exec();
-    if (!meeting) {
-      throw new NotFoundException('Meeting not found');
-    }
-
-    if (meeting.type === 'voice' && isOn) {
-      throw new BadRequestException('Voice calls do not support video');
-    }
-
-    await this.meetingsRepository.model.updateOne(
-      { _id: meetingId, 'participants.userId': new Types.ObjectId(userId) },
-      { $set: { 'participants.$.isVideoOn': isOn } },
-    );
-  }
-
-  async end(meetingId: string, userId: string): Promise<void> {
-    if (!Types.ObjectId.isValid(meetingId)) {
-      throw new NotFoundException('Invalid Meeting ID');
-    }
-
-    const meeting = await this.meetingsRepository.model.findById(meetingId);
-    if (!meeting) {
-      throw new NotFoundException('Meeting not found');
-    }
-
-    // Only createdBy or WORKSPACE_ADMIN can end
-    if (meeting.createdBy.toString() !== userId) {
-      throw new ForbiddenException('Only the creator can end the meeting');
-    }
-
-    // Kick all participants from LiveKit room
-    if (meeting.roomName) {
-      try {
-        const livekitUrl = this.configService.get<string>('LIVEKIT_URL') || '';
-        const apiKey = this.configService.get<string>('LIVEKIT_API_KEY') || '';
-        const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET') || '';
-        const host = livekitUrl.replace('wss://', 'https://');
-        const roomService = new RoomServiceClient(host, apiKey, apiSecret);
-        await roomService.deleteRoom(meeting.roomName);
-      } catch (error) {
-        this.logger.warn(
-          `Failed to delete LiveKit room ${meeting.roomName}: ${(error as Error).message}`,
-        );
-      }
-    }
-
-    meeting.status = 'ended';
-    meeting.endedAt = new Date();
+    participant.leftAt = new Date();
     await meeting.save();
+
+
+    // nếu là người cuối cùng rời khỏi cuộc họp thì kết thúc cuộc họp
+
   }
 
   /**
    * Issue a LiveKit connection token for a meeting participant.
    * Verifies channel membership before issuing.
    */
-  async getConnectionDetails(
+  async requestConnectionDetailsToJoin(
     meetingId: string,
     userId: string,
     userDisplayName: string,
@@ -321,9 +225,9 @@ export class MeetingService {
     const identity = `${userId}:${roomName}`;
 
     // Upsert participant record
-    const isHost = meeting.createdBy.toString() === userId;
+    // const isHost = meeting.createdBy.toString() === userId;
     const existingParticipant = meeting.participants.find(
-      (p) => p.userId.toString() === userId,
+      p => p.userId.toString() === userId,
     );
     if (!existingParticipant) {
       meeting.participants.push({
@@ -346,11 +250,31 @@ export class MeetingService {
         name: userDisplayName || userId,
       });
 
+    // Determine if the user can end the meeting
+    const channel = await this.channelsService.findById(meeting.channelId.toString());
+    let channelOwnerId = channel.createdBy?.toString();
+    
+    if (channel.workspaceId) {
+      try {
+        const workspace = await this.workspacesService.findById(channel.workspaceId.toString());
+        if (workspace) {
+          channelOwnerId = workspace.ownerId?.toString();
+        }
+      } catch (e) {
+        this.logger.warn(`Failed to fetch workspace for channel owner resolution: ${e}`);
+      }
+    }
+
+    const canEndMeeting =
+      meeting.createdBy.toString() === userId ||
+      channelOwnerId === userId;
+
     return {
       serverUrl: this.configService.get<string>('LIVEKIT_URL'),
       roomName,
       participantName: userDisplayName || userId,
       participantToken,
+      canEndMeeting,
     };
   }
 
@@ -396,5 +320,66 @@ export class MeetingService {
         status: { $in: ['waiting', 'active'] },
       })
       .exec();
+  }
+
+  async handleRoomFinished(roomName: string) {
+    try {
+      // End the meeting in DB by finding it via roomName
+      const meeting = await this.meetingsRepository.model.findOne({ roomName, status: { $in: ['waiting', 'active'] } }).exec();
+      if (meeting) {
+        meeting.status = 'ended';
+        meeting.endedAt = new Date();
+        await meeting.save();
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle room_finished for ${roomName}: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  async endMeeting(meetingId: string, userId: string) {
+    if (!Types.ObjectId.isValid(meetingId)) {
+      throw new NotFoundException('Invalid Meeting ID');
+    }
+
+    const meeting = await this.meetingsRepository.model.findById(meetingId);
+    if (!meeting || meeting.status === 'ended') {
+      throw new BadRequestException('Meeting already ended or not found');
+    }
+
+    const channel = await this.channelsService.findById(meeting.channelId.toString());
+    let channelOwnerId = channel.createdBy?.toString();
+    
+    if (channel.workspaceId) {
+      try {
+        const workspace = await this.workspacesService.findById(channel.workspaceId.toString());
+        if (workspace) {
+          channelOwnerId = workspace.ownerId?.toString();
+        }
+      } catch (e) {
+        this.logger.warn(`Failed to fetch workspace for channel owner resolution: ${e}`);
+      }
+    }
+
+    // Authorization: only meeting creator or channel creator/workspace owner can end it
+    if (meeting.createdBy.toString() !== userId && channelOwnerId !== userId) {
+      throw new ForbiddenException('Only the meeting creator or channel owner can end this meeting');
+    }
+
+    if (meeting.roomName) {
+      // Delete the room from LiveKit server
+      try {
+        await this.livekitRoomService.deleteRoom(meeting.roomName);
+      } catch (err) {
+        this.logger.warn(`Failed to delete LiveKit room: ${(err as Error).message}`);
+      }
+    }
+
+    meeting.status = 'ended';
+    meeting.endedAt = new Date();
+    await meeting.save();
+
+    return meeting;
   }
 }

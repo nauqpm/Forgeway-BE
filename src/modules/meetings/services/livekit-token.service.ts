@@ -4,7 +4,10 @@ import { AccessToken } from 'livekit-server-sdk';
 
 @Injectable()
 export class LivekitTokenService {
-  constructor(private readonly configService: ConfigService) {}
+  logger: any;
+  constructor(
+    private readonly configService: ConfigService
+  ) {}
 
   /**
    * Generate a short-lived participant JWT for LiveKit room access.
@@ -40,4 +43,6 @@ export class LivekitTokenService {
 
     return await token.toJwt();
   }
+
+  
 }

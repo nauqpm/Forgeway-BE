@@ -11,34 +11,30 @@ import { MeetingsModule } from '../meetings/meetings.module';
 import { RedisModule } from '../../infra/redis/redis.module';
 import { ChannelsService } from './services/channels.service';
 import { MessagesService } from './services/messages.service';
-import { MeetingService } from '../meetings/meeting.service';
 import { StickersService } from './services/stickers.service';
 import { ChatGateway } from './gateways/chat.gateway';
 import { ChannelsController } from './controllers/channels.controller';
-import { MeetingsController } from './controllers/meetings.controller';
 import { StickersController } from './controllers/stickers.controller';
 import { Channel, ChannelSchema } from './schemas/channel.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
-import { Meeting, MeetingSchema } from './schemas/meeting.schema';
 import {
   ChannelReadMarker,
   ChannelReadMarkerSchema,
 } from './schemas/channel-read-marker.schema';
 import { ChannelsRepository } from './repositories/channels.repository';
 import { MessagesRepository } from './repositories/messages.repository';
-import { MeetingsRepository } from './repositories/meetings.repository';
 import { ChannelReadMarkersRepository } from './repositories/channel-read-markers.repository';
 import { StickerPack, StickerPackSchema } from './schemas/sticker-pack.schema';
 import { Sticker, StickerSchema } from './schemas/sticker.schema';
 import { StickerPacksRepository } from './repositories/sticker-packs.repository';
 import { StickersRepository } from './repositories/stickers.repository';
+import { MeetingService } from '../meetings/services/meeting.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Channel.name, schema: ChannelSchema },
       { name: Message.name, schema: MessageSchema },
-      { name: Meeting.name, schema: MeetingSchema },
       { name: ChannelReadMarker.name, schema: ChannelReadMarkerSchema },
       { name: StickerPack.name, schema: StickerPackSchema },
       { name: Sticker.name, schema: StickerSchema },
@@ -53,7 +49,7 @@ import { StickersRepository } from './repositories/stickers.repository';
     ConfigModule,
     RedisModule,
   ],
-  controllers: [StickersController, ChannelsController, MeetingsController],
+  controllers: [StickersController, ChannelsController],
   providers: [
     ChannelsService,
     MessagesService,
@@ -62,7 +58,6 @@ import { StickersRepository } from './repositories/stickers.repository';
     ChatGateway,
     ChannelsRepository,
     MessagesRepository,
-    MeetingsRepository,
     ChannelReadMarkersRepository,
     StickerPacksRepository,
     StickersRepository,
@@ -71,8 +66,6 @@ import { StickersRepository } from './repositories/stickers.repository';
     ChannelsService,
     ChannelsRepository,
     MessagesRepository,
-    MeetingsRepository,
-    MeetingService,
     ChannelReadMarkersRepository,
     StickerPacksRepository,
     StickersRepository,
