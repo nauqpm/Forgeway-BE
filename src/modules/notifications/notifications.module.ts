@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { NotificationsController } from './controllers/notifications.controller';
 import { NotificationMapper } from './mappers/notification.mapper';
@@ -20,6 +21,7 @@ import { NotificationsService } from './services/notifications.service';
       { name: Notification.name, schema: NotificationSchema },
     ]),
     forwardRef(() => AuthModule),
+    forwardRef(() => WorkspacesModule),
   ],
   controllers: [NotificationsController],
   providers: [
