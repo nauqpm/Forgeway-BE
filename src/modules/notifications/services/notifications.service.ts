@@ -5,6 +5,7 @@ import {
   CommentNotificationInput,
   CreateNotificationInput,
   TaskNotificationInput,
+  TaskStatusChangedNotificationInput,
   WorkspaceInviteNotificationInput,
 } from '../interfaces/create-notification-input.interface';
 import { NotificationMapper } from '../mappers/notification.mapper';
@@ -71,6 +72,20 @@ export class NotificationsService {
         ...input,
         recipientId: recipientIds[0],
       }),
+    );
+  }
+
+  async notifyTaskStatusChanged(
+    input: TaskStatusChangedNotificationInput,
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildTaskStatusChanged({
+          ...input,
+          recipientId,
+        }),
+      ),
     );
   }
 
