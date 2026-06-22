@@ -24,6 +24,17 @@ export interface TaskNotificationInput {
   taskTitle: string;
 }
 
+export interface TaskStatusChangedNotificationInput {
+  recipientIds: string[];
+  actorId: string;
+  workspaceId: string;
+  taskId: string;
+  taskKey: string;
+  taskTitle: string;
+  fromStatus: string;
+  toStatus: string;
+}
+
 export interface CommentNotificationInput {
   recipientIds: string[];
   actorId: string;
