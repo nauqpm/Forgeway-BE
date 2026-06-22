@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { NotificationsController } from './controllers/notifications.controller';
 import { NotificationMapper } from './mappers/notification.mapper';
 import { TaskNotificationListener } from './listeners/task-notification.listener';
+import { TaskNotificationService } from './services/task-notification.service';
 import { NotificationsRepository } from './repositories/notifications.repository';
 import {
   Notification,
@@ -30,6 +31,7 @@ import { NotificationsService } from './services/notifications.service';
     NotificationFactoryService,
     NotificationDomainEventPublisher,
     TaskNotificationListener,
+    TaskNotificationService,
     NotificationsService,
     JwtAuthGuard,
   ],
