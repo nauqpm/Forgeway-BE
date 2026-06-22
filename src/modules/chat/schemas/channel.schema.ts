@@ -21,7 +21,8 @@ export class LastMessageEmbedded {
   type?: string;
 }
 
-export const LastMessageSchema = SchemaFactory.createForClass(LastMessageEmbedded);
+export const LastMessageSchema =
+  SchemaFactory.createForClass(LastMessageEmbedded);
 
 @Schema({ timestamps: true })
 export class Channel {

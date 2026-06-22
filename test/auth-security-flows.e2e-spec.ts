@@ -228,7 +228,9 @@ describe('Auth security flows (integration)', () => {
 
   beforeEach(() => {
     tokenModel = new InMemoryTokenModel();
-    const authTokenConfigService = new AuthTokenConfigService(configService as unknown as ConfigService);
+    const authTokenConfigService = new AuthTokenConfigService(
+      configService as unknown as ConfigService,
+    );
     tokenService = new TokenService(
       tokenModel as unknown as never,
       jwtService,

@@ -71,7 +71,9 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
 
     const tracker = client.data?.user?.userId;
     if (!tracker) {
-      this.logger.warn(`Disconnecting socket ${client.id} due to missing userId in authenticated context`);
+      this.logger.warn(
+        `Disconnecting socket ${client.id} due to missing userId in authenticated context`,
+      );
       client.disconnect(true);
       return false;
     }
@@ -104,7 +106,9 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
         now - client.data.rateLimit.windowStartedAt > ttl
       ) {
         client.data.rateLimit = { windowStartedAt: now, count: totalHits };
-        this.logger.debug(`[THROTTLE] New window started for ${tracker} on ${eventName}`);
+        this.logger.debug(
+          `[THROTTLE] New window started for ${tracker} on ${eventName}`,
+        );
       } else {
         client.data.rateLimit.count = totalHits;
       }
@@ -123,7 +127,12 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       });
 
       // Chỉ phát 'rate_limited' với TTL còn lại (mili giây) cho các hành động foreground (tin nhắn)
-      const NOTIFY_USER_EVENTS = ['chat.send', 'chat.edit', 'chat.delete', 'chat.reaction'];
+      const NOTIFY_USER_EVENTS = [
+        'chat.send',
+        'chat.edit',
+        'chat.delete',
+        'chat.reaction',
+      ];
       const shouldNotifyUser = eventNames.some(
         name => name && NOTIFY_USER_EVENTS.includes(name),
       );

@@ -38,7 +38,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly socketAuthService: SocketAuthService,
     private readonly channelsService: ChannelsService,
-    private readonly messagesService: MessagesService
+    private readonly messagesService: MessagesService,
   ) {}
 
   afterInit(server: Server) {
@@ -85,7 +85,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.log(
         `Chat client disconnected: ${client.id} | User: ${userId}`,
       );
-
     } catch (error) {
       this.logger.error(
         `Error in handleDisconnect for ${client.id}: ${(error as Error).message}`,
@@ -206,12 +205,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (
       channel?.lastMessage?.sentAt &&
       message.createdAt &&
-      new Date(channel.lastMessage.sentAt).getTime() === new Date(message.createdAt).getTime()
+      new Date(channel.lastMessage.sentAt).getTime() ===
+        new Date(message.createdAt).getTime()
     ) {
       await this.channelsService.updateLastMessage(payload.channelId, {
         content: message.content,
-        senderId: message.senderId?._id || message.senderId?.id || message.senderId,
-        senderName: message.senderId?.fullName || channel.lastMessage.senderName || '',
+        senderId:
+          message.senderId?._id || message.senderId?.id || message.senderId,
+        senderName:
+          message.senderId?.fullName || channel.lastMessage.senderName || '',
         sentAt: message.createdAt,
         type: message.type,
       });

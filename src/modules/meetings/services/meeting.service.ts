@@ -44,7 +44,7 @@ export class MeetingService {
     private readonly livekitRoomService: LivekitRoomService,
     @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
-  ) { }
+  ) {}
 
   async create(
     channelId: string,
@@ -183,9 +183,7 @@ export class MeetingService {
     participant.leftAt = new Date();
     await meeting.save();
 
-
     // nếu là người cuối cùng rời khỏi cuộc họp thì kết thúc cuộc họp
-
   }
 
   /**
@@ -251,23 +249,28 @@ export class MeetingService {
       });
 
     // Determine if the user can end the meeting
-    const channel = await this.channelsService.findById(meeting.channelId.toString());
+    const channel = await this.channelsService.findById(
+      meeting.channelId.toString(),
+    );
     let channelOwnerId = channel.createdBy?.toString();
-    
+
     if (channel.workspaceId) {
       try {
-        const workspace = await this.workspacesService.findById(channel.workspaceId.toString());
+        const workspace = await this.workspacesService.findById(
+          channel.workspaceId.toString(),
+        );
         if (workspace) {
           channelOwnerId = workspace.ownerId?.toString();
         }
       } catch (e) {
-        this.logger.warn(`Failed to fetch workspace for channel owner resolution: ${e}`);
+        this.logger.warn(
+          `Failed to fetch workspace for channel owner resolution: ${e}`,
+        );
       }
     }
 
     const canEndMeeting =
-      meeting.createdBy.toString() === userId ||
-      channelOwnerId === userId;
+      meeting.createdBy.toString() === userId || channelOwnerId === userId;
 
     return {
       serverUrl: this.configService.get<string>('LIVEKIT_URL'),
@@ -325,7 +328,9 @@ export class MeetingService {
   async handleRoomFinished(roomName: string) {
     try {
       // End the meeting in DB by finding it via roomName
-      const meeting = await this.meetingsRepository.model.findOne({ roomName, status: { $in: ['waiting', 'active'] } }).exec();
+      const meeting = await this.meetingsRepository.model
+        .findOne({ roomName, status: { $in: ['waiting', 'active'] } })
+        .exec();
       if (meeting) {
         meeting.status = 'ended';
         meeting.endedAt = new Date();
@@ -348,23 +353,31 @@ export class MeetingService {
       throw new BadRequestException('Meeting already ended or not found');
     }
 
-    const channel = await this.channelsService.findById(meeting.channelId.toString());
+    const channel = await this.channelsService.findById(
+      meeting.channelId.toString(),
+    );
     let channelOwnerId = channel.createdBy?.toString();
-    
+
     if (channel.workspaceId) {
       try {
-        const workspace = await this.workspacesService.findById(channel.workspaceId.toString());
+        const workspace = await this.workspacesService.findById(
+          channel.workspaceId.toString(),
+        );
         if (workspace) {
           channelOwnerId = workspace.ownerId?.toString();
         }
       } catch (e) {
-        this.logger.warn(`Failed to fetch workspace for channel owner resolution: ${e}`);
+        this.logger.warn(
+          `Failed to fetch workspace for channel owner resolution: ${e}`,
+        );
       }
     }
 
     // Authorization: only meeting creator or channel creator/workspace owner can end it
     if (meeting.createdBy.toString() !== userId && channelOwnerId !== userId) {
-      throw new ForbiddenException('Only the meeting creator or channel owner can end this meeting');
+      throw new ForbiddenException(
+        'Only the meeting creator or channel owner can end this meeting',
+      );
     }
 
     if (meeting.roomName) {
@@ -372,7 +385,9 @@ export class MeetingService {
       try {
         await this.livekitRoomService.deleteRoom(meeting.roomName);
       } catch (err) {
-        this.logger.warn(`Failed to delete LiveKit room: ${(err as Error).message}`);
+        this.logger.warn(
+          `Failed to delete LiveKit room: ${(err as Error).message}`,
+        );
       }
     }
 

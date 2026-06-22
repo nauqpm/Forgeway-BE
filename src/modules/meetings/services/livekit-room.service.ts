@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RoomServiceClient } from 'livekit-server-sdk';
 
@@ -40,13 +36,14 @@ export class LivekitRoomService {
 
         // Room tồn tại tối đa bao lâu nếu chưa ai join.
         emptyTimeout: Number(
-          this.configService.get<string>('MEETING_EMPTY_TIMEOUT_SECONDS') ?? 300,
+          this.configService.get<string>('MEETING_EMPTY_TIMEOUT_SECONDS') ??
+            300,
         ),
 
         // Room giữ lại bao lâu sau khi người cuối cùng rời đi.
         departureTimeout: Number(
           this.configService.get<string>('MEETING_DEPARTURE_TIMEOUT_SECONDS') ??
-          60,
+            60,
         ),
 
         maxParticipants,

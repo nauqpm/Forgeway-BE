@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { WebhookEvent, WebhookReceiver } from 'livekit-server-sdk';
-import { Optional } from '@nestjs/common';
 import { MeetingService } from '../services/meeting.service';
 import { ConfigService } from '@nestjs/config';
 // import { LivekitWebhookService } from '../services/livekit-webhook.service';
@@ -30,7 +29,8 @@ export class LivekitWebhookController {
     private readonly configService: ConfigService,
   ) {
     const apiKey = this.configService.getOrThrow<string>('LIVEKIT_API_KEY');
-    const apiSecret = this.configService.getOrThrow<string>('LIVEKIT_API_SECRET');
+    const apiSecret =
+      this.configService.getOrThrow<string>('LIVEKIT_API_SECRET');
     this.receiver = new WebhookReceiver(apiKey, apiSecret);
   }
 

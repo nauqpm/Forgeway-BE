@@ -18,7 +18,7 @@ export const CHAT_THROTTLE_CONFIG = {
 
   // Edit/Delete — hành động chủ ý, giữ nguyên
   MESSAGE_ACTION: {
-    default: { limit: 10, ttl: 30000 },  // tăng nhẹ từ 5 lên 10
+    default: { limit: 10, ttl: 30000 }, // tăng nhẹ từ 5 lên 10
   },
 
   // Typing — giữ nguyên

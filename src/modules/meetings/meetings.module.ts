@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule, forwardRef } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  forwardRef,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ChatModule } from '../chat/chat.module';
 import { RealtimeModule } from '../realtime/realtime.module';
@@ -20,9 +25,7 @@ import { LivekitWebhookMiddleware } from './webhook.middleware';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Meeting.name, schema: MeetingSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Meeting.name, schema: MeetingSchema }]),
     ConfigModule,
     forwardRef(() => ChatModule),
     RealtimeModule,
