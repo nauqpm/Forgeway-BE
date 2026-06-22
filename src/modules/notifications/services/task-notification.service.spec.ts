@@ -164,4 +164,57 @@ describe('TaskNotificationService', () => {
       expect.objectContaining({ recipientIds: [assigneeId] }),
     );
   });
+
+  it('deduplicates stakeholders and excludes the actor before membership filtering', async () => {
+    const { service, workspaceMemberService } = createDependencies();
+    const baseEvent = createMoveEvent('todo', 'inprogress');
+    const event = new TaskMovedEvent({
+      ...baseEvent.data,
+      task: {
+        ...baseEvent.data.task,
+        assigneeId: actorId,
+        reporterId: actorId,
+      },
+    });
+
+    await service.handleTaskStatusChanged(event);
+
+    expect(workspaceMemberService.filterMembers).not.toHaveBeenCalled();
+  });
+
+  it('does not notify when no candidate remains a workspace member', async () => {
+    const { service, notificationsService, workspaceMemberService } =
+      createDependencies();
+    jest.spyOn(workspaceMemberService, 'filterMembers').mockResolvedValue([]);
+
+    await service.handleTaskStatusChanged(
+      createMoveEvent('inprogress', 'done'),
+    );
+
+    expect(
+      notificationsService.notifyTaskStatusChanged,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('does not propagate membership lookup failures', async () => {
+    const { service, workspaceMemberService } = createDependencies();
+    jest
+      .spyOn(workspaceMemberService, 'filterMembers')
+      .mockRejectedValue(new Error('Workspace lookup failed'));
+
+    await expect(
+      service.handleTaskStatusChanged(createMoveEvent('todo', 'done')),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not propagate status notification persistence failures', async () => {
+    const { service, notificationsService } = createDependencies();
+    jest
+      .spyOn(notificationsService, 'notifyTaskStatusChanged')
+      .mockRejectedValue(new Error('Notification insert failed'));
+
+    await expect(
+      service.handleTaskStatusChanged(createMoveEvent('todo', 'done')),
+    ).resolves.toBeUndefined();
+  });
 });
