@@ -14,6 +14,17 @@ interface TaskAssignedFactoryInput {
   taskTitle: string;
 }
 
+interface TaskStatusChangedFactoryInput {
+  recipientId: string;
+  actorId: string;
+  workspaceId: string;
+  taskId: string;
+  taskKey: string;
+  taskTitle: string;
+  fromStatus: string;
+  toStatus: string;
+}
+
 interface CommentFactoryInput {
   recipientId: string;
   actorId: string;
@@ -50,6 +61,28 @@ export class NotificationFactoryService {
         taskId: input.taskId,
         taskKey: input.taskKey,
         taskTitle: input.taskTitle,
+      },
+    };
+  }
+
+  buildTaskStatusChanged(
+    input: TaskStatusChangedFactoryInput,
+  ): CreateNotificationInput {
+    return {
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      workspaceId: input.workspaceId,
+      type: NOTIFICATION_TYPES.TASK_STATUS_CHANGED,
+      title: `${input.taskKey} status changed`,
+      message: `${input.fromStatus} -> ${input.toStatus}`,
+      entityType: NOTIFICATION_ENTITY_TYPES.TASK,
+      entityId: input.taskId,
+      metadata: {
+        taskId: input.taskId,
+        taskKey: input.taskKey,
+        taskTitle: input.taskTitle,
+        fromStatus: input.fromStatus,
+        toStatus: input.toStatus,
       },
     };
   }
