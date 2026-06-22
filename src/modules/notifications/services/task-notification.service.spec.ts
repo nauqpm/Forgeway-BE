@@ -191,9 +191,7 @@ describe('TaskNotificationService', () => {
       createMoveEvent('inprogress', 'done'),
     );
 
-    expect(
-      notificationsService.notifyTaskStatusChanged,
-    ).not.toHaveBeenCalled();
+    expect(notificationsService.notifyTaskStatusChanged).not.toHaveBeenCalled();
   });
 
   it('does not propagate membership lookup failures', async () => {
