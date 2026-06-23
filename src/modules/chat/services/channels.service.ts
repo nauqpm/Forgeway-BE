@@ -215,52 +215,9 @@ export class ChannelsService {
     // Self-healing: Always ensure global channels exist before fetching
     await this.ensureGlobalChannels();
 
-    const userWorkspaces = await this.workspacesService.findByUserId(userId);
-    const userWorkspaceIds = userWorkspaces.map(w => w._id);
-    const user = await this.usersService.getUserById(userId);
-    const isSuperAdmin = user?.role === 'super_admin';
+    const { query, userWorkspaceIds } = await this.getChannelsQuery(userId);
 
-    const adminWorkspaceIds: Types.ObjectId[] = [];
-    const memberWorkspaceIds: Types.ObjectId[] = [];
-
-    for (const ws of userWorkspaces) {
-      const wsId = ws._id;
-      const isOwner = ws.ownerId?.toString() === userId;
-      const member = ws.members?.find((m: any) => m.userId?.toString() === userId);
-      const isAdmin = isOwner || member?.role === 'workspace_admin';
-
-      if (isSuperAdmin || isAdmin) {
-        adminWorkspaceIds.push(wsId);
-      } else {
-        memberWorkspaceIds.push(wsId);
-      }
-    }
-
-    const buildQuery = () => {
-      if (isSuperAdmin) {
-        return {
-          $or: [
-            { type: 'general' },
-            { type: 'announcement' },
-            { workspaceId: { $in: adminWorkspaceIds } },
-            { type: 'dm', members: new Types.ObjectId(userId) },
-          ],
-        };
-      }
-      return {
-        $or: [
-          { type: 'general' },
-          { type: 'announcement' },
-          { workspaceId: { $in: adminWorkspaceIds } },
-          { workspaceId: { $in: memberWorkspaceIds }, type: 'workspace' },
-          { workspaceId: { $in: memberWorkspaceIds }, type: 'custom', isPrivate: false },
-          { workspaceId: { $in: memberWorkspaceIds }, type: 'custom', isPrivate: true, 'channelMembers.userId': new Types.ObjectId(userId) },
-          { type: 'dm', members: new Types.ObjectId(userId) },
-        ],
-      };
-    };
-
-    let channels = await this.channelsRepository.model.find(buildQuery()).exec();
+    let channels = await this.channelsRepository.model.find(query).exec();
 
     // Verify if workspace channels are missing by comparing count of type 'workspace'
     const workspaceChannels = channels.filter(c => c.type === 'workspace');
@@ -270,7 +227,7 @@ export class ChannelsService {
       );
       await this.syncWorkspaceChannels();
       // Re-fetch after sync
-      channels = await this.channelsRepository.model.find(buildQuery()).exec();
+      channels = await this.channelsRepository.model.find(query).exec();
     }
 
     this.logger.log(`Found ${channels.length} channels for user: ${userId}`);
@@ -449,7 +406,20 @@ export class ChannelsService {
   async findMyChannelIds(userId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(userId)) return [];
 
+    const { query } = await this.getChannelsQuery(userId);
+
+    const channels = await this.channelsRepository.model
+      .find(query, { _id: 1 })
+      .exec();
+
+    return channels.map(c => c._id.toString());
+  }
+
+  private async getChannelsQuery(
+    userId: string,
+  ): Promise<{ query: any; userWorkspaceIds: Types.ObjectId[] }> {
     const userWorkspaces = await this.workspacesService.findByUserId(userId);
+    const userWorkspaceIds = userWorkspaces.map(w => w._id);
     const user = await this.usersService.getUserById(userId);
     const isSuperAdmin = user?.role === 'super_admin';
 
@@ -459,7 +429,9 @@ export class ChannelsService {
     for (const ws of userWorkspaces) {
       const wsId = ws._id;
       const isOwner = ws.ownerId?.toString() === userId;
-      const member = ws.members?.find((m: any) => m.userId?.toString() === userId);
+      const member = ws.members?.find(
+        (m: any) => m.userId?.toString() === userId,
+      );
       const isAdmin = isOwner || member?.role === 'workspace_admin';
 
       if (isSuperAdmin || isAdmin) {
@@ -469,35 +441,37 @@ export class ChannelsService {
       }
     }
 
-    const buildQuery = () => {
-      if (isSuperAdmin) {
-        return {
+    const query = isSuperAdmin
+      ? {
           $or: [
             { type: 'general' },
             { type: 'announcement' },
             { workspaceId: { $in: adminWorkspaceIds } },
             { type: 'dm', members: new Types.ObjectId(userId) },
           ],
+        }
+      : {
+          $or: [
+            { type: 'general' },
+            { type: 'announcement' },
+            { workspaceId: { $in: adminWorkspaceIds } },
+            { workspaceId: { $in: memberWorkspaceIds }, type: 'workspace' },
+            {
+              workspaceId: { $in: memberWorkspaceIds },
+              type: 'custom',
+              isPrivate: false,
+            },
+            {
+              workspaceId: { $in: memberWorkspaceIds },
+              type: 'custom',
+              isPrivate: true,
+              'channelMembers.userId': new Types.ObjectId(userId),
+            },
+            { type: 'dm', members: new Types.ObjectId(userId) },
+          ],
         };
-      }
-      return {
-        $or: [
-          { type: 'general' },
-          { type: 'announcement' },
-          { workspaceId: { $in: adminWorkspaceIds } },
-          { workspaceId: { $in: memberWorkspaceIds }, type: 'workspace' },
-          { workspaceId: { $in: memberWorkspaceIds }, type: 'custom', isPrivate: false },
-          { workspaceId: { $in: memberWorkspaceIds }, type: 'custom', isPrivate: true, 'channelMembers.userId': new Types.ObjectId(userId) },
-          { type: 'dm', members: new Types.ObjectId(userId) },
-        ],
-      };
-    };
 
-    const channels = await this.channelsRepository.model
-      .find(buildQuery(), { _id: 1 })
-      .exec();
-
-    return channels.map(c => c._id.toString());
+    return { query, userWorkspaceIds };
   }
 
   async findByWorkspace(workspaceId: string): Promise<ChannelDocument[]> {
