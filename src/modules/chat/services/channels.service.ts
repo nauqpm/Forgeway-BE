@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -6,14 +8,17 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ChannelDocument } from '../schemas/channel.schema';
 import { ChannelsRepository } from '../repositories/channels.repository';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { MessagesService } from './messages.service';
 import { UsersService } from '../../users/services/users.service';
+import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
+import { DOMAIN_EVENT_TYPES } from '../../../shared/events/domain-events/domain-event-types';
 
 @Injectable()
 export class ChannelsService {
