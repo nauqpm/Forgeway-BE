@@ -35,7 +35,13 @@ export class ChannelsController {
   @Get('channels')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
-  async getUserChannels(@CurrentUser('userId') userId: string) {
+  async getUserChannels(
+    @CurrentUser('userId') userId: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    if (workspaceId) {
+      return this.channelsService.findWorkspaceCustomChannels(workspaceId, userId);
+    }
     return this.channelsService.findByUser(userId);
   }
 
@@ -130,6 +136,27 @@ export class ChannelsController {
     return this.messagesService.send(id, userId, dto);
   }
 
+  @Get('channels/:channelId/messages/:messageId/replies')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getThreadReplies(
+    @Param('channelId') channelId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.messagesService.findThreadReplies(channelId, messageId, userId);
+  }
+
+  @Get('channels/:channelId/threads')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getActiveThreads(
+    @Param('channelId') channelId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.messagesService.findActiveThreads(channelId, userId);
+  }
+
   @Patch('messages/:id')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
@@ -161,5 +188,95 @@ export class ChannelsController {
   ) {
     // This method needs to be implemented in MessagesService
     return this.messagesService.toggleReaction(id, userId, body.emoji);
+  }
+
+  // ==========================================
+  // CUSTOM CHANNELS API
+  // ==========================================
+
+  @Post('channels')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async createCustomChannel(
+    @CurrentUser('userId') userId: string,
+    @Body() body: { name: string; workspaceId: string; isPrivate?: boolean; description?: string },
+  ) {
+    return this.channelsService.createCustomChannel(body.workspaceId, userId, body);
+  }
+
+  @Patch('channels/:id')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async updateCustomChannel(
+    @Param('id') channelId: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: { name?: string; description?: string; isPrivate?: boolean },
+  ) {
+    return this.channelsService.updateCustomChannel(channelId, body, userId);
+  }
+
+  @Delete('channels/:id')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async deleteCustomChannel(
+    @Param('id') channelId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    await this.channelsService.deleteCustomChannel(channelId, userId);
+    return { ok: true };
+  }
+
+  @Post('channels/:id/join')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async joinChannel(
+    @Param('id') channelId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.channelsService.joinChannel(channelId, userId);
+  }
+
+  @Post('channels/:id/leave')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async leaveChannel(
+    @Param('id') channelId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.channelsService.leaveChannel(channelId, userId);
+  }
+
+  @Post('channels/:id/invite')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async inviteMembers(
+    @Param('id') channelId: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: { userIds: string[] },
+  ) {
+    return this.channelsService.inviteMembers(channelId, body.userIds, userId);
+  }
+
+  @Delete('channels/:id/members/:userId')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async kickMember(
+    @Param('id') channelId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.channelsService.kickMember(channelId, targetUserId, userId);
+  }
+
+  @Patch('channels/:id/members/:userId')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async updateMemberRole(
+    @Param('id') channelId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: { role: 'channel_admin' | 'channel_member' },
+  ) {
+    return this.channelsService.updateMemberRole(channelId, targetUserId, body.role, userId);
   }
 }

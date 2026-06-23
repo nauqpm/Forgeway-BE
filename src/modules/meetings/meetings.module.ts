@@ -15,7 +15,6 @@ import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { Meeting, MeetingSchema } from './schemas/meeting.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import { MessagesService } from '../chat/services/messages.service';
 import { MeetingsRepository } from './meetings.repository';
 import { LivekitWebhookController } from './controllers/livekit-webhook.controller';
 import { MeetingService } from './services/meeting.service';
@@ -41,7 +40,6 @@ import { LivekitWebhookMiddleware } from './webhook.middleware';
     LivekitRoomService,
     MeetingService,
     MeetingsRepository,
-    MessagesService,
   ],
   exports: [
     LivekitTokenService,

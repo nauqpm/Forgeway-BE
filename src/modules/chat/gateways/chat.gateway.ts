@@ -138,6 +138,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload,
     );
 
+    if (payload.threadParentId) {
+      return { ok: true };
+    }
+
     // Update last message preview in channel
     await this.channelsService.updateLastMessage(payload.channelId, {
       content: message.content,

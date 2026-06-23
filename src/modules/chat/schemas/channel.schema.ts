@@ -24,14 +24,36 @@ export class LastMessageEmbedded {
 export const LastMessageSchema =
   SchemaFactory.createForClass(LastMessageEmbedded);
 
+@Schema({ _id: false })
+export class ChannelMemberEmbedded {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  userId!: Types.ObjectId;
+
+  @Prop({
+    type: String,
+    enum: ['channel_admin', 'channel_member'],
+    default: 'channel_member',
+  })
+  role!: 'channel_admin' | 'channel_member';
+
+  @Prop({ type: Date, default: Date.now })
+  joinedAt!: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  invitedBy?: Types.ObjectId;
+}
+
+export const ChannelMemberSchema =
+  SchemaFactory.createForClass(ChannelMemberEmbedded);
+
 @Schema({ timestamps: true })
 export class Channel {
   @Prop({
     type: String,
-    enum: ['general', 'workspace', 'announcement', 'dm'],
+    enum: ['general', 'workspace', 'announcement', 'dm', 'custom'],
     required: true,
   })
-  type!: 'general' | 'workspace' | 'announcement' | 'dm';
+  type!: 'general' | 'workspace' | 'announcement' | 'dm' | 'custom';
 
   @Prop({ required: true })
   name!: string;
@@ -48,6 +70,12 @@ export class Channel {
     index: true,
   })
   members!: Types.ObjectId[];
+
+  @Prop({
+    type: [ChannelMemberSchema],
+    default: [],
+  })
+  channelMembers!: ChannelMemberEmbedded[];
 
   @Prop({
     type: LastMessageSchema,
@@ -67,3 +95,5 @@ export class Channel {
 export const ChannelSchema = SchemaFactory.createForClass(Channel);
 
 ChannelSchema.index({ type: 1 });
+ChannelSchema.index({ workspaceId: 1, type: 1, isPrivate: 1 });
+ChannelSchema.index({ 'channelMembers.userId': 1, type: 1 });

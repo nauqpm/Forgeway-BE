@@ -54,6 +54,29 @@ export class Message {
   @Prop({ type: Date, default: null })
   deletedAt?: Date;
 
+  @Prop({ type: Types.ObjectId, ref: 'Message', default: null, index: true })
+  threadParentId?: Types.ObjectId;
+
+  @Prop({ default: 0 })
+  replyCount!: number;
+
+  @Prop({ type: Date, default: null })
+  lastReplyAt?: Date;
+
+  @Prop({
+    type: [{
+      userId: { type: Types.ObjectId, ref: 'User', required: true },
+      fullName: { type: String, required: true },
+      avatar: { type: String, default: null },
+    }],
+    default: [],
+  })
+  lastReplyParticipants!: {
+    userId: Types.ObjectId;
+    fullName: string;
+    avatar?: string;
+  }[];
+
   readonly _id!: Types.ObjectId;
 }
 
@@ -61,3 +84,4 @@ export const MessageSchema = SchemaFactory.createForClass(Message);
 
 MessageSchema.index({ channelId: 1, createdAt: -1 });
 MessageSchema.index({ channelId: 1, _id: -1 });
+MessageSchema.index({ threadParentId: 1, createdAt: 1 });

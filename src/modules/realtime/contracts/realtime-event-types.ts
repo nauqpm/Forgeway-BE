@@ -6,6 +6,14 @@ export const REALTIME_EVENT_TYPES = {
   CHAT_USER_TYPING: 'chat.user.typing',
   CHAT_REACTION_UPDATED: 'chat.reaction.updated',
   CHAT_UNREAD_UPDATE: 'chat.unread_update',
+  CHAT_CHANNEL_CREATED: 'chat.channel.created',
+  CHAT_CHANNEL_UPDATED: 'chat.channel.updated',
+  CHAT_CHANNEL_DELETED: 'chat.channel.deleted',
+  CHAT_CHANNEL_MEMBER_ADDED: 'chat.channel.member.added',
+  CHAT_CHANNEL_MEMBER_REMOVED: 'chat.channel.member.removed',
+  CHAT_KICKED_FROM_CHANNEL: 'chat.kicked.from.channel',
+  CHAT_CHANNEL_VISIBILITY_CHANGED: 'chat.channel.visibility.changed',
+  CHAT_THREAD_REPLY_CREATED: 'chat.thread.reply.created',
 
   // Meeting events
   MEETING_USER_JOINED: 'meeting.user.joined',

@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { MeetingsModule } from '../meetings/meetings.module';
 import { RedisModule } from '../../infra/redis/redis.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ChannelsService } from './services/channels.service';
 import { MessagesService } from './services/messages.service';
 import { StickersService } from './services/stickers.service';
@@ -42,6 +43,7 @@ import { MeetingService } from '../meetings/services/meeting.service';
     forwardRef(() => WorkspacesModule),
     forwardRef(() => AuthModule),
     forwardRef(() => UsersModule),
+    forwardRef(() => NotificationsModule),
     TokenModule,
     AuditModule,
     RealtimeModule,
@@ -66,6 +68,7 @@ import { MeetingService } from '../meetings/services/meeting.service';
     ChannelsService,
     ChannelsRepository,
     MessagesRepository,
+    MessagesService,
     ChannelReadMarkersRepository,
     StickerPacksRepository,
     StickersRepository,
