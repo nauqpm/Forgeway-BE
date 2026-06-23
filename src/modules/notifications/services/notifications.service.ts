@@ -131,6 +131,47 @@ export class NotificationsService {
     );
   }
 
+  async notifyThreadReply(input: {
+    recipientIds: string[];
+    actorId: string;
+    workspaceId: string;
+    channelId: string;
+    messageId: string;
+    parentContent: string;
+    replyContent: string;
+    senderName: string;
+  }): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildThreadReply({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
+  async notifyChatMentioned(input: {
+    recipientIds: string[];
+    actorId: string;
+    workspaceId: string;
+    channelId: string;
+    messageId: string;
+    content: string;
+    senderName: string;
+  }): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildChatMentioned({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
   async listForUser(
     userId: string,
     page = 1,

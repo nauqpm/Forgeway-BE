@@ -4,6 +4,8 @@ export const NOTIFICATION_TYPES = {
   COMMENT_MENTIONED: 'COMMENT_MENTIONED',
   TASK_COMMENT_CREATED: 'TASK_COMMENT_CREATED',
   WORKSPACE_INVITED: 'WORKSPACE_INVITED',
+  THREAD_REPLY: 'THREAD_REPLY',
+  CHAT_MENTIONED: 'CHAT_MENTIONED',
 } as const;
 
 export type NotificationType =
@@ -16,6 +18,7 @@ export const NOTIFICATION_ENTITY_TYPES = {
   COMMENT: 'comment',
   WORKSPACE: 'workspace',
   INVITE: 'invite',
+  MESSAGE: 'message',
 } as const;
 
 export type NotificationEntityType =

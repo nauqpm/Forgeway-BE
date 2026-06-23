@@ -146,4 +146,57 @@ export class NotificationFactoryService {
       },
     };
   }
+
+  buildThreadReply(input: {
+    recipientId: string;
+    actorId: string;
+    workspaceId: string;
+    channelId: string;
+    messageId: string;
+    parentContent: string;
+    replyContent: string;
+    senderName: string;
+  }): CreateNotificationInput {
+    return {
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      workspaceId: input.workspaceId,
+      type: NOTIFICATION_TYPES.THREAD_REPLY,
+      title: `${input.senderName} replied to a thread`,
+      message: input.replyContent || 'Sent a reply',
+      entityType: NOTIFICATION_ENTITY_TYPES.MESSAGE,
+      entityId: input.messageId,
+      metadata: {
+        channelId: input.channelId,
+        parentContent: input.parentContent,
+        messageId: input.messageId,
+      },
+    };
+  }
+
+  buildChatMentioned(input: {
+    recipientId: string;
+    actorId: string;
+    workspaceId: string;
+    channelId: string;
+    messageId: string;
+    content: string;
+    senderName: string;
+  }): CreateNotificationInput {
+    return {
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      workspaceId: input.workspaceId,
+      type: NOTIFICATION_TYPES.CHAT_MENTIONED,
+      title: `${input.senderName} mentioned you`,
+      message: input.content || 'Mentioned you in chat',
+      entityType: NOTIFICATION_ENTITY_TYPES.MESSAGE,
+      entityId: input.messageId,
+      metadata: {
+        channelId: input.channelId,
+        messageId: input.messageId,
+        content: input.content,
+      },
+    };
+  }
 }
