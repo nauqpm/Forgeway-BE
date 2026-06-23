@@ -328,6 +328,7 @@ export class MessagesService {
             workspaceId: channel.workspaceId.toString(),
             channelId,
             messageId: withReactions._id.toString(),
+            parentId: parentMessage._id.toString(),
             parentContent: parentMessage.content || '',
             replyContent: dto.content || '',
             senderName,

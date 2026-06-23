@@ -153,6 +153,7 @@ export class NotificationFactoryService {
     workspaceId: string;
     channelId: string;
     messageId: string;
+    parentId: string;
     parentContent: string;
     replyContent: string;
     senderName: string;
@@ -170,6 +171,7 @@ export class NotificationFactoryService {
         channelId: input.channelId,
         parentContent: input.parentContent,
         messageId: input.messageId,
+        parentId: input.parentId,
       },
     };
   }

@@ -137,6 +137,7 @@ export class NotificationsService {
     workspaceId: string;
     channelId: string;
     messageId: string;
+    parentId: string;
     parentContent: string;
     replyContent: string;
     senderName: string;
