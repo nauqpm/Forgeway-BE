@@ -17,6 +17,7 @@
     "debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
     "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
+    "seed:admin:prod": "node dist/scripts/seed-admin.js",
     "upload:stickers:cloud": "ts-node -r tsconfig-paths/register scripts/upload-stickers-to-cloudinary.ts",
     "seed:stickers:json": "ts-node -r tsconfig-paths/register scripts/seed-stickers-from-json.ts",
     "upload:workspace-avatars": "node scripts/upload-workspace-avatar-samples.js",
