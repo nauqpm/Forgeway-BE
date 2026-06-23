@@ -550,7 +550,7 @@ export class KanbanService {
     }
 
     if (typeof value === 'object' && value !== null && '_id' in value) {
-      return String((value as { _id: unknown })._id);
+      return String(value._id);
     }
 
     return String(value);

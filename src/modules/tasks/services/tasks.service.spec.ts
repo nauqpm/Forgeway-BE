@@ -107,13 +107,13 @@ describe('TasksService', () => {
 
   it('delegates create to TaskCreateService', async () => {
     const dto: CreateTaskDto = { title: 'Task', workspaceId };
-    taskCreateService.create.mockResolvedValue(taskDto as any);
+    taskCreateService.create.mockResolvedValue(taskDto);
     await expect(service.create(dto, userId)).resolves.toEqual(taskDto);
     expect(taskCreateService.create).toHaveBeenCalledWith(dto, userId);
   });
 
   it('delegates createInWorkspaceKey to TaskCreateService', async () => {
-    taskCreateService.createInWorkspaceKey.mockResolvedValue(taskDto as any);
+    taskCreateService.createInWorkspaceKey.mockResolvedValue(taskDto);
     await expect(
       service.createInWorkspaceKey('TESKB', { title: 'Task' }, userId),
     ).resolves.toEqual(taskDto);
@@ -125,7 +125,7 @@ describe('TasksService', () => {
   });
 
   it('delegates createInWorkspaceId to TaskCreateService', async () => {
-    taskCreateService.createInWorkspaceId.mockResolvedValue(taskDto as any);
+    taskCreateService.createInWorkspaceId.mockResolvedValue(taskDto);
     await expect(
       service.createInWorkspaceId(workspaceId, { title: 'Task' }, userId),
     ).resolves.toEqual(taskDto);
@@ -150,7 +150,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findByWorkspace to TaskQueryService', async () => {
-    taskQueryService.findByWorkspace.mockResolvedValue([taskDto] as any);
+    taskQueryService.findByWorkspace.mockResolvedValue([taskDto]);
     await expect(service.findByWorkspace(workspaceId, userId)).resolves.toEqual(
       [taskDto],
     );
@@ -210,9 +210,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findBacklogByWorkspaceKey to TaskQueryService', async () => {
-    taskQueryService.findBacklogByWorkspaceKey.mockResolvedValue([
-      taskDto,
-    ] as any);
+    taskQueryService.findBacklogByWorkspaceKey.mockResolvedValue([taskDto]);
     await expect(
       service.findBacklogByWorkspaceKey('TESKB', userId),
     ).resolves.toEqual([taskDto]);
@@ -223,9 +221,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findBacklogByWorkspaceId to TaskQueryService', async () => {
-    taskQueryService.findBacklogByWorkspaceId.mockResolvedValue([
-      taskDto,
-    ] as any);
+    taskQueryService.findBacklogByWorkspaceId.mockResolvedValue([taskDto]);
     await expect(
       service.findBacklogByWorkspaceId(workspaceId, userId),
     ).resolves.toEqual([taskDto]);
@@ -238,7 +234,7 @@ describe('TasksService', () => {
   it('delegates findActiveSprintBoardByWorkspaceKey to TaskQueryService', async () => {
     taskQueryService.findActiveSprintBoardByWorkspaceKey.mockResolvedValue([
       taskDto,
-    ] as any);
+    ]);
     await expect(
       service.findActiveSprintBoardByWorkspaceKey('TESKB', userId),
     ).resolves.toEqual([taskDto]);
@@ -250,7 +246,7 @@ describe('TasksService', () => {
   it('delegates findActiveSprintBoardByWorkspaceId to TaskQueryService', async () => {
     taskQueryService.findActiveSprintBoardByWorkspaceId.mockResolvedValue([
       taskDto,
-    ] as any);
+    ]);
     await expect(
       service.findActiveSprintBoardByWorkspaceId(workspaceId, userId),
     ).resolves.toEqual([taskDto]);
@@ -263,7 +259,7 @@ describe('TasksService', () => {
     const sprintId = new Types.ObjectId().toString();
     taskQueryService.findTasksBySprintInWorkspaceKey.mockResolvedValue([
       taskDto,
-    ] as any);
+    ]);
     await expect(
       service.findTasksBySprintInWorkspaceKey('TESKB', sprintId, userId),
     ).resolves.toEqual([taskDto]);
@@ -276,7 +272,7 @@ describe('TasksService', () => {
     const sprintId = new Types.ObjectId().toString();
     taskQueryService.findTasksBySprintInWorkspaceId.mockResolvedValue([
       taskDto,
-    ] as any);
+    ]);
     await expect(
       service.findTasksBySprintInWorkspaceId(workspaceId, sprintId, userId),
     ).resolves.toEqual([taskDto]);
@@ -286,13 +282,13 @@ describe('TasksService', () => {
   });
 
   it('delegates findById to TaskQueryService', async () => {
-    taskQueryService.findById.mockResolvedValue(taskDto as any);
+    taskQueryService.findById.mockResolvedValue(taskDto);
     await expect(service.findById(taskId)).resolves.toEqual(taskDto);
     expect(taskQueryService.findById).toHaveBeenCalledWith(taskId);
   });
 
   it('delegates findByIdInWorkspaceKey to TaskQueryService', async () => {
-    taskQueryService.findByIdInWorkspaceKey.mockResolvedValue(taskDto as any);
+    taskQueryService.findByIdInWorkspaceKey.mockResolvedValue(taskDto);
     await expect(
       service.findByIdInWorkspaceKey('TESKB', taskId, userId),
     ).resolves.toEqual(taskDto);
@@ -304,7 +300,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findByIdInWorkspaceId to TaskQueryService', async () => {
-    taskQueryService.findByIdInWorkspaceId.mockResolvedValue(taskDto as any);
+    taskQueryService.findByIdInWorkspaceId.mockResolvedValue(taskDto);
     await expect(
       service.findByIdInWorkspaceId(workspaceId, taskId, userId),
     ).resolves.toEqual(taskDto);
@@ -316,7 +312,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findByIdForAccessCheck to TaskQueryService', async () => {
-    taskQueryService.findByIdForAccessCheck.mockResolvedValue(taskDto as any);
+    taskQueryService.findByIdForAccessCheck.mockResolvedValue(taskDto);
     await expect(service.findByIdForAccessCheck(taskId)).resolves.toEqual(
       taskDto,
     );
@@ -326,13 +322,13 @@ describe('TasksService', () => {
   });
 
   it('delegates findByKey to TaskQueryService', async () => {
-    taskQueryService.findByKey.mockResolvedValue(taskDto as any);
+    taskQueryService.findByKey.mockResolvedValue(taskDto);
     await expect(service.findByKey('TESKB-1')).resolves.toEqual(taskDto);
     expect(taskQueryService.findByKey).toHaveBeenCalledWith('TESKB-1');
   });
 
   it('delegates findByKeyInWorkspaceKey to TaskQueryService', async () => {
-    taskQueryService.findByKeyInWorkspaceKey.mockResolvedValue(taskDto as any);
+    taskQueryService.findByKeyInWorkspaceKey.mockResolvedValue(taskDto);
     await expect(
       service.findByKeyInWorkspaceKey('TESKB', 'TESKB-1', userId),
     ).resolves.toEqual(taskDto);
@@ -344,7 +340,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findByKeyInWorkspace to TaskQueryService', async () => {
-    taskQueryService.findByKeyInWorkspace.mockResolvedValue(taskDto as any);
+    taskQueryService.findByKeyInWorkspace.mockResolvedValue(taskDto);
     await expect(
       service.findByKeyInWorkspace('TESKB', 'TESKB-1', userId),
     ).resolves.toEqual(taskDto);
@@ -356,7 +352,7 @@ describe('TasksService', () => {
   });
 
   it('delegates findByKeyInWorkspaceId to TaskQueryService', async () => {
-    taskQueryService.findByKeyInWorkspaceId.mockResolvedValue(taskDto as any);
+    taskQueryService.findByKeyInWorkspaceId.mockResolvedValue(taskDto);
     await expect(
       service.findByKeyInWorkspaceId(workspaceId, 'TESKB-1', userId),
     ).resolves.toEqual(taskDto);
@@ -369,7 +365,7 @@ describe('TasksService', () => {
 
   it('delegates findCalendarByWorkspaceId to TaskQueryService', async () => {
     const result = { tasks: [taskDto] };
-    taskQueryService.findCalendarByWorkspaceId.mockResolvedValue(result as any);
+    taskQueryService.findCalendarByWorkspaceId.mockResolvedValue(result);
     await expect(
       service.findCalendarByWorkspaceId(workspaceId, 2026, 6, userId),
     ).resolves.toEqual(result);
@@ -384,7 +380,7 @@ describe('TasksService', () => {
   it('delegates findTimelineHierarchyByWorkspaceId to TaskQueryService', async () => {
     const result = { epics: [], children: [], standalones: [taskDto] };
     taskQueryService.findTimelineHierarchyByWorkspaceId.mockResolvedValue(
-      result as any,
+      result,
     );
     await expect(
       service.findTimelineHierarchyByWorkspaceId(workspaceId, userId),
@@ -398,14 +394,14 @@ describe('TasksService', () => {
 
   it('delegates update to TaskUpdateService', async () => {
     const dto: UpdateTaskDto = { title: 'Updated' };
-    taskUpdateService.update.mockResolvedValue(taskDto as any);
+    taskUpdateService.update.mockResolvedValue(taskDto);
     await expect(service.update(taskId, dto)).resolves.toEqual(taskDto);
     expect(taskUpdateService.update).toHaveBeenCalledWith(taskId, dto);
   });
 
   it('delegates updateInWorkspaceKey to TaskUpdateService', async () => {
     const dto: UpdateTaskDto = { title: 'Updated' };
-    taskUpdateService.updateInWorkspaceKey.mockResolvedValue(taskDto as any);
+    taskUpdateService.updateInWorkspaceKey.mockResolvedValue(taskDto);
     await expect(
       service.updateInWorkspaceKey('TESKB', taskId, dto, userId),
     ).resolves.toEqual(taskDto);
@@ -419,7 +415,7 @@ describe('TasksService', () => {
 
   it('delegates updateInWorkspaceId to TaskUpdateService', async () => {
     const dto: UpdateTaskDto = { title: 'Updated' };
-    taskUpdateService.updateInWorkspaceId.mockResolvedValue(taskDto as any);
+    taskUpdateService.updateInWorkspaceId.mockResolvedValue(taskDto);
     await expect(
       service.updateInWorkspaceId(workspaceId, taskId, dto, userId),
     ).resolves.toEqual(taskDto);
@@ -435,9 +431,7 @@ describe('TasksService', () => {
   // ─── Lifecycle delegation ──────────────────────────────────────────────
 
   it('delegates archiveInWorkspaceKey to TaskLifecycleService', async () => {
-    taskLifecycleService.archiveInWorkspaceKey.mockResolvedValue(
-      taskDto as any,
-    );
+    taskLifecycleService.archiveInWorkspaceKey.mockResolvedValue(taskDto);
     await expect(
       service.archiveInWorkspaceKey('TESKB', taskId, userId),
     ).resolves.toEqual(taskDto);
@@ -449,7 +443,7 @@ describe('TasksService', () => {
   });
 
   it('delegates archiveInWorkspaceId to TaskLifecycleService', async () => {
-    taskLifecycleService.archiveInWorkspaceId.mockResolvedValue(taskDto as any);
+    taskLifecycleService.archiveInWorkspaceId.mockResolvedValue(taskDto);
     await expect(
       service.archiveInWorkspaceId(workspaceId, taskId, userId),
     ).resolves.toEqual(taskDto);
@@ -461,9 +455,7 @@ describe('TasksService', () => {
   });
 
   it('delegates restoreInWorkspaceKey to TaskLifecycleService', async () => {
-    taskLifecycleService.restoreInWorkspaceKey.mockResolvedValue(
-      taskDto as any,
-    );
+    taskLifecycleService.restoreInWorkspaceKey.mockResolvedValue(taskDto);
     await expect(
       service.restoreInWorkspaceKey('TESKB', taskId, userId),
     ).resolves.toEqual(taskDto);
@@ -475,7 +467,7 @@ describe('TasksService', () => {
   });
 
   it('delegates restoreInWorkspaceId to TaskLifecycleService', async () => {
-    taskLifecycleService.restoreInWorkspaceId.mockResolvedValue(taskDto as any);
+    taskLifecycleService.restoreInWorkspaceId.mockResolvedValue(taskDto);
     await expect(
       service.restoreInWorkspaceId(workspaceId, taskId, userId),
     ).resolves.toEqual(taskDto);
@@ -488,7 +480,7 @@ describe('TasksService', () => {
 
   it('delegates deletePermanentlyInWorkspaceKey to TaskLifecycleService', async () => {
     taskLifecycleService.deletePermanentlyInWorkspaceKey.mockResolvedValue(
-      taskDto as any,
+      taskDto,
     );
     await expect(
       service.deletePermanentlyInWorkspaceKey(
@@ -505,7 +497,7 @@ describe('TasksService', () => {
 
   it('delegates deletePermanentlyInWorkspaceId to TaskLifecycleService', async () => {
     taskLifecycleService.deletePermanentlyInWorkspaceId.mockResolvedValue(
-      taskDto as any,
+      taskDto,
     );
     await expect(
       service.deletePermanentlyInWorkspaceId(
@@ -521,9 +513,7 @@ describe('TasksService', () => {
   });
 
   it('delegates archiveTaskKeyInWorkspace to TaskLifecycleService', async () => {
-    taskLifecycleService.archiveTaskKeyInWorkspace.mockResolvedValue(
-      taskDto as any,
-    );
+    taskLifecycleService.archiveTaskKeyInWorkspace.mockResolvedValue(taskDto);
     await expect(
       service.archiveTaskKeyInWorkspace('TESKB', 'TESKB-1', userId),
     ).resolves.toEqual(taskDto);
@@ -535,9 +525,7 @@ describe('TasksService', () => {
   });
 
   it('delegates restoreTaskKeyInWorkspace to TaskLifecycleService', async () => {
-    taskLifecycleService.restoreTaskKeyInWorkspace.mockResolvedValue(
-      taskDto as any,
-    );
+    taskLifecycleService.restoreTaskKeyInWorkspace.mockResolvedValue(taskDto);
     await expect(
       service.restoreTaskKeyInWorkspace('TESKB', 'TESKB-1', userId),
     ).resolves.toEqual(taskDto);
@@ -550,7 +538,7 @@ describe('TasksService', () => {
 
   it('delegates deleteTaskKeyPermanentlyInWorkspace to TaskLifecycleService', async () => {
     taskLifecycleService.deleteTaskKeyPermanentlyInWorkspace.mockResolvedValue(
-      taskDto as any,
+      taskDto,
     );
     await expect(
       service.deleteTaskKeyPermanentlyInWorkspace(

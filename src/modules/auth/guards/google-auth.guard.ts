@@ -23,12 +23,12 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     super();
   }
 
-  async canActivate(context: ExecutionContext) {
-    const req = context.switchToHttp().getRequest<Request>();
-    this.logGoogleOAuthRequest(req);
+  // async canActivate(context: ExecutionContext) {
+  //   const req = context.switchToHttp().getRequest<Request>();
+  //   this.logGoogleOAuthRequest(req);
 
-    return (await super.canActivate(context)) as boolean;
-  }
+  //   return (await super.canActivate(context)) as boolean;
+  // }
 
   handleRequest<TUser = unknown>(
     err: Error | null,
@@ -58,26 +58,26 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     return user;
   }
 
-  private logGoogleOAuthRequest(req: Request): void {
-    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID') || '';
-    const callbackUrl =
-      this.configService.get<string>('GOOGLE_REDIRECT_URL') || '';
-    const generatedOAuthUrl = this.buildGoogleOAuthUrl(clientId, callbackUrl);
+  // private logGoogleOAuthRequest(req: Request): void {
+  //   const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID') || '';
+  //   const callbackUrl =
+  //     this.configService.get<string>('GOOGLE_REDIRECT_URL') || '';
+  //   const generatedOAuthUrl = this.buildGoogleOAuthUrl(clientId, callbackUrl);
 
-    // Temporary investigation logs. Remove after redirect_uri_mismatch is resolved.
-    console.log('================ GOOGLE LOGIN START ================');
-    console.log('Origin:', req.headers.origin);
-    console.log('Host:', req.headers.host);
-    console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
-    console.log('X-Forwarded-Host:', req.headers['x-forwarded-host']);
-    console.log('GOOGLE_CLIENT_ID USED:', clientId);
-    console.log('GOOGLE_REDIRECT_URL ENV:', process.env.GOOGLE_REDIRECT_URL);
-    console.log('GOOGLE_CALLBACK_URL USED:', callbackUrl);
-    console.log('GOOGLE_SCOPE USED:', GOOGLE_OAUTH_SCOPE.join(' '));
-    console.log('GOOGLE_GENERATED_REDIRECT_URI:', callbackUrl);
-    console.log('GOOGLE_GENERATED_OAUTH_URL:', generatedOAuthUrl);
-    console.log('===================================================');
-  }
+  //   // Temporary investigation logs. Remove after redirect_uri_mismatch is resolved.
+  //   console.log('================ GOOGLE LOGIN START ================');
+  //   console.log('Origin:', req.headers.origin);
+  //   console.log('Host:', req.headers.host);
+  //   console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
+  //   console.log('X-Forwarded-Host:', req.headers['x-forwarded-host']);
+  //   console.log('GOOGLE_CLIENT_ID USED:', clientId);
+  //   console.log('GOOGLE_REDIRECT_URL ENV:', process.env.GOOGLE_REDIRECT_URL);
+  //   console.log('GOOGLE_CALLBACK_URL USED:', callbackUrl);
+  //   console.log('GOOGLE_SCOPE USED:', GOOGLE_OAUTH_SCOPE.join(' '));
+  //   console.log('GOOGLE_GENERATED_REDIRECT_URI:', callbackUrl);
+  //   console.log('GOOGLE_GENERATED_OAUTH_URL:', generatedOAuthUrl);
+  //   console.log('===================================================');
+  // }
 
   private buildGoogleOAuthUrl(clientId: string, callbackUrl: string): string {
     const params = new URLSearchParams({

@@ -65,6 +65,6 @@ export class TaskDataTransformerService {
       );
     }
 
-    return updateData as Partial<Task>;
+    return updateData;
   }
 }

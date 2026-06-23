@@ -162,7 +162,7 @@ export class AuditLogService {
       data: data.map(doc => ({
         ...doc,
         _id: doc._id,
-      })) as SecurityEvent[],
+      })),
       pagination: {
         page,
         limit,

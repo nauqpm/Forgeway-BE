@@ -88,7 +88,7 @@ describe('SprintCommandService', () => {
 
     it('creates sprint with auto-generated name if omitted', async () => {
       const dto = { goal: 'Test goals' };
-      const result = await service.createSprint(workspaceId, dto as any);
+      const result = await service.createSprint(workspaceId, dto);
 
       expect(sprintModel.countDocuments).toHaveBeenCalledWith({
         workspaceId: new Types.ObjectId(workspaceId),

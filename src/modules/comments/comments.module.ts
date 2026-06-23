@@ -12,6 +12,7 @@ import { CommentMapper } from './mappers/comment.mapper';
 import { Comment, CommentSchema } from './schemas/comment.schema';
 import { CommentService } from './services/comment.service';
 import { TaskCommentService } from './services/task-comment.service';
+import { TaskCommentNotificationService } from './services/task-comment-notification.service';
 
 @Module({
   imports: [
@@ -26,7 +27,12 @@ import { TaskCommentService } from './services/task-comment.service';
     forwardRef(() => NotificationsModule),
   ],
   controllers: [CommentsController, TaskCommentController],
-  providers: [CommentService, TaskCommentService, CommentMapper],
+  providers: [
+    CommentService,
+    TaskCommentService,
+    TaskCommentNotificationService,
+    CommentMapper,
+  ],
   exports: [CommentService, TaskCommentService],
 })
 export class CommentsModule {}
