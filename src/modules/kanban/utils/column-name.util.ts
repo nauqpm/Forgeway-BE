@@ -20,7 +20,7 @@ export const hasDuplicateColumnName = (
   const candidateKey = getColumnNameKey(candidateName);
 
   return columns.some(
-    (column) =>
+    column =>
       column.id !== excludedColumnId &&
       getColumnNameKey(column.name) === candidateKey,
   );
