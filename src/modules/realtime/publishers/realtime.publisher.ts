@@ -21,8 +21,13 @@ export class RealtimePublisher {
     }
 
     try {
+      // If server is a Namespace (e.g. from NestJS gateway), get root Server from server.server
+      const rootServer = (server as any).server || server;
+
       if (namespace) {
-        server.of(namespace).to(room).emit(envelope.type, envelope);
+        // Ensure namespace starts with '/'
+        const ns = namespace.startsWith('/') ? namespace : `/${namespace}`;
+        rootServer.of(ns).to(room).emit(envelope.type, envelope);
       } else {
         server.to(room).emit(envelope.type, envelope);
       }
