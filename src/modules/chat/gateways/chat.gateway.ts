@@ -97,20 +97,49 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('chat.join')
   async handleJoin(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() body: { channelId: string },
+    @MessageBody() body: { channelId?: string; channelIds?: string[] },
   ) {
     const userId = client.data.user?.userId;
-    if (!userId || !body.channelId) return { ok: false };
+    if (!userId) return { ok: false };
 
-    const hasAccess = await this.channelsService.validateUserAccess(
-      body.channelId,
-      userId,
-    );
-    if (!hasAccess) return { ok: false, error: 'Forbidden' };
+    // Batch join
+    if (body.channelIds && Array.isArray(body.channelIds)) {
+      const results: { channelId: string; ok: boolean; error?: string }[] = [];
+      for (const channelId of body.channelIds) {
+        if (!channelId) continue;
+        try {
+          const hasAccess = await this.channelsService.validateUserAccess(
+            channelId,
+            userId,
+          );
+          if (!hasAccess) {
+            results.push({ channelId, ok: false, error: 'Forbidden' });
+            continue;
+          }
+          await client.join(RoomBuilder.channel(channelId));
+          client.emit('chat.joined', { channelId, userId });
+          results.push({ channelId, ok: true });
+        } catch (err) {
+          results.push({ channelId, ok: false, error: (err as Error).message });
+        }
+      }
+      return { ok: true, results };
+    }
 
-    await client.join(RoomBuilder.channel(body.channelId));
-    client.emit('chat.joined', { channelId: body.channelId, userId });
-    return { ok: true };
+    // Single join
+    if (body.channelId) {
+      const hasAccess = await this.channelsService.validateUserAccess(
+        body.channelId,
+        userId,
+      );
+      if (!hasAccess) return { ok: false, error: 'Forbidden' };
+
+      await client.join(RoomBuilder.channel(body.channelId));
+      client.emit('chat.joined', { channelId: body.channelId, userId });
+      return { ok: true };
+    }
+
+    return { ok: false, error: 'No channelId or channelIds provided' };
   }
 
   @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
