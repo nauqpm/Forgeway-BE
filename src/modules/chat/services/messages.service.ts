@@ -41,7 +41,7 @@ export class MessagesService {
     private readonly realtimePublisher: RealtimePublisher,
   ) {}
 
-  private async parseMentionedIds(content: string, workspaceId: string): Promise<string[]> {
+  private async parseMentionedIds(content: string, workspaceId: string, channelId?: string): Promise<string[]> {
     if (!content || !workspaceId) return [];
     
     try {
@@ -77,13 +77,29 @@ export class MessagesService {
 
       const mentionedNames = extractMentionedNames(content);
       const mentionedIds: string[] = [];
+      let mentionAll = false;
+
       for (const name of mentionedNames) {
         const lowerName = name.toLowerCase().trim();
+        if (lowerName === 'all') {
+          mentionAll = true;
+          continue;
+        }
         const uId = nameToUserId.get(lowerName);
         if (uId && !mentionedIds.includes(uId)) {
           mentionedIds.push(uId);
         }
       }
+
+      if (mentionAll && channelId) {
+        const channelMemberIds = await this.channelsService.getChannelMemberIds(channelId);
+        for (const memberId of channelMemberIds) {
+          if (memberId && !mentionedIds.includes(memberId)) {
+            mentionedIds.push(memberId);
+          }
+        }
+      }
+
       return mentionedIds;
     } catch (e) {
       this.logger.warn(`Failed to parse mentions: ${e.message}`);
@@ -320,7 +336,7 @@ export class MessagesService {
 
       // 3. Send notifications (Only for mentioned users)
       if (channel.workspaceId && dto.content) {
-        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString());
+        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString(), channelId);
         if (mentionedIds.length > 0) {
           await this.notificationsService.notifyThreadReply({
             recipientIds: mentionedIds,
@@ -338,7 +354,7 @@ export class MessagesService {
     } else {
       // 3. Send notifications for normal message mentions
       if (channel.workspaceId && dto.content) {
-        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString());
+        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString(), channelId);
         if (mentionedIds.length > 0) {
           const sender = await this.usersService.getUserById(senderId);
           const senderName = sender?.fullName || 'User';
