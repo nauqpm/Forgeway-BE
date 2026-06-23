@@ -8,7 +8,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { NotificationsService } from '../../notifications/services/notifications.service';
+import { TaskCommentNotificationService } from './task-comment-notification.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
@@ -39,7 +39,7 @@ export class TaskCommentService {
     private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly commentMapper: CommentMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
-    private readonly notificationsService: NotificationsService,
+    private readonly taskCommentNotificationService: TaskCommentNotificationService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -73,7 +73,7 @@ export class TaskCommentService {
       userId,
       comment._id.toString(),
     );
-    await this.notifyTaskComment(comment, task, userId);
+    await this.taskCommentNotificationService.notifyTaskComment(comment, task, userId);
 
     const populated = await this.findTaskCommentDocument(
       workspaceId,
@@ -129,11 +129,8 @@ export class TaskCommentService {
     if (!comment) {
       throw new NotFoundException(`Comment with id ${commentId} not found`);
     }
-    const authorIdString = (comment.authorId as any)._id
-      ? (comment.authorId as any)._id.toString()
-      : comment.authorId.toString();
-
-    if (authorIdString !== userId) {
+    const authorIdString = this.toId(comment.authorId);
+    if (!authorIdString || authorIdString !== userId) {
       throw new ForbiddenException('You can only update your own comments');
     }
 
@@ -161,7 +158,7 @@ export class TaskCommentService {
 
     const commentDto = this.commentMapper.mapToDto(saved);
     this.publishCommentUpdatedEvent(task, userId, commentDto);
-    await this.notifyAddedTaskCommentMentions(
+    await this.taskCommentNotificationService.notifyAddedMentions(
       saved,
       task,
       userId,
@@ -187,11 +184,8 @@ export class TaskCommentService {
     if (!comment) {
       throw new NotFoundException(`Comment with id ${commentId} not found`);
     }
-    const authorIdString = (comment.authorId as any)._id
-      ? (comment.authorId as any)._id.toString()
-      : comment.authorId.toString();
-
-    if (authorIdString !== userId) {
+    const authorIdString = this.toId(comment.authorId);
+    if (!authorIdString || authorIdString !== userId) {
       throw new ForbiddenException('You can only delete your own comments');
     }
 
@@ -213,7 +207,7 @@ export class TaskCommentService {
     comment: CommentDto,
   ): void {
     const event = new TaskCommentCreatedEvent({
-      workspaceId: this.toId(task.workspaceId),
+      workspaceId: this.toId(task.workspaceId) ?? '',
       taskId: task._id.toString(),
       taskKey: task.key,
       actorId,
@@ -231,7 +225,7 @@ export class TaskCommentService {
     comment: CommentDto,
   ): void {
     const event = new TaskCommentUpdatedEvent({
-      workspaceId: this.toId(task.workspaceId),
+      workspaceId: this.toId(task.workspaceId) ?? '',
       taskId: task._id.toString(),
       taskKey: task.key,
       actorId,
@@ -249,7 +243,7 @@ export class TaskCommentService {
     commentId: string,
   ): void {
     const event = new TaskCommentDeletedEvent({
-      workspaceId: this.toId(task.workspaceId),
+      workspaceId: this.toId(task.workspaceId) ?? '',
       taskId: task._id.toString(),
       taskKey: task.key,
       actorId,
@@ -361,130 +355,31 @@ export class TaskCommentService {
       );
     }
   }
-  private async filterWorkspaceMembers(
-    workspaceId: string,
-    userIds: string[],
-  ): Promise<string[]> {
-    if (userIds.length === 0) {
-      return [];
-    }
-
-    // Single query — fetches workspace once and filters in memory
-    return this.workspaceMemberService.filterMembers(workspaceId, userIds);
-  }
-
-  private async notifyTaskComment(
-    comment: CommentDocument,
-    task: TaskDocument,
-    actorId: string,
-  ): Promise<void> {
-    try {
-      const workspaceId = this.toId(task.workspaceId);
-      const mentionRecipientIds = this.uniqueIds(comment.mentions)
-        .filter(recipientId => recipientId !== actorId)
-        .filter(recipientId => recipientId.length > 0);
-
-      // Only send mention notifications to workspace members
-      const memberMentionIds = await this.filterWorkspaceMembers(
-        workspaceId,
-        mentionRecipientIds,
-      );
-
-      if (memberMentionIds.length > 0) {
-        await this.notificationsService.notifyCommentMentioned({
-          recipientIds: memberMentionIds,
-          actorId,
-          workspaceId,
-          taskId: task._id.toString(),
-          taskKey: task.key,
-          taskTitle: task.title,
-          commentId: comment._id.toString(),
-        });
-      }
-
-      const mentioned = new Set(memberMentionIds);
-      const relatedRecipientIds = this.uniqueIds([
-        task.assigneeId,
-        task.reporterId,
-      ]).filter(
-        recipientId => recipientId !== actorId && !mentioned.has(recipientId),
-      );
-
-      // Only send comment notifications to workspace members
-      const memberRelatedIds = await this.filterWorkspaceMembers(
-        workspaceId,
-        relatedRecipientIds,
-      );
-
-      if (memberRelatedIds.length > 0) {
-        await this.notificationsService.notifyTaskCommentCreated({
-          recipientIds: memberRelatedIds,
-          actorId,
-          workspaceId,
-          taskId: task._id.toString(),
-          taskKey: task.key,
-          taskTitle: task.title,
-          commentId: comment._id.toString(),
-        });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Failed to create task comment notification: ${message}`,
-      );
-    }
-  }
-
-  private async notifyAddedTaskCommentMentions(
-    comment: CommentDocument,
-    task: TaskDocument,
-    actorId: string,
-    addedMentionIds: string[],
-  ): Promise<void> {
-    if (addedMentionIds.length === 0) {
-      return;
-    }
-
-    try {
-      const workspaceId = this.toId(task.workspaceId);
-      const recipientIds = addedMentionIds.filter(id => id !== actorId);
-      const memberRecipientIds = await this.filterWorkspaceMembers(
-        workspaceId,
-        recipientIds,
-      );
-
-      if (memberRecipientIds.length === 0) {
-        return;
-      }
-
-      await this.notificationsService.notifyCommentMentioned({
-        recipientIds: memberRecipientIds,
-        actorId,
-        workspaceId,
-        taskId: task._id.toString(),
-        taskKey: task.key,
-        taskTitle: task.title,
-        commentId: comment._id.toString(),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Failed to notify newly mentioned users for comment ${comment._id.toString()}: ${message}`,
-      );
-    }
-  }
 
   private uniqueIds(values: Array<unknown>): string[] {
     return Array.from(
       new Set(
         values
           .map(value => this.toId(value))
-          .filter(value => Types.ObjectId.isValid(value)),
+          .filter((value): value is string => value !== undefined && Types.ObjectId.isValid(value)),
       ),
     );
   }
 
-  private toId(value: any): string {
-    return value?._id?.toString?.() ?? value?.toString?.() ?? '';
+  private toId(value: unknown): string | undefined {
+    if (!value) return undefined;
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
+
+    // For populated documents, extract the nested _id
+    const target = (value as { _id?: unknown })._id ?? value;
+
+    if (typeof (target as any)?.toString !== 'function') return undefined;
+
+    const result = (target as any).toString();
+    return result && result !== '[object Object]' ? result : undefined;
   }
 }
