@@ -93,7 +93,7 @@ export class TaskReorderPolicy {
     }
 
     if (typeof value === 'object' && '_id' in value) {
-      return String((value as { _id: unknown })._id);
+      return String(value._id);
     }
 
     return String(value);

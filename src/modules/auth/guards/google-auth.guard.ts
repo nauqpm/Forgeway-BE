@@ -78,7 +78,6 @@ export class GoogleAuthGuard extends AuthGuard('google') {
   //   console.log('GOOGLE_GENERATED_OAUTH_URL:', generatedOAuthUrl);
   //   console.log('===================================================');
   // }
-  
 
   private buildGoogleOAuthUrl(clientId: string, callbackUrl: string): string {
     const params = new URLSearchParams({

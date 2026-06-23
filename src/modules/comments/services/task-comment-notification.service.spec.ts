@@ -22,9 +22,7 @@ describe('TaskCommentNotificationService', () => {
   const memberId = new Types.ObjectId().toString();
   const commentId = new Types.ObjectId().toString();
 
-  function makeComment(opts?: {
-    mentions?: Types.ObjectId[];
-  }): any {
+  function makeComment(opts?: { mentions?: Types.ObjectId[] }): any {
     return {
       _id: new Types.ObjectId(commentId),
       workspaceId: new Types.ObjectId(workspaceId),
@@ -50,11 +48,11 @@ describe('TaskCommentNotificationService', () => {
     notificationsService = {
       notifyCommentMentioned: jest.fn(),
       notifyTaskCommentCreated: jest.fn(),
-    } as any;
+    };
 
     workspaceMemberService = {
       filterMembers: jest.fn(),
-    } as any;
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -95,7 +93,9 @@ describe('TaskCommentNotificationService', () => {
       // memberId was mentioned AND is assignee → deduplicated from task comment notification
       // userId is the actor/reporter → filtered out
       // → no additional task comment notification sent
-      expect(notificationsService.notifyTaskCommentCreated).not.toHaveBeenCalled();
+      expect(
+        notificationsService.notifyTaskCommentCreated,
+      ).not.toHaveBeenCalled();
     });
 
     it('does not notify the actor as a mention recipient', async () => {
@@ -109,7 +109,9 @@ describe('TaskCommentNotificationService', () => {
 
       await service.notifyTaskComment(comment, task, userId);
 
-      expect(notificationsService.notifyCommentMentioned).not.toHaveBeenCalled();
+      expect(
+        notificationsService.notifyCommentMentioned,
+      ).not.toHaveBeenCalled();
       expect(notificationsService.notifyTaskCommentCreated).toHaveBeenCalled();
     });
 
@@ -128,8 +130,12 @@ describe('TaskCommentNotificationService', () => {
       await service.notifyTaskComment(comment, task, userId);
 
       // Only mention notification — no dup for assignee
-      expect(notificationsService.notifyCommentMentioned).toHaveBeenCalledTimes(1);
-      expect(notificationsService.notifyTaskCommentCreated).not.toHaveBeenCalled();
+      expect(notificationsService.notifyCommentMentioned).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(
+        notificationsService.notifyTaskCommentCreated,
+      ).not.toHaveBeenCalled();
     });
 
     it('skips notifications when workspaceId cannot be resolved', async () => {
@@ -140,8 +146,12 @@ describe('TaskCommentNotificationService', () => {
 
       await service.notifyTaskComment(comment, task, userId);
 
-      expect(notificationsService.notifyCommentMentioned).not.toHaveBeenCalled();
-      expect(notificationsService.notifyTaskCommentCreated).not.toHaveBeenCalled();
+      expect(
+        notificationsService.notifyCommentMentioned,
+      ).not.toHaveBeenCalled();
+      expect(
+        notificationsService.notifyTaskCommentCreated,
+      ).not.toHaveBeenCalled();
     });
 
     it('does not throw when notification service fails', async () => {
@@ -189,7 +199,9 @@ describe('TaskCommentNotificationService', () => {
 
       await service.notifyAddedMentions(comment, task, userId, []);
 
-      expect(notificationsService.notifyCommentMentioned).not.toHaveBeenCalled();
+      expect(
+        notificationsService.notifyCommentMentioned,
+      ).not.toHaveBeenCalled();
       expect(workspaceMemberService.filterMembers).not.toHaveBeenCalled();
     });
 
@@ -199,7 +211,9 @@ describe('TaskCommentNotificationService', () => {
 
       await service.notifyAddedMentions(comment, task, userId, [userId]);
 
-      expect(notificationsService.notifyCommentMentioned).not.toHaveBeenCalled();
+      expect(
+        notificationsService.notifyCommentMentioned,
+      ).not.toHaveBeenCalled();
     });
 
     it('does not throw when notification service fails', async () => {

@@ -348,7 +348,7 @@ export class RealtimeGateway
 
       if (!role) return false;
 
-      const permissions = getPermissionsForWorkspaceRole(role as any);
+      const permissions = getPermissionsForWorkspaceRole(role);
       return permissions.includes('page:edit');
     } catch {
       return false;

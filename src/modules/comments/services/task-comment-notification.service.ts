@@ -151,7 +151,10 @@ export class TaskCommentNotificationService {
       new Set(
         values
           .map(value => this.toId(value))
-          .filter((value): value is string => value !== undefined && Types.ObjectId.isValid(value)),
+          .filter(
+            (value): value is string =>
+              value !== undefined && Types.ObjectId.isValid(value),
+          ),
       ),
     );
   }

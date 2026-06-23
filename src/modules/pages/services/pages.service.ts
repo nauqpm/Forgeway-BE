@@ -444,7 +444,7 @@ export class PagesService {
       const newParent = await this.findById(newParentId);
       page.parentId = newParent._id;
     } else {
-      page.parentId = undefined as any;
+      page.parentId = undefined;
     }
 
     return page.save();

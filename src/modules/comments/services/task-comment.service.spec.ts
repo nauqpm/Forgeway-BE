@@ -80,32 +80,32 @@ describe('TaskCommentService', () => {
 
     taskModel = { findOne: jest.fn() };
 
-    workspacesService = { findById: jest.fn() } as any;
+    workspacesService = { findById: jest.fn() };
 
     workspaceMemberService = {
       isMember: jest.fn(),
       filterNonMembers: jest.fn(),
       filterMembers: jest.fn(),
       getMembers: jest.fn(),
-    } as any;
+    };
 
     commentMapper = {
       mapToDto: jest.fn(),
       mapToDtos: jest.fn(),
-    } as any;
+    };
 
     taskActivitiesService = {
       recordCommentAdded: jest.fn(),
       recordCommentUpdated: jest.fn(),
       recordCommentDeleted: jest.fn(),
-    } as any;
+    };
 
     taskCommentNotificationService = {
       notifyTaskComment: jest.fn(),
       notifyAddedMentions: jest.fn(),
-    } as any;
+    };
 
-    eventEmitter = { emit: jest.fn() } as any;
+    eventEmitter = { emit: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -116,7 +116,10 @@ describe('TaskCommentService', () => {
         { provide: WorkspaceMemberService, useValue: workspaceMemberService },
         { provide: CommentMapper, useValue: commentMapper },
         { provide: TaskActivitiesService, useValue: taskActivitiesService },
-        { provide: TaskCommentNotificationService, useValue: taskCommentNotificationService },
+        {
+          provide: TaskCommentNotificationService,
+          useValue: taskCommentNotificationService,
+        },
         { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
@@ -416,12 +419,11 @@ describe('TaskCommentService', () => {
       expect(existingComment.editedAt).toBeInstanceOf(Date);
       expect(saveMock).toHaveBeenCalled();
       expect(taskActivitiesService.recordCommentUpdated).toHaveBeenCalled();
-      expect(taskCommentNotificationService.notifyAddedMentions).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        userId,
-        [memberId],
-      );
+      expect(
+        taskCommentNotificationService.notifyAddedMentions,
+      ).toHaveBeenCalledWith(expect.anything(), expect.anything(), userId, [
+        memberId,
+      ]);
     });
 
     it('does not notify a user who was already mentioned', async () => {
@@ -437,12 +439,9 @@ describe('TaskCommentService', () => {
         userId,
       );
 
-      expect(taskCommentNotificationService.notifyAddedMentions).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        userId,
-        [],
-      );
+      expect(
+        taskCommentNotificationService.notifyAddedMentions,
+      ).toHaveBeenCalledWith(expect.anything(), expect.anything(), userId, []);
       expect(workspaceMemberService.filterMembers).not.toHaveBeenCalled();
     });
 
@@ -467,12 +466,9 @@ describe('TaskCommentService', () => {
       expect(saveMock).toHaveBeenCalled();
       expect(taskActivitiesService.recordCommentUpdated).toHaveBeenCalled();
       // Service delegates to notification service even when no new mentions added
-      expect(taskCommentNotificationService.notifyAddedMentions).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        userId,
-        [],
-      );
+      expect(
+        taskCommentNotificationService.notifyAddedMentions,
+      ).toHaveBeenCalledWith(expect.anything(), expect.anything(), userId, []);
     });
 
     it('rejects updating with content containing @Name of someone outside workspace', async () => {

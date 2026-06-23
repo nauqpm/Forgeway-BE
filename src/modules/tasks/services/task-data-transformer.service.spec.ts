@@ -14,7 +14,7 @@ describe('TaskDataTransformerService search tokens', () => {
         type: 'task',
         priority: 'medium',
         workspaceId: '64f000000000000000000001',
-      } as any,
+      },
       '64f000000000000000000001',
       '64f000000000000000000002',
       'ALTA-1',
@@ -27,8 +27,8 @@ describe('TaskDataTransformerService search tokens', () => {
 
   it('regenerates search tokens when title changes on update', () => {
     const data = service.transformUpdateInput(
-      { title: 'Reset Password' } as any,
-      { key: 'ALTA-1', title: 'Registration' } as any,
+      { title: 'Reset Password' },
+      { key: 'ALTA-1', title: 'Registration' },
     );
 
     expect(data.searchTokens).toEqual(

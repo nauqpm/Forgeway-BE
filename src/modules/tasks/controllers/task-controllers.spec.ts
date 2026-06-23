@@ -347,9 +347,7 @@ describe('TaskControllers', () => {
   describe('TaskDetailController', () => {
     it('GET :id delegates to getDetailByIdInWorkspaceKey', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(
-        task as any,
-      );
+      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(task);
 
       const response = await detailController.findById(
         workspaceId,
@@ -366,9 +364,7 @@ describe('TaskControllers', () => {
 
     it('GET key/:taskKey delegates to getDetailByKeyInWorkspaceKey', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(
-        task as any,
-      );
+      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(task);
 
       const response = await detailController.findByTaskKey(
         workspaceId,
@@ -385,12 +381,8 @@ describe('TaskControllers', () => {
 
     it('does NOT emit realtime events', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(
-        task as any,
-      );
-      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(
-        task as any,
-      );
+      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(task);
+      taskDetailService.getDetailByKeyInWorkspaceKey.mockResolvedValue(task);
 
       await detailController.findById(workspaceId, taskId, mockUser, mockReq);
       await detailController.findByTaskKey(
@@ -405,9 +397,7 @@ describe('TaskControllers', () => {
 
     it('logs audit for detail views', async () => {
       const task = makeTaskDto();
-      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(
-        task as any,
-      );
+      taskDetailService.getDetailByIdInWorkspaceKey.mockResolvedValue(task);
 
       await detailController.findById(workspaceId, taskId, mockUser, mockReq);
 
@@ -427,7 +417,7 @@ describe('TaskControllers', () => {
 
       const response = await commandController.create(
         workspaceId,
-        { title: 'New' } as any,
+        { title: 'New' },
         mockUser,
         mockReq,
       );
@@ -555,12 +545,12 @@ describe('TaskControllers', () => {
         task,
         auditMetadata: { taskId, taskKey: 'TESKB-1' },
       };
-      taskMoveService.moveInWorkspaceId.mockResolvedValue(moveResult as any);
+      taskMoveService.moveInWorkspaceId.mockResolvedValue(moveResult);
 
       const response = await workflowController.move(
         workspaceId,
         taskId,
-        { columnId: 'done' } as any,
+        { columnId: 'done' },
         mockUser,
         mockReq,
       );
@@ -586,14 +576,12 @@ describe('TaskControllers', () => {
         task,
         auditMetadata: { taskId, taskKey: 'TESKB-1', reorder: true },
       };
-      taskReorderService.reorderInWorkspaceId.mockResolvedValue(
-        reorderResult as any,
-      );
+      taskReorderService.reorderInWorkspaceId.mockResolvedValue(reorderResult);
 
       const response = await workflowController.reorder(
         workspaceId,
         taskId,
-        { beforeTaskId: 'abc' } as any,
+        { beforeTaskId: 'abc' },
         mockUser,
         mockReq,
       );

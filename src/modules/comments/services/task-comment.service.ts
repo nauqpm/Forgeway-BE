@@ -73,7 +73,11 @@ export class TaskCommentService {
       userId,
       comment._id.toString(),
     );
-    await this.taskCommentNotificationService.notifyTaskComment(comment, task, userId);
+    await this.taskCommentNotificationService.notifyTaskComment(
+      comment,
+      task,
+      userId,
+    );
 
     const populated = await this.findTaskCommentDocument(
       workspaceId,
@@ -361,7 +365,10 @@ export class TaskCommentService {
       new Set(
         values
           .map(value => this.toId(value))
-          .filter((value): value is string => value !== undefined && Types.ObjectId.isValid(value)),
+          .filter(
+            (value): value is string =>
+              value !== undefined && Types.ObjectId.isValid(value),
+          ),
       ),
     );
   }

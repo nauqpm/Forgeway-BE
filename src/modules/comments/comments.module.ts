@@ -27,7 +27,12 @@ import { TaskCommentNotificationService } from './services/task-comment-notifica
     forwardRef(() => NotificationsModule),
   ],
   controllers: [CommentsController, TaskCommentController],
-  providers: [CommentService, TaskCommentService, TaskCommentNotificationService, CommentMapper],
+  providers: [
+    CommentService,
+    TaskCommentService,
+    TaskCommentNotificationService,
+    CommentMapper,
+  ],
   exports: [CommentService, TaskCommentService],
 })
 export class CommentsModule {}
