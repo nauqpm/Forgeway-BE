@@ -426,6 +426,32 @@ describe('TaskCommentService', () => {
       ]);
     });
 
+    it('persists the update before activity, realtime, and mention notifications', async () => {
+      mockUpdateBase();
+      mockGetMembers(memberEntry(memberId, memberFullName));
+      taskCommentNotificationService.notifyAddedMentions.mockResolvedValue();
+
+      await service.updateForTask(
+        workspaceId,
+        taskId,
+        originalCommentId,
+        { content: `Hello @${memberFullName}` },
+        userId,
+      );
+
+      const saveOrder = saveMock.mock.invocationCallOrder[0];
+      const activityOrder =
+        taskActivitiesService.recordCommentUpdated.mock.invocationCallOrder[0];
+      const realtimeOrder = eventEmitter.emit.mock.invocationCallOrder[0];
+      const notificationOrder =
+        taskCommentNotificationService.notifyAddedMentions.mock
+          .invocationCallOrder[0];
+
+      expect(saveOrder).toBeLessThan(activityOrder);
+      expect(activityOrder).toBeLessThan(realtimeOrder);
+      expect(realtimeOrder).toBeLessThan(notificationOrder);
+    });
+
     it('does not notify a user who was already mentioned', async () => {
       mockUpdateBase();
       existingComment.mentions = [new Types.ObjectId(memberId)];
