@@ -17,6 +17,11 @@ import { UsersService } from '../../users/services/users.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { NotificationsService } from '../../notifications/services/notifications.service';
+import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
+import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
+import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
+import { RealtimeEnvelope } from '../../realtime/contracts';
 
 @Injectable()
 export class MessagesService {
@@ -31,7 +36,60 @@ export class MessagesService {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => WorkspaceMemberService))
     private readonly workspaceMemberService: WorkspaceMemberService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
+    private readonly realtimePublisher: RealtimePublisher,
   ) {}
+
+  private async parseMentionedIds(content: string, workspaceId: string): Promise<string[]> {
+    if (!content || !workspaceId) return [];
+    
+    try {
+      const workspaceMembers = await this.workspaceMemberService.getMembers(
+        workspaceId.toString(),
+      );
+      const nameToUserId = new Map<string, string>();
+      for (const member of workspaceMembers) {
+        const userDoc = member.userId;
+        if (!userDoc) continue;
+        const fullName = (userDoc.fullName || userDoc.name || '')
+          .toString()
+          .toLowerCase()
+          .trim();
+        if (fullName) {
+          nameToUserId.set(fullName, (userDoc._id || userDoc).toString());
+        }
+      }
+
+      const extractMentionedNames = (text: string): string[] => {
+        const MENTION_REGEX = /@((?:\p{L}['\-\p{L}]*)+(?:\s+(?:\p{L}['\-\p{L}]*)+)*)/gu;
+        const names: string[] = [];
+        let match: RegExpExecArray | null;
+        const regex = new RegExp(MENTION_REGEX.source, MENTION_REGEX.flags);
+        while ((match = regex.exec(text)) !== null) {
+          const name = match[1].trim();
+          if (name.length > 0) {
+            names.push(name);
+          }
+        }
+        return names;
+      };
+
+      const mentionedNames = extractMentionedNames(content);
+      const mentionedIds: string[] = [];
+      for (const name of mentionedNames) {
+        const lowerName = name.toLowerCase().trim();
+        const uId = nameToUserId.get(lowerName);
+        if (uId && !mentionedIds.includes(uId)) {
+          mentionedIds.push(uId);
+        }
+      }
+      return mentionedIds;
+    } catch (e) {
+      this.logger.warn(`Failed to parse mentions: ${e.message}`);
+      return [];
+    }
+  }
 
   async countUnread(channelId: string, userId: string): Promise<number> {
     const marker = await this.readMarkersRepository.model.findOne({
@@ -176,10 +234,30 @@ export class MessagesService {
       }
     }
 
+    let parentMessage: any = null;
+    if (dto.threadParentId) {
+      if (!Types.ObjectId.isValid(dto.threadParentId)) {
+        throw new NotFoundException('Invalid threadParentId');
+      }
+      parentMessage = await this.messagesRepository.findById(dto.threadParentId);
+      if (!parentMessage) {
+        throw new NotFoundException('Parent message not found');
+      }
+      if (parentMessage.channelId.toString() !== channelId) {
+        throw new ForbiddenException(
+          'Cannot reply to message in a different channel',
+        );
+      }
+      if (parentMessage.threadParentId) {
+        throw new ForbiddenException('Cannot reply to a reply message');
+      }
+    }
+
     const message = await this.messagesRepository.create({
       ...dto,
       channelId: new Types.ObjectId(channelId),
       senderId: new Types.ObjectId(senderId),
+      threadParentId: dto.threadParentId ? new Types.ObjectId(dto.threadParentId) : null,
     });
 
     const populated = await message.populate([
@@ -194,7 +272,163 @@ export class MessagesService {
       },
     ]);
     const [withReactions] = await this.populateReactions([populated]);
+
+    if (dto.threadParentId && parentMessage) {
+      const sender = await this.usersService.getUserById(senderId);
+      const senderName = sender?.fullName || 'User';
+      const senderAvatar = sender?.avatar || null;
+
+      // 1. Update the parent message atomically
+      await this.messagesRepository.model.updateOne(
+        { _id: parentMessage._id },
+        {
+          $pull: {
+            lastReplyParticipants: { userId: new Types.ObjectId(senderId) },
+          },
+        },
+      );
+
+      await this.messagesRepository.model.updateOne(
+        { _id: parentMessage._id },
+        {
+          $push: {
+            lastReplyParticipants: {
+              $each: [
+                {
+                  userId: new Types.ObjectId(senderId),
+                  fullName: senderName,
+                  avatar: senderAvatar,
+                },
+              ],
+              $slice: -3,
+            },
+          },
+          $inc: { replyCount: 1 },
+          $set: { lastReplyAt: new Date() },
+        },
+      );
+
+      // 2. Emit CHAT_THREAD_REPLY_CREATED realtime socket event
+      const room = RoomBuilder.channel(channelId);
+      const envelope: RealtimeEnvelope<any> = {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.CHAT_THREAD_REPLY_CREATED,
+        data: withReactions,
+        occurredAt: new Date().toISOString(),
+      };
+      this.realtimePublisher.emit(room, envelope, 'chat');
+
+      // 3. Send notifications (Only for mentioned users)
+      if (channel.workspaceId && dto.content) {
+        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString());
+        if (mentionedIds.length > 0) {
+          await this.notificationsService.notifyThreadReply({
+            recipientIds: mentionedIds,
+            actorId: senderId,
+            workspaceId: channel.workspaceId.toString(),
+            channelId,
+            messageId: withReactions._id.toString(),
+            parentContent: parentMessage.content || '',
+            replyContent: dto.content || '',
+            senderName,
+          });
+        }
+      }
+    } else {
+      // 3. Send notifications for normal message mentions
+      if (channel.workspaceId && dto.content) {
+        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString());
+        if (mentionedIds.length > 0) {
+          const sender = await this.usersService.getUserById(senderId);
+          const senderName = sender?.fullName || 'User';
+          await this.notificationsService.notifyChatMentioned({
+            recipientIds: mentionedIds,
+            actorId: senderId,
+            workspaceId: channel.workspaceId.toString(),
+            channelId,
+            messageId: withReactions._id.toString(),
+            content: dto.content || '',
+            senderName,
+          });
+        }
+      }
+    }
+
     return withReactions;
+  }
+
+  async findThreadReplies(
+    channelId: string,
+    parentMessageId: string,
+    userId: string,
+  ): Promise<any[]> {
+    if (!Types.ObjectId.isValid(channelId)) {
+      throw new NotFoundException('Invalid Channel ID');
+    }
+    if (!Types.ObjectId.isValid(parentMessageId)) {
+      throw new NotFoundException('Invalid Parent Message ID');
+    }
+
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      userId,
+    );
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const parentMessage = await this.messagesRepository.findById(parentMessageId);
+    if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
+      throw new NotFoundException('Parent message not found in this channel');
+    }
+
+    const replies = await this.messagesRepository.model
+      .find({
+        channelId: new Types.ObjectId(channelId),
+        threadParentId: new Types.ObjectId(parentMessageId),
+        deletedAt: null,
+      })
+      .sort({ createdAt: 1 })
+      .populate([
+        { path: 'senderId', select: 'fullName avatar email' },
+        { path: 'stickerId' },
+      ])
+      .exec();
+
+    return this.populateReactions(replies);
+  }
+
+  async findActiveThreads(
+    channelId: string,
+    userId: string,
+  ): Promise<any[]> {
+    if (!Types.ObjectId.isValid(channelId)) {
+      throw new NotFoundException('Invalid Channel ID');
+    }
+
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      userId,
+    );
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const threads = await this.messagesRepository.model
+      .find({
+        channelId: new Types.ObjectId(channelId),
+        threadParentId: null,
+        replyCount: { $gt: 0 },
+        deletedAt: null,
+      })
+      .sort({ lastReplyAt: -1 })
+      .populate([
+        { path: 'senderId', select: 'fullName avatar email' },
+        { path: 'stickerId' },
+      ])
+      .exec();
+
+    return this.populateReactions(threads);
   }
 
   async findByChannel(
@@ -215,7 +449,10 @@ export class MessagesService {
     }
 
     const limit = dto.limit || 50;
-    const query: any = { channelId: new Types.ObjectId(channelId) };
+    const query: any = {
+      channelId: new Types.ObjectId(channelId),
+      threadParentId: null,
+    };
 
     if (dto.cursor) {
       if (!Types.ObjectId.isValid(dto.cursor)) {
