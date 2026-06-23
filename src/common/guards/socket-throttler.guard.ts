@@ -45,6 +45,18 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       }
     }
 
+    let isThreadReply = false;
+    if (eventName === 'chat.send') {
+      try {
+        const data = context.switchToWs().getData();
+        if (data && typeof data === 'object' && data.threadParentId) {
+          isThreadReply = true;
+        }
+      } catch (err) {
+        // Ignore error
+      }
+    }
+
     // B. Lần hai thử: Fallback tự động map bằng tên event nếu limit/ttl chưa đúng cấu hình chat mong muốn
     if (eventName) {
       let config: { limit: number; ttl: number } | null = null;
@@ -58,7 +70,11 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
         // Tách riêng — user có thể react nhiều tin cùng lúc
         config = CHAT_THROTTLE_CONFIG.REACTION.default;
       } else if (eventName === 'chat.send') {
-        config = CHAT_THROTTLE_CONFIG.MESSAGE_SEND.default;
+        if (isThreadReply) {
+          config = CHAT_THROTTLE_CONFIG.THREAD_REPLY_SEND.default;
+        } else {
+          config = CHAT_THROTTLE_CONFIG.MESSAGE_SEND.default;
+        }
       } else if (eventName === 'chat.typing') {
         config = CHAT_THROTTLE_CONFIG.TYPING.default;
       }
@@ -78,7 +94,10 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
       return false;
     }
 
-    const eventMetadataKey = eventName || 'unknown';
+    let eventMetadataKey = eventName || 'unknown';
+    if (isThreadReply) {
+      eventMetadataKey = 'chat.send.thread';
+    }
     const key = generateKey(
       context,
       `${tracker}-${eventMetadataKey}`,

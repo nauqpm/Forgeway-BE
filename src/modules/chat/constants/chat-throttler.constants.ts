@@ -16,6 +16,11 @@ export const CHAT_THROTTLE_CONFIG = {
     default: { limit: 5, ttl: 10000 },
   },
 
+  // Thread reply sending — tách riêng để tránh rate limit khi thảo luận sôi nổi
+  THREAD_REPLY_SEND: {
+    default: { limit: 20, ttl: 10000 },
+  },
+
   // Edit/Delete — hành động chủ ý, giữ nguyên
   MESSAGE_ACTION: {
     default: { limit: 10, ttl: 30000 }, // tăng nhẹ từ 5 lên 10
