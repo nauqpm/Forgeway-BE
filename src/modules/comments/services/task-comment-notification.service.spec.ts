@@ -216,6 +216,22 @@ describe('TaskCommentNotificationService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('does not notify users who are no longer workspace members', async () => {
+      const comment = makeComment();
+      const task = makeTask();
+      workspaceMemberService.filterMembers.mockResolvedValue([]);
+
+      await service.notifyAddedMentions(comment, task, userId, [memberId]);
+
+      expect(workspaceMemberService.filterMembers).toHaveBeenCalledWith(
+        workspaceId,
+        [memberId],
+      );
+      expect(
+        notificationsService.notifyCommentMentioned,
+      ).not.toHaveBeenCalled();
+    });
+
     it('does not throw when notification service fails', async () => {
       const comment = makeComment();
       const task = makeTask();

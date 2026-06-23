@@ -43,6 +43,8 @@ describe('TaskCommentService', () => {
   const userId = new Types.ObjectId().toString();
   const memberId = new Types.ObjectId().toString();
   const memberFullName = 'John Doe';
+  const secondMemberId = new Types.ObjectId().toString();
+  const secondMemberFullName = 'Jane Smith';
   const nonMemberName = 'Evil Hacker';
 
   /** Helper: returns a workspace member shaped like getMembers() returns */
@@ -469,6 +471,31 @@ describe('TaskCommentService', () => {
         taskCommentNotificationService.notifyAddedMentions,
       ).toHaveBeenCalledWith(expect.anything(), expect.anything(), userId, []);
       expect(workspaceMemberService.filterMembers).not.toHaveBeenCalled();
+    });
+
+    it('notifies only mentions newly added during the update', async () => {
+      mockUpdateBase();
+      existingComment.mentions = [new Types.ObjectId(memberId)];
+      mockGetMembers(
+        memberEntry(memberId, memberFullName),
+        memberEntry(secondMemberId, secondMemberFullName),
+      );
+
+      await service.updateForTask(
+        workspaceId,
+        taskId,
+        originalCommentId,
+        {
+          content: `Hello @${memberFullName}, meet @${secondMemberFullName}`,
+        },
+        userId,
+      );
+
+      expect(
+        taskCommentNotificationService.notifyAddedMentions,
+      ).toHaveBeenCalledWith(expect.anything(), expect.anything(), userId, [
+        secondMemberId,
+      ]);
     });
 
     it('clears mentions when updated content has no @ symbols', async () => {
