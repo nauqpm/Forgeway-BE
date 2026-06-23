@@ -455,27 +455,56 @@ export class ChannelsService {
   async findMyChannelIds(userId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(userId)) return [];
 
-    // Use a direct query instead of workspacesService to avoid heavy counting logic
-    const channels = await this.channelsRepository.model
-      .find(
-        {
+    const userWorkspaces = await this.workspacesService.findByUserId(userId);
+    const user = await this.usersService.getUserById(userId);
+    const isSuperAdmin = user?.role === 'super_admin';
+
+    const adminWorkspaceIds: Types.ObjectId[] = [];
+    const memberWorkspaceIds: Types.ObjectId[] = [];
+
+    for (const ws of userWorkspaces) {
+      const wsId = ws._id;
+      const isOwner = ws.ownerId?.toString() === userId;
+      const member = ws.members?.find((m: any) => m.userId?.toString() === userId);
+      const isAdmin = isOwner || member?.role === 'workspace_admin';
+
+      if (isSuperAdmin || isAdmin) {
+        adminWorkspaceIds.push(wsId);
+      } else {
+        memberWorkspaceIds.push(wsId);
+      }
+    }
+
+    const buildQuery = () => {
+      if (isSuperAdmin) {
+        return {
           $or: [
             { type: 'general' },
             { type: 'announcement' },
-            { workspaceId: { $in: await this.getUserWorkspaceIds(userId) } },
+            { type: 'workspace' },
+            { type: 'custom' },
             { type: 'dm', members: new Types.ObjectId(userId) },
           ],
-        },
-        { _id: 1 },
-      )
+        };
+      }
+      return {
+        $or: [
+          { type: 'general' },
+          { type: 'announcement' },
+          { workspaceId: { $in: adminWorkspaceIds } },
+          { workspaceId: { $in: memberWorkspaceIds }, type: 'workspace' },
+          { workspaceId: { $in: memberWorkspaceIds }, type: 'custom', isPrivate: false },
+          { workspaceId: { $in: memberWorkspaceIds }, type: 'custom', isPrivate: true, 'channelMembers.userId': new Types.ObjectId(userId) },
+          { type: 'dm', members: new Types.ObjectId(userId) },
+        ],
+      };
+    };
+
+    const channels = await this.channelsRepository.model
+      .find(buildQuery(), { _id: 1 })
       .exec();
 
     return channels.map(c => c._id.toString());
-  }
-
-  private async getUserWorkspaceIds(userId: string): Promise<Types.ObjectId[]> {
-    const workspaces = await this.workspacesService.findByUserId(userId);
-    return workspaces.map(w => w._id);
   }
 
   async findByWorkspace(workspaceId: string): Promise<ChannelDocument[]> {
