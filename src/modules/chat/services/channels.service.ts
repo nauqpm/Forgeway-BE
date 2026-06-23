@@ -41,6 +41,7 @@ export class ChannelsService {
   async onModuleInit() {
     await this.ensureGlobalChannels();
     await this.syncWorkspaceChannels();
+    await this.cleanupOrphanedMembers();
   }
 
   async ensureGlobalChannels(): Promise<void> {
@@ -1007,7 +1008,20 @@ export class ChannelsService {
     }
 
     if (channel.isPrivate) {
-      throw new ForbiddenException('Cannot join a private channel directly. You must be invited');
+      if (!channel.workspaceId) {
+        throw new ForbiddenException('Channel does not belong to a workspace');
+      }
+      const wsRole = await this.workspaceMemberService.getMemberRole(
+        channel.workspaceId.toString(),
+        userId,
+      );
+      const user = await this.usersService.getUserById(userId);
+      const isSuperAdmin = user?.role === 'super_admin';
+      const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
+
+      if (!isAdmin) {
+        throw new ForbiddenException('Cannot join a private channel directly. You must be invited');
+      }
     }
 
     if (!channel.workspaceId) {
@@ -1497,4 +1511,132 @@ export class ChannelsService {
       await this.removeUserFromAllChannels(workspaceId, userId);
     }
   }
+
+  async cleanupOrphanedMembers(): Promise<void> {
+    this.logger.log('Running cleanup of channelMembers for custom channels...');
+    try {
+      const channels = await this.channelsRepository.model
+        .find({ type: 'custom', isPrivate: true })
+        .exec();
+
+      for (const channel of channels) {
+        if (!channel.workspaceId) continue;
+
+        let workspace: any;
+        try {
+          workspace = await this.workspacesService.findById(
+            channel.workspaceId.toString(),
+          );
+        } catch (e) {
+          continue;
+        }
+        if (!workspace) continue;
+
+        const admins = new Set(
+          workspace.members
+            ?.filter((m: any) => m.role === 'workspace_admin')
+            ?.map((m: any) => m.userId?.toString()) || [],
+        );
+
+        const originalCount = channel.channelMembers.length;
+        channel.channelMembers = channel.channelMembers.filter((m: any) => {
+          const userIdStr = m.userId.toString();
+          const isWorkspaceAdmin = admins.has(userIdStr);
+          const isCreator = channel.createdBy?.toString() === userIdStr;
+          const isChannelAdmin = m.role === 'channel_admin';
+
+          // If they are not workspace admin, not creator, but have role channel_admin, remove them.
+          if (!isWorkspaceAdmin && !isCreator && isChannelAdmin) {
+            return false;
+          }
+          return true;
+        });
+
+        if (channel.channelMembers.length !== originalCount) {
+          this.logger.log(
+            `Cleanup: Removed demoted workspace admin from channel ${channel.name} (${channel._id})`,
+          );
+          await channel.save();
+        }
+      }
+      this.logger.log('Cleanup of channelMembers completed.');
+    } catch (error) {
+      this.logger.error('Failed to run cleanup of channelMembers', error);
+    }
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_ROLE_UPDATED, { async: true })
+  async handleWorkspaceMemberRoleUpdated(event: any): Promise<void> {
+    const workspaceId = event.workspaceId || event.data?.workspaceId;
+    const userId = event.userId || event.data?.userId;
+    const nextRole = event.nextRole || event.data?.nextRole;
+
+    if (workspaceId && userId && nextRole && nextRole !== 'workspace_admin') {
+      this.logger.log(
+        `Cascade: Workspace member role updated to ${nextRole} for user ${userId}. Checking if we need to remove from private custom channels.`,
+      );
+      try {
+        const privateChannels = await this.channelsRepository.model
+          .find({
+            workspaceId: new Types.ObjectId(workspaceId),
+            type: 'custom',
+            isPrivate: true,
+            'channelMembers.userId': new Types.ObjectId(userId),
+          })
+          .exec();
+
+        for (const channel of privateChannels) {
+          if (channel.createdBy?.toString() !== userId) {
+            this.logger.log(
+              `Removing demoted user ${userId} from private custom channel ${channel.name} (${channel._id})`,
+            );
+            await this.channelsRepository.model
+              .findByIdAndUpdate(channel._id, {
+                $pull: {
+                  channelMembers: { userId: new Types.ObjectId(userId) },
+                },
+              })
+              .exec();
+
+            const channelId = channel._id.toString();
+
+            const envelopeRemoved = {
+              eventId: new Types.ObjectId().toString(),
+              type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_REMOVED,
+              data: {
+                channelId,
+                userId,
+              },
+              occurredAt: new Date().toISOString(),
+            };
+            this.realtimePublisher.emit(
+              RoomBuilder.channel(channelId),
+              envelopeRemoved,
+              'chat',
+            );
+
+            const envelopeKicked = {
+              eventId: new Types.ObjectId().toString(),
+              type: REALTIME_EVENT_TYPES.CHAT_KICKED_FROM_CHANNEL,
+              data: {
+                channelId,
+              },
+              occurredAt: new Date().toISOString(),
+            };
+            this.realtimePublisher.emit(
+              RoomBuilder.user(userId),
+              envelopeKicked,
+              'chat',
+            );
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to process workspace member role updated for user ${userId}`,
+          error,
+        );
+      }
+    }
+  }
 }
+
