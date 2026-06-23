@@ -23,12 +23,12 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     super();
   }
 
-  async canActivate(context: ExecutionContext) {
-    const req = context.switchToHttp().getRequest<Request>();
-    this.logGoogleOAuthRequest(req);
+  // async canActivate(context: ExecutionContext) {
+  //   const req = context.switchToHttp().getRequest<Request>();
+  //   this.logGoogleOAuthRequest(req);
 
-    return (await super.canActivate(context)) as boolean;
-  }
+  //   return (await super.canActivate(context)) as boolean;
+  // }
 
   handleRequest<TUser = unknown>(
     err: Error | null,
@@ -58,12 +58,12 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     return user;
   }
 
-  private logGoogleOAuthRequest(req: Request): void {
-    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID') || '';
-    const callbackUrl =
-      this.configService.get<string>('GOOGLE_REDIRECT_URL') || '';
-    const generatedOAuthUrl = this.buildGoogleOAuthUrl(clientId, callbackUrl);
-  }
+  // private logGoogleOAuthRequest(req: Request): void {
+  //   const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID') || '';
+  //   const callbackUrl =
+  //     this.configService.get<string>('GOOGLE_REDIRECT_URL') || '';
+  //   const generatedOAuthUrl = this.buildGoogleOAuthUrl(clientId, callbackUrl);
+
   //   // Temporary investigation logs. Remove after redirect_uri_mismatch is resolved.
   //   console.log('================ GOOGLE LOGIN START ================');
   //   console.log('Origin:', req.headers.origin);
