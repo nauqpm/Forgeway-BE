@@ -247,8 +247,7 @@ export class ChannelsService {
           $or: [
             { type: 'general' },
             { type: 'announcement' },
-            { type: 'workspace' },
-            { type: 'custom' },
+            { workspaceId: { $in: adminWorkspaceIds } },
             { type: 'dm', members: new Types.ObjectId(userId) },
           ],
         };
@@ -481,8 +480,7 @@ export class ChannelsService {
           $or: [
             { type: 'general' },
             { type: 'announcement' },
-            { type: 'workspace' },
-            { type: 'custom' },
+            { workspaceId: { $in: adminWorkspaceIds } },
             { type: 'dm', members: new Types.ObjectId(userId) },
           ],
         };
