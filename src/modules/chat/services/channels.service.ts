@@ -528,11 +528,8 @@ export class ChannelsService {
       return false;
     }
 
-    let channel = await this.findById(channelId);
+    const channel = await this.findById(channelId);
     if (!channel) return false;
-
-    // Lựa chọn B: Tự động add admin vào channelMembers khi có tương tác
-    channel = await this.ensureAdminInChannelMembers(channel, userId);
 
     const role = await this.resolveChannelRole(userId, channel);
     return role !== null && role !== 'not_joined';
@@ -816,71 +813,6 @@ export class ChannelsService {
     }
 
     return null;
-  }
-
-  async ensureAdminInChannelMembers(
-    channel: any,
-    userId: string,
-  ): Promise<any> {
-    if (channel.type !== 'custom') return channel;
-
-    const channelMember = channel.channelMembers?.find(
-      (m: any) => m.userId.toString() === userId,
-    );
-
-    if (channelMember) return channel;
-
-    const user = await this.usersService.getUserById(userId);
-    const isSuperAdmin = user?.role === 'super_admin';
-    let isWorkspaceAdmin = false;
-
-    if (channel.workspaceId) {
-      const wsRole = await this.workspaceMemberService.getMemberRole(
-        channel.workspaceId.toString(),
-        userId,
-      );
-      isWorkspaceAdmin = wsRole === 'workspace_admin';
-    }
-
-    if (isSuperAdmin || isWorkspaceAdmin) {
-      const updatedChannel = await this.channelsRepository.model
-        .findByIdAndUpdate(
-          channel._id,
-          {
-            $push: {
-              channelMembers: {
-                userId: new Types.ObjectId(userId),
-                role: 'channel_admin',
-                joinedAt: new Date(),
-              },
-            },
-          },
-          { new: true },
-        )
-        .exec();
-
-      if (updatedChannel) {
-        const envelope = {
-          eventId: new Types.ObjectId().toString(),
-          type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_ADDED,
-          data: {
-            channelId: channel._id.toString(),
-            userId,
-            role: 'channel_admin',
-            joinedAt: new Date(),
-          },
-          occurredAt: new Date().toISOString(),
-        };
-        this.realtimePublisher.emit(
-          RoomBuilder.channel(channel._id.toString()),
-          envelope,
-          'chat',
-        );
-        return updatedChannel;
-      }
-    }
-
-    return channel;
   }
 
   async createCustomChannel(
