@@ -396,6 +396,7 @@ describe('TaskCommentService', () => {
         memberEntry(userId, 'Current User'),
         memberEntry(memberId, memberFullName),
       );
+      workspaceMemberService.filterMembers.mockResolvedValue([memberId]);
 
       const result = await service.updateForTask(
         workspaceId,
@@ -414,6 +415,32 @@ describe('TaskCommentService', () => {
       expect(existingComment.editedAt).toBeInstanceOf(Date);
       expect(saveMock).toHaveBeenCalled();
       expect(taskActivitiesService.recordCommentUpdated).toHaveBeenCalled();
+      expect(notificationsService.notifyCommentMentioned).toHaveBeenCalledWith({
+        recipientIds: [memberId],
+        actorId: userId,
+        workspaceId,
+        taskId,
+        taskKey: task.key,
+        taskTitle: task.title,
+        commentId: originalCommentId,
+      });
+    });
+
+    it('does not notify a user who was already mentioned', async () => {
+      mockUpdateBase();
+      existingComment.mentions = [new Types.ObjectId(memberId)];
+      mockGetMembers(memberEntry(memberId, memberFullName));
+
+      await service.updateForTask(
+        workspaceId,
+        taskId,
+        originalCommentId,
+        { content: `Updated text for @${memberFullName}` },
+        userId,
+      );
+
+      expect(notificationsService.notifyCommentMentioned).not.toHaveBeenCalled();
+      expect(workspaceMemberService.filterMembers).not.toHaveBeenCalled();
     });
 
     it('clears mentions when updated content has no @ symbols', async () => {

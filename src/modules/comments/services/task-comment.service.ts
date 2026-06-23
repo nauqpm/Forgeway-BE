@@ -23,6 +23,7 @@ import { CreateTaskCommentDto } from '../dtos/create-task-comment.dto';
 import { UpdateCommentDto } from '../dtos/update-comment.dto';
 import { CommentMapper } from '../mappers/comment.mapper';
 import { Comment, CommentDocument } from '../schemas/comment.schema';
+import { getAddedMentionIds } from '../utils/mention-diff.util';
 import { resolveAndValidateMentions } from '../utils/mention-validator.util';
 
 @Injectable()
@@ -136,10 +137,15 @@ export class TaskCommentService {
       throw new ForbiddenException('You can only update your own comments');
     }
 
+    const previousMentionIds = this.uniqueIds(comment.mentions);
     const resolvedMentions = await resolveAndValidateMentions(
       this.workspaceMemberService,
       workspaceId,
       dto.content,
+    );
+    const addedMentionIds = getAddedMentionIds(
+      previousMentionIds,
+      this.uniqueIds(resolvedMentions),
     );
 
     comment.content = dto.content;
@@ -155,6 +161,12 @@ export class TaskCommentService {
 
     const commentDto = this.commentMapper.mapToDto(saved);
     this.publishCommentUpdatedEvent(task, userId, commentDto);
+    await this.notifyAddedTaskCommentMentions(
+      saved,
+      task,
+      userId,
+      addedMentionIds,
+    );
 
     return commentDto;
   }
@@ -419,6 +431,45 @@ export class TaskCommentService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
         `Failed to create task comment notification: ${message}`,
+      );
+    }
+  }
+
+  private async notifyAddedTaskCommentMentions(
+    comment: CommentDocument,
+    task: TaskDocument,
+    actorId: string,
+    addedMentionIds: string[],
+  ): Promise<void> {
+    if (addedMentionIds.length === 0) {
+      return;
+    }
+
+    try {
+      const workspaceId = this.toId(task.workspaceId);
+      const recipientIds = addedMentionIds.filter(id => id !== actorId);
+      const memberRecipientIds = await this.filterWorkspaceMembers(
+        workspaceId,
+        recipientIds,
+      );
+
+      if (memberRecipientIds.length === 0) {
+        return;
+      }
+
+      await this.notificationsService.notifyCommentMentioned({
+        recipientIds: memberRecipientIds,
+        actorId,
+        workspaceId,
+        taskId: task._id.toString(),
+        taskKey: task.key,
+        taskTitle: task.title,
+        commentId: comment._id.toString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to notify newly mentioned users for comment ${comment._id.toString()}: ${message}`,
       );
     }
   }
