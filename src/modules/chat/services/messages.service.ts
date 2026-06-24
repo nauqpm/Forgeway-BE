@@ -617,12 +617,23 @@ export class MessagesService {
       if (!Types.ObjectId.isValid(dto.cursor)) {
         throw new NotFoundException('Invalid cursor');
       }
-      query._id = { $lt: new Types.ObjectId(dto.cursor) };
+      const cursorMsg = await this.messagesRepository.findById(dto.cursor);
+      if (cursorMsg && cursorMsg.lastReplyAt) {
+        query.$or = [
+          { lastReplyAt: { $lt: cursorMsg.lastReplyAt } },
+          {
+            lastReplyAt: cursorMsg.lastReplyAt,
+            _id: { $lt: cursorMsg._id },
+          },
+        ];
+      } else {
+        query._id = { $lt: new Types.ObjectId(dto.cursor) };
+      }
     }
 
     const threads = await this.messagesRepository.model
       .find(query)
-      .sort({ _id: -1 })
+      .sort({ lastReplyAt: -1, _id: -1 })
       .limit(limit)
       .populate([
         { path: 'senderId', select: 'fullName avatar email' },
