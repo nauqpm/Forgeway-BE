@@ -38,6 +38,9 @@ export interface LoginFailureState {
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private cachedUserIds: string[] | null = null;
+  private cacheTimestamp = 0;
+  private readonly CACHE_TTL = 30_000; // 30 seconds cache TTL
 
   constructor(
     private readonly usersRepository: UsersRepository,
@@ -185,6 +188,17 @@ export class UsersService {
 
   async getAllUsers(): Promise<User[]> {
     return await this.usersRepository.findAll();
+  }
+
+  async getAllUserIds(): Promise<string[]> {
+    const now = Date.now();
+    if (this.cachedUserIds && (now - this.cacheTimestamp < this.CACHE_TTL)) {
+      return this.cachedUserIds;
+    }
+    const ids = await this.usersRepository.findAllIds();
+    this.cachedUserIds = ids;
+    this.cacheTimestamp = now;
+    return ids;
   }
 
   async getUsersPage(
