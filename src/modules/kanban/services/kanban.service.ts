@@ -12,6 +12,7 @@ import type { Cache } from 'cache-manager';
 import { randomUUID } from 'crypto';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { RealtimeService } from '@/modules/realtime/realtime.service';
+import { ErrorFactory } from '@/common/factories/error.factory';
 import {
   Workspace,
   WorkspaceDocument,
@@ -28,6 +29,12 @@ import {
   BoardColumn,
   BoardDocument,
 } from '../schemas/kanban-board.schema';
+import {
+  getColumnNameKey,
+  hasDuplicateColumnName,
+  isColumnNameEmpty,
+  normalizeColumnDisplayName,
+} from '../utils/column-name.util';
 
 type VersionedBoardDocument = BoardDocument & { __v?: number };
 
@@ -154,9 +161,10 @@ export class KanbanService {
     columns: KanbanBoardColumnDto[],
   ): Promise<BoardDocument> {
     const board = await this.findById(id);
+    const normalizedColumns = this.normalizeAndValidateColumnNames(columns);
     const updated = await this.saveColumnsWithVersion(
       board,
-      this.reindexColumns(columns),
+      this.reindexColumns(normalizedColumns),
     );
     const workspaceId = this.toId(updated.workspaceId);
 
@@ -185,11 +193,18 @@ export class KanbanService {
   ): Promise<BoardDocument> {
     const board = await this.findById(boardId);
     const columns = this.toPlainColumns(board.columns);
+    const normalizedName = normalizeColumnDisplayName(dto.name);
+    this.validateColumnName(normalizedName);
+
+    if (hasDuplicateColumnName(columns, normalizedName)) {
+      throw new ConflictException(ErrorFactory.duplicateColumnName());
+    }
+
     const maxOrder =
       columns.length > 0 ? Math.max(...columns.map(c => c.order)) : -1;
     const newColumn: KanbanBoardColumnDto = {
       id: randomUUID(),
-      name: dto.name,
+      name: normalizedName,
       order: maxOrder + 1,
       mappedStatuses: [],
     };
@@ -226,11 +241,21 @@ export class KanbanService {
       );
     }
 
+    const normalizedName =
+      dto.name === undefined
+        ? column.name
+        : normalizeColumnDisplayName(dto.name);
+    this.validateColumnName(normalizedName);
+
+    if (hasDuplicateColumnName(columns, normalizedName, columnId)) {
+      throw new ConflictException(ErrorFactory.duplicateColumnName());
+    }
+
     const nextColumns = columns.map(item =>
       item.id === columnId
         ? {
             ...item,
-            name: dto.name ?? item.name,
+            name: normalizedName,
             mappedStatuses: dto.mappedStatuses ?? item.mappedStatuses,
           }
         : item,
@@ -513,6 +538,35 @@ export class KanbanService {
     columns: T[],
   ): T[] {
     return columns.map((column, index) => ({ ...column, order: index }));
+  }
+
+  private normalizeAndValidateColumnNames(
+    columns: KanbanBoardColumnDto[],
+  ): KanbanBoardColumnDto[] {
+    const normalizedColumns = columns.map(column => ({
+      ...column,
+      name: normalizeColumnDisplayName(column.name),
+    }));
+    const nameKeys = new Set<string>();
+
+    for (const column of normalizedColumns) {
+      this.validateColumnName(column.name);
+      const nameKey = getColumnNameKey(column.name);
+
+      if (nameKeys.has(nameKey)) {
+        throw new ConflictException(ErrorFactory.duplicateColumnName());
+      }
+
+      nameKeys.add(nameKey);
+    }
+
+    return normalizedColumns;
+  }
+
+  private validateColumnName(name: string): void {
+    if (isColumnNameEmpty(name)) {
+      throw new BadRequestException(ErrorFactory.invalidColumnName());
+    }
   }
 
   private toPlainColumns(columns: BoardColumn[]): KanbanBoardColumnDto[] {

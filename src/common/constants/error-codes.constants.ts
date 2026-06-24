@@ -27,6 +27,12 @@ export const SPRINT_ERROR_CODES = {
   INVALID_ID_FORMAT: 'INVALID_ID_FORMAT',
 } as const;
 
+// ─── Kanban ──────────────────────────────────────────────────────────────────
+export const KANBAN_ERROR_CODES = {
+  INVALID_COLUMN_NAME: 'INVALID_COLUMN_NAME',
+  DUPLICATE_COLUMN_NAME: 'DUPLICATE_COLUMN_NAME',
+} as const;
+
 // ─── Workspace ──────────────────────────────────────────────────────────────
 export const WORKSPACE_ERROR_CODES = {
   WORKSPACE_NOT_FOUND: 'WORKSPACE_NOT_FOUND',
