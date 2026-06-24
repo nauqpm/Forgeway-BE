@@ -7,7 +7,8 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { Types } from 'mongoose';
 
 import {
   SPACE_ROLES,
@@ -298,5 +299,23 @@ export class WorkspaceMemberService {
       status: workspace.status,
       access: workspace.access,
     };
+  }
+
+  @OnEvent('user.deleted', { async: true })
+  async handleUserDeleted(event: { userId: string }): Promise<void> {
+    const { userId } = event;
+    if (userId && Types.ObjectId.isValid(userId)) {
+      this.logger.log(
+        `Cascade: User deleted event received. Cleaning up user ${userId} from all workspaces`,
+      );
+      try {
+        await this.workspacesRepository.model.updateMany(
+          {},
+          { $pull: { members: { userId: new Types.ObjectId(userId) } } },
+        );
+      } catch (err) {
+        this.logger.error(`Failed to clean up workspaces for deleted user: ${err.message}`, err.stack);
+      }
+    }
   }
 }

@@ -5,6 +5,7 @@ import {
   Logger,
   BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UsersRepository } from '../repositories/users.repository';
 import type {
   SanitizedUserRecord,
@@ -36,7 +37,10 @@ export interface LoginFailureState {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Fetching user by ID: ${id}`);
@@ -219,6 +223,7 @@ export class UsersService {
     if (!deletedUser) {
       throw new NotFoundException(ErrorFactory.userNotFound(userId));
     }
+    this.eventEmitter.emit('user.deleted', { userId });
     return { message: 'User deleted successfully' };
   }
 

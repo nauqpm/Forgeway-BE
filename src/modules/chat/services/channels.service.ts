@@ -1631,6 +1631,66 @@ export class ChannelsService {
     }
   }
 
+  @OnEvent('user.deleted', { async: true })
+  async handleUserDeleted(event: { userId: string }): Promise<void> {
+    const { userId } = event;
+    if (userId) {
+      this.logger.log(
+        `Cascade: User deleted event received. Cleaning up user ${userId} from all channels`,
+      );
+      await this.cleanupUserMemberships(userId);
+    }
+  }
+
+  async cleanupUserMemberships(userId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return;
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+
+    try {
+      // Find all custom channels the user was in to notify client via socket (do this before pulling them)
+      const affectedCustomChannels = await this.channelsRepository.model.find({
+        type: 'custom',
+        'channelMembers.userId': userObjectId,
+      }).exec();
+
+      // 1. Pull user from custom channels' channelMembers
+      await this.channelsRepository.model.updateMany(
+        { type: 'custom' },
+        { $pull: { channelMembers: { userId: userObjectId } } },
+      );
+
+      // 2. Pull user from dm channels' members
+      await this.channelsRepository.model.updateMany(
+        { type: 'dm' },
+        { $pull: { members: userObjectId } },
+      );
+
+      // 3. Emit member removed socket events for affected custom channels
+      for (const channel of affectedCustomChannels) {
+        const channelId = channel._id.toString();
+        const envelopeRemoved = {
+          eventId: new Types.ObjectId().toString(),
+          type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_REMOVED,
+          data: {
+            channelId,
+            userId,
+          },
+          occurredAt: new Date().toISOString(),
+        };
+        this.realtimePublisher.emit(
+          RoomBuilder.channel(channelId),
+          envelopeRemoved,
+          'chat',
+        );
+      }
+    } catch (err) {
+      this.logger.error(`Failed to clean up user channels on delete: ${err.message}`, err.stack);
+    }
+  }
+
   async cleanupOrphanedMembers(): Promise<void> {
     this.logger.log('Running cleanup of channelMembers for custom channels...');
     try {
