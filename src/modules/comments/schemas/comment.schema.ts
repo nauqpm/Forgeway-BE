@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { normalizeForSearch } from '../../../common/utils/normalizeForSearch';
 
 export type CommentDocument = Comment & Document;
 
@@ -10,6 +11,9 @@ export class Comment {
 
   @Prop({ required: true, trim: true, maxlength: 5000 })
   content!: string;
+
+  @Prop({ type: String, default: '', select: false })
+  searchText!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   authorId!: Types.ObjectId;
@@ -72,3 +76,8 @@ CommentSchema.index({
 });
 CommentSchema.index({ parentId: 1 });
 CommentSchema.index({ authorId: 1 });
+CommentSchema.index({ workspaceId: 1, searchText: 1 });
+CommentSchema.pre('save', function (next) {
+  this.searchText = normalizeForSearch(this.content);
+  next();
+});

@@ -1,7 +1,6 @@
 import {
   IsString,
   IsOptional,
-  IsEnum,
   IsArray,
   MaxLength,
 } from 'class-validator';
@@ -18,11 +17,6 @@ export class UpdatePageDto {
   @IsOptional()
   @IsString()
   content?: string;
-
-  @ApiPropertyOptional({ enum: ['draft', 'published'] })
-  @IsOptional()
-  @IsEnum(['draft', 'published'])
-  status?: string;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

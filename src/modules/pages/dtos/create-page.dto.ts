@@ -1,7 +1,6 @@
 import {
   IsString,
   IsOptional,
-  IsEnum,
   IsArray,
   MaxLength,
   Matches,
@@ -57,15 +56,6 @@ export class CreatePageDto {
     message: 'slug must contain only lowercase letters, numbers, and hyphens',
   })
   slug?: string;
-
-  @ApiPropertyOptional({
-    enum: ['draft', 'published'],
-    default: 'draft',
-    description: 'Publication status.',
-  })
-  @IsOptional()
-  @IsEnum(['draft', 'published'])
-  status?: string;
 
   @ApiPropertyOptional({
     type: [String],

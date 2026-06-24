@@ -7,6 +7,8 @@ import {
 } from '@nestjs/swagger';
 import { SearchService } from '../services/search.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { GlobalSearchDto } from '../dtos/global-search.dto';
 
 @ApiTags('Search')
 @ApiBearerAuth()
@@ -14,6 +16,15 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @Controller('search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
+
+  @Get('global')
+  @ApiOperation({ summary: 'Permission-scoped global search' })
+  async globalSearch(
+    @Query() dto: GlobalSearchDto,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.searchService.globalSearch(userId, dto);
+  }
 
   @Get()
   @ApiOperation({
