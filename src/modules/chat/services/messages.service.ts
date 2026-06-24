@@ -135,20 +135,60 @@ export class MessagesService {
 
     const result: Record<string, string[]> = {};
     if (message.reactions) {
+      const allUserIds = new Set<string>();
+      for (const userIds of message.reactions.values()) {
+        userIds.forEach(id => allUserIds.add(id.toString()));
+      }
+
+      if (allUserIds.size === 0) return {};
+
+      const validUsers = await this.usersService.getUsersByIds(Array.from(allUserIds));
+      const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
+
       for (const [emoji, userIds] of message.reactions.entries()) {
-        result[emoji] = userIds.map(id => id.toString());
+        const filtered = userIds
+          .map(id => id.toString())
+          .filter(idStr => validUserIdsSet.has(idStr));
+        if (filtered.length > 0) {
+          result[emoji] = filtered;
+        }
       }
     }
     return result;
   }
 
   async populateReactions(messages: MessageDocument[]): Promise<any[]> {
+    const allUserIds = new Set<string>();
+    messages.forEach(m => {
+      if (m.reactions) {
+        for (const userIds of m.reactions.values()) {
+          userIds.forEach(id => allUserIds.add(id.toString()));
+        }
+      }
+    });
+
+    if (allUserIds.size === 0) {
+      return messages.map(m => {
+        const obj = m.toObject();
+        obj.reactions = {};
+        return obj;
+      });
+    }
+
+    const validUsers = await this.usersService.getUsersByIds(Array.from(allUserIds));
+    const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
+
     return messages.map(m => {
       const obj = m.toObject();
       const reactionsRecord: Record<string, string[]> = {};
       if (m.reactions) {
         for (const [emoji, userIds] of m.reactions.entries()) {
-          reactionsRecord[emoji] = userIds.map(id => id.toString());
+          const filtered = userIds
+            .map(id => id.toString())
+            .filter(idStr => validUserIdsSet.has(idStr));
+          if (filtered.length > 0) {
+            reactionsRecord[emoji] = filtered;
+          }
         }
       }
       obj.reactions = reactionsRecord;
