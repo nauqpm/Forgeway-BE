@@ -23,6 +23,8 @@ export interface PaginatedUsersResult {
 export interface UserSearchRecord {
   _id: unknown;
   fullName?: string;
+  email?: string;
+  phone?: string;
   avatar?: string;
 }
 
@@ -138,9 +140,13 @@ export class UsersRepository extends BaseRepository<UserDocument> {
     return this.userModel
       .find({
         _id: { $ne: new Types.ObjectId(excludeUserId) },
-        fullName: regex,
+        $or: [
+          { fullName: regex },
+          { email: regex },
+          { phone: regex },
+        ],
       })
-      .select('_id fullName avatar')
+      .select('_id fullName email phone avatar')
       .limit(limit)
       .lean<UserSearchRecord[]>()
       .exec();

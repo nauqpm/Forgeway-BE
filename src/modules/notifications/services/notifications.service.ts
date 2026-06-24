@@ -134,7 +134,7 @@ export class NotificationsService {
   async notifyThreadReply(input: {
     recipientIds: string[];
     actorId: string;
-    workspaceId: string;
+    workspaceId?: string;
     channelId: string;
     messageId: string;
     parentId: string;
@@ -147,6 +147,7 @@ export class NotificationsService {
       recipientIds.map(recipientId =>
         this.notificationFactory.buildThreadReply({
           ...input,
+          workspaceId: input.workspaceId || '',
           recipientId,
         }),
       ),
@@ -156,7 +157,7 @@ export class NotificationsService {
   async notifyChatMentioned(input: {
     recipientIds: string[];
     actorId: string;
-    workspaceId: string;
+    workspaceId?: string;
     channelId: string;
     messageId: string;
     content: string;
@@ -167,6 +168,7 @@ export class NotificationsService {
       recipientIds.map(recipientId =>
         this.notificationFactory.buildChatMentioned({
           ...input,
+          workspaceId: input.workspaceId || '',
           recipientId,
         }),
       ),

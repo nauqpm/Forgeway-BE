@@ -43,25 +43,69 @@ export class MessagesService {
 
   private async parseMentionedIds(
     content: string,
-    workspaceId: string,
+    workspaceId?: string,
     channelId?: string,
   ): Promise<string[]> {
-    if (!content || !workspaceId) return [];
+    if (!content) return [];
 
     try {
-      const workspaceMembers = await this.workspaceMemberService.getMembers(
-        workspaceId.toString(),
-      );
       const nameToUserId = new Map<string, string>();
-      for (const member of workspaceMembers) {
-        const userDoc = member.userId;
-        if (!userDoc) continue;
-        const fullName = (userDoc.fullName || userDoc.name || '')
-          .toString()
-          .toLowerCase()
-          .trim();
-        if (fullName) {
-          nameToUserId.set(fullName, (userDoc._id || userDoc).toString());
+
+      // 1. Resolve users based on context
+      if (workspaceId) {
+        // Workspace or custom workspace channel
+        const workspaceMembers = await this.workspaceMemberService.getMembers(
+          workspaceId.toString(),
+        );
+        for (const member of workspaceMembers) {
+          const userDoc = member.userId;
+          if (!userDoc) continue;
+          const fullName = (userDoc.fullName || userDoc.name || '')
+            .toString()
+            .toLowerCase()
+            .trim();
+          if (fullName) {
+            nameToUserId.set(fullName, (userDoc._id || userDoc).toString());
+          }
+        }
+
+        // Also resolve all super_admins in the system so they can be mentioned in any workspace
+        try {
+          const allUsers = await this.usersService.getAllUsers();
+          const superAdmins = allUsers.filter(u => u.role === 'super_admin');
+          for (const u of superAdmins) {
+            const fullName = (u.fullName || '').toLowerCase().trim();
+            if (fullName) {
+              nameToUserId.set(fullName, u._id.toString());
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`Failed to fetch super_admins for mentions: ${err.message}`);
+        }
+      } else if (channelId) {
+        // DM channel or Global channel (since workspaceId is null/undefined)
+        const channel = await this.channelsService.findById(channelId);
+        if (channel) {
+          if (channel.type === 'dm') {
+            // DIRECT MESSAGE: Only resolve the members of the DM
+            const memberIds = channel.members.map(m => m.toString());
+            const users = await this.usersService.getUsersByIds(memberIds);
+            for (const u of users) {
+              const fullName = (u.fullName || '').toLowerCase().trim();
+              if (fullName) {
+                nameToUserId.set(fullName, u._id.toString());
+              }
+            }
+          } else if (channel.type === 'general' || channel.type === 'announcement') {
+            // GLOBAL CHANNEL: Resolve against all users in the system
+            const allUsers = await this.usersService.getAllUsers();
+            for (const u of allUsers) {
+              const fullName = (u.fullName || '').toLowerCase().trim();
+              if (fullName) {
+                nameToUserId.set(fullName, u._id.toString());
+              }
+            }
+          }
         }
       }
 
@@ -90,7 +134,17 @@ export class MessagesService {
           mentionAll = true;
           continue;
         }
-        const uId = nameToUserId.get(lowerName);
+        let uId = nameToUserId.get(lowerName);
+        if (!uId) {
+          // Loose matching: check if the mentioned name matches any word in the fullName
+          for (const [fullName, id] of nameToUserId.entries()) {
+            const words = fullName.split(/\s+/);
+            if (words.includes(lowerName)) {
+              uId = id;
+              break;
+            }
+          }
+        }
         if (uId && !mentionedIds.includes(uId)) {
           mentionedIds.push(uId);
         }
@@ -398,48 +452,51 @@ export class MessagesService {
       };
       this.realtimePublisher.emit(room, envelope, 'chat');
 
-      // 3. Send notifications (Only for mentioned users)
-      if (channel.workspaceId && dto.content) {
-        const mentionedIds = await this.parseMentionedIds(
+      // 3. Send notifications (Only for mentioned users) - Async Fire-and-forget
+      if (dto.content) {
+        this.parseMentionedIds(
           dto.content,
-          channel.workspaceId.toString(),
+          channel.workspaceId ? channel.workspaceId.toString() : undefined,
           channelId,
-        );
-        if (mentionedIds.length > 0) {
-          await this.notificationsService.notifyThreadReply({
-            recipientIds: mentionedIds,
-            actorId: senderId,
-            workspaceId: channel.workspaceId.toString(),
-            channelId,
-            messageId: withReactions._id.toString(),
-            parentId: parentMessage._id.toString(),
-            parentContent: parentMessage.content || '',
-            replyContent: dto.content || '',
-            senderName,
-          });
-        }
+        ).then((mentionedIds) => {
+          if (mentionedIds.length > 0) {
+            this.notificationsService.notifyThreadReply({
+              recipientIds: mentionedIds,
+              actorId: senderId,
+              workspaceId: channel.workspaceId ? channel.workspaceId.toString() : undefined,
+              channelId,
+              messageId: withReactions._id.toString(),
+              parentId: parentMessage._id.toString(),
+              parentContent: parentMessage.content || '',
+              replyContent: dto.content || '',
+              senderName,
+            }).catch(err => this.logger.error('Failed to notify thread reply async:', err));
+          }
+        }).catch(err => this.logger.error('Failed to parse mentions async:', err));
       }
     } else {
-      // 3. Send notifications for normal message mentions
-      if (channel.workspaceId && dto.content) {
-        const mentionedIds = await this.parseMentionedIds(
+      // 3. Send notifications for normal message mentions - Async Fire-and-forget
+      if (dto.content) {
+        this.parseMentionedIds(
           dto.content,
-          channel.workspaceId.toString(),
+          channel.workspaceId ? channel.workspaceId.toString() : undefined,
           channelId,
-        );
-        if (mentionedIds.length > 0) {
-          const sender = await this.usersService.getUserById(senderId);
-          const senderName = sender?.fullName || 'User';
-          await this.notificationsService.notifyChatMentioned({
-            recipientIds: mentionedIds,
-            actorId: senderId,
-            workspaceId: channel.workspaceId.toString(),
-            channelId,
-            messageId: withReactions._id.toString(),
-            content: dto.content || '',
-            senderName,
-          });
-        }
+        ).then((mentionedIds) => {
+          if (mentionedIds.length > 0) {
+            this.usersService.getUserById(senderId).then((sender) => {
+              const senderName = sender?.fullName || 'User';
+              this.notificationsService.notifyChatMentioned({
+                recipientIds: mentionedIds,
+                actorId: senderId,
+                workspaceId: channel.workspaceId ? channel.workspaceId.toString() : undefined,
+                channelId,
+                messageId: withReactions._id.toString(),
+                content: dto.content || '',
+                senderName,
+              }).catch(err => this.logger.error('Failed to notify chat mention async:', err));
+            }).catch(err => this.logger.error('Failed to fetch sender for notification:', err));
+          }
+        }).catch(err => this.logger.error('Failed to parse mentions async:', err));
       }
     }
 

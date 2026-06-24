@@ -22,6 +22,8 @@ import { ErrorFactory } from '../../../common/factories/error.factory';
 export interface UserSearchResult {
   id: string;
   fullName?: string;
+  email?: string;
+  phone?: string;
   avatar?: string;
 }
 
@@ -279,6 +281,8 @@ export class UsersService {
     return {
       id,
       fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
       avatar: user.avatar,
     };
   }

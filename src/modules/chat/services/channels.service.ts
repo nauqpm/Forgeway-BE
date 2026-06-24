@@ -662,6 +662,7 @@ export class ChannelsService {
         phone: (u as any).phone,
         avatar: (u as any).avatar,
         role: roleMap.get(u._id?.toString() || '') || 'member',
+        globalRole: u.role,
       }));
     }
 
@@ -687,6 +688,7 @@ export class ChannelsService {
         phone: (u as any).phone,
         avatar: (u as any).avatar,
         role: roleMap.get(u._id?.toString() || '') || 'channel_member',
+        globalRole: u.role,
       }));
     }
 
