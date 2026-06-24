@@ -27,6 +27,7 @@ import {
   SavedAccountSchema,
 } from './schemas/saved-account.schema';
 import { RecentLogin, RecentLoginSchema } from './schemas/recent-login.schema';
+import { LoginAttemptThrottleService } from './security/login-attempt-throttle.service';
 
 import { User, UserSchema } from '../users/schemas/users.schema';
 import { UsersModule } from '../users/users.module';
@@ -35,6 +36,7 @@ import { VerifyModule } from '../verify/verify.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { AuditModule } from '../audit/audit.module';
 import { GuardsModule } from './guards/guards.module';
+import { RedisModule } from '@/infra/redis/redis.module';
 
 @Module({
   imports: [
@@ -44,6 +46,7 @@ import { GuardsModule } from './guards/guards.module';
     forwardRef(() => WorkspacesModule),
     forwardRef(() => AuditModule),
     forwardRef(() => GuardsModule),
+    RedisModule,
     TokenModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
@@ -71,6 +74,7 @@ import { GuardsModule } from './guards/guards.module';
     OAuthService,
     AccountSwitcherService,
     RecentLoginsService,
+    LoginAttemptThrottleService,
     JwtStrategy,
     GoogleStrategy,
   ],
