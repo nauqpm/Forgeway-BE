@@ -165,6 +165,13 @@ export class MessagesService {
           userIds.forEach(id => allUserIds.add(id.toString()));
         }
       }
+      if (m.lastReplyParticipants) {
+        m.lastReplyParticipants.forEach(p => {
+          if (p && p.userId) {
+            allUserIds.add(p.userId.toString());
+          }
+        });
+      }
     });
 
     if (allUserIds.size === 0) {
@@ -192,6 +199,13 @@ export class MessagesService {
         }
       }
       obj.reactions = reactionsRecord;
+
+      if (m.lastReplyParticipants) {
+        obj.lastReplyParticipants = m.lastReplyParticipants.filter(p =>
+          p && p.userId && validUserIdsSet.has(p.userId.toString())
+        );
+      }
+
       return obj;
     });
   }
