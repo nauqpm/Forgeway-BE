@@ -155,6 +155,11 @@ export class UsersRepository extends BaseRepository<UserDocument> {
       .exec();
   }
 
+  async findAllIds(): Promise<string[]> {
+    const docs = await this.userModel.find({}, '_id').lean().exec();
+    return docs.map(d => d._id.toString());
+  }
+
   // 📢 Thêm hàm `delete` để xóa người dùng
   async delete(userId: string): Promise<UserDocument | null> {
     return await this.userModel.findByIdAndDelete(userId).exec();
