@@ -51,7 +51,9 @@ export class SearchService {
           { 'members.userId': new Types.ObjectId(userId) },
         ],
       })
-      .select('_id name description key searchText ownerId members createdAt updatedAt')
+      .select(
+        '_id name description key searchText ownerId members createdAt updatedAt',
+      )
       .lean()
       .exec();
 
@@ -87,9 +89,15 @@ export class SearchService {
 
     const taskFilters = {
       ...(dto.assigneeIds?.length
-        ? { assigneeId: { $in: dto.assigneeIds.map(id => new Types.ObjectId(id)) } }
+        ? {
+            assigneeId: {
+              $in: dto.assigneeIds.map(id => new Types.ObjectId(id)),
+            },
+          }
         : {}),
-      ...(dto.reporterId ? { reporterId: new Types.ObjectId(dto.reporterId) } : {}),
+      ...(dto.reporterId
+        ? { reporterId: new Types.ObjectId(dto.reporterId) }
+        : {}),
       ...(dto.status?.length ? { status: { $in: dto.status } } : {}),
       ...(dto.taskType?.length ? { type: { $in: dto.taskType } } : {}),
       ...(dto.priority?.length ? { priority: { $in: dto.priority } } : {}),
@@ -97,19 +105,24 @@ export class SearchService {
         ? {
             updatedAt: {
               ...(dto.updatedAfter ? { $gte: new Date(dto.updatedAfter) } : {}),
-              ...(dto.updatedBefore ? { $lt: new Date(dto.updatedBefore) } : {}),
+              ...(dto.updatedBefore
+                ? { $lt: new Date(dto.updatedBefore) }
+                : {}),
             },
           }
         : {}),
     };
-    const updatedAtFilter = dto.updatedAfter || dto.updatedBefore
-      ? {
-          updatedAt: {
-            ...(dto.updatedAfter ? { $gte: new Date(dto.updatedAfter) } : {}),
-            ...(dto.updatedBefore ? { $lt: new Date(dto.updatedBefore) } : {}),
-          },
-        }
-      : {};
+    const updatedAtFilter =
+      dto.updatedAfter || dto.updatedBefore
+        ? {
+            updatedAt: {
+              ...(dto.updatedAfter ? { $gte: new Date(dto.updatedAfter) } : {}),
+              ...(dto.updatedBefore
+                ? { $lt: new Date(dto.updatedBefore) }
+                : {}),
+            },
+          }
+        : {};
     const documentAuthorFilter = dto.authorIds?.length
       ? { authorId: { $in: dto.authorIds.map(id => new Types.ObjectId(id)) } }
       : {};

@@ -10,7 +10,14 @@ export type SearchCursor = { updatedAt: Date; id: string };
 
 type SearchWorkspace = Pick<
   Workspace,
-  '_id' | 'name' | 'description' | 'key' | 'searchText' | 'ownerId' | 'createdAt' | 'updatedAt'
+  | '_id'
+  | 'name'
+  | 'description'
+  | 'key'
+  | 'searchText'
+  | 'ownerId'
+  | 'createdAt'
+  | 'updatedAt'
 > & {
   members: { userId: Types.ObjectId; role: string }[];
 };

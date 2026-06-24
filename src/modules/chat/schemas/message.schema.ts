@@ -64,11 +64,13 @@ export class Message {
   lastReplyAt?: Date;
 
   @Prop({
-    type: [{
-      userId: { type: Types.ObjectId, ref: 'User', required: true },
-      fullName: { type: String, required: true },
-      avatar: { type: String, default: null },
-    }],
+    type: [
+      {
+        userId: { type: Types.ObjectId, ref: 'User', required: true },
+        fullName: { type: String, required: true },
+        avatar: { type: String, default: null },
+      },
+    ],
     default: [],
   })
   lastReplyParticipants!: {

@@ -23,7 +23,9 @@ export class TaskDataTransformerService {
       status: dto.status || 'todo',
       key,
       searchTokens: buildTaskSearchTokens(key, dto.title),
-      searchText: normalizeForSearch([key, dto.title, dto.description].join(' ')),
+      searchText: normalizeForSearch(
+        [key, dto.title, dto.description].join(' '),
+      ),
       type: dto.type || 'task',
       priority: dto.priority || 'medium',
       assigneeId: dto.assigneeId
@@ -60,7 +62,10 @@ export class TaskDataTransformerService {
     if (dto.dueDate !== undefined) {
       updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     }
-    if ((dto.title !== undefined || dto.description !== undefined) && existingTask) {
+    if (
+      (dto.title !== undefined || dto.description !== undefined) &&
+      existingTask
+    ) {
       updateData.searchTokens = buildTaskSearchTokens(
         existingTask.key,
         dto.title ?? existingTask.title,

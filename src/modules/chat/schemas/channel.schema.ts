@@ -43,8 +43,9 @@ export class ChannelMemberEmbedded {
   invitedBy?: Types.ObjectId;
 }
 
-export const ChannelMemberSchema =
-  SchemaFactory.createForClass(ChannelMemberEmbedded);
+export const ChannelMemberSchema = SchemaFactory.createForClass(
+  ChannelMemberEmbedded,
+);
 
 @Schema({ timestamps: true })
 export class Channel {

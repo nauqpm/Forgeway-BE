@@ -6,6 +6,8 @@ describe('normalizeForSearch', () => {
   });
 
   it('strips HTML while preserving searchable text', () => {
-    expect(normalizeForSearch('<p>Hướng dẫn sử dụng</p>')).toBe('huong dan su dung');
+    expect(normalizeForSearch('<p>Hướng dẫn sử dụng</p>')).toBe(
+      'huong dan su dung',
+    );
   });
 });

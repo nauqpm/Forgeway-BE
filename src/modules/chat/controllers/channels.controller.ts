@@ -40,7 +40,10 @@ export class ChannelsController {
     @Query('workspaceId') workspaceId?: string,
   ) {
     if (workspaceId) {
-      return this.channelsService.findWorkspaceCustomChannels(workspaceId, userId);
+      return this.channelsService.findWorkspaceCustomChannels(
+        workspaceId,
+        userId,
+      );
     }
     return this.channelsService.findByUser(userId);
   }
@@ -199,9 +202,19 @@ export class ChannelsController {
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
   async createCustomChannel(
     @CurrentUser('userId') userId: string,
-    @Body() body: { name: string; workspaceId: string; isPrivate?: boolean; description?: string },
+    @Body()
+    body: {
+      name: string;
+      workspaceId: string;
+      isPrivate?: boolean;
+      description?: string;
+    },
   ) {
-    return this.channelsService.createCustomChannel(body.workspaceId, userId, body);
+    return this.channelsService.createCustomChannel(
+      body.workspaceId,
+      userId,
+      body,
+    );
   }
 
   @Patch('channels/:id')
@@ -277,6 +290,11 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
     @Body() body: { role: 'channel_admin' | 'channel_member' },
   ) {
-    return this.channelsService.updateMemberRole(channelId, targetUserId, body.role, userId);
+    return this.channelsService.updateMemberRole(
+      channelId,
+      targetUserId,
+      body.role,
+      userId,
+    );
   }
 }

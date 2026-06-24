@@ -41,9 +41,13 @@ export class MessagesService {
     private readonly realtimePublisher: RealtimePublisher,
   ) {}
 
-  private async parseMentionedIds(content: string, workspaceId: string, channelId?: string): Promise<string[]> {
+  private async parseMentionedIds(
+    content: string,
+    workspaceId: string,
+    channelId?: string,
+  ): Promise<string[]> {
     if (!content || !workspaceId) return [];
-    
+
     try {
       const workspaceMembers = await this.workspaceMemberService.getMembers(
         workspaceId.toString(),
@@ -62,7 +66,8 @@ export class MessagesService {
       }
 
       const extractMentionedNames = (text: string): string[] => {
-        const MENTION_REGEX = /@((?:\p{L}['\-\p{L}]*)+(?:\s+(?:\p{L}['\-\p{L}]*)+)*)/gu;
+        const MENTION_REGEX =
+          /@((?:\p{L}['\-\p{L}]*)+(?:\s+(?:\p{L}['\-\p{L}]*)+)*)/gu;
         const names: string[] = [];
         let match: RegExpExecArray | null;
         const regex = new RegExp(MENTION_REGEX.source, MENTION_REGEX.flags);
@@ -92,7 +97,8 @@ export class MessagesService {
       }
 
       if (mentionAll && channelId) {
-        const channelMemberIds = await this.channelsService.getChannelMemberIds(channelId);
+        const channelMemberIds =
+          await this.channelsService.getChannelMemberIds(channelId);
         for (const memberId of channelMemberIds) {
           if (memberId && !mentionedIds.includes(memberId)) {
             mentionedIds.push(memberId);
@@ -255,7 +261,9 @@ export class MessagesService {
       if (!Types.ObjectId.isValid(dto.threadParentId)) {
         throw new NotFoundException('Invalid threadParentId');
       }
-      parentMessage = await this.messagesRepository.findById(dto.threadParentId);
+      parentMessage = await this.messagesRepository.findById(
+        dto.threadParentId,
+      );
       if (!parentMessage) {
         throw new NotFoundException('Parent message not found');
       }
@@ -273,7 +281,9 @@ export class MessagesService {
       ...dto,
       channelId: new Types.ObjectId(channelId),
       senderId: new Types.ObjectId(senderId),
-      threadParentId: dto.threadParentId ? new Types.ObjectId(dto.threadParentId) : null,
+      threadParentId: dto.threadParentId
+        ? new Types.ObjectId(dto.threadParentId)
+        : null,
     });
 
     const populated = await message.populate([
@@ -336,7 +346,11 @@ export class MessagesService {
 
       // 3. Send notifications (Only for mentioned users)
       if (channel.workspaceId && dto.content) {
-        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString(), channelId);
+        const mentionedIds = await this.parseMentionedIds(
+          dto.content,
+          channel.workspaceId.toString(),
+          channelId,
+        );
         if (mentionedIds.length > 0) {
           await this.notificationsService.notifyThreadReply({
             recipientIds: mentionedIds,
@@ -354,7 +368,11 @@ export class MessagesService {
     } else {
       // 3. Send notifications for normal message mentions
       if (channel.workspaceId && dto.content) {
-        const mentionedIds = await this.parseMentionedIds(dto.content, channel.workspaceId.toString(), channelId);
+        const mentionedIds = await this.parseMentionedIds(
+          dto.content,
+          channel.workspaceId.toString(),
+          channelId,
+        );
         if (mentionedIds.length > 0) {
           const sender = await this.usersService.getUserById(senderId);
           const senderName = sender?.fullName || 'User';
@@ -394,7 +412,8 @@ export class MessagesService {
       throw new ForbiddenException('You do not have access to this channel');
     }
 
-    const parentMessage = await this.messagesRepository.findById(parentMessageId);
+    const parentMessage =
+      await this.messagesRepository.findById(parentMessageId);
     if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
       throw new NotFoundException('Parent message not found in this channel');
     }
@@ -415,10 +434,7 @@ export class MessagesService {
     return this.populateReactions(replies);
   }
 
-  async findActiveThreads(
-    channelId: string,
-    userId: string,
-  ): Promise<any[]> {
+  async findActiveThreads(channelId: string, userId: string): Promise<any[]> {
     if (!Types.ObjectId.isValid(channelId)) {
       throw new NotFoundException('Invalid Channel ID');
     }
