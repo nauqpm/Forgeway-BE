@@ -1,6 +1,7 @@
 import { PASSWORD_POLICY } from '../constants/password-policy.constants';
 import {
   AUTH_ERROR_CODES,
+  KANBAN_ERROR_CODES,
   SPRINT_ERROR_CODES,
   TASK_ERROR_CODES,
   USER_ERROR_CODES,
@@ -126,6 +127,21 @@ export class ErrorFactory {
     return {
       message: `ID format ${resourceName} is invalid`,
       code: SPRINT_ERROR_CODES.INVALID_ID_FORMAT,
+    };
+  }
+
+  // ─── Kanban ──────────────────────────────────────────────────────────────
+  static invalidColumnName(): ErrorPayload {
+    return {
+      message: 'Column name must not be empty.',
+      code: KANBAN_ERROR_CODES.INVALID_COLUMN_NAME,
+    };
+  }
+
+  static duplicateColumnName(): ErrorPayload {
+    return {
+      message: 'A column with this name already exists.',
+      code: KANBAN_ERROR_CODES.DUPLICATE_COLUMN_NAME,
     };
   }
 
