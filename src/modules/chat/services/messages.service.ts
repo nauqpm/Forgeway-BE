@@ -488,7 +488,11 @@ export class MessagesService {
     return this.populateReactions(replies);
   }
 
-  async findActiveThreads(channelId: string, userId: string): Promise<any[]> {
+  async findActiveThreads(
+    channelId: string,
+    userId: string,
+    dto: CursorPaginationDto,
+  ): Promise<{ threads: any[]; nextCursor: string | null }> {
     if (!Types.ObjectId.isValid(channelId)) {
       throw new NotFoundException('Invalid Channel ID');
     }
@@ -501,21 +505,40 @@ export class MessagesService {
       throw new ForbiddenException('You do not have access to this channel');
     }
 
+    const limit = dto.limit || 20;
+    const query: any = {
+      channelId: new Types.ObjectId(channelId),
+      threadParentId: null,
+      replyCount: { $gt: 0 },
+      deletedAt: null,
+    };
+
+    if (dto.cursor) {
+      if (!Types.ObjectId.isValid(dto.cursor)) {
+        throw new NotFoundException('Invalid cursor');
+      }
+      query._id = { $lt: new Types.ObjectId(dto.cursor) };
+    }
+
     const threads = await this.messagesRepository.model
-      .find({
-        channelId: new Types.ObjectId(channelId),
-        threadParentId: null,
-        replyCount: { $gt: 0 },
-        deletedAt: null,
-      })
-      .sort({ lastReplyAt: -1 })
+      .find(query)
+      .sort({ _id: -1 })
+      .limit(limit)
       .populate([
         { path: 'senderId', select: 'fullName avatar email' },
         { path: 'stickerId' },
       ])
       .exec();
 
-    return this.populateReactions(threads);
+    const nextCursor =
+      threads.length === limit
+        ? threads[threads.length - 1]._id.toString()
+        : null;
+
+    return {
+      threads: await this.populateReactions(threads),
+      nextCursor,
+    };
   }
 
   async findByChannel(

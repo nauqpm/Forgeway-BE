@@ -156,8 +156,9 @@ export class ChannelsController {
   async getActiveThreads(
     @Param('channelId') channelId: string,
     @CurrentUser('userId') userId: string,
+    @Query() dto: CursorPaginationDto,
   ) {
-    return this.messagesService.findActiveThreads(channelId, userId);
+    return this.messagesService.findActiveThreads(channelId, userId, dto);
   }
 
   @Patch('messages/:id')
