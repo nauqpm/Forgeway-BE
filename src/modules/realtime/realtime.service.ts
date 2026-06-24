@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { RoomBuilder } from './contracts';
 
@@ -27,6 +27,7 @@ export interface BoardDeltaPayload<TPayload = unknown> {
 
 @Injectable()
 export class RealtimeService {
+  private readonly logger = new Logger(RealtimeService.name);
   private server?: Server;
 
   bindServer(server: Server): void {
@@ -80,5 +81,54 @@ export class RealtimeService {
       content,
       contentJson,
     });
+  }
+
+  async disconnectUser(userId: string): Promise<void> {
+    if (!this.server) {
+      this.logger.warn('Socket server not ready, cannot disconnect user sockets.');
+      return;
+    }
+
+    try {
+      const rootServer = (this.server as any).server || this.server;
+      const userRoom = `user:${userId}`;
+      const nspNames = new Set<string>(['/', '/realtime', '/chat']);
+
+      // Retrieve dynamic namespaces if available
+      const namespaces = rootServer._nsps;
+      if (namespaces instanceof Map) {
+        for (const nsName of namespaces.keys()) {
+          nspNames.add(nsName);
+        }
+      } else if (namespaces && typeof namespaces === 'object') {
+        for (const nsName of Object.keys(namespaces)) {
+          nspNames.add(nsName);
+        }
+      }
+
+      for (const nsName of nspNames) {
+        try {
+          const nsp = rootServer.of(nsName);
+          if (nsp) {
+            const sockets = await nsp.in(userRoom).fetchSockets();
+            if (sockets && sockets.length > 0) {
+              this.logger.log(
+                `Disconnecting ${sockets.length} socket(s) in namespace "${nsName}" for user ${userId}`
+              );
+              for (const socket of sockets) {
+                socket.disconnect(true);
+              }
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`Error disconnecting sockets in namespace ${nsName}: ${(err as Error).message}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to disconnect sockets for user ${userId}: ${(error as Error).message}`,
+        (error as Error).stack
+      );
+    }
   }
 }

@@ -1668,6 +1668,13 @@ export class ChannelsService {
         { $pull: { members: userObjectId } },
       );
 
+      // 3. Update createdBy to system ID for channels created by the deleted user
+      const systemId = new Types.ObjectId('000000000000000000000000');
+      await this.channelsRepository.model.updateMany(
+        { createdBy: userObjectId },
+        { $set: { createdBy: systemId } },
+      );
+
       // 3. Emit member removed socket events for affected custom channels
       for (const channel of affectedCustomChannels) {
         const channelId = channel._id.toString();

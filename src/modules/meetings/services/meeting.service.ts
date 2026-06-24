@@ -7,6 +7,7 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { Types } from 'mongoose';
 import { randomUUID } from 'crypto';
@@ -396,5 +397,31 @@ export class MeetingService {
     await meeting.save();
 
     return meeting;
+  }
+
+  @OnEvent('user.deleted', { async: true })
+  async handleUserDeleted(event: { userId: string }): Promise<void> {
+    const { userId } = event;
+    if (!userId || !Types.ObjectId.isValid(userId)) return;
+
+    this.logger.log(`Cascade: User deleted event received in MeetingService. Cleaning up meetings for user ${userId}`);
+    const userObjectId = new Types.ObjectId(userId);
+    const systemId = new Types.ObjectId('000000000000000000000000');
+
+    try {
+      // 1. Update createdBy to systemId for meetings created by the deleted user
+      await this.meetingsRepository.model.updateMany(
+        { createdBy: userObjectId },
+        { $set: { createdBy: systemId } }
+      );
+
+      // 2. Pull the user from the participants list in all meetings
+      await this.meetingsRepository.model.updateMany(
+        {},
+        { $pull: { participants: { userId: userObjectId } } }
+      );
+    } catch (err) {
+      this.logger.error(`Failed to clean up meetings for deleted user: ${err.message}`, err.stack);
+    }
   }
 }

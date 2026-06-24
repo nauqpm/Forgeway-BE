@@ -16,6 +16,7 @@ import { TaskDetailRealtimeListener } from './listeners/task-detail-realtime.lis
 import { SprintRealtimeListener } from './listeners/sprint-realtime.listener';
 import { TaskRealtimeListener } from './listeners/task-realtime.listener';
 import { WorkspaceRealtimeListener } from './listeners/workspace-realtime.listener';
+import { UserRealtimeListener } from './listeners/user-realtime.listener';
 import { RealtimePublisher } from './publishers/realtime.publisher';
 import { RealtimeRoomRepository } from './repositories/realtime-room.repository';
 import { RealtimeGateway } from './realtime.gateway';
@@ -56,6 +57,7 @@ import { SocketAuthService } from './services/socket-auth.service';
     TaskDetailRealtimeListener,
     NotificationRealtimeListener,
     WorkspaceRealtimeListener,
+    UserRealtimeListener,
   ],
   exports: [RealtimeService, RealtimePublisher, SocketAuthService],
 })
