@@ -36,7 +36,7 @@ export class ChannelsService {
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly realtimePublisher: RealtimePublisher,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     await this.ensureGlobalChannels();
@@ -61,10 +61,7 @@ export class ChannelsService {
         // Clean up any incorrect just-for-fun channels (type custom or workspaceId is not null)
         await this.channelsRepository.model.deleteMany({
           name: 'just-for-fun',
-          $or: [
-            { type: 'custom' },
-            { workspaceId: { $ne: null } },
-          ],
+          $or: [{ type: 'custom' }, { workspaceId: { $ne: null } }],
         });
 
         // Check #general
@@ -618,10 +615,7 @@ export class ChannelsService {
     };
   }
 
-  async getChannelMembers(
-    channelId: string,
-    userId: string,
-  ): Promise<any[]> {
+  async getChannelMembers(channelId: string, userId: string): Promise<any[]> {
     const hasAccess = await this.validateUserAccess(channelId, userId);
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
@@ -777,7 +771,9 @@ export class ChannelsService {
     }
 
     if (channel.type === 'dm') {
-      const isMember = channel.members.some((m: any) => m.toString() === userId);
+      const isMember = channel.members.some(
+        (m: any) => m.toString() === userId,
+      );
       return isMember ? 'channel_member' : null;
     }
 
@@ -805,15 +801,21 @@ export class ChannelsService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const customChannelCount = await this.channelsRepository.model.countDocuments({
-      workspaceId: new Types.ObjectId(workspaceId),
-      type: 'custom',
-    });
+    const customChannelCount =
+      await this.channelsRepository.model.countDocuments({
+        workspaceId: new Types.ObjectId(workspaceId),
+        type: 'custom',
+      });
     if (customChannelCount >= 20) {
-      throw new BadRequestException('Maximum limit of 20 custom channels reached for this workspace');
+      throw new BadRequestException(
+        'Maximum limit of 20 custom channels reached for this workspace',
+      );
     }
 
-    const wsRole = await this.workspaceMemberService.getMemberRole(workspaceId, createdBy);
+    const wsRole = await this.workspaceMemberService.getMemberRole(
+      workspaceId,
+      createdBy,
+    );
     const user = await this.usersService.getUserById(createdBy);
     const isSuperAdmin = user?.role === 'super_admin';
 
@@ -864,7 +866,11 @@ export class ChannelsService {
       data: channel,
       occurredAt: new Date().toISOString(),
     };
-    this.realtimePublisher.emit(RoomBuilder.workspace(workspaceId), envelope, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.workspace(workspaceId),
+      envelope,
+      'chat',
+    );
 
     return channel;
   }
@@ -873,11 +879,17 @@ export class ChannelsService {
     workspaceId: string,
     userId: string,
   ): Promise<ChannelDocument[]> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(userId)
+    ) {
       return [];
     }
 
-    const wsRole = await this.workspaceMemberService.getMemberRole(workspaceId, userId);
+    const wsRole = await this.workspaceMemberService.getMemberRole(
+      workspaceId,
+      userId,
+    );
     const user = await this.usersService.getUserById(userId);
     const isSuperAdmin = user?.role === 'super_admin';
     const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
@@ -894,7 +906,10 @@ export class ChannelsService {
         type: 'custom',
         $or: [
           { isPrivate: false },
-          { isPrivate: true, 'channelMembers.userId': new Types.ObjectId(userId) },
+          {
+            isPrivate: true,
+            'channelMembers.userId': new Types.ObjectId(userId),
+          },
         ],
       };
     }
@@ -907,7 +922,10 @@ export class ChannelsService {
     dto: { name?: string; description?: string; isPrivate?: boolean },
     requesterId: string,
   ): Promise<ChannelDocument> {
-    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(requesterId)) {
+    if (
+      !Types.ObjectId.isValid(channelId) ||
+      !Types.ObjectId.isValid(requesterId)
+    ) {
       throw new BadRequestException('Invalid IDs');
     }
 
@@ -922,7 +940,9 @@ export class ChannelsService {
 
     const role = await this.resolveChannelRole(requesterId, channel);
     if (role !== 'channel_admin') {
-      throw new ForbiddenException('Only channel admins can update the channel');
+      throw new ForbiddenException(
+        'Only channel admins can update the channel',
+      );
     }
 
     if (dto.name !== undefined) {
@@ -943,9 +963,17 @@ export class ChannelsService {
         data: channel,
         occurredAt: new Date().toISOString(),
       };
-      this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelope, 'chat');
+      this.realtimePublisher.emit(
+        RoomBuilder.channel(channelId),
+        envelope,
+        'chat',
+      );
       if (channel.workspaceId) {
-        this.realtimePublisher.emit(RoomBuilder.workspace(channel.workspaceId.toString()), envelope, 'chat');
+        this.realtimePublisher.emit(
+          RoomBuilder.workspace(channel.workspaceId.toString()),
+          envelope,
+          'chat',
+        );
       }
     }
 
@@ -956,7 +984,10 @@ export class ChannelsService {
     channelId: string,
     requesterId: string,
   ): Promise<void> {
-    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(requesterId)) {
+    if (
+      !Types.ObjectId.isValid(channelId) ||
+      !Types.ObjectId.isValid(requesterId)
+    ) {
       throw new BadRequestException('Invalid IDs');
     }
 
@@ -971,10 +1002,14 @@ export class ChannelsService {
 
     const role = await this.resolveChannelRole(requesterId, channel);
     if (role !== 'channel_admin') {
-      throw new ForbiddenException('Only channel admins can delete this channel');
+      throw new ForbiddenException(
+        'Only channel admins can delete this channel',
+      );
     }
 
-    const deleted = await this.channelsRepository.model.findByIdAndDelete(channelId).exec();
+    const deleted = await this.channelsRepository.model
+      .findByIdAndDelete(channelId)
+      .exec();
     if (deleted) {
       const envelope = {
         eventId: new Types.ObjectId().toString(),
@@ -985,15 +1020,26 @@ export class ChannelsService {
         },
         occurredAt: new Date().toISOString(),
       };
-      this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelope, 'chat');
+      this.realtimePublisher.emit(
+        RoomBuilder.channel(channelId),
+        envelope,
+        'chat',
+      );
       const wsId = channel.workspaceId?.toString();
       if (wsId) {
-        this.realtimePublisher.emit(RoomBuilder.workspace(wsId), envelope, 'chat');
+        this.realtimePublisher.emit(
+          RoomBuilder.workspace(wsId),
+          envelope,
+          'chat',
+        );
       }
     }
   }
 
-  async joinChannel(channelId: string, userId: string): Promise<ChannelDocument> {
+  async joinChannel(
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelDocument> {
     if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid IDs');
     }
@@ -1020,7 +1066,9 @@ export class ChannelsService {
       const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
 
       if (!isAdmin) {
-        throw new ForbiddenException('Cannot join a private channel directly. You must be invited');
+        throw new ForbiddenException(
+          'Cannot join a private channel directly. You must be invited',
+        );
       }
     }
 
@@ -1034,7 +1082,9 @@ export class ChannelsService {
       userId,
     );
     if (!wsRole || wsRole === 'viewer') {
-      throw new ForbiddenException('You do not have permission to join this channel');
+      throw new ForbiddenException(
+        'You do not have permission to join this channel',
+      );
     }
 
     const isAlreadyMember = channel.channelMembers?.some(
@@ -1075,13 +1125,24 @@ export class ChannelsService {
       },
       occurredAt: new Date().toISOString(),
     };
-    this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelope, 'chat');
-    this.realtimePublisher.emit(RoomBuilder.workspace(workspaceIdStr), envelope, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      envelope,
+      'chat',
+    );
+    this.realtimePublisher.emit(
+      RoomBuilder.workspace(workspaceIdStr),
+      envelope,
+      'chat',
+    );
 
     return updated;
   }
 
-  async leaveChannel(channelId: string, userId: string): Promise<ChannelDocument> {
+  async leaveChannel(
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelDocument> {
     if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid IDs');
     }
@@ -1116,7 +1177,9 @@ export class ChannelsService {
           m => m.userId.toString() !== userId,
         );
         if (otherMembers.length > 0) {
-          throw new BadRequestException('You are the last channel admin. Promote another member to admin before leaving');
+          throw new BadRequestException(
+            'You are the last channel admin. Promote another member to admin before leaving',
+          );
         }
       }
     }
@@ -1146,8 +1209,16 @@ export class ChannelsService {
       },
       occurredAt: new Date().toISOString(),
     };
-    this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelope, 'chat');
-    this.realtimePublisher.emit(RoomBuilder.workspace(workspaceIdStr), envelope, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      envelope,
+      'chat',
+    );
+    this.realtimePublisher.emit(
+      RoomBuilder.workspace(workspaceIdStr),
+      envelope,
+      'chat',
+    );
 
     return updated;
   }
@@ -1157,7 +1228,10 @@ export class ChannelsService {
     userIds: string[],
     requesterId: string,
   ): Promise<ChannelDocument> {
-    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(requesterId)) {
+    if (
+      !Types.ObjectId.isValid(channelId) ||
+      !Types.ObjectId.isValid(requesterId)
+    ) {
       throw new BadRequestException('Invalid IDs');
     }
 
@@ -1184,7 +1258,8 @@ export class ChannelsService {
       throw new BadRequestException('Channel does not belong to a workspace');
     }
     const workspaceIdStr = channel.workspaceId.toString();
-    const workspaceMembersSet = await this.workspaceMemberService.getMemberIdsSet(workspaceIdStr);
+    const workspaceMembersSet =
+      await this.workspaceMemberService.getMemberIdsSet(workspaceIdStr);
 
     const membersToAdd: any[] = [];
     const addedMembersDetail: any[] = [];
@@ -1249,8 +1324,16 @@ export class ChannelsService {
         },
         occurredAt: new Date().toISOString(),
       };
-      this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelope, 'chat');
-      this.realtimePublisher.emit(RoomBuilder.user(item.userId), envelope, 'chat');
+      this.realtimePublisher.emit(
+        RoomBuilder.channel(channelId),
+        envelope,
+        'chat',
+      );
+      this.realtimePublisher.emit(
+        RoomBuilder.user(item.userId),
+        envelope,
+        'chat',
+      );
     }
 
     return updated;
@@ -1319,7 +1402,11 @@ export class ChannelsService {
       },
       occurredAt: new Date().toISOString(),
     };
-    this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelopeRemoved, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      envelopeRemoved,
+      'chat',
+    );
 
     const envelopeKicked = {
       eventId: new Types.ObjectId().toString(),
@@ -1329,7 +1416,11 @@ export class ChannelsService {
       },
       occurredAt: new Date().toISOString(),
     };
-    this.realtimePublisher.emit(RoomBuilder.user(targetUserId), envelopeKicked, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.user(targetUserId),
+      envelopeKicked,
+      'chat',
+    );
 
     return updated;
   }
@@ -1371,7 +1462,10 @@ export class ChannelsService {
 
     const updated = await this.channelsRepository.model
       .findOneAndUpdate(
-        { _id: channelId, 'channelMembers.userId': new Types.ObjectId(targetUserId) },
+        {
+          _id: channelId,
+          'channelMembers.userId': new Types.ObjectId(targetUserId),
+        },
         { $set: { 'channelMembers.$.role': newRole } },
         { new: true },
       )
@@ -1387,7 +1481,11 @@ export class ChannelsService {
       data: updated,
       occurredAt: new Date().toISOString(),
     };
-    this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelope, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      envelope,
+      'chat',
+    );
 
     return updated;
   }
@@ -1397,7 +1495,10 @@ export class ChannelsService {
     isPrivate: boolean,
     requesterId: string,
   ): Promise<ChannelDocument> {
-    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(requesterId)) {
+    if (
+      !Types.ObjectId.isValid(channelId) ||
+      !Types.ObjectId.isValid(requesterId)
+    ) {
       throw new BadRequestException('Invalid IDs');
     }
 
@@ -1426,7 +1527,8 @@ export class ChannelsService {
       throw new BadRequestException('Channel must belong to a workspace');
     }
     const workspaceIdStr = channel.workspaceId.toString();
-    const wsMembers = await this.workspaceMemberService.getMembers(workspaceIdStr);
+    const wsMembers =
+      await this.workspaceMemberService.getMembers(workspaceIdStr);
     const wsUserIds = wsMembers
       .map(m => m.userId?.toString() || '')
       .filter(id => Types.ObjectId.isValid(id));
@@ -1434,7 +1536,9 @@ export class ChannelsService {
     let affectedUserIds: string[] = [];
 
     if (isPrivate) {
-      const channelMemberIds = new Set(channel.channelMembers.map(m => m.userId.toString()));
+      const channelMemberIds = new Set(
+        channel.channelMembers.map(m => m.userId.toString()),
+      );
       affectedUserIds = wsUserIds.filter(id => !channelMemberIds.has(id));
     } else {
       affectedUserIds = wsUserIds;
@@ -1452,7 +1556,11 @@ export class ChannelsService {
       occurredAt: new Date().toISOString(),
     };
 
-    this.realtimePublisher.emit(RoomBuilder.workspace(workspaceIdStr), envelope, 'chat');
+    this.realtimePublisher.emit(
+      RoomBuilder.workspace(workspaceIdStr),
+      envelope,
+      'chat',
+    );
 
     return updated;
   }
@@ -1461,7 +1569,10 @@ export class ChannelsService {
     workspaceId: string,
     userId: string,
   ): Promise<void> {
-    if (!Types.ObjectId.isValid(workspaceId) || !Types.ObjectId.isValid(userId)) {
+    if (
+      !Types.ObjectId.isValid(workspaceId) ||
+      !Types.ObjectId.isValid(userId)
+    ) {
       return;
     }
 
@@ -1486,7 +1597,11 @@ export class ChannelsService {
         },
         occurredAt: new Date().toISOString(),
       };
-      this.realtimePublisher.emit(RoomBuilder.channel(channelId), envelopeRemoved, 'chat');
+      this.realtimePublisher.emit(
+        RoomBuilder.channel(channelId),
+        envelopeRemoved,
+        'chat',
+      );
 
       const envelopeKicked = {
         eventId: new Types.ObjectId().toString(),
@@ -1496,7 +1611,11 @@ export class ChannelsService {
         },
         occurredAt: new Date().toISOString(),
       };
-      this.realtimePublisher.emit(RoomBuilder.user(userId), envelopeKicked, 'chat');
+      this.realtimePublisher.emit(
+        RoomBuilder.user(userId),
+        envelopeKicked,
+        'chat',
+      );
     }
   }
 
@@ -1527,7 +1646,7 @@ export class ChannelsService {
           workspace = await this.workspacesService.findById(
             channel.workspaceId.toString(),
           );
-        } catch (e) {
+        } catch {
           continue;
         }
         if (!workspace) continue;
@@ -1639,4 +1758,3 @@ export class ChannelsService {
     }
   }
 }
-

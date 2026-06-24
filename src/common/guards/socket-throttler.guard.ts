@@ -52,7 +52,7 @@ export class SocketThrottlerGuard extends ThrottlerGuard {
         if (data && typeof data === 'object' && data.threadParentId) {
           isThreadReply = true;
         }
-      } catch (err) {
+      } catch {
         // Ignore error
       }
     }
