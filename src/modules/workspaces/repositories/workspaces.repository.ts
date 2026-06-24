@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, FilterQuery } from 'mongoose';
 import { Workspace, WorkspaceDocument } from '../schemas/workspace.schema';
 import { BaseRepository } from '../../../shared/repositories/base.repository';
+import { normalizeForSearch } from '../../../common/utils/normalizeForSearch';
 
 @Injectable()
 export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
@@ -22,7 +23,12 @@ export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
   }
 
   async create(data: Partial<Workspace>): Promise<WorkspaceDocument> {
-    const workspace = new this.workspaceModel(data);
+    const workspace = new this.workspaceModel({
+      ...data,
+      searchText: normalizeForSearch(
+        [data.name, data.key, data.description].join(' '),
+      ),
+    });
     return workspace.save();
   }
 
@@ -112,8 +118,11 @@ export class WorkspacesRepository extends BaseRepository<WorkspaceDocument> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
+    const searchText = normalizeForSearch(
+      [data.name, data.key, data.description].join(' '),
+    );
     return this.workspaceModel
-      .findByIdAndUpdate(id, data, { new: true })
+      .findByIdAndUpdate(id, { ...data, searchText }, { new: true })
       .exec();
   }
 

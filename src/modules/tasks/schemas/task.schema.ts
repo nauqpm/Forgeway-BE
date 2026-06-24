@@ -66,6 +66,9 @@ export class Task {
   @Prop({ type: [String], default: [], index: true })
   searchTokens!: string[];
 
+  @Prop({ type: String, default: '', select: false })
+  searchText!: string;
+
   @Prop({ type: String, enum: TASK_TYPES, required: true })
   type!: string;
 
@@ -120,6 +123,7 @@ export const TaskSchema = SchemaFactory.createForClass(Task);
 
 TaskSchema.index({ workspaceId: 1, key: 1 }, { unique: true });
 TaskSchema.index({ workspaceId: 1, searchTokens: 1 });
+TaskSchema.index({ workspaceId: 1, searchText: 1 });
 TaskSchema.index({ workspaceId: 1, columnId: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
 TaskSchema.index({ workspaceId: 1, sprintId: 1, columnId: 1 });

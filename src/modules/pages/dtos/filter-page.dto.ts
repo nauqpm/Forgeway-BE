@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class FilterPageDto {
@@ -16,11 +16,6 @@ export class FilterPageDto {
   @IsOptional()
   @IsString()
   authorId?: string;
-
-  @ApiPropertyOptional({ enum: ['draft', 'published'] })
-  @IsOptional()
-  @IsEnum(['draft', 'published'])
-  status?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

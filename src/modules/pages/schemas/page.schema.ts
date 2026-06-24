@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { normalizeForSearch } from '../../../common/utils/normalizeForSearch';
 
 export type PageDocument = Page & Document;
 
@@ -38,8 +39,8 @@ export class Page {
   @Prop({ type: String, default: '' })
   plainTextSnapshot?: string;
 
-  @Prop({ type: String, enum: ['draft', 'published'], default: 'draft' })
-  status!: string;
+  @Prop({ type: String, default: '', select: false })
+  searchText!: string;
 
   @Prop({ type: [String], default: [] })
   labels!: string[];
@@ -72,6 +73,12 @@ export const PageSchema = SchemaFactory.createForClass(Page);
 PageSchema.index({ workspaceId: 1 });
 PageSchema.index({ parentId: 1 });
 PageSchema.index({ authorId: 1 });
-PageSchema.index({ status: 1 });
 PageSchema.index({ labels: 1 });
 PageSchema.index({ title: 'text', content: 'text' });
+PageSchema.index({ workspaceId: 1, searchText: 1 });
+PageSchema.pre('save', function (next) {
+  this.searchText = normalizeForSearch(
+    [this.title, this.plainTextSnapshot || this.content, this.slug].join(' '),
+  );
+  next();
+});

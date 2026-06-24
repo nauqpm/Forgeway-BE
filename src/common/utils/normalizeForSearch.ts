@@ -1,10 +1,11 @@
-export function normalizeForSearch(str: string): string {
-  if (!str) return '';
-  return str
+export function normalizeForSearch(value: string): string {
+  return (value || '')
+    .replace(/<[^>]*>/g, ' ')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // bỏ dấu tiếng Việt
-    .replace(/[đĐ]/g, 'd') // thay đ -> d
-    .replace(/[^a-zA-Z0-9\s]/g, '') // bỏ ký tự đặc biệt, giữ khoảng trắng
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .toLowerCase()
+    .replace(/\s+/g, ' ')
     .trim();
 }

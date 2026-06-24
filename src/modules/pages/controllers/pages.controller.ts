@@ -71,7 +71,6 @@ class PageResponseDto {
   lastEditedBy?: string;
   version!: number;
   /** @enum {string} */
-  status!: 'draft' | 'published';
   labels!: string[];
   versionHistory!: VersionHistoryEntryDto[];
   createdAt!: Date;
@@ -321,11 +320,11 @@ export class PagesController {
   // -------------------------------------------------------------------------
   // POST /pages/:id/publish
   // -------------------------------------------------------------------------
-  @Post(':id/publish')
+  // Publication state is no longer part of workspace documents.
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
-    summary: 'Publish a page',
+    summary: 'Legacy page endpoint',
     description:
       'Sets the page status to `published`. Idempotent — safe to call on already-published pages.',
   })
@@ -333,17 +332,17 @@ export class PagesController {
   @ApiOkResponse({ description: 'Page published', type: PageResponseDto })
   @ApiNotFoundResponse({ description: 'Page not found' })
   async publish(@Param('id') id: string) {
-    return this.pagesService.publish(id);
+    return this.pagesService.findById(id);
   }
 
   // -------------------------------------------------------------------------
   // POST /pages/:id/unpublish
   // -------------------------------------------------------------------------
-  @Post(':id/unpublish')
+  // Publication state is no longer part of workspace documents.
   @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
-    summary: 'Unpublish a page',
+    summary: 'Legacy page endpoint',
     description: 'Reverts the page status back to `draft`.',
   })
   @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the page' })
@@ -353,7 +352,7 @@ export class PagesController {
   })
   @ApiNotFoundResponse({ description: 'Page not found' })
   async unpublish(@Param('id') id: string) {
-    return this.pagesService.unpublish(id);
+    return this.pagesService.findById(id);
   }
 
   // -------------------------------------------------------------------------
