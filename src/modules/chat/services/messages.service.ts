@@ -80,7 +80,9 @@ export class MessagesService {
             }
           }
         } catch (err) {
-          this.logger.warn(`Failed to fetch super_admins for mentions: ${err.message}`);
+          this.logger.warn(
+            `Failed to fetch super_admins for mentions: ${err.message}`,
+          );
         }
       } else if (channelId) {
         // DM channel or Global channel (since workspaceId is null/undefined)
@@ -96,7 +98,10 @@ export class MessagesService {
                 nameToUserId.set(fullName, u._id.toString());
               }
             }
-          } else if (channel.type === 'general' || channel.type === 'announcement') {
+          } else if (
+            channel.type === 'general' ||
+            channel.type === 'announcement'
+          ) {
             // GLOBAL CHANNEL: Resolve against all users in the system
             const allUsers = await this.usersService.getAllUsers();
             for (const u of allUsers) {
@@ -196,7 +201,9 @@ export class MessagesService {
 
       if (allUserIds.size === 0) return {};
 
-      const validUsers = await this.usersService.getUsersByIds(Array.from(allUserIds));
+      const validUsers = await this.usersService.getUsersByIds(
+        Array.from(allUserIds),
+      );
       const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
 
       for (const [emoji, userIds] of message.reactions.entries()) {
@@ -236,7 +243,9 @@ export class MessagesService {
       });
     }
 
-    const validUsers = await this.usersService.getUsersByIds(Array.from(allUserIds));
+    const validUsers = await this.usersService.getUsersByIds(
+      Array.from(allUserIds),
+    );
     const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
 
     return messages.map(m => {
@@ -255,8 +264,8 @@ export class MessagesService {
       obj.reactions = reactionsRecord;
 
       if (m.lastReplyParticipants) {
-        obj.lastReplyParticipants = m.lastReplyParticipants.filter(p =>
-          p && p.userId && validUserIdsSet.has(p.userId.toString())
+        obj.lastReplyParticipants = m.lastReplyParticipants.filter(
+          p => p && p.userId && validUserIdsSet.has(p.userId.toString()),
         );
       }
 
@@ -458,21 +467,34 @@ export class MessagesService {
           dto.content,
           channel.workspaceId ? channel.workspaceId.toString() : undefined,
           channelId,
-        ).then((mentionedIds) => {
-          if (mentionedIds.length > 0) {
-            this.notificationsService.notifyThreadReply({
-              recipientIds: mentionedIds,
-              actorId: senderId,
-              workspaceId: channel.workspaceId ? channel.workspaceId.toString() : undefined,
-              channelId,
-              messageId: withReactions._id.toString(),
-              parentId: parentMessage._id.toString(),
-              parentContent: parentMessage.content || '',
-              replyContent: dto.content || '',
-              senderName,
-            }).catch(err => this.logger.error('Failed to notify thread reply async:', err));
-          }
-        }).catch(err => this.logger.error('Failed to parse mentions async:', err));
+        )
+          .then(mentionedIds => {
+            if (mentionedIds.length > 0) {
+              this.notificationsService
+                .notifyThreadReply({
+                  recipientIds: mentionedIds,
+                  actorId: senderId,
+                  workspaceId: channel.workspaceId
+                    ? channel.workspaceId.toString()
+                    : undefined,
+                  channelId,
+                  messageId: withReactions._id.toString(),
+                  parentId: parentMessage._id.toString(),
+                  parentContent: parentMessage.content || '',
+                  replyContent: dto.content || '',
+                  senderName,
+                })
+                .catch(err =>
+                  this.logger.error(
+                    'Failed to notify thread reply async:',
+                    err,
+                  ),
+                );
+            }
+          })
+          .catch(err =>
+            this.logger.error('Failed to parse mentions async:', err),
+          );
       }
     } else {
       // 3. Send notifications for normal message mentions - Async Fire-and-forget
@@ -481,22 +503,43 @@ export class MessagesService {
           dto.content,
           channel.workspaceId ? channel.workspaceId.toString() : undefined,
           channelId,
-        ).then((mentionedIds) => {
-          if (mentionedIds.length > 0) {
-            this.usersService.getUserById(senderId).then((sender) => {
-              const senderName = sender?.fullName || 'User';
-              this.notificationsService.notifyChatMentioned({
-                recipientIds: mentionedIds,
-                actorId: senderId,
-                workspaceId: channel.workspaceId ? channel.workspaceId.toString() : undefined,
-                channelId,
-                messageId: withReactions._id.toString(),
-                content: dto.content || '',
-                senderName,
-              }).catch(err => this.logger.error('Failed to notify chat mention async:', err));
-            }).catch(err => this.logger.error('Failed to fetch sender for notification:', err));
-          }
-        }).catch(err => this.logger.error('Failed to parse mentions async:', err));
+        )
+          .then(mentionedIds => {
+            if (mentionedIds.length > 0) {
+              this.usersService
+                .getUserById(senderId)
+                .then(sender => {
+                  const senderName = sender?.fullName || 'User';
+                  this.notificationsService
+                    .notifyChatMentioned({
+                      recipientIds: mentionedIds,
+                      actorId: senderId,
+                      workspaceId: channel.workspaceId
+                        ? channel.workspaceId.toString()
+                        : undefined,
+                      channelId,
+                      messageId: withReactions._id.toString(),
+                      content: dto.content || '',
+                      senderName,
+                    })
+                    .catch(err =>
+                      this.logger.error(
+                        'Failed to notify chat mention async:',
+                        err,
+                      ),
+                    );
+                })
+                .catch(err =>
+                  this.logger.error(
+                    'Failed to fetch sender for notification:',
+                    err,
+                  ),
+                );
+            }
+          })
+          .catch(err =>
+            this.logger.error('Failed to parse mentions async:', err),
+          );
       }
     }
 

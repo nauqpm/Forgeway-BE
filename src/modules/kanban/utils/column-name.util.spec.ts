@@ -41,9 +41,9 @@ describe('column name utilities', () => {
     });
 
     it('allows a column to keep its own normalized name during rename', () => {
-      expect(
-        hasDuplicateColumnName(columns, ' in progress ', 'progress'),
-      ).toBe(false);
+      expect(hasDuplicateColumnName(columns, ' in progress ', 'progress')).toBe(
+        false,
+      );
     });
 
     it('does not report a unique name as duplicate', () => {

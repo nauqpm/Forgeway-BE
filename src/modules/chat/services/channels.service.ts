@@ -1653,10 +1653,12 @@ export class ChannelsService {
 
     try {
       // Find all custom channels the user was in to notify client via socket (do this before pulling them)
-      const affectedCustomChannels = await this.channelsRepository.model.find({
-        type: 'custom',
-        'channelMembers.userId': userObjectId,
-      }).exec();
+      const affectedCustomChannels = await this.channelsRepository.model
+        .find({
+          type: 'custom',
+          'channelMembers.userId': userObjectId,
+        })
+        .exec();
 
       // 1. Pull user from custom channels' channelMembers
       await this.channelsRepository.model.updateMany(
@@ -1696,7 +1698,10 @@ export class ChannelsService {
         );
       }
     } catch (err) {
-      this.logger.error(`Failed to clean up user channels on delete: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to clean up user channels on delete: ${err.message}`,
+        err.stack,
+      );
     }
   }
 

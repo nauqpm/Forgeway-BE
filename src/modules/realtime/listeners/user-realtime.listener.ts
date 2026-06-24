@@ -13,7 +13,9 @@ export class UserRealtimeListener {
     const { userId } = event;
     if (!userId) return;
 
-    this.logger.log(`Received user.deleted event for user: ${userId}. Invoking WebSocket disconnect.`);
+    this.logger.log(
+      `Received user.deleted event for user: ${userId}. Invoking WebSocket disconnect.`,
+    );
     await this.realtimeService.disconnectUser(userId);
   }
 }

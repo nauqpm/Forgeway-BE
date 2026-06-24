@@ -140,11 +140,7 @@ export class UsersRepository extends BaseRepository<UserDocument> {
     return this.userModel
       .find({
         _id: { $ne: new Types.ObjectId(excludeUserId) },
-        $or: [
-          { fullName: regex },
-          { email: regex },
-          { phone: regex },
-        ],
+        $or: [{ fullName: regex }, { email: regex }, { phone: regex }],
       })
       .select('_id fullName email phone avatar')
       .limit(limit)
