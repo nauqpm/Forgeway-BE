@@ -41,7 +41,7 @@ export class ChannelsService {
   async onModuleInit() {
     await this.ensureGlobalChannels();
     await this.syncWorkspaceChannels();
-    await this.cleanupOrphanedMembers();
+    await this.cleanupOrphanedAndDemotedMembers();
   }
 
   async ensureGlobalChannels(): Promise<void> {
@@ -512,10 +512,7 @@ export class ChannelsService {
     if (!channel) return [];
 
     if (channel.type === 'general' || channel.type === 'announcement') {
-      const allUsers = await this.usersService.getAllUsers();
-      return allUsers
-        .map(u => u._id?.toString() || (u as any).id?.toString() || '')
-        .filter(id => Types.ObjectId.isValid(id));
+      return this.usersService.getAllUserIds();
     }
 
     if (channel.type === 'workspace' && channel.workspaceId) {
@@ -947,36 +944,42 @@ export class ChannelsService {
       );
     }
 
-    if (dto.name !== undefined) {
-      channel.name = dto.name;
-    }
-    if (dto.description !== undefined) {
-      channel.description = dto.description;
-    }
-
-    await channel.save();
-
+    // 1. Process visibility change BEFORE saving name/description in this method
     if (dto.isPrivate !== undefined && dto.isPrivate !== channel.isPrivate) {
       channel = await this.setVisibility(channelId, dto.isPrivate, requesterId);
-    } else {
-      const envelope = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_UPDATED,
-        data: channel,
-        occurredAt: new Date().toISOString(),
-      };
+    }
+
+    let hasChanges = false;
+    if (dto.name !== undefined && dto.name !== channel.name) {
+      channel.name = dto.name;
+      hasChanges = true;
+    }
+    if (dto.description !== undefined && dto.description !== channel.description) {
+      channel.description = dto.description;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      channel = await channel.save();
+    }
+
+    const envelope = {
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_UPDATED,
+      data: channel,
+      occurredAt: new Date().toISOString(),
+    };
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channelId),
+      envelope,
+      'chat',
+    );
+    if (channel.workspaceId) {
       this.realtimePublisher.emit(
-        RoomBuilder.channel(channelId),
+        RoomBuilder.workspace(channel.workspaceId.toString()),
         envelope,
         'chat',
       );
-      if (channel.workspaceId) {
-        this.realtimePublisher.emit(
-          RoomBuilder.workspace(channel.workspaceId.toString()),
-          envelope,
-          'chat',
-        );
-      }
     }
 
     return channel;
@@ -1705,7 +1708,7 @@ export class ChannelsService {
     }
   }
 
-  async cleanupOrphanedMembers(): Promise<void> {
+  async cleanupOrphanedAndDemotedMembers(): Promise<void> {
     this.logger.log('Running cleanup of channelMembers for custom channels...');
     try {
       const channels = await this.channelsRepository.model
@@ -1731,23 +1734,46 @@ export class ChannelsService {
             ?.map((m: any) => m.userId?.toString()) || [],
         );
 
+        const wsUserIds = new Set(
+          workspace.members
+            ?.map((m: any) => {
+              const uId =
+                typeof m.userId === 'object' && m.userId
+                  ? m.userId._id || m.userId.id
+                  : m.userId;
+              return uId ? uId.toString() : '';
+            })
+            .filter(Boolean) || [],
+        );
+
         const originalCount = channel.channelMembers.length;
+        let modified = false;
+
         channel.channelMembers = channel.channelMembers.filter((m: any) => {
           const userIdStr = m.userId.toString();
+
+          // 1. If user is no longer a member of the workspace, remove them from the custom channel entirely
+          if (!wsUserIds.has(userIdStr)) {
+            modified = true;
+            return false;
+          }
+
+          // 2. If they are a channel_admin but no longer workspace_admin and not the creator, downgrade them to channel_member
           const isWorkspaceAdmin = admins.has(userIdStr);
           const isCreator = channel.createdBy?.toString() === userIdStr;
           const isChannelAdmin = m.role === 'channel_admin';
 
-          // If they are not workspace admin, not creator, but have role channel_admin, remove them.
           if (!isWorkspaceAdmin && !isCreator && isChannelAdmin) {
-            return false;
+            m.role = 'channel_member';
+            modified = true;
           }
+
           return true;
         });
 
-        if (channel.channelMembers.length !== originalCount) {
+        if (modified || channel.channelMembers.length !== originalCount) {
           this.logger.log(
-            `Cleanup: Removed demoted workspace admin from channel ${channel.name} (${channel._id})`,
+            `Cleanup: Cleaned up orphaned members / demoted admins for channel ${channel.name} (${channel._id})`,
           );
           await channel.save();
         }
