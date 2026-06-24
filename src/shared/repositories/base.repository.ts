@@ -104,7 +104,7 @@ export abstract class BaseRepository<TDocument extends Document> {
     const query = this.model.find(filter);
 
     if (options.projection) {
-      query.select(options.projection as any);
+      query.select(options.projection);
     }
     if (options.sort) {
       query.sort(options.sort);

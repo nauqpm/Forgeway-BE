@@ -100,10 +100,19 @@ export class WorkspaceRealtimeListener {
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_JOINED, { async: true })
   handleWorkspaceMemberJoined(event: WorkspaceRealtimeDomainEvent): void {
-    this.publishWorkspaceMemberEvent(
+    this.publishWorkspaceEvent(
       REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_JOINED,
       event,
     );
+
+    const userId = (event.data as WorkspaceMemberJoinedEventData).userId;
+    if (userId) {
+      this.publishToRoom(
+        REALTIME_EVENT_TYPES.WORKSPACE_MEMBER_JOINED,
+        event,
+        RoomBuilder.user(userId),
+      );
+    }
   }
 
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_MEMBER_REMOVED, { async: true })

@@ -12,6 +12,9 @@ export class Workspace {
   @Prop()
   description?: string;
 
+  @Prop({ type: String, default: '', select: false })
+  searchText!: string;
+
   @Prop()
   avatar?: string;
 
@@ -60,3 +63,4 @@ WorkspaceSchema.index({ slug: 1 }, { unique: true });
 WorkspaceSchema.index({ key: 1 }, { unique: true });
 WorkspaceSchema.index({ 'members.userId': 1 });
 WorkspaceSchema.index({ deletedAt: 1 });
+WorkspaceSchema.index({ deletedAt: 1, searchText: 1 });

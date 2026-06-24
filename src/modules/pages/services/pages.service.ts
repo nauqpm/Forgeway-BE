@@ -141,7 +141,6 @@ export class PagesService {
       parentId: dto.parentId ? new Types.ObjectId(dto.parentId) : undefined,
       slug,
       authorId: new Types.ObjectId(userId),
-      status: dto.status || 'draft',
       labels: dto.labels || [],
       version: 1,
       viewCount: 0,
@@ -208,9 +207,6 @@ export class PagesService {
     }
     if (filter.authorId) {
       query.authorId = new Types.ObjectId(filter.authorId);
-    }
-    if (filter.status) {
-      query.status = filter.status;
     }
     if (filter.search) {
       const searchNormalized = normalizeForSearch(filter.search);
@@ -317,7 +313,6 @@ export class PagesService {
       page.title = title;
     }
     if (dto.content !== undefined) page.content = dto.content;
-    if (dto.status) page.status = dto.status;
     if (dto.labels) page.labels = dto.labels;
 
     page.lastEditedBy = new Types.ObjectId(userId);
@@ -444,25 +439,9 @@ export class PagesService {
       const newParent = await this.findById(newParentId);
       page.parentId = newParent._id;
     } else {
-      page.parentId = undefined as any;
+      page.parentId = undefined;
     }
 
-    return page.save();
-  }
-
-  async publish(pageId: string): Promise<PageDocument> {
-    this.logger.debug(`Publishing page ${pageId}`);
-
-    const page = await this.findById(pageId);
-    page.status = 'published';
-    return page.save();
-  }
-
-  async unpublish(pageId: string): Promise<PageDocument> {
-    this.logger.debug(`Unpublishing page ${pageId}`);
-
-    const page = await this.findById(pageId);
-    page.status = 'draft';
     return page.save();
   }
 
@@ -558,7 +537,6 @@ export class PagesService {
     const changes: string[] = [];
     if (dto.title) changes.push('title');
     if (dto.content !== undefined) changes.push('content');
-    if (dto.status) changes.push('status');
     if (dto.labels) changes.push('labels');
     return changes.join(', ');
   }

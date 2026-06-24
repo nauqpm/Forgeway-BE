@@ -102,16 +102,12 @@ describe('ScrumController', () => {
       const dto: CreateSprintDto = {
         name: 'Sprint 1',
         goal: 'Initial goal',
-      } as any;
+      };
       const expectedResult = { _id: 'sprint1', ...dto };
       const user = { userId: 'u1', role: 'member' };
       scrumService.createSprint.mockResolvedValue(expectedResult as any);
 
-      const result = await controller.createSprint(
-        workspaceId,
-        dto,
-        user as any,
-      );
+      const result = await controller.createSprint(workspaceId, dto, user);
 
       expect(scrumService.createSprint).toHaveBeenCalledWith(
         workspaceId,
@@ -149,7 +145,7 @@ describe('ScrumController', () => {
         workspaceId,
         sprintId,
         dto,
-        user as any,
+        user,
       );
 
       expect(scrumService.updateSprint).toHaveBeenCalledWith(
@@ -168,11 +164,7 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'member' };
       scrumService.deleteSprint.mockResolvedValue(undefined);
 
-      const result = await controller.deleteSprint(
-        workspaceId,
-        sprintId,
-        user as any,
-      );
+      const result = await controller.deleteSprint(workspaceId, sprintId, user);
 
       expect(scrumService.deleteSprint).toHaveBeenCalledWith(
         workspaceId,
@@ -198,7 +190,7 @@ describe('ScrumController', () => {
         workspaceId,
         sprintId,
         dto,
-        user as any,
+        user,
       );
 
       expect(scrumService.startSprint).toHaveBeenCalledWith(
@@ -227,7 +219,7 @@ describe('ScrumController', () => {
         workspaceId,
         sprintId,
         dto,
-        user as any,
+        user,
       );
 
       expect(scrumService.completeSprint).toHaveBeenCalledWith(
@@ -289,7 +281,7 @@ describe('ScrumController', () => {
         workspaceId,
         sprintId,
         dto,
-        user as any,
+        user,
       );
 
       expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(
@@ -307,12 +299,7 @@ describe('ScrumController', () => {
       const user = { userId: 'u1', role: 'super_admin' };
       scrumService.moveTasksToSprint.mockResolvedValue({ modifiedCount: 1 });
 
-      await controller.moveTasksToSprint(
-        workspaceId,
-        sprintId,
-        dto,
-        user as any,
-      );
+      await controller.moveTasksToSprint(workspaceId, sprintId, dto, user);
 
       expect(scrumService.moveTasksToSprint).toHaveBeenCalledWith(
         workspaceId,
@@ -332,7 +319,7 @@ describe('ScrumController', () => {
       const result = await controller.moveTasksToBacklog(
         workspaceId,
         dto,
-        user as any,
+        user,
       );
 
       expect(scrumService.moveTasksToBacklog).toHaveBeenCalledWith(

@@ -32,7 +32,6 @@ describe('PagesService', () => {
           workspaceId,
           slug: 'roadmap',
           content: '',
-          status: 'draft',
           labels: [],
         },
         new Types.ObjectId().toString(),

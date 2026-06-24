@@ -125,7 +125,7 @@ describe('WorkspacesService avatar handling', () => {
     await service.create(ownerId, {
       name: 'Avatar Workspace',
       avatar: selectedAvatar,
-    } as any);
+    });
 
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({ avatar: selectedAvatar }),
@@ -142,11 +142,7 @@ describe('WorkspacesService avatar handling', () => {
       avatar: selectedAvatar,
     });
 
-    await service.update(
-      workspaceId,
-      { avatar: selectedAvatar } as any,
-      ownerId,
-    );
+    await service.update(workspaceId, { avatar: selectedAvatar }, ownerId);
 
     expect(repository.update).toHaveBeenCalledWith(
       workspaceId,

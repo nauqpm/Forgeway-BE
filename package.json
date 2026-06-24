@@ -21,6 +21,8 @@
     "seed:stickers:json": "ts-node -r tsconfig-paths/register scripts/seed-stickers-from-json.ts",
     "upload:workspace-avatars": "node scripts/upload-workspace-avatar-samples.js",
     "test:upload-workspace-avatars": "node scripts/upload-workspace-avatar-samples.test.js",
+    "benchmark:global-search": "ts-node scripts/benchmark-global-search.ts",
+    "backfill:global-search-text": "ts-node -r tsconfig-paths/register scripts/backfill-global-search-text.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix --quiet",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix --quiet",
     "test": "jest",

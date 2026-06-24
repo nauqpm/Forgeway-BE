@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
 import { Task } from '../schemas/task.schema';
 import { buildTaskSearchTokens } from '../utils/search-token.util';
+import { normalizeForSearch } from '../../../common/utils/normalizeForSearch';
 
 @Injectable()
 export class TaskDataTransformerService {
@@ -22,6 +23,7 @@ export class TaskDataTransformerService {
       status: dto.status || 'todo',
       key,
       searchTokens: buildTaskSearchTokens(key, dto.title),
+      searchText: normalizeForSearch([key, dto.title, dto.description].join(' ')),
       type: dto.type || 'task',
       priority: dto.priority || 'medium',
       assigneeId: dto.assigneeId
@@ -39,7 +41,7 @@ export class TaskDataTransformerService {
 
   transformUpdateInput(
     dto: UpdateTaskDto,
-    existingTask?: Pick<Task, 'key' | 'title'>,
+    existingTask?: Pick<Task, 'key' | 'title' | 'description'>,
   ): Partial<Task> {
     const updateData: Record<string, unknown> = { ...dto };
 
@@ -58,13 +60,20 @@ export class TaskDataTransformerService {
     if (dto.dueDate !== undefined) {
       updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     }
-    if (dto.title !== undefined && existingTask) {
+    if ((dto.title !== undefined || dto.description !== undefined) && existingTask) {
       updateData.searchTokens = buildTaskSearchTokens(
         existingTask.key,
-        dto.title,
+        dto.title ?? existingTask.title,
+      );
+      updateData.searchText = normalizeForSearch(
+        [
+          existingTask.key,
+          dto.title ?? existingTask.title,
+          dto.description ?? existingTask.description,
+        ].join(' '),
       );
     }
 
-    return updateData as Partial<Task>;
+    return updateData;
   }
 }
