@@ -1682,6 +1682,12 @@ export class ChannelsService {
         { $set: { createdBy: systemId } },
       );
 
+      // 4. Update lastMessage.senderName to 'Deleted User' for channels where this user was the last sender
+      await this.channelsRepository.model.updateMany(
+        { 'lastMessage.senderId': userObjectId },
+        { $set: { 'lastMessage.senderName': 'Deleted User' } },
+      );
+
       // 3. Emit member removed socket events for affected custom channels
       for (const channel of affectedCustomChannels) {
         const channelId = channel._id.toString();
