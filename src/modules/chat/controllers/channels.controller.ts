@@ -16,6 +16,8 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { ChannelsService } from '../services/channels.service';
+import { ChannelMembersService } from '../services/channel-members.service';
+import { CustomChannelsService } from '../services/custom-channels.service';
 import { MessagesService } from '../services/messages.service';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { EditMessageDto } from '../dtos/edit-message.dto';
@@ -28,6 +30,8 @@ import { MeetingService } from '@/modules/meetings/services/meeting.service';
 export class ChannelsController {
   constructor(
     private readonly channelsService: ChannelsService,
+    private readonly channelMembersService: ChannelMembersService,
+    private readonly customChannelsService: CustomChannelsService,
     private readonly messagesService: MessagesService,
     private readonly meetingService: MeetingService,
   ) {}
@@ -40,7 +44,7 @@ export class ChannelsController {
     @Query('workspaceId') workspaceId?: string,
   ) {
     if (workspaceId) {
-      return this.channelsService.findWorkspaceCustomChannels(
+      return this.customChannelsService.findWorkspaceCustomChannels(
         workspaceId,
         userId,
       );
@@ -211,7 +215,7 @@ export class ChannelsController {
       description?: string;
     },
   ) {
-    return this.channelsService.createCustomChannel(
+    return this.customChannelsService.createCustomChannel(
       body.workspaceId,
       userId,
       body,
@@ -226,7 +230,7 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
     @Body() body: { name?: string; description?: string; isPrivate?: boolean },
   ) {
-    return this.channelsService.updateCustomChannel(channelId, body, userId);
+    return this.customChannelsService.updateCustomChannel(channelId, body, userId);
   }
 
   @Delete('channels/:id')
@@ -236,7 +240,7 @@ export class ChannelsController {
     @Param('id') channelId: string,
     @CurrentUser('userId') userId: string,
   ) {
-    await this.channelsService.deleteCustomChannel(channelId, userId);
+    await this.customChannelsService.deleteCustomChannel(channelId, userId);
     return { ok: true };
   }
 
@@ -247,7 +251,7 @@ export class ChannelsController {
     @Param('id') channelId: string,
     @CurrentUser('userId') userId: string,
   ) {
-    return this.channelsService.joinChannel(channelId, userId);
+    return this.channelMembersService.joinChannel(channelId, userId);
   }
 
   @Post('channels/:id/leave')
@@ -257,7 +261,7 @@ export class ChannelsController {
     @Param('id') channelId: string,
     @CurrentUser('userId') userId: string,
   ) {
-    return this.channelsService.leaveChannel(channelId, userId);
+    return this.channelMembersService.leaveChannel(channelId, userId);
   }
 
   @Post('channels/:id/invite')
@@ -268,7 +272,7 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
     @Body() body: { userIds: string[] },
   ) {
-    return this.channelsService.inviteMembers(channelId, body.userIds, userId);
+    return this.channelMembersService.inviteMembers(channelId, body.userIds, userId);
   }
 
   @Delete('channels/:id/members/:userId')
@@ -279,7 +283,7 @@ export class ChannelsController {
     @Param('userId') targetUserId: string,
     @CurrentUser('userId') userId: string,
   ) {
-    return this.channelsService.kickMember(channelId, targetUserId, userId);
+    return this.channelMembersService.kickMember(channelId, targetUserId, userId);
   }
 
   @Patch('channels/:id/members/:userId')
@@ -291,7 +295,7 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
     @Body() body: { role: 'channel_admin' | 'channel_member' },
   ) {
-    return this.channelsService.updateMemberRole(
+    return this.channelMembersService.updateMemberRole(
       channelId,
       targetUserId,
       body.role,

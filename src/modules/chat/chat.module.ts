@@ -11,6 +11,8 @@ import { MeetingsModule } from '../meetings/meetings.module';
 import { RedisModule } from '../../infra/redis/redis.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ChannelsService } from './services/channels.service';
+import { ChannelMembersService } from './services/channel-members.service';
+import { CustomChannelsService } from './services/custom-channels.service';
 import { MessagesService } from './services/messages.service';
 import { StickersService } from './services/stickers.service';
 import { ChatGateway } from './gateways/chat.gateway';
@@ -54,6 +56,8 @@ import { MeetingService } from '../meetings/services/meeting.service';
   controllers: [StickersController, ChannelsController],
   providers: [
     ChannelsService,
+    ChannelMembersService,
+    CustomChannelsService,
     MessagesService,
     MeetingService,
     StickersService,
@@ -66,6 +70,8 @@ import { MeetingService } from '../meetings/services/meeting.service';
   ],
   exports: [
     ChannelsService,
+    ChannelMembersService,
+    CustomChannelsService,
     ChannelsRepository,
     MessagesRepository,
     MessagesService,
