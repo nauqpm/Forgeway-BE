@@ -224,7 +224,12 @@ export class ChannelsService {
     // Self-healing: Always ensure global channels exist before fetching
     await this.ensureGlobalChannels();
 
-    const { query, userWorkspaceIds } = await this.getChannelsQuery(userId);
+    const userWorkspaces = await this.workspacesService.findByUserId(userId);
+    const userWorkspaceIds = userWorkspaces.map(w => w._id);
+    const user = await this.usersService.getUserById(userId);
+    const isSuperAdmin = user?.role === 'super_admin';
+
+    const query = this.buildChannelsQuery(userId, userWorkspaces, isSuperAdmin);
 
     let channels = await this.channelsRepository.model.find(query).exec();
 
@@ -415,7 +420,11 @@ export class ChannelsService {
   async findMyChannelIds(userId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(userId)) return [];
 
-    const { query } = await this.getChannelsQuery(userId);
+    const userWorkspaces = await this.workspacesService.findByUserId(userId);
+    const user = await this.usersService.getUserById(userId);
+    const isSuperAdmin = user?.role === 'super_admin';
+
+    const query = this.buildChannelsQuery(userId, userWorkspaces, isSuperAdmin);
 
     const channels = await this.channelsRepository.model
       .find(query, { _id: 1 })
@@ -424,14 +433,11 @@ export class ChannelsService {
     return channels.map(c => c._id.toString());
   }
 
-  private async getChannelsQuery(
+  private buildChannelsQuery(
     userId: string,
-  ): Promise<{ query: any; userWorkspaceIds: Types.ObjectId[] }> {
-    const userWorkspaces = await this.workspacesService.findByUserId(userId);
-    const userWorkspaceIds = userWorkspaces.map(w => w._id);
-    const user = await this.usersService.getUserById(userId);
-    const isSuperAdmin = user?.role === 'super_admin';
-
+    userWorkspaces: any[],
+    isSuperAdmin: boolean,
+  ): any {
     const adminWorkspaceIds: Types.ObjectId[] = [];
     const memberWorkspaceIds: Types.ObjectId[] = [];
 
@@ -450,7 +456,7 @@ export class ChannelsService {
       }
     }
 
-    const query = isSuperAdmin
+    return isSuperAdmin
       ? {
           $or: [
             { type: 'general' },
@@ -479,8 +485,6 @@ export class ChannelsService {
             { type: 'dm', members: new Types.ObjectId(userId) },
           ],
         };
-
-    return { query, userWorkspaceIds };
   }
 
   async findByWorkspace(workspaceId: string): Promise<ChannelDocument[]> {
