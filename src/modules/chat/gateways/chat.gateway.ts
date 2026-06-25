@@ -172,13 +172,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     // Update last message preview in channel
-    await this.channelsService.updateLastMessage(payload.channelId, {
-      content: message.content,
-      senderId: userId,
-      senderName: message.senderId?.fullName || '',
-      sentAt: message.createdAt,
-      type: message.type,
-    });
+    await this.messagesService.updateChannelLastMessageIfNeeded(payload.channelId, message);
 
     const room = RoomBuilder.channel(payload.channelId);
 
@@ -234,23 +228,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     // Update last message preview in channel if this was the last message
-    const channel = await this.channelsService.findById(payload.channelId);
-    if (
-      channel?.lastMessage?.sentAt &&
-      message.createdAt &&
-      new Date(channel.lastMessage.sentAt).getTime() ===
-        new Date(message.createdAt).getTime()
-    ) {
-      await this.channelsService.updateLastMessage(payload.channelId, {
-        content: message.content,
-        senderId:
-          message.senderId?._id || message.senderId?.id || message.senderId,
-        senderName:
-          message.senderId?.fullName || channel.lastMessage.senderName || '',
-        sentAt: message.createdAt,
-        type: message.type,
-      });
-    }
+    await this.messagesService.updateChannelLastMessageIfNeeded(payload.channelId, message);
 
     const room = RoomBuilder.channel(payload.channelId);
 

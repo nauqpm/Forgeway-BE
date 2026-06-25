@@ -862,4 +862,38 @@ export class MessagesService {
     const [withReactions] = await this.populateReactions([message]);
     return withReactions;
   }
+
+  async updateChannelLastMessageIfNeeded(
+    channelId: string,
+    message: any,
+  ): Promise<void> {
+    if (message.threadParentId) {
+      return;
+    }
+
+    const channel = await this.channelsService.findById(channelId);
+    if (!channel) return;
+
+    const isNew = !channel.lastMessage?.sentAt;
+    const isCurrentLast =
+      channel.lastMessage?.sentAt &&
+      new Date(channel.lastMessage.sentAt).getTime() ===
+        new Date(message.createdAt).getTime();
+    const isNewer =
+      channel.lastMessage?.sentAt &&
+      new Date(message.createdAt).getTime() >
+        new Date(channel.lastMessage.sentAt).getTime();
+
+    if (isNew || isCurrentLast || isNewer) {
+      await this.channelsService.updateLastMessage(channelId, {
+        content: message.content,
+        senderId:
+          message.senderId?._id || message.senderId?.id || message.senderId,
+        senderName:
+          message.senderId?.fullName || channel.lastMessage?.senderName || '',
+        sentAt: message.createdAt,
+        type: message.type,
+      });
+    }
+  }
 }
