@@ -511,7 +511,10 @@ export class ChannelsService {
     const channel = await this.findById(channelId);
     if (!channel) return false;
 
-    const role = await this.channelMembersService.resolveChannelRole(userId, channel);
+    const role = await this.channelMembersService.resolveChannelRole(
+      userId,
+      channel,
+    );
     return role !== null && role !== 'not_joined';
   }
 
@@ -731,8 +734,6 @@ export class ChannelsService {
 
     return [];
   }
-
-
 
   async removeUserFromAllChannels(
     workspaceId: string,

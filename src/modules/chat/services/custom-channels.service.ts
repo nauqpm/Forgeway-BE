@@ -188,7 +188,10 @@ export class CustomChannelsService {
       throw new BadRequestException('Can only update custom channels');
     }
 
-    const role = await this.channelMembersService.resolveChannelRole(requesterId, channel);
+    const role = await this.channelMembersService.resolveChannelRole(
+      requesterId,
+      channel,
+    );
     if (role !== 'channel_admin') {
       throw new ForbiddenException(
         'Only channel admins can update the channel',
@@ -205,7 +208,10 @@ export class CustomChannelsService {
       channel.name = dto.name;
       hasChanges = true;
     }
-    if (dto.description !== undefined && dto.description !== channel.description) {
+    if (
+      dto.description !== undefined &&
+      dto.description !== channel.description
+    ) {
       channel.description = dto.description;
       hasChanges = true;
     }
@@ -256,7 +262,10 @@ export class CustomChannelsService {
       throw new BadRequestException('Can only delete custom channels');
     }
 
-    const role = await this.channelMembersService.resolveChannelRole(requesterId, channel);
+    const role = await this.channelMembersService.resolveChannelRole(
+      requesterId,
+      channel,
+    );
     if (role !== 'channel_admin') {
       throw new ForbiddenException(
         'Only channel admins can delete this channel',
@@ -313,7 +322,10 @@ export class CustomChannelsService {
       throw new BadRequestException('Can only modify custom channels');
     }
 
-    const role = await this.channelMembersService.resolveChannelRole(requesterId, channel);
+    const role = await this.channelMembersService.resolveChannelRole(
+      requesterId,
+      channel,
+    );
     if (role !== 'channel_admin') {
       throw new ForbiddenException('Only channel admins can change visibility');
     }

@@ -192,7 +192,7 @@ export class UsersService {
 
   async getAllUserIds(): Promise<string[]> {
     const now = Date.now();
-    if (this.cachedUserIds && (now - this.cacheTimestamp < this.CACHE_TTL)) {
+    if (this.cachedUserIds && now - this.cacheTimestamp < this.CACHE_TTL) {
       return this.cachedUserIds;
     }
     const ids = await this.usersRepository.findAllIds();

@@ -230,7 +230,11 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
     @Body() body: { name?: string; description?: string; isPrivate?: boolean },
   ) {
-    return this.customChannelsService.updateCustomChannel(channelId, body, userId);
+    return this.customChannelsService.updateCustomChannel(
+      channelId,
+      body,
+      userId,
+    );
   }
 
   @Delete('channels/:id')
@@ -272,7 +276,11 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
     @Body() body: { userIds: string[] },
   ) {
-    return this.channelMembersService.inviteMembers(channelId, body.userIds, userId);
+    return this.channelMembersService.inviteMembers(
+      channelId,
+      body.userIds,
+      userId,
+    );
   }
 
   @Delete('channels/:id/members/:userId')
@@ -283,7 +291,11 @@ export class ChannelsController {
     @Param('userId') targetUserId: string,
     @CurrentUser('userId') userId: string,
   ) {
-    return this.channelMembersService.kickMember(channelId, targetUserId, userId);
+    return this.channelMembersService.kickMember(
+      channelId,
+      targetUserId,
+      userId,
+    );
   }
 
   @Patch('channels/:id/members/:userId')
