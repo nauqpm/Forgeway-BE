@@ -37,32 +37,81 @@ export class CloudinaryService {
     });
   }
 
-  async uploadImageFromPath(
-    filePath: string,
-    folder: string = 'avatars',
-  ): Promise<UploadApiResponse | UploadApiErrorResponse> {
-    return new Promise((resolve, reject) => {
-      cloudinary.uploader.upload(
-        filePath,
+  async uploadFile(
+    file: Express.Multer.File,
+    folder: string,
+    options?: { resourceType?: 'image' | 'video' | 'raw' | 'auto' },
+  ): Promise<{ url: string; publicId: string; size: number }> {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Invalid file or missing file buffer');
+    }
+
+    const resourceType = options?.resourceType ?? 'auto';
+
+    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+      const upload = cloudinary.uploader.upload_stream(
         {
-          folder: `al-task/${folder}`,
-          resource_type: 'auto',
+          folder: `sdlc-platform/${folder}`,
+          resource_type: resourceType,
         },
-        (error, result) => {
+        (error, res) => {
           if (error) return reject(error);
-          if (!result) return reject(new Error('Upload failed with no result'));
-          resolve(result);
+          if (!res) return reject(new Error('Upload failed with no result'));
+          resolve(res);
         },
       );
+
+      const stream = new Readable();
+      stream.push(file.buffer);
+      stream.push(null);
+      stream.pipe(upload);
     });
+
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      size: result.bytes,
+    };
+  }
+
+  async deleteFile(publicId: string): Promise<any> {
+    if (!publicId) return;
+
+    try {
+      const result = await new Promise<any>((resolve, reject) => {
+        cloudinary.uploader.destroy(
+          publicId,
+          { resource_type: 'raw' },
+          (error, res) => {
+            if (error) return reject(error);
+            resolve(res);
+          },
+        );
+      });
+      if (result && result.result === 'ok') {
+        return result;
+      }
+    } catch (error) {
+      // Fallback
+    }
+
+    try {
+      return await new Promise<any>((resolve, reject) => {
+        cloudinary.uploader.destroy(
+          publicId,
+          { resource_type: 'image' },
+          (error, res) => {
+            if (error) return reject(error);
+            resolve(res);
+          },
+        );
+      });
+    } catch (error) {
+      // Ignore errors for idempotency
+    }
   }
 
   async deleteImage(publicId: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      cloudinary.uploader.destroy(publicId, (error, result) => {
-        if (error) return reject(error);
-        resolve(result);
-      });
-    });
+    return this.deleteFile(publicId);
   }
 }
