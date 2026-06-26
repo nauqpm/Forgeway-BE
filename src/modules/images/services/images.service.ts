@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -33,6 +35,7 @@ export class ImagesService {
     @InjectModel(Page.name) private readonly pageModel: Model<PageDocument>,
     @InjectModel(Channel.name)
     private readonly channelModel: Model<ChannelDocument>,
+    @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
@@ -183,7 +186,9 @@ export class ImagesService {
       publicId,
     });
 
-    const isChannel = dto.targetType?.toLowerCase() === 'channel' || dto.targetType?.toLowerCase() === 'channels';
+    const isChannel =
+      dto.targetType?.toLowerCase() === 'channel' ||
+      dto.targetType?.toLowerCase() === 'channels';
 
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
@@ -197,7 +202,10 @@ export class ImagesService {
       type: dto.type || (isAvatar ? ImageType.AVATAR : 'other'),
       targetId: dto.targetId,
       targetType: dto.targetType,
-      channelId: isChannel && dto.targetId ? new Types.ObjectId(dto.targetId) : undefined,
+      channelId:
+        isChannel && dto.targetId
+          ? new Types.ObjectId(dto.targetId)
+          : undefined,
       workspaceId: resolvedWorkspaceId
         ? new Types.ObjectId(resolvedWorkspaceId)
         : undefined,
@@ -307,6 +315,13 @@ export class ImagesService {
     await this.imageModel.findByIdAndDelete(id).exec();
 
     return { success: true, message: 'Image deleted successfully' };
+  }
+
+  async deleteByUrl(url: string): Promise<void> {
+    const image = await this.imageModel.findOne({ url }).exec();
+    if (image) {
+      await this.delete(image._id.toString());
+    }
   }
 
   async incrementDownloadCount(id: string): Promise<ImageDocument> {

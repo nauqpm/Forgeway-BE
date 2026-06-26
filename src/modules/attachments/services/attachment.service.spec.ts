@@ -25,18 +25,21 @@ describe('AttachmentService', () => {
 
     const taskModel = {
       findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue({ title: 'Test Task' }),
       }),
     } as any;
 
     const pageModel = {
       findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue({ title: 'Test Page' }),
       }),
     } as any;
 
     const channelModel = {
       findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue({ name: 'Test Channel' }),
       }),
     } as any;
@@ -77,7 +80,7 @@ describe('AttachmentService', () => {
       userId,
     );
 
-    const expectedFolder = `workspaces/test-workspace_${workspaceId}/tasks/test-task_${targetId}`;
+    const expectedFolder = `workspaces/test_workspace_${workspaceId}/tasks/test_task_${targetId}`;
 
     expect(cloudinaryService.uploadFile).toHaveBeenCalledWith(
       file,

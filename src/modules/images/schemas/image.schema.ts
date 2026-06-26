@@ -63,5 +63,4 @@ export const ImageSchema = SchemaFactory.createForClass(Image);
 ImageSchema.index({ uploadedBy: 1 });
 ImageSchema.index({ type: 1 });
 ImageSchema.index({ targetId: 1 });
-ImageSchema.index({ workspaceId: 1 });
 ImageSchema.index({ targetType: 1, targetId: 1 });

@@ -1,7 +1,7 @@
 // Service managing document file storage, including uploaded files, rendered HTML content, and deletions.
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { extname } from 'path';
@@ -86,7 +86,7 @@ export class DocumentStorageService {
 
   async saveUploadedFile(
     file: Express.Multer.File,
-    workspaceId?: string,
+    _workspaceId?: string,
   ): Promise<StoredUploadedFile> {
     if (!file) {
       throw new BadRequestException('File is required');

@@ -32,6 +32,8 @@ import { Sticker, StickerSchema } from './schemas/sticker.schema';
 import { StickerPacksRepository } from './repositories/sticker-packs.repository';
 import { StickersRepository } from './repositories/stickers.repository';
 import { MeetingService } from '../meetings/services/meeting.service';
+import { AttachmentsModule } from '../attachments/attachments.module';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { MeetingService } from '../meetings/services/meeting.service';
     forwardRef(() => AuthModule),
     forwardRef(() => UsersModule),
     forwardRef(() => NotificationsModule),
+    forwardRef(() => AttachmentsModule),
+    forwardRef(() => ImagesModule),
     TokenModule,
     AuditModule,
     RealtimeModule,

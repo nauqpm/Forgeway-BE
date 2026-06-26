@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { extname } from 'path';
@@ -28,6 +34,7 @@ export class AttachmentService {
     @InjectModel(Channel.name)
     private readonly channelModel: Model<ChannelDocument>,
     private readonly cloudinaryService: CloudinaryService,
+    @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
   ) {}
 
@@ -175,7 +182,8 @@ export class AttachmentService {
     });
 
     const lowerTargetType = input.targetType?.toLowerCase();
-    const isChannel = lowerTargetType === 'channel' || lowerTargetType === 'channels';
+    const isChannel =
+      lowerTargetType === 'channel' || lowerTargetType === 'channels';
 
     const attachment = new this.attachmentModel({
       workspaceId: input.workspaceId
@@ -270,6 +278,42 @@ export class AttachmentService {
     }
   }
 
+  async deleteByUrl(url: string, deletedByUserId: string): Promise<void> {
+    this.logger.log(`Deleting attachment by URL: ${url}`);
+    const attachment = await this.attachmentModel
+      .findOne({ url, isDeleted: { $ne: true } })
+      .exec();
+    if (attachment) {
+      const result = await this.attachmentModel
+        .findOneAndUpdate(
+          {
+            _id: attachment._id,
+            isDeleted: { $ne: true },
+          },
+          {
+            $set: {
+              isDeleted: true,
+              deletedAt: new Date(),
+              deletedBy: new Types.ObjectId(deletedByUserId),
+            },
+          },
+          { new: true },
+        )
+        .exec();
+
+      if (result && result.cloudinaryPublicId) {
+        try {
+          await this.cloudinaryService.deleteFile(result.cloudinaryPublicId);
+        } catch (err) {
+          this.logger.warn(
+            `Failed to delete file from Cloudinary for attachment ${result._id} (Public ID: ${result.cloudinaryPublicId})`,
+            err,
+          );
+        }
+      }
+    }
+  }
+
   async incrementDownloadCount(id: string): Promise<AttachmentDocument> {
     this.logger.log(`Incrementing download count for attachment: ${id}`);
 
@@ -290,5 +334,12 @@ export class AttachmentService {
     }
 
     return attachment;
+  }
+
+  async findByUrl(url: string): Promise<AttachmentDocument | null> {
+    this.logger.log(`Finding attachment by URL: ${url}`);
+    return this.attachmentModel
+      .findOne({ url, isDeleted: { $ne: true } })
+      .exec();
   }
 }

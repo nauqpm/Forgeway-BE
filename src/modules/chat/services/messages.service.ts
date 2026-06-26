@@ -22,6 +22,8 @@ import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher'
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { RealtimeEnvelope } from '../../realtime/contracts';
+import { AttachmentService } from '../../attachments/services/attachment.service';
+import { ImagesService } from '../../images/services/images.service';
 
 @Injectable()
 export class MessagesService {
@@ -39,6 +41,10 @@ export class MessagesService {
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
     private readonly realtimePublisher: RealtimePublisher,
+    @Inject(forwardRef(() => AttachmentService))
+    private readonly attachmentService: AttachmentService,
+    @Inject(forwardRef(() => ImagesService))
+    private readonly imagesService: ImagesService,
   ) {}
 
   private async parseMentionedIds(
@@ -791,6 +797,23 @@ export class MessagesService {
     // Do not overwrite message.content with English text so that FE can localize correctly
     message.deletedAt = new Date();
     await message.save();
+
+    // Cloudinary and DB attachment cleanup
+    if (message.attachments && message.attachments.length > 0) {
+      for (const attachment of message.attachments) {
+        if (attachment.url) {
+          try {
+            await this.attachmentService.deleteByUrl(attachment.url, userId);
+            await this.imagesService.deleteByUrl(attachment.url);
+          } catch (err) {
+            this.logger.warn(
+              `Failed to clean up attachment/image for message ${messageId} (URL: ${attachment.url})`,
+              err,
+            );
+          }
+        }
+      }
+    }
 
     // Check if this was the channel's last message and update it
     let updatedLastMessage: any = null;
