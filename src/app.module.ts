@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -41,6 +41,7 @@ import { validateEnv } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
+import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { CacheModule } from './modules/cache/cache.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RedisModule } from './infra/redis/redis.module';
@@ -51,6 +52,12 @@ const mailSecure = mailPort === 465;
 const mailRejectUnauthorized =
   process.env.NODE_ENV === 'production' &&
   process.env.MAIL_TLS_INSECURE !== 'true';
+
+function parseNonNegativeInteger(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
 
 @Module({
   imports: [
@@ -75,8 +82,14 @@ const mailRejectUnauthorized =
         throttlers: [
           {
             name: 'default',
-            ttl: cfg.get<number>('THROTTLE_DEFAULT_TTL_MS') ?? 60_000,
-            limit: cfg.get<number>('THROTTLE_DEFAULT_LIMIT') ?? 120,
+            ttl: parseNonNegativeInteger(
+              cfg.get('THROTTLE_DEFAULT_TTL_MS'),
+              60_000,
+            ),
+            limit: parseNonNegativeInteger(
+              cfg.get('THROTTLE_DEFAULT_LIMIT'),
+              120,
+            ),
           },
         ],
       }),
@@ -198,7 +211,7 @@ const mailRejectUnauthorized =
   ],
   providers: [
     // Throttler guard applied globally — individual routes override via @Throttle/@SkipThrottle
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: HttpThrottlerGuard },
     AppService,
   ],
   controllers: [AppController],
