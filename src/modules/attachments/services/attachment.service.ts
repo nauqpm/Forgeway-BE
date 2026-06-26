@@ -6,7 +6,7 @@ import {
   CreateAttachmentInput,
 } from '../dtos/attachment-input.dto';
 import { Attachment, AttachmentDocument } from '../schemas/attachment.schema';
-import { getStorageKeyFromDestination } from '../../../config/upload-storage.config';
+import { CloudinaryService } from '../../images/services/cloudinary.service';
 
 @Injectable()
 export class AttachmentService {
@@ -15,34 +15,33 @@ export class AttachmentService {
   constructor(
     @InjectModel(Attachment.name)
     private readonly attachmentModel: Model<AttachmentDocument>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async create(
     input: CreateAttachmentInput,
-    file: AttachmentFile,
+    file: Express.Multer.File,
     userId: string,
   ): Promise<AttachmentDocument> {
     this.logger.log(
       `Creating attachment for ${input.targetType}:${input.targetId}`,
     );
 
-    const storageKey = getStorageKeyFromDestination(
-      file.destination,
-      file.filename,
-    );
-    const url = `/uploads/${storageKey}`.replace(/\/+/g, '/');
+    const folder = `attachments/${input.targetType}/${input.workspaceId || 'general'}`;
+    const result = await this.cloudinaryService.uploadFile(file, folder);
 
     const attachment = new this.attachmentModel({
       workspaceId: input.workspaceId
         ? new Types.ObjectId(input.workspaceId)
         : undefined,
       uploadedBy: new Types.ObjectId(userId),
-      filename: file.filename,
+      filename: file.filename || file.originalname,
       originalName: input.originalName,
       mimeType: input.mimeType,
       size: input.size,
-      storageKey,
-      url: url,
+      storageKey: result.publicId,
+      url: result.url,
+      cloudinaryPublicId: result.publicId,
       targetType: input.targetType,
       targetId: input.targetId,
       downloadCount: 0,

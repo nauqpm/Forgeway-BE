@@ -6,10 +6,12 @@ import { TaskActivitiesModule } from '../task-activities/task-activities.module'
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TaskAttachmentController } from './controllers/task-attachment.controller';
+import { AttachmentsController } from './controllers/attachments.controller';
 import { AttachmentMapper } from './mappers/attachment.mapper';
 import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
 import { AttachmentService } from './services/attachment.service';
 import { TaskAttachmentService } from './services/task-attachment.service';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
@@ -21,8 +23,9 @@ import { TaskAttachmentService } from './services/task-attachment.service';
     AuditModule,
     forwardRef(() => WorkspacesModule),
     forwardRef(() => TaskActivitiesModule),
+    ImagesModule,
   ],
-  controllers: [TaskAttachmentController],
+  controllers: [TaskAttachmentController, AttachmentsController],
   providers: [AttachmentService, TaskAttachmentService, AttachmentMapper],
   exports: [AttachmentService, TaskAttachmentService],
 })

@@ -29,6 +29,12 @@ export class Attachment {
   @Prop({ trim: true })
   url?: string;
 
+  @Prop({ trim: true })
+  cloudinaryPublicId?: string;
+
+  @Prop({ trim: true })
+  migrationStatus?: string;
+
   @Prop({ type: String, enum: ['task', 'page'], required: true })
   targetType!: string;
 

@@ -13,11 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-import { getUploadPath } from '../../../config/upload-storage.config';
+import { memoryStorage } from 'multer';
 import { MAX_ATTACHMENT_SIZE } from '../constants/attachment-file.constants';
 import { attachmentFileFilter } from '../validators/attachment-file.validator';
 import {
@@ -64,46 +60,13 @@ export class AttachmentsController {
         file: { type: 'string', format: 'binary' },
         targetType: { type: 'string', enum: ['task', 'page'] },
         targetId: { type: 'string' },
+        workspaceId: { type: 'string' },
       },
     },
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-
-          // Get module from body or query
-          const targetType =
-            req.body?.targetType || req.query?.targetType || 'others';
-          const moduleFolder =
-            targetType === 'task'
-              ? 'tasks'
-              : targetType === 'page'
-                ? 'pages'
-                : 'others';
-
-          const uploadPath = getUploadPath(
-            moduleFolder,
-            String(year),
-            month,
-            day,
-          );
-
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-
-          cb(null, uploadPath);
-        },
-        filename: (req, file, callback) => {
-          const ext = extname(file.originalname);
-          callback(null, `${Date.now()}-${uuidv4()}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ATTACHMENT_SIZE },
       fileFilter: attachmentFileFilter,
     }),
@@ -122,6 +85,7 @@ export class AttachmentsController {
 
     const targetType = bodyTargetType || queryTargetType;
     const targetId = bodyTargetId || queryTargetId;
+    const workspaceId = req.body?.workspaceId || req.query?.workspaceId;
 
     if (!targetType || !['task', 'page'].includes(targetType)) {
       throw new BadRequestException('targetType must be "task" or "page"');
@@ -136,6 +100,7 @@ export class AttachmentsController {
       size: file.size,
       targetType: targetType as 'task' | 'page',
       targetId,
+      workspaceId,
     };
 
     return this.attachmentService.create(input, file, req.user.userId);
