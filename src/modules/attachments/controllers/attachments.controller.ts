@@ -186,8 +186,6 @@ export class AttachmentsController {
     return { message: 'Attachment deleted successfully' };
   }
 
-
-
   @Post(':id/download')
   @ApiOperation({ summary: 'Increment attachment download count' })
   async incrementDownloadCount(@Param('id') id: string) {
