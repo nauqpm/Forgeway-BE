@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response } from 'express';
+import axios from 'axios';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -193,7 +194,20 @@ export class DocumentsController {
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     if (doc.storagePath.startsWith('http')) {
-      return res.redirect(doc.storagePath);
+      try {
+        const streamResponse = await axios.get(doc.storagePath, {
+          responseType: 'stream',
+        });
+        res.setHeader('Content-Type', doc.mimeType);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(doc.originalName)}"`,
+        );
+        streamResponse.data.pipe(res);
+        return;
+      } catch (err) {
+        return res.redirect(doc.storagePath);
+      }
     }
     return res.download(doc.storagePath, doc.originalName);
   }
@@ -225,7 +239,20 @@ export class DocumentsController {
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     if (doc.storagePath.startsWith('http')) {
-      return res.redirect(doc.storagePath);
+      try {
+        const streamResponse = await axios.get(doc.storagePath, {
+          responseType: 'stream',
+        });
+        res.setHeader('Content-Type', doc.mimeType);
+        res.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        );
+        streamResponse.data.pipe(res);
+        return;
+      } catch (err) {
+        return res.redirect(doc.storagePath);
+      }
     }
     res.setHeader('Content-Type', doc.mimeType);
     res.setHeader(

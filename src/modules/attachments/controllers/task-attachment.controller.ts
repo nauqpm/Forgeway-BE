@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Request, Response } from 'express';
+import axios from 'axios';
 import { MAX_ATTACHMENT_SIZE } from '../constants/attachment-file.constants';
 import { attachmentFileFilter } from '../validators/attachment-file.validator';
 import {
@@ -128,6 +129,23 @@ export class TaskAttachmentController {
       fileName: attachment.originalName,
       mimeType: attachment.mimeType,
     });
+
+    if (attachment.url.startsWith('http')) {
+      try {
+        const streamResponse = await axios.get(attachment.url, {
+          responseType: 'stream',
+        });
+        response.setHeader('Content-Type', attachment.mimeType);
+        response.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(attachment.originalName)}"`,
+        );
+        streamResponse.data.pipe(response);
+        return;
+      } catch (err) {
+        return response.redirect(attachment.url);
+      }
+    }
     return response.redirect(attachment.url);
   }
 
@@ -168,6 +186,23 @@ export class TaskAttachmentController {
       fileName: attachment.originalName,
       mimeType: attachment.mimeType,
     });
+
+    if (attachment.url.startsWith('http')) {
+      try {
+        const streamResponse = await axios.get(attachment.url, {
+          responseType: 'stream',
+        });
+        response.setHeader('Content-Type', attachment.mimeType);
+        response.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(attachment.originalName)}"`,
+        );
+        streamResponse.data.pipe(response);
+        return;
+      } catch (err) {
+        return response.redirect(attachment.url);
+      }
+    }
     return response.redirect(attachment.url);
   }
 
