@@ -278,10 +278,6 @@ export class AuthController {
         statusCode: 401,
         message: 'Email or password is incorrect.',
         code: 'INVALID_CREDENTIALS',
-        details: {
-          remainingAttempts: 4,
-          maxAttempts: 5,
-        },
       },
     },
   })

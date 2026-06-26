@@ -4,6 +4,4 @@ export const PASSWORD_POLICY = {
   pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/,
   message:
     'Passwords must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.',
-  maxFailedAttempts: 5,
-  lockoutDurationMs: 10 * 60 * 1000,
 } as const;

@@ -13,7 +13,6 @@ describe('AuthenticationService progressive login delay', () => {
 
   const usersService = {
     findByEmail: jest.fn(),
-    resetLoginFailures: jest.fn(),
   };
   const passwordService = {
     hashPassword: jest.fn(),
@@ -90,7 +89,6 @@ describe('AuthenticationService progressive login delay', () => {
       expect.any(UnauthorizedException),
     );
     expect(loginAttemptThrottleService.registerFailure).toHaveBeenCalled();
-    expect(usersService.resetLoginFailures).not.toHaveBeenCalled();
   });
 
   it('clears progressive delay state after a successful login', async () => {
@@ -123,8 +121,6 @@ describe('AuthenticationService progressive login delay', () => {
       avatar: null,
       googleId: null,
       status: USER_STATUSES.ACTIVE,
-      failedLoginAttempts: 0,
-      lockoutUntil: null,
     };
   }
 });

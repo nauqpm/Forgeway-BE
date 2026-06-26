@@ -1,6 +1,5 @@
 // ─── Auth ───────────────────────────────────────────────────────────────────
 export const AUTH_ERROR_CODES = {
-  ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   LOGIN_RETRY_LATER: 'LOGIN_RETRY_LATER',
   USER_SUSPENDED: 'USER_SUSPENDED',

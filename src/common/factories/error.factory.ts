@@ -1,4 +1,3 @@
-import { PASSWORD_POLICY } from '../constants/password-policy.constants';
 import {
   AUTH_ERROR_CODES,
   KANBAN_ERROR_CODES,
@@ -43,32 +42,6 @@ export class ErrorFactory {
     return {
       retryAfterSeconds,
       retryAt: new Date(Date.now() + retryAfterSeconds * 1000).toISOString(),
-    };
-  }
-
-  static invalidCredentials(remainingAttempts?: number): ErrorPayload {
-    const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
-    return {
-      message: 'Email or password is incorrect.',
-      code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
-      details: {
-        remainingAttempts: remainingAttempts ?? maxAttempts - 1,
-        maxAttempts,
-      },
-    };
-  }
-
-  static accountLocked(lockedUntil: string): ErrorPayload {
-    const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
-    return {
-      message:
-        'Account has been temporarily locked due to too many failed password attempts.',
-      code: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
-      details: {
-        lockedUntil,
-        remainingAttempts: 0,
-        maxAttempts,
-      },
     };
   }
 

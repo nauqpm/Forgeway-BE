@@ -25,14 +25,6 @@ export interface UserSearchResult {
   avatar?: string;
 }
 
-export interface LoginFailureState {
-  failedAttempts: number;
-  isLocked: boolean;
-  lockedUntil?: string;
-  remainingAttempts: number;
-  maxAttempts: number;
-}
-
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -61,45 +53,6 @@ export class UsersService {
   // 📢 Tìm người dùng bằng email
   async findByEmail(email: string): Promise<User | null> {
     return await this.usersRepository.findByEmail(email);
-  }
-
-  async resetLoginFailures(userId: string): Promise<void> {
-    await this.usersRepository.update(userId, {
-      $set: { failedLoginAttempts: 0 },
-      $unset: { lockoutUntil: 1 },
-    });
-  }
-
-  async registerFailedLoginAttempt(userId: string): Promise<LoginFailureState> {
-    const maxAttempts = PASSWORD_POLICY.maxFailedAttempts;
-
-    // Use atomic $inc to prevent race conditions from concurrent requests
-    const updatedUser =
-      await this.usersRepository.incrementFailedLoginAttempts(userId);
-    const currentAttempts = updatedUser?.failedLoginAttempts ?? 0;
-    const isLocked = currentAttempts >= maxAttempts;
-
-    if (isLocked) {
-      const lockedUntil = new Date(
-        Date.now() + PASSWORD_POLICY.lockoutDurationMs,
-      );
-      await this.usersRepository.setLockout(userId, lockedUntil);
-
-      return {
-        failedAttempts: currentAttempts,
-        isLocked: true,
-        lockedUntil: lockedUntil.toISOString(),
-        remainingAttempts: 0,
-        maxAttempts,
-      };
-    }
-
-    return {
-      failedAttempts: currentAttempts,
-      isLocked: false,
-      remainingAttempts: maxAttempts - currentAttempts,
-      maxAttempts,
-    };
   }
 
   async createUser(userData: CreateUsersDto): Promise<User> {

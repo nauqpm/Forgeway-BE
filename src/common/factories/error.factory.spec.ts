@@ -31,29 +31,6 @@ describe('ErrorFactory', () => {
       expect(result.details?.retryAt).toEqual(expect.any(String));
     });
 
-    it('invalidCredentials() returns details when called without args', () => {
-      const result = ErrorFactory.invalidCredentials();
-      expect(result.message).toBe('Email or password is incorrect.');
-      expect(result.code).toBe(AUTH_ERROR_CODES.INVALID_CREDENTIALS);
-      expect(result.details).toBeDefined();
-      expect(result.details!.remainingAttempts).toBeGreaterThanOrEqual(0);
-      expect(result.details!.maxAttempts).toBeGreaterThan(0);
-    });
-
-    it('invalidCredentials() uses provided remainingAttempts', () => {
-      const result = ErrorFactory.invalidCredentials(2);
-      expect(result.details!.remainingAttempts).toBe(2);
-    });
-
-    it('accountLocked() returns locked details', () => {
-      const lockedUntil = '2026-06-16T00:00:00.000Z';
-      const result = ErrorFactory.accountLocked(lockedUntil);
-      expect(result.message).toContain('locked');
-      expect(result.code).toBe(AUTH_ERROR_CODES.ACCOUNT_LOCKED);
-      expect(result.details!.lockedUntil).toBe(lockedUntil);
-      expect(result.details!.remainingAttempts).toBe(0);
-    });
-
     it('emailNotVerified() returns correct shape', () => {
       const result = ErrorFactory.emailNotVerified();
       expect(result.message).toContain('verify your email');
@@ -256,8 +233,6 @@ describe('ErrorFactory', () => {
       const methods = [
         ErrorFactory.publicLoginFailure(),
         ErrorFactory.loginRetryLater(1),
-        ErrorFactory.invalidCredentials(),
-        ErrorFactory.accountLocked('2026-01-01T00:00:00.000Z'),
         ErrorFactory.emailNotVerified(),
         ErrorFactory.accountSuspended(),
         ErrorFactory.accountDeactivated(),

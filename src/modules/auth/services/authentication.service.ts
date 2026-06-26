@@ -208,11 +208,6 @@ export class AuthenticationService implements OnModuleInit {
 
       await this.loginAttemptThrottleService.clear(attemptContext);
 
-      // === Clear any stale failures ===
-      if (user.failedLoginAttempts || user.lockoutUntil) {
-        await this.usersService.resetLoginFailures(user._id.toString());
-      }
-
       // === Issue tokens ===
       const { accessToken, refreshToken } =
         await this.tokenService.createAndSaveTokens(

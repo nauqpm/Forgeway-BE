@@ -61,27 +61,6 @@ export class UsersRepository extends BaseRepository<UserDocument> {
       .exec();
   }
 
-  async incrementFailedLoginAttempts(
-    userId: string,
-  ): Promise<UserDocument | null> {
-    return this.userModel
-      .findByIdAndUpdate(
-        userId,
-        { $inc: { failedLoginAttempts: 1 } },
-        { new: true },
-      )
-      .exec();
-  }
-
-  async setLockout(
-    userId: string,
-    lockoutUntil: Date,
-  ): Promise<UserDocument | null> {
-    return this.userModel
-      .findByIdAndUpdate(userId, { $set: { lockoutUntil } }, { new: true })
-      .exec();
-  }
-
   /**
    * Partial update using $set to avoid overwriting unrelated fields.
    */

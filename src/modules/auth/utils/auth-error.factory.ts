@@ -1,4 +1,3 @@
-import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { ErrorFactory } from '../../../common/factories/error.factory';
 
 /**
@@ -12,16 +11,6 @@ export class AuthErrorFactory {
 
   static loginRetryLater(retryAfterSeconds: number) {
     return ErrorFactory.loginRetryLater(retryAfterSeconds);
-  }
-
-  static invalidCredentials(remainingAttempts?: number) {
-    return ErrorFactory.invalidCredentials(
-      remainingAttempts ?? PASSWORD_POLICY.maxFailedAttempts - 1,
-    );
-  }
-
-  static accountLocked(lockedUntil: string) {
-    return ErrorFactory.accountLocked(lockedUntil);
   }
 
   static emailNotVerified() {
