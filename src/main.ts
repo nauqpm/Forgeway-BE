@@ -1,4 +1,4 @@
-﻿import { NestFactory } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -15,7 +15,6 @@ import {
   getAllowedCorsOrigins,
   isCorsOriginAllowed,
 } from './config/cors-origins.config';
-import { getUploadDir } from './config/upload-storage.config';
 
 // Swagger documentation
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -82,11 +81,6 @@ async function bootstrap() {
         transform: true,
       }),
     );
-
-    // Static assets
-    app.useStaticAssets(getUploadDir(), {
-      prefix: '/uploads',
-    });
 
     const swaggerEnabled =
       !isProduction && process.env.SWAGGER_ENABLED !== 'false';
