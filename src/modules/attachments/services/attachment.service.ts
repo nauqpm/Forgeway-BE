@@ -257,6 +257,17 @@ export class AttachmentService {
     if (!result) {
       throw new NotFoundException(`Attachment with ID ${id} not found`);
     }
+
+    if (result.cloudinaryPublicId) {
+      try {
+        await this.cloudinaryService.deleteFile(result.cloudinaryPublicId);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to delete file from Cloudinary for attachment ${id} (Public ID: ${result.cloudinaryPublicId})`,
+          err,
+        );
+      }
+    }
   }
 
   async incrementDownloadCount(id: string): Promise<AttachmentDocument> {
