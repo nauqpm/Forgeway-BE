@@ -192,6 +192,9 @@ export class DocumentsController {
     @Res() res: Response,
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
+    if (doc.storagePath.startsWith('http')) {
+      return res.redirect(doc.storagePath);
+    }
     return res.download(doc.storagePath, doc.originalName);
   }
 
@@ -221,6 +224,9 @@ export class DocumentsController {
     @Res() res: Response,
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
+    if (doc.storagePath.startsWith('http')) {
+      return res.redirect(doc.storagePath);
+    }
     res.setHeader('Content-Type', doc.mimeType);
     res.setHeader(
       'Content-Disposition',

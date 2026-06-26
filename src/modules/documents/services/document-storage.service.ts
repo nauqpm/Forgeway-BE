@@ -2,8 +2,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
-import * as fsSync from 'fs';
-import { extname, join, resolve } from 'path';
+import { extname } from 'path';
+import { CloudinaryService } from '../../images/services/cloudinary.service';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf',
@@ -23,27 +23,12 @@ export interface StoredUploadedFile {
   extension: string;
   filename: string;
   storagePath: string;
+  cloudinaryPublicId?: string;
 }
 
 @Injectable()
 export class DocumentStorageService {
-  private getDynamicPath(subfolder: string = 'documents'): string {
-    const now = new Date();
-
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return join('uploads', subfolder, String(year), month, day);
-  }
-
-  private ensureDirExists(path: string) {
-    const fullPath = resolve(process.cwd(), path);
-
-    if (!fsSync.existsSync(fullPath)) {
-      fsSync.mkdirSync(fullPath, { recursive: true });
-    }
-  }
+  constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -97,44 +82,51 @@ export class DocumentStorageService {
 
     const extension = this.ensureAllowedType(file);
 
-    const relativePath = this.getDynamicPath('documents');
-    this.ensureDirExists(relativePath);
-
-    const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), relativePath, filename);
-
-    await fs.writeFile(storagePath, file.buffer);
+    const isImage = ['.png', '.jpg', '.jpeg', '.webp'].includes(extension);
+    const result = await this.cloudinaryService.uploadFile(file, 'documents', {
+      resourceType: isImage ? 'image' : 'raw',
+    });
 
     return {
       extension,
-      filename,
-      storagePath,
+      filename: result.publicId.split('/').pop() || '',
+      storagePath: result.url,
+      cloudinaryPublicId: result.publicId,
     };
   }
 
   async saveHtmlContent(content: string): Promise<StoredUploadedFile> {
-    const relativePath = this.getDynamicPath('documents');
-    this.ensureDirExists(relativePath);
-
     const extension = '.html';
     const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), relativePath, filename);
 
-    await fs.writeFile(storagePath, content, 'utf8');
+    const multerFile = {
+      buffer: Buffer.from(content, 'utf8'),
+      originalname: filename,
+      mimetype: 'text/html',
+      size: Buffer.byteLength(content, 'utf8'),
+    } as Express.Multer.File;
+
+    const result = await this.cloudinaryService.uploadFile(multerFile, 'documents', {
+      resourceType: 'raw',
+    });
 
     return {
       extension,
-      filename,
-      storagePath,
+      filename: result.publicId.split('/').pop() || '',
+      storagePath: result.url,
+      cloudinaryPublicId: result.publicId,
     };
   }
 
-  async deleteFile(storagePath: string): Promise<void> {
-    try {
-      await fs.unlink(storagePath);
-    } catch {
-      // File may have been deleted before.
-      // DB soft delete is still the main source.
+  async deleteFile(publicId?: string, localPath?: string): Promise<void> {
+    if (publicId) {
+      await this.cloudinaryService.deleteFile(publicId);
+    } else if (localPath) {
+      try {
+        await fs.unlink(localPath);
+      } catch {
+        // File may have been deleted before.
+      }
     }
   }
 }

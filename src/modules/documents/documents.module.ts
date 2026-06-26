@@ -18,6 +18,7 @@ import {
 } from '../workspaces/schemas/workspace.schema';
 import { AuthModule } from '../auth/auth.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
       { name: Workspace.name, schema: WorkspaceSchema },
     ]),
     forwardRef(() => AuthModule),
+    ImagesModule,
   ],
   controllers: [DocumentsController],
   providers: [
