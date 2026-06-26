@@ -1,4 +1,15 @@
+import { getLoginDelaySeconds } from './login-delay.policy';
 import { LoginAttemptThrottleService } from './login-attempt-throttle.service';
+
+describe('getLoginDelaySeconds', () => {
+  it('starts cooldown after the fifth failed attempt', () => {
+    expect(getLoginDelaySeconds(1)).toBe(0);
+    expect(getLoginDelaySeconds(4)).toBe(0);
+    expect(getLoginDelaySeconds(5)).toBe(1);
+    expect(getLoginDelaySeconds(6)).toBe(2);
+    expect(getLoginDelaySeconds(10)).toBe(30);
+  });
+});
 
 describe('LoginAttemptThrottleService', () => {
   const context = { email: ' User@Example.com ', ip: ' 127.0.0.1 ' };
