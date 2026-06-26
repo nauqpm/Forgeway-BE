@@ -3,7 +3,7 @@ import { AppModule } from '../src/app.module';
 import { Attachment, AttachmentDocument } from '../src/modules/attachments/schemas/attachment.schema';
 import { DocumentEntity, DocumentDoc } from '../src/modules/documents/schemas/document.schema';
 import { Image, ImageDocument } from '../src/modules/images/schemas/image.schema';
-import { CloudinaryService } from '../src/modules/images/services/cloudinary.service';
+import { CloudinaryService } from '../src/modules/cloudinary/cloudinary.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as fs from 'fs';

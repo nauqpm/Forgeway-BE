@@ -6,7 +6,7 @@ import {
   CreateAttachmentInput,
 } from '../dtos/attachment-input.dto';
 import { Attachment, AttachmentDocument } from '../schemas/attachment.schema';
-import { CloudinaryService } from '../../images/services/cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 @Injectable()
 export class AttachmentService {

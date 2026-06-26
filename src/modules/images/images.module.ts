@@ -7,8 +7,7 @@ import { ImagesService } from './services/images.service';
 import { ImagesController } from './controllers/images.controller';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
-import { CloudinaryProvider } from './providers/cloudinary.provider';
-import { CloudinaryService } from './services/cloudinary.service';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -17,14 +16,13 @@ import { CloudinaryService } from './services/cloudinary.service';
       storage: memoryStorage(),
     }),
     forwardRef(() => AuthModule),
+    CloudinaryModule,
   ],
   controllers: [ImagesController],
   providers: [
     ImagesService,
     JwtAuthGuard,
-    CloudinaryProvider,
-    CloudinaryService,
   ],
-  exports: [ImagesService, JwtAuthGuard, CloudinaryService],
+  exports: [ImagesService, JwtAuthGuard],
 })
 export class ImagesModule {}

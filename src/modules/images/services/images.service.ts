@@ -10,7 +10,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { Image, ImageDocument } from '../schemas/image.schema';
 import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
-import { CloudinaryService } from './cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ImagesService {

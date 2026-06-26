@@ -33,6 +33,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 
 // Real Estate / Blog Modules
 import { ImagesModule } from './modules/images/images.module';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { VerifyModule } from './modules/verify/verify.module';
 import { validateEnv } from './config/env.validation';
 import { AppController } from './app.controller';
@@ -117,6 +118,7 @@ const mailRejectUnauthorized =
 
     // Real Estate / Blog Modules
     ImagesModule,
+    CloudinaryModule,
 
     // Email
     MailerModule.forRoot({

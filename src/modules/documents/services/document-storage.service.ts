@@ -3,7 +3,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { extname } from 'path';
-import { CloudinaryService } from '../../images/services/cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf',

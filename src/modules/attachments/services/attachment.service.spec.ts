@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { AttachmentService } from './attachment.service';
-import { CloudinaryService } from '../../images/services/cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 describe('AttachmentService', () => {
   let attachmentModel: any;

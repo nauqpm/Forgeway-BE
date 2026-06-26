@@ -11,7 +11,7 @@ import { AttachmentMapper } from './mappers/attachment.mapper';
 import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
 import { AttachmentService } from './services/attachment.service';
 import { TaskAttachmentService } from './services/task-attachment.service';
-import { ImagesModule } from '../images/images.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -23,7 +23,7 @@ import { ImagesModule } from '../images/images.module';
     AuditModule,
     forwardRef(() => WorkspacesModule),
     forwardRef(() => TaskActivitiesModule),
-    ImagesModule,
+    CloudinaryModule,
   ],
   controllers: [TaskAttachmentController, AttachmentsController],
   providers: [AttachmentService, TaskAttachmentService, AttachmentMapper],

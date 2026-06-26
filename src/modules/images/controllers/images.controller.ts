@@ -24,7 +24,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
-import { CloudinaryService } from '../services/cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
 
