@@ -20,6 +20,12 @@ export class DocumentEntity {
   @Prop({ required: true })
   storagePath!: string;
 
+  @Prop({ trim: true })
+  cloudinaryPublicId?: string;
+
+  @Prop({ trim: true })
+  migrationStatus?: string;
+
   @Prop({ required: true })
   mimeType!: string;
 

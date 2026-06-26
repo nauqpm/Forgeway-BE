@@ -4,6 +4,7 @@ import { promises as fs } from 'fs';
 import * as JSZip from 'jszip';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
+import axios from 'axios';
 
 import { DocumentDoc } from '../schemas/document.schema';
 import { DocumentAccessService } from './document-access.service';
@@ -29,7 +30,13 @@ export class DocumentConversionService {
       );
     }
 
-    const content = await fs.readFile(doc.storagePath, 'utf8');
+    let content = '';
+    if (doc.storagePath.startsWith('http')) {
+      const response = await axios.get(doc.storagePath);
+      content = response.data.toString();
+    } else {
+      content = await fs.readFile(doc.storagePath, 'utf8');
+    }
 
     const htmlString = `<!DOCTYPE html>
 <html>
@@ -99,12 +106,26 @@ export class DocumentConversionService {
 
   async renderPreviewHtml(doc: DocumentDoc): Promise<string | null> {
     if (doc.documentType === 'online') {
-      const content = await fs.readFile(doc.storagePath, 'utf8');
+      let content = '';
+      if (doc.storagePath.startsWith('http')) {
+        const response = await axios.get(doc.storagePath);
+        content = response.data.toString();
+      } else {
+        content = await fs.readFile(doc.storagePath, 'utf8');
+      }
 
       return this.wrapPreviewHtml(doc.name, content);
     }
 
-    const buffer = await fs.readFile(doc.storagePath);
+    let buffer: Buffer;
+    if (doc.storagePath.startsWith('http')) {
+      const response = await axios.get(doc.storagePath, {
+        responseType: 'arraybuffer',
+      });
+      buffer = Buffer.from(response.data);
+    } else {
+      buffer = await fs.readFile(doc.storagePath);
+    }
 
     if (doc.extension === '.docx') {
       const result = await mammoth.convertToHtml({ buffer });

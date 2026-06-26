@@ -22,12 +22,17 @@ import { ErrorFactory } from '../../../common/factories/error.factory';
 export interface UserSearchResult {
   id: string;
   fullName?: string;
+  email?: string;
+  phone?: string;
   avatar?: string;
 }
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private cachedUserIds: string[] | null = null;
+  private cacheTimestamp = 0;
+  private readonly CACHE_TTL = 30_000; // 30 seconds cache TTL
 
   constructor(
     private readonly usersRepository: UsersRepository,
@@ -138,6 +143,17 @@ export class UsersService {
     return await this.usersRepository.findAll();
   }
 
+  async getAllUserIds(): Promise<string[]> {
+    const now = Date.now();
+    if (this.cachedUserIds && now - this.cacheTimestamp < this.CACHE_TTL) {
+      return this.cachedUserIds;
+    }
+    const ids = await this.usersRepository.findAllIds();
+    this.cachedUserIds = ids;
+    this.cacheTimestamp = now;
+    return ids;
+  }
+
   async getUsersPage(
     page: number,
     limit: number,
@@ -232,6 +248,8 @@ export class UsersService {
     return {
       id,
       fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
       avatar: user.avatar,
     };
   }

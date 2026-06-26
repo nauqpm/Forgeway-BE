@@ -315,7 +315,7 @@ export class SearchService {
       title: task.title,
       description: task.description,
       key: task.key,
-      url: `/workspaces/${workspace.key}/board?search=${encodeURIComponent(task.key)}`,
+      url: `/workspaces/${workspace.key}/board/key/${encodeURIComponent(task.key)}`,
       workspaceId: String(task.workspaceId),
       workspaceName: workspace.name,
       metadata: {

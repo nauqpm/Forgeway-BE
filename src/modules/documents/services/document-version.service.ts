@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { promises as fs } from 'fs';
 import { Model, Types } from 'mongoose';
+import axios from 'axios';
 
 import {
   DocumentVersionDoc,
@@ -16,6 +17,7 @@ import { DocumentDoc, DocumentEntity } from '../schemas/document.schema';
 
 import { DocumentAccessService } from './document-access.service';
 import { DocumentSanitizerService } from './document-sanitizer.service';
+import { DocumentStorageService } from './document-storage.service';
 
 @Injectable()
 export class DocumentVersionService {
@@ -28,12 +30,19 @@ export class DocumentVersionService {
 
     private readonly accessService: DocumentAccessService,
     private readonly sanitizerService: DocumentSanitizerService,
+    private readonly storageService: DocumentStorageService,
   ) {}
 
   async createVersion(userId: string, id: string, label: string) {
     const doc = await this.accessService.getOwnedOnlineDocument(userId, id);
 
-    const htmlSnapshot = await fs.readFile(doc.storagePath, 'utf8');
+    let htmlSnapshot = '';
+    if (doc.storagePath.startsWith('http')) {
+      const response = await axios.get(doc.storagePath);
+      htmlSnapshot = response.data.toString();
+    } else {
+      htmlSnapshot = await fs.readFile(doc.storagePath, 'utf8');
+    }
 
     const version =
       (await this.documentVersionModel
@@ -87,11 +96,29 @@ export class DocumentVersionService {
 
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
 
-    await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
+    let storagePath = doc.storagePath;
+    let cloudinaryPublicId = doc.cloudinaryPublicId;
+
+    if (doc.storagePath.startsWith('http') || doc.cloudinaryPublicId) {
+      const firstWorkspaceId = doc.workspaceIds?.[0]?.toString();
+      const storedFile = await this.storageService.saveHtmlContent(
+        sanitizedContent,
+        firstWorkspaceId,
+        doc.name,
+      );
+      storagePath = storedFile.storagePath;
+      cloudinaryPublicId = storedFile.cloudinaryPublicId;
+
+      if (doc.cloudinaryPublicId) {
+        await this.storageService.deleteFile(doc.cloudinaryPublicId);
+      }
+    } else {
+      await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
+    }
 
     return this.documentModel.findOneAndUpdate(
       { _id: doc._id },
-      { $set: { size } },
+      { $set: { size, storagePath, cloudinaryPublicId } },
       { new: true },
     );
   }

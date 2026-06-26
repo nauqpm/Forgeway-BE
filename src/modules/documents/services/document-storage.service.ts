@@ -1,9 +1,20 @@
 // Service managing document file storage, including uploaded files, rendered HTML content, and deletions.
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
-import * as fsSync from 'fs';
-import { extname, join, resolve } from 'path';
+import { extname } from 'path';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '../../workspaces/schemas/workspace.schema';
+import {
+  slugifyFilename,
+  generateShortHash,
+  decodeFilename,
+} from '../../cloudinary/cloudinary.utils';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf',
@@ -23,27 +34,16 @@ export interface StoredUploadedFile {
   extension: string;
   filename: string;
   storagePath: string;
+  cloudinaryPublicId?: string;
 }
 
 @Injectable()
 export class DocumentStorageService {
-  private getDynamicPath(subfolder: string = 'documents'): string {
-    const now = new Date();
-
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return join('uploads', subfolder, String(year), month, day);
-  }
-
-  private ensureDirExists(path: string) {
-    const fullPath = resolve(process.cwd(), path);
-
-    if (!fsSync.existsSync(fullPath)) {
-      fsSync.mkdirSync(fullPath, { recursive: true });
-    }
-  }
+  constructor(
+    private readonly cloudinaryService: CloudinaryService,
+    @InjectModel(Workspace.name)
+    private readonly workspaceModel: Model<WorkspaceDocument>,
+  ) {}
 
   ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -86,55 +86,85 @@ export class DocumentStorageService {
 
   async saveUploadedFile(
     file: Express.Multer.File,
+    _workspaceId?: string,
   ): Promise<StoredUploadedFile> {
     if (!file) {
       throw new BadRequestException('File is required');
     }
+    file.originalname = decodeFilename(file.originalname);
 
     if (file.size > 20 * 1024 * 1024) {
       throw new BadRequestException('File size exceeds limit');
     }
 
     const extension = this.ensureAllowedType(file);
+    const isImage = ['.png', '.jpg', '.jpeg', '.webp'].includes(extension);
 
-    const relativePath = this.getDynamicPath('documents');
-    this.ensureDirExists(relativePath);
+    const folder = 'documents';
+    const cleanName = slugifyFilename(file.originalname);
+    const hash = generateShortHash(4);
+    const publicId = isImage
+      ? `${cleanName}_${hash}`
+      : `${cleanName}_${hash}${extension}`;
 
-    const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), relativePath, filename);
-
-    await fs.writeFile(storagePath, file.buffer);
+    const result = await this.cloudinaryService.uploadFile(file, folder, {
+      resourceType: isImage ? 'image' : 'raw',
+      publicId,
+    });
 
     return {
       extension,
-      filename,
-      storagePath,
+      filename: result.publicId.split('/').pop() || '',
+      storagePath: result.url,
+      cloudinaryPublicId: result.publicId,
     };
   }
 
-  async saveHtmlContent(content: string): Promise<StoredUploadedFile> {
-    const relativePath = this.getDynamicPath('documents');
-    this.ensureDirExists(relativePath);
-
+  async saveHtmlContent(
+    content: string,
+    workspaceId?: string,
+    originalName?: string,
+  ): Promise<StoredUploadedFile> {
     const extension = '.html';
-    const filename = `${randomUUID()}${extension}`;
-    const storagePath = resolve(process.cwd(), relativePath, filename);
+    const cleanName = originalName
+      ? slugifyFilename(originalName)
+      : `doc_${randomUUID()}`;
+    const hash = generateShortHash(4);
+    const publicId = `${cleanName}_${hash}${extension}`;
 
-    await fs.writeFile(storagePath, content, 'utf8');
+    const filename = `${publicId}`;
+
+    const multerFile = {
+      buffer: Buffer.from(content, 'utf8'),
+      originalname: filename,
+      mimetype: 'text/html',
+      size: Buffer.byteLength(content, 'utf8'),
+    } as Express.Multer.File;
+
+    const folder = 'documents';
+
+    const result = await this.cloudinaryService.uploadFile(multerFile, folder, {
+      resourceType: 'raw',
+      publicId,
+    });
 
     return {
       extension,
-      filename,
-      storagePath,
+      filename: result.publicId.split('/').pop() || '',
+      storagePath: result.url,
+      cloudinaryPublicId: result.publicId,
     };
   }
 
-  async deleteFile(storagePath: string): Promise<void> {
-    try {
-      await fs.unlink(storagePath);
-    } catch {
-      // File may have been deleted before.
-      // DB soft delete is still the main source.
+  async deleteFile(publicId?: string, localPath?: string): Promise<void> {
+    if (publicId) {
+      await this.cloudinaryService.deleteFile(publicId);
+    } else if (localPath) {
+      try {
+        await fs.unlink(localPath);
+      } catch {
+        // File may have been deleted before.
+      }
     }
   }
 }

@@ -2,25 +2,20 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   HttpCode,
   HttpStatus,
   Param,
   Post,
   Req,
   Res,
-  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { Request, Response } from 'express';
-import { extname } from 'path';
-import * as fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-import { getUploadPath } from '../../../config/upload-storage.config';
+import axios from 'axios';
 import { MAX_ATTACHMENT_SIZE } from '../constants/attachment-file.constants';
 import { attachmentFileFilter } from '../validators/attachment-file.validator';
 import {
@@ -42,10 +37,7 @@ import type { SecurityEventType } from '../../audit/schemas/security-event.schem
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { AttachmentDto } from '../dtos/attachment.dto';
-import {
-  TaskAttachmentFileStream,
-  TaskAttachmentService,
-} from '../services/task-attachment.service';
+import { TaskAttachmentService } from '../services/task-attachment.service';
 
 @ApiTags('Task Attachments')
 @ApiBearerAuth()
@@ -69,26 +61,7 @@ export class TaskAttachmentController {
   @ApiNotFoundResponse({ description: 'Workspace or task not found' })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-
-          const uploadPath = getUploadPath('tasks', String(year), month, day);
-
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-
-          cb(null, uploadPath);
-        },
-        filename: (req, file, callback) => {
-          const ext = extname(file.originalname);
-          callback(null, `${Date.now()}-${uuidv4()}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ATTACHMENT_SIZE },
       fileFilter: attachmentFileFilter,
     }),
@@ -128,10 +101,13 @@ export class TaskAttachmentController {
   @Get(':attachmentId/download')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Download task attachment file' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Attachment file stream' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Redirect to attachment URL',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({
-    description: 'Workspace, task, attachment, or file not found',
+    description: 'Workspace, task, or attachment not found',
   })
   async downloadTaskAttachment(
     @Param('workspaceId') workspaceId: string,
@@ -139,41 +115,57 @@ export class TaskAttachmentController {
     @Param('attachmentId') attachmentId: string,
     @CurrentUser() user: JwtPayload,
     @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<StreamableFile> {
-    const file = await this.taskAttachmentService.getDownloadStream(
+    @Res() response: Response,
+  ): Promise<void> {
+    const attachment = await this.taskAttachmentService.getAttachmentUrl(
       workspaceId,
       taskId,
       attachmentId,
       user.userId,
     );
-    this.setFileHeaders(response, file, 'attachment');
     this.logAttachmentAccess(request, {
       type: SECURITY_EVENT_TYPES.TASK_ATTACHMENT_DOWNLOADED,
       userId: user.userId,
       workspaceId,
       taskId,
       attachmentId,
-      fileName: file.originalName,
-      mimeType: file.mimeType,
+      fileName: attachment.originalName,
+      mimeType: attachment.mimeType,
     });
-    return new StreamableFile(file.stream);
+
+    const fetchUrl = attachment.downloadUrl || attachment.url;
+    if (fetchUrl.startsWith('http')) {
+      try {
+        const streamResponse = await axios.get(fetchUrl, {
+          responseType: 'stream',
+        });
+        response.setHeader('Content-Type', attachment.mimeType);
+        response.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(attachment.originalName)}"`,
+        );
+        streamResponse.data.pipe(response);
+        return;
+      } catch (_err) {
+        return response.redirect(attachment.url);
+      }
+    }
+    return response.redirect(attachment.url);
   }
 
   @Get(':attachmentId/preview')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @Header('X-Content-Type-Options', 'nosniff')
   @ApiOperation({ summary: 'Preview task attachment file inline' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Previewable attachment file stream',
+    description: 'Redirect to previewable attachment URL',
   })
   @ApiBadRequestResponse({
     description: 'Attachment type does not support preview',
   })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({
-    description: 'Workspace, task, attachment, or file not found',
+    description: 'Workspace, task, or attachment not found',
   })
   async previewTaskAttachment(
     @Param('workspaceId') workspaceId: string,
@@ -181,25 +173,42 @@ export class TaskAttachmentController {
     @Param('attachmentId') attachmentId: string,
     @CurrentUser() user: JwtPayload,
     @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<StreamableFile> {
-    const file = await this.taskAttachmentService.getPreviewStream(
+    @Res() response: Response,
+  ): Promise<void> {
+    const attachment = await this.taskAttachmentService.getAttachmentUrl(
       workspaceId,
       taskId,
       attachmentId,
       user.userId,
     );
-    this.setFileHeaders(response, file, 'inline');
     this.logAttachmentAccess(request, {
       type: SECURITY_EVENT_TYPES.TASK_ATTACHMENT_PREVIEWED,
       userId: user.userId,
       workspaceId,
       taskId,
       attachmentId,
-      fileName: file.originalName,
-      mimeType: file.mimeType,
+      fileName: attachment.originalName,
+      mimeType: attachment.mimeType,
     });
-    return new StreamableFile(file.stream);
+
+    const fetchUrl = attachment.downloadUrl || attachment.url;
+    if (fetchUrl.startsWith('http')) {
+      try {
+        const streamResponse = await axios.get(fetchUrl, {
+          responseType: 'stream',
+        });
+        response.setHeader('Content-Type', attachment.mimeType);
+        response.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(attachment.originalName)}"`,
+        );
+        streamResponse.data.pipe(response);
+        return;
+      } catch (_err) {
+        return response.redirect(attachment.url);
+      }
+    }
+    return response.redirect(attachment.url);
   }
 
   @Delete(':attachmentId')
@@ -254,39 +263,5 @@ export class TaskAttachmentController {
         mimeType: payload.mimeType,
       },
     });
-  }
-  private setFileHeaders(
-    response: Response,
-    file: TaskAttachmentFileStream,
-    disposition: 'attachment' | 'inline',
-  ): void {
-    response.setHeader('Content-Type', file.mimeType);
-    response.setHeader('Content-Length', file.size.toString());
-    response.setHeader(
-      'Content-Disposition',
-      this.buildContentDisposition(disposition, file.originalName),
-    );
-    response.setHeader('X-Content-Type-Options', 'nosniff');
-  }
-
-  private buildContentDisposition(
-    disposition: 'attachment' | 'inline',
-    originalName: string,
-  ): string {
-    const fallbackName = this.toAsciiFileName(originalName);
-    const encodedName = encodeURIComponent(originalName)
-      .replace(/['()]/g, escape)
-      .replace(/\*/g, '%2A');
-
-    return `${disposition}; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`;
-  }
-
-  private toAsciiFileName(fileName: string): string {
-    const fallbackName = fileName
-      .replace(/[\r\n"]/g, '')
-      .replace(/[^\x20-\x7E]/g, '_')
-      .trim();
-
-    return fallbackName || 'attachment';
   }
 }

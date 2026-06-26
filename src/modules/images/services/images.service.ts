@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -10,7 +12,18 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { Image, ImageDocument } from '../schemas/image.schema';
 import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
-import { CloudinaryService } from './cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
+import { Page, PageDocument } from '../../pages/schemas/page.schema';
+import { Channel, ChannelDocument } from '../../chat/schemas/channel.schema';
+
+import {
+  slugify,
+  slugifyFilename,
+  generateShortHash,
+  decodeFilename,
+} from '../../cloudinary/cloudinary.utils';
 
 @Injectable()
 export class ImagesService {
@@ -18,6 +31,12 @@ export class ImagesService {
 
   constructor(
     @InjectModel(Image.name) private imageModel: Model<ImageDocument>,
+    @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    @InjectModel(Page.name) private readonly pageModel: Model<PageDocument>,
+    @InjectModel(Channel.name)
+    private readonly channelModel: Model<ChannelDocument>,
+    @Inject(forwardRef(() => WorkspacesService))
+    private readonly workspacesService: WorkspacesService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -29,8 +48,8 @@ export class ImagesService {
     if (!file) {
       throw new BadRequestException('File is required');
     }
+    file.originalname = decodeFilename(file.originalname);
 
-    let url = '';
     const isAvatar =
       dto.type === ImageType.AVATAR ||
       dto.targetType === 'avatar' ||
@@ -38,44 +57,138 @@ export class ImagesService {
       file.fieldname === 'avatars' ||
       dto.type === ('avatars' as any);
 
-    // Auto-route to Cloudinary if it's an avatar
-    if (isAvatar && (file.path || file.buffer)) {
-      let result;
-      if (file.path) {
-        // Case: Uploaded via diskStorage
-        this.logger.log(
-          `Uploading avatar to Cloudinary from path: ${file.path}`,
-        );
-        result = await this.cloudinaryService.uploadImageFromPath(
-          file.path,
-          'avatars',
-        );
+    let folder = 'general';
+    let resolvedWorkspaceId: string | undefined = dto.workspaceId;
+    let channelType: string | undefined = undefined;
 
-        // Cleanup local temp file
+    if (isAvatar) {
+      folder = 'avatars';
+    } else {
+      const targetType = dto.targetType;
+      const targetId = dto.targetId;
+      let targetFolder = targetId;
+
+      // 1. Phân giải workspaceId từ các Model nếu chưa truyền, đồng thời lấy tên/tiêu đề đối tượng
+      if (targetType && targetId && Types.ObjectId.isValid(targetId)) {
         try {
-          await fs.unlink(file.path);
+          const lowerType = targetType.toLowerCase();
+          if (dto.targetName) {
+            targetFolder = `${slugify(dto.targetName)}_${targetId}`;
+            if (lowerType === 'channel' || lowerType === 'channels') {
+              const channel = await this.channelModel
+                .findById(new Types.ObjectId(targetId))
+                .select('type workspaceId')
+                .exec();
+              if (channel) {
+                channelType = channel.type;
+                if (!resolvedWorkspaceId && channel.workspaceId) {
+                  resolvedWorkspaceId = channel.workspaceId.toString();
+                }
+              }
+            }
+          } else {
+            if (lowerType === 'task' || lowerType === 'tasks') {
+              const task = await this.taskModel
+                .findById(new Types.ObjectId(targetId))
+                .select('title workspaceId')
+                .exec();
+              if (task) {
+                if (!resolvedWorkspaceId) {
+                  resolvedWorkspaceId = task.workspaceId?.toString();
+                }
+                targetFolder = `${slugify(task.title)}_${targetId}`;
+              }
+            } else if (lowerType === 'page' || lowerType === 'pages') {
+              const page = await this.pageModel
+                .findById(new Types.ObjectId(targetId))
+                .select('title workspaceId')
+                .exec();
+              if (page) {
+                if (!resolvedWorkspaceId) {
+                  resolvedWorkspaceId = page.workspaceId?.toString();
+                }
+                targetFolder = `${slugify(page.title)}_${targetId}`;
+              }
+            } else if (lowerType === 'channel' || lowerType === 'channels') {
+              const channel = await this.channelModel
+                .findById(new Types.ObjectId(targetId))
+                .select('name type workspaceId')
+                .exec();
+              if (channel) {
+                if (!resolvedWorkspaceId) {
+                  resolvedWorkspaceId = channel.workspaceId?.toString();
+                }
+                targetFolder = `${slugify(channel.name)}_${targetId}`;
+                channelType = channel.type;
+              }
+            }
+          }
         } catch (err) {
-          this.logger.error(
-            `Failed to delete local temp file: ${file.path}`,
+          this.logger.warn(
+            `Failed to resolve target details for ${targetType}:${targetId}`,
             err,
           );
         }
-      } else {
-        // Case: Uploaded via memoryStorage
-        this.logger.log('Uploading avatar to Cloudinary from buffer');
-        result = await this.cloudinaryService.uploadImage(file, 'avatars');
       }
-      url = result.secure_url;
-    } else if (file.path || file.destination) {
-      // Case: Standard local storage
-      const relativePath = file.destination
-        ? file.destination.replace(/\\/g, '/')
-        : 'uploads/others';
-      url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
-    } else {
-      // Fallback
-      url = `/uploads/others/${file.filename}`;
+
+      // 2. Xác định cấu trúc thư mục Cloudinary
+      if (resolvedWorkspaceId) {
+        let wsFolder = resolvedWorkspaceId;
+        if (dto.workspaceName) {
+          wsFolder = `${slugify(dto.workspaceName)}_${resolvedWorkspaceId}`;
+        } else if (Types.ObjectId.isValid(resolvedWorkspaceId)) {
+          try {
+            const ws =
+              await this.workspacesService.findById(resolvedWorkspaceId);
+            if (ws) {
+              wsFolder = `${slugify(ws.name)}_${resolvedWorkspaceId}`;
+            }
+          } catch {
+            wsFolder = resolvedWorkspaceId;
+          }
+        }
+
+        const lowerType = targetType ? targetType.toLowerCase() : 'other';
+        if (lowerType === 'task' || lowerType === 'tasks') {
+          folder = `workspaces/${wsFolder}/tasks/${targetFolder}`;
+        } else if (lowerType === 'page' || lowerType === 'pages') {
+          folder = `workspaces/${wsFolder}/pages/${targetFolder}`;
+        } else if (lowerType === 'channel' || lowerType === 'channels') {
+          folder = `workspaces/${wsFolder}/chat/${targetFolder}`;
+        } else {
+          folder = `workspaces/${wsFolder}/attachments/${lowerType}/${targetFolder}`;
+        }
+      } else {
+        // Chat general/DM/Announcement hoặc upload ngoài Workspace
+        const lowerType = targetType ? targetType.toLowerCase() : 'other';
+        if (lowerType === 'channel' || lowerType === 'channels') {
+          if (channelType === 'dm') {
+            folder = `chat/dm/${targetFolder}`;
+          } else {
+            folder = `chat/global/${targetFolder}`;
+          }
+        } else if (targetType && targetId) {
+          folder = `attachments/${lowerType}/${targetFolder}`;
+        } else {
+          folder = 'general';
+        }
+      }
     }
+
+    const cleanName = slugifyFilename(file.originalname);
+    const hash = generateShortHash(4);
+    const publicId = `${cleanName}_${hash}`;
+
+    this.logger.log(
+      `Uploading image to Cloudinary folder: ${folder} with publicId: ${publicId}`,
+    );
+    const result = await this.cloudinaryService.uploadFile(file, folder, {
+      publicId,
+    });
+
+    const isChannel =
+      dto.targetType?.toLowerCase() === 'channel' ||
+      dto.targetType?.toLowerCase() === 'channels';
 
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
@@ -83,10 +196,19 @@ export class ImagesService {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      url: url,
+      url: result.url,
+      cloudinaryPublicId: result.publicId,
       thumbnailUrl: dto.thumbnailUrl,
       type: dto.type || (isAvatar ? ImageType.AVATAR : 'other'),
       targetId: dto.targetId,
+      targetType: dto.targetType,
+      channelId:
+        isChannel && dto.targetId
+          ? new Types.ObjectId(dto.targetId)
+          : undefined,
+      workspaceId: resolvedWorkspaceId
+        ? new Types.ObjectId(resolvedWorkspaceId)
+        : undefined,
       downloadCount: 0,
     });
 
@@ -179,16 +301,27 @@ export class ImagesService {
   async delete(id: string): Promise<{ success: boolean; message: string }> {
     const image = await this.findById(id);
 
-    const filePath = join(process.cwd(), 'uploads', image.filename);
-    try {
-      await fs.unlink(filePath);
-    } catch {
-      console.warn(`File not found on disk: ${filePath}`);
+    if (image.cloudinaryPublicId) {
+      await this.cloudinaryService.deleteFile(image.cloudinaryPublicId);
+    } else {
+      const filePath = join(process.cwd(), 'uploads', image.filename);
+      try {
+        await fs.unlink(filePath);
+      } catch {
+        console.warn(`File not found on disk: ${filePath}`);
+      }
     }
 
     await this.imageModel.findByIdAndDelete(id).exec();
 
     return { success: true, message: 'Image deleted successfully' };
+  }
+
+  async deleteByUrl(url: string): Promise<void> {
+    const image = await this.imageModel.findOne({ url }).exec();
+    if (image) {
+      await this.delete(image._id.toString());
+    }
   }
 
   async incrementDownloadCount(id: string): Promise<ImageDocument> {

@@ -4,20 +4,20 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Query,
   Request,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Response } from 'express';
+import axios from 'axios';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-import { getUploadPath } from '../../../config/upload-storage.config';
+import { memoryStorage } from 'multer';
 import { MAX_ATTACHMENT_SIZE } from '../constants/attachment-file.constants';
 import { attachmentFileFilter } from '../validators/attachment-file.validator';
 import {
@@ -48,6 +48,68 @@ export class AttachmentsController {
     return this.attachmentService.findByTarget(targetType, targetId);
   }
 
+  @Get('download-by-url')
+  @ApiOperation({ summary: 'Download attachment by URL' })
+  async downloadByUrl(@Query('url') url: string, @Res() res: Response) {
+    if (!url) {
+      throw new BadRequestException('URL parameter is required');
+    }
+
+    const attachment = await this.attachmentService.findByUrl(url);
+    if (!attachment || !attachment.url) {
+      throw new NotFoundException('Attachment not found or has no URL');
+    }
+
+    const attachmentUrl = attachment.url;
+
+    try {
+      await this.attachmentService.incrementDownloadCount(
+        attachment._id.toString(),
+      );
+    } catch (_e) {
+      // Ignore
+    }
+
+    if (attachment.cloudinaryPublicId) {
+      let fetchUrl: string = attachmentUrl;
+      try {
+        const { v2: cloudinary } = require('cloudinary');
+        fetchUrl = cloudinary.utils.private_download_url(
+          attachment.cloudinaryPublicId,
+          '',
+          {
+            resource_type: attachment.mimeType?.startsWith('image/')
+              ? 'image'
+              : 'raw',
+            type: 'upload',
+          },
+        );
+      } catch (_err) {
+        // Fallback
+      }
+
+      try {
+        const streamResponse = await axios.get(fetchUrl, {
+          responseType: 'stream',
+        });
+        res.setHeader(
+          'Content-Type',
+          attachment.mimeType || 'application/octet-stream',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(attachment.originalName || attachment.filename || 'file')}"`,
+        );
+        streamResponse.data.pipe(res);
+        return;
+      } catch (_err) {
+        return res.redirect(attachmentUrl);
+      }
+    }
+
+    return res.redirect(attachmentUrl);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get attachment by ID' })
   async findById(@Param('id') id: string) {
@@ -64,46 +126,13 @@ export class AttachmentsController {
         file: { type: 'string', format: 'binary' },
         targetType: { type: 'string', enum: ['task', 'page'] },
         targetId: { type: 'string' },
+        workspaceId: { type: 'string' },
       },
     },
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-
-          // Get module from body or query
-          const targetType =
-            req.body?.targetType || req.query?.targetType || 'others';
-          const moduleFolder =
-            targetType === 'task'
-              ? 'tasks'
-              : targetType === 'page'
-                ? 'pages'
-                : 'others';
-
-          const uploadPath = getUploadPath(
-            moduleFolder,
-            String(year),
-            month,
-            day,
-          );
-
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-
-          cb(null, uploadPath);
-        },
-        filename: (req, file, callback) => {
-          const ext = extname(file.originalname);
-          callback(null, `${Date.now()}-${uuidv4()}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ATTACHMENT_SIZE },
       fileFilter: attachmentFileFilter,
     }),
@@ -122,9 +151,14 @@ export class AttachmentsController {
 
     const targetType = bodyTargetType || queryTargetType;
     const targetId = bodyTargetId || queryTargetId;
+    const workspaceId = req.body?.workspaceId || req.query?.workspaceId;
+    const workspaceName = req.body?.workspaceName || req.query?.workspaceName;
+    const targetName = req.body?.targetName || req.query?.targetName;
 
-    if (!targetType || !['task', 'page'].includes(targetType)) {
-      throw new BadRequestException('targetType must be "task" or "page"');
+    if (!targetType || !['task', 'page', 'channel'].includes(targetType)) {
+      throw new BadRequestException(
+        'targetType must be "task", "page" or "channel"',
+      );
     }
     if (!targetId) {
       throw new BadRequestException('targetId is required');
@@ -134,8 +168,11 @@ export class AttachmentsController {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      targetType: targetType as 'task' | 'page',
+      targetType: targetType as 'task' | 'page' | 'channel',
       targetId,
+      workspaceId,
+      workspaceName,
+      targetName,
     };
 
     return this.attachmentService.create(input, file, req.user.userId);
@@ -148,6 +185,8 @@ export class AttachmentsController {
     await this.attachmentService.softDelete(id, req.user.userId);
     return { message: 'Attachment deleted successfully' };
   }
+
+
 
   @Post(':id/download')
   @ApiOperation({ summary: 'Increment attachment download count' })

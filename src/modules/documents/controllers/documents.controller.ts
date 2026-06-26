@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response } from 'express';
+import axios from 'axios';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -192,6 +193,40 @@ export class DocumentsController {
     @Res() res: Response,
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
+    if (doc.storagePath.startsWith('http')) {
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        try {
+          const { v2: cloudinary } = require('cloudinary');
+          fetchUrl = cloudinary.utils.private_download_url(
+            doc.cloudinaryPublicId,
+            '',
+            {
+              resource_type: doc.mimeType?.startsWith('image/')
+                ? 'image'
+                : 'raw',
+              type: 'upload',
+            },
+          );
+        } catch (_err) {
+          // Fallback
+        }
+      }
+      try {
+        const streamResponse = await axios.get(fetchUrl, {
+          responseType: 'stream',
+        });
+        res.setHeader('Content-Type', doc.mimeType);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${encodeURIComponent(doc.originalName)}"`,
+        );
+        streamResponse.data.pipe(res);
+        return;
+      } catch (_err) {
+        return res.redirect(doc.storagePath);
+      }
+    }
     return res.download(doc.storagePath, doc.originalName);
   }
 
@@ -221,6 +256,40 @@ export class DocumentsController {
     @Res() res: Response,
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
+    if (doc.storagePath.startsWith('http')) {
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        try {
+          const { v2: cloudinary } = require('cloudinary');
+          fetchUrl = cloudinary.utils.private_download_url(
+            doc.cloudinaryPublicId,
+            '',
+            {
+              resource_type: doc.mimeType?.startsWith('image/')
+                ? 'image'
+                : 'raw',
+              type: 'upload',
+            },
+          );
+        } catch (_err) {
+          // Fallback
+        }
+      }
+      try {
+        const streamResponse = await axios.get(fetchUrl, {
+          responseType: 'stream',
+        });
+        res.setHeader('Content-Type', doc.mimeType);
+        res.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        );
+        streamResponse.data.pipe(res);
+        return;
+      } catch (_err) {
+        return res.redirect(doc.storagePath);
+      }
+    }
     res.setHeader('Content-Type', doc.mimeType);
     res.setHeader(
       'Content-Disposition',

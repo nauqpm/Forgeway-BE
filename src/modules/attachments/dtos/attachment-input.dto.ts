@@ -10,7 +10,9 @@ export interface CreateAttachmentInput {
   originalName: string;
   mimeType: string;
   size: number;
-  targetType: 'task' | 'page';
+  targetType: 'task' | 'page' | 'channel';
   targetId: string;
   workspaceId?: string;
+  workspaceName?: string;
+  targetName?: string;
 }

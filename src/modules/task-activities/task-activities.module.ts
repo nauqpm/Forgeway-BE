@@ -21,9 +21,7 @@ import { TaskActivitiesService } from './services/task-activities.service';
     ]),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => AuthModule),
-    AuthModule,
     forwardRef(() => AuditModule),
-    AuditModule,
   ],
   controllers: [TaskActivitiesController],
   providers: [

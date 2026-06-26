@@ -19,6 +19,8 @@ import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-ty
 import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { DOMAIN_EVENT_TYPES } from '../../../shared/events/domain-events/domain-event-types';
+import { ChannelMembersService } from './channel-members.service';
+import { CustomChannelsService } from './custom-channels.service';
 
 @Injectable()
 export class ChannelsService {
@@ -36,12 +38,16 @@ export class ChannelsService {
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly realtimePublisher: RealtimePublisher,
+    @Inject(forwardRef(() => ChannelMembersService))
+    private readonly channelMembersService: ChannelMembersService,
+    @Inject(forwardRef(() => CustomChannelsService))
+    private readonly customChannelsService: CustomChannelsService,
   ) {}
 
   async onModuleInit() {
     await this.ensureGlobalChannels();
     await this.syncWorkspaceChannels();
-    await this.cleanupOrphanedMembers();
+    await this.cleanupOrphanedAndDemotedMembers();
   }
 
   async ensureGlobalChannels(): Promise<void> {
@@ -218,7 +224,12 @@ export class ChannelsService {
     // Self-healing: Always ensure global channels exist before fetching
     await this.ensureGlobalChannels();
 
-    const { query, userWorkspaceIds } = await this.getChannelsQuery(userId);
+    const userWorkspaces = await this.workspacesService.findByUserId(userId);
+    const userWorkspaceIds = userWorkspaces.map(w => w._id);
+    const user = await this.usersService.getUserById(userId);
+    const isSuperAdmin = user?.role === 'super_admin';
+
+    const query = this.buildChannelsQuery(userId, userWorkspaces, isSuperAdmin);
 
     let channels = await this.channelsRepository.model.find(query).exec();
 
@@ -409,7 +420,11 @@ export class ChannelsService {
   async findMyChannelIds(userId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(userId)) return [];
 
-    const { query } = await this.getChannelsQuery(userId);
+    const userWorkspaces = await this.workspacesService.findByUserId(userId);
+    const user = await this.usersService.getUserById(userId);
+    const isSuperAdmin = user?.role === 'super_admin';
+
+    const query = this.buildChannelsQuery(userId, userWorkspaces, isSuperAdmin);
 
     const channels = await this.channelsRepository.model
       .find(query, { _id: 1 })
@@ -418,14 +433,11 @@ export class ChannelsService {
     return channels.map(c => c._id.toString());
   }
 
-  private async getChannelsQuery(
+  private buildChannelsQuery(
     userId: string,
-  ): Promise<{ query: any; userWorkspaceIds: Types.ObjectId[] }> {
-    const userWorkspaces = await this.workspacesService.findByUserId(userId);
-    const userWorkspaceIds = userWorkspaces.map(w => w._id);
-    const user = await this.usersService.getUserById(userId);
-    const isSuperAdmin = user?.role === 'super_admin';
-
+    userWorkspaces: any[],
+    isSuperAdmin: boolean,
+  ): any {
     const adminWorkspaceIds: Types.ObjectId[] = [];
     const memberWorkspaceIds: Types.ObjectId[] = [];
 
@@ -444,7 +456,7 @@ export class ChannelsService {
       }
     }
 
-    const query = isSuperAdmin
+    return isSuperAdmin
       ? {
           $or: [
             { type: 'general' },
@@ -473,8 +485,6 @@ export class ChannelsService {
             { type: 'dm', members: new Types.ObjectId(userId) },
           ],
         };
-
-    return { query, userWorkspaceIds };
   }
 
   async findByWorkspace(workspaceId: string): Promise<ChannelDocument[]> {
@@ -501,7 +511,10 @@ export class ChannelsService {
     const channel = await this.findById(channelId);
     if (!channel) return false;
 
-    const role = await this.resolveChannelRole(userId, channel);
+    const role = await this.channelMembersService.resolveChannelRole(
+      userId,
+      channel,
+    );
     return role !== null && role !== 'not_joined';
   }
 
@@ -512,10 +525,7 @@ export class ChannelsService {
     if (!channel) return [];
 
     if (channel.type === 'general' || channel.type === 'announcement') {
-      const allUsers = await this.usersService.getAllUsers();
-      return allUsers
-        .map(u => u._id?.toString() || (u as any).id?.toString() || '')
-        .filter(id => Types.ObjectId.isValid(id));
+      return this.usersService.getAllUserIds();
     }
 
     if (channel.type === 'workspace' && channel.workspaceId) {
@@ -662,6 +672,7 @@ export class ChannelsService {
         phone: (u as any).phone,
         avatar: (u as any).avatar,
         role: roleMap.get(u._id?.toString() || '') || 'member',
+        globalRole: u.role,
       }));
     }
 
@@ -687,6 +698,7 @@ export class ChannelsService {
         phone: (u as any).phone,
         avatar: (u as any).avatar,
         role: roleMap.get(u._id?.toString() || '') || 'channel_member',
+        globalRole: u.role,
       }));
     }
 
@@ -721,848 +733,6 @@ export class ChannelsService {
     }
 
     return [];
-  }
-
-  // ==========================================
-  // CUSTOM CHANNELS LOGIC & HELPMETHODS
-  // ==========================================
-
-  async resolveChannelRole(
-    userId: string,
-    channel: any,
-  ): Promise<'channel_admin' | 'channel_member' | 'not_joined' | null> {
-    const user = await this.usersService.getUserById(userId);
-    if (user?.role === 'super_admin') {
-      return 'channel_admin';
-    }
-
-    let wsRole: string | null = null;
-    if (channel.workspaceId) {
-      wsRole = await this.workspaceMemberService.getMemberRole(
-        channel.workspaceId.toString(),
-        userId,
-      );
-    }
-
-    if (wsRole === 'workspace_admin') {
-      return 'channel_admin';
-    }
-
-    if (wsRole === 'viewer') {
-      return null;
-    }
-
-    if (channel.type === 'custom') {
-      if (!wsRole) return null;
-
-      const channelMember = channel.channelMembers?.find(
-        (m: any) => m.userId.toString() === userId,
-      );
-
-      if (!channelMember) {
-        return channel.isPrivate ? null : 'not_joined';
-      }
-
-      return channelMember.role;
-    }
-
-    if (channel.type === 'general' || channel.type === 'announcement') {
-      return 'channel_member';
-    }
-
-    if (channel.type === 'dm') {
-      const isMember = channel.members.some(
-        (m: any) => m.toString() === userId,
-      );
-      return isMember ? 'channel_member' : null;
-    }
-
-    if (channel.type === 'workspace') {
-      return wsRole ? 'channel_member' : null;
-    }
-
-    return null;
-  }
-
-  async createCustomChannel(
-    workspaceId: string,
-    createdBy: string,
-    dto: { name: string; isPrivate?: boolean; description?: string },
-  ): Promise<ChannelDocument> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(createdBy)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const workspace = await this.workspacesService.findById(workspaceId);
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    const customChannelCount =
-      await this.channelsRepository.model.countDocuments({
-        workspaceId: new Types.ObjectId(workspaceId),
-        type: 'custom',
-      });
-    if (customChannelCount >= 20) {
-      throw new BadRequestException(
-        'Maximum limit of 20 custom channels reached for this workspace',
-      );
-    }
-
-    const wsRole = await this.workspaceMemberService.getMemberRole(
-      workspaceId,
-      createdBy,
-    );
-    const user = await this.usersService.getUserById(createdBy);
-    const isSuperAdmin = user?.role === 'super_admin';
-
-    if (!wsRole && !isSuperAdmin) {
-      throw new ForbiddenException('You do not belong to this workspace');
-    }
-    if (wsRole === 'viewer') {
-      throw new ForbiddenException('Viewers cannot create custom channels');
-    }
-
-    const channelMembers: any[] = [
-      {
-        userId: new Types.ObjectId(createdBy),
-        role: 'channel_admin',
-        joinedAt: new Date(),
-      },
-    ];
-
-    const wsMembers = await this.workspaceMemberService.getMembers(workspaceId);
-    for (const member of wsMembers) {
-      const memberUserIdStr = member.userId?.toString() || '';
-      if (
-        member.role === 'workspace_admin' &&
-        memberUserIdStr !== createdBy &&
-        Types.ObjectId.isValid(memberUserIdStr)
-      ) {
-        channelMembers.push({
-          userId: new Types.ObjectId(memberUserIdStr),
-          role: 'channel_admin',
-          joinedAt: new Date(),
-        });
-      }
-    }
-
-    const channel = await this.channelsRepository.model.create({
-      name: dto.name,
-      type: 'custom',
-      description: dto.description || '',
-      workspaceId: new Types.ObjectId(workspaceId),
-      isPrivate: !!dto.isPrivate,
-      createdBy: new Types.ObjectId(createdBy),
-      channelMembers,
-    });
-
-    const envelope = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_CREATED,
-      data: channel,
-      occurredAt: new Date().toISOString(),
-    };
-    this.realtimePublisher.emit(
-      RoomBuilder.workspace(workspaceId),
-      envelope,
-      'chat',
-    );
-
-    return channel;
-  }
-
-  async findWorkspaceCustomChannels(
-    workspaceId: string,
-    userId: string,
-  ): Promise<ChannelDocument[]> {
-    if (
-      !Types.ObjectId.isValid(workspaceId) ||
-      !Types.ObjectId.isValid(userId)
-    ) {
-      return [];
-    }
-
-    const wsRole = await this.workspaceMemberService.getMemberRole(
-      workspaceId,
-      userId,
-    );
-    const user = await this.usersService.getUserById(userId);
-    const isSuperAdmin = user?.role === 'super_admin';
-    const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
-
-    let query: any;
-    if (isAdmin) {
-      query = {
-        workspaceId: new Types.ObjectId(workspaceId),
-        type: 'custom',
-      };
-    } else {
-      query = {
-        workspaceId: new Types.ObjectId(workspaceId),
-        type: 'custom',
-        $or: [
-          { isPrivate: false },
-          {
-            isPrivate: true,
-            'channelMembers.userId': new Types.ObjectId(userId),
-          },
-        ],
-      };
-    }
-
-    return this.channelsRepository.model.find(query).exec();
-  }
-
-  async updateCustomChannel(
-    channelId: string,
-    dto: { name?: string; description?: string; isPrivate?: boolean },
-    requesterId: string,
-  ): Promise<ChannelDocument> {
-    if (
-      !Types.ObjectId.isValid(channelId) ||
-      !Types.ObjectId.isValid(requesterId)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    let channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only update custom channels');
-    }
-
-    const role = await this.resolveChannelRole(requesterId, channel);
-    if (role !== 'channel_admin') {
-      throw new ForbiddenException(
-        'Only channel admins can update the channel',
-      );
-    }
-
-    if (dto.name !== undefined) {
-      channel.name = dto.name;
-    }
-    if (dto.description !== undefined) {
-      channel.description = dto.description;
-    }
-
-    await channel.save();
-
-    if (dto.isPrivate !== undefined && dto.isPrivate !== channel.isPrivate) {
-      channel = await this.setVisibility(channelId, dto.isPrivate, requesterId);
-    } else {
-      const envelope = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_UPDATED,
-        data: channel,
-        occurredAt: new Date().toISOString(),
-      };
-      this.realtimePublisher.emit(
-        RoomBuilder.channel(channelId),
-        envelope,
-        'chat',
-      );
-      if (channel.workspaceId) {
-        this.realtimePublisher.emit(
-          RoomBuilder.workspace(channel.workspaceId.toString()),
-          envelope,
-          'chat',
-        );
-      }
-    }
-
-    return channel;
-  }
-
-  async deleteCustomChannel(
-    channelId: string,
-    requesterId: string,
-  ): Promise<void> {
-    if (
-      !Types.ObjectId.isValid(channelId) ||
-      !Types.ObjectId.isValid(requesterId)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only delete custom channels');
-    }
-
-    const role = await this.resolveChannelRole(requesterId, channel);
-    if (role !== 'channel_admin') {
-      throw new ForbiddenException(
-        'Only channel admins can delete this channel',
-      );
-    }
-
-    const deleted = await this.channelsRepository.model
-      .findByIdAndDelete(channelId)
-      .exec();
-    if (deleted) {
-      const envelope = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_DELETED,
-        data: {
-          channelId,
-          workspaceId: channel.workspaceId?.toString() || null,
-        },
-        occurredAt: new Date().toISOString(),
-      };
-      this.realtimePublisher.emit(
-        RoomBuilder.channel(channelId),
-        envelope,
-        'chat',
-      );
-      const wsId = channel.workspaceId?.toString();
-      if (wsId) {
-        this.realtimePublisher.emit(
-          RoomBuilder.workspace(wsId),
-          envelope,
-          'chat',
-        );
-      }
-    }
-  }
-
-  async joinChannel(
-    channelId: string,
-    userId: string,
-  ): Promise<ChannelDocument> {
-    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only join custom channels');
-    }
-
-    if (channel.isPrivate) {
-      if (!channel.workspaceId) {
-        throw new ForbiddenException('Channel does not belong to a workspace');
-      }
-      const wsRole = await this.workspaceMemberService.getMemberRole(
-        channel.workspaceId.toString(),
-        userId,
-      );
-      const user = await this.usersService.getUserById(userId);
-      const isSuperAdmin = user?.role === 'super_admin';
-      const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
-
-      if (!isAdmin) {
-        throw new ForbiddenException(
-          'Cannot join a private channel directly. You must be invited',
-        );
-      }
-    }
-
-    if (!channel.workspaceId) {
-      throw new ForbiddenException('Channel does not belong to a workspace');
-    }
-    const workspaceIdStr = channel.workspaceId.toString();
-
-    const wsRole = await this.workspaceMemberService.getMemberRole(
-      workspaceIdStr,
-      userId,
-    );
-    if (!wsRole || wsRole === 'viewer') {
-      throw new ForbiddenException(
-        'You do not have permission to join this channel',
-      );
-    }
-
-    const isAlreadyMember = channel.channelMembers?.some(
-      m => m.userId.toString() === userId,
-    );
-    if (isAlreadyMember) {
-      return channel;
-    }
-
-    const updated = await this.channelsRepository.model
-      .findByIdAndUpdate(
-        channelId,
-        {
-          $push: {
-            channelMembers: {
-              userId: new Types.ObjectId(userId),
-              role: 'channel_member',
-              joinedAt: new Date(),
-            },
-          },
-        },
-        { new: true },
-      )
-      .exec();
-
-    if (!updated) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    const envelope = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_ADDED,
-      data: {
-        channelId,
-        userId,
-        role: 'channel_member',
-        joinedAt: new Date(),
-      },
-      occurredAt: new Date().toISOString(),
-    };
-    this.realtimePublisher.emit(
-      RoomBuilder.channel(channelId),
-      envelope,
-      'chat',
-    );
-    this.realtimePublisher.emit(
-      RoomBuilder.workspace(workspaceIdStr),
-      envelope,
-      'chat',
-    );
-
-    return updated;
-  }
-
-  async leaveChannel(
-    channelId: string,
-    userId: string,
-  ): Promise<ChannelDocument> {
-    if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (!channel.workspaceId) {
-      throw new BadRequestException('Channel does not belong to a workspace');
-    }
-    const workspaceIdStr = channel.workspaceId.toString();
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only leave custom channels');
-    }
-
-    const member = channel.channelMembers?.find(
-      m => m.userId.toString() === userId,
-    );
-    if (!member) {
-      throw new BadRequestException('You are not a member of this channel');
-    }
-
-    if (member.role === 'channel_admin') {
-      const otherAdmins = channel.channelMembers.filter(
-        m => m.userId.toString() !== userId && m.role === 'channel_admin',
-      );
-      if (otherAdmins.length === 0) {
-        const otherMembers = channel.channelMembers.filter(
-          m => m.userId.toString() !== userId,
-        );
-        if (otherMembers.length > 0) {
-          throw new BadRequestException(
-            'You are the last channel admin. Promote another member to admin before leaving',
-          );
-        }
-      }
-    }
-
-    const updated = await this.channelsRepository.model
-      .findByIdAndUpdate(
-        channelId,
-        {
-          $pull: {
-            channelMembers: { userId: new Types.ObjectId(userId) },
-          },
-        },
-        { new: true },
-      )
-      .exec();
-
-    if (!updated) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    const envelope = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_REMOVED,
-      data: {
-        channelId,
-        userId,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-    this.realtimePublisher.emit(
-      RoomBuilder.channel(channelId),
-      envelope,
-      'chat',
-    );
-    this.realtimePublisher.emit(
-      RoomBuilder.workspace(workspaceIdStr),
-      envelope,
-      'chat',
-    );
-
-    return updated;
-  }
-
-  async inviteMembers(
-    channelId: string,
-    userIds: string[],
-    requesterId: string,
-  ): Promise<ChannelDocument> {
-    if (
-      !Types.ObjectId.isValid(channelId) ||
-      !Types.ObjectId.isValid(requesterId)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only invite to custom channels');
-    }
-
-    const role = await this.resolveChannelRole(requesterId, channel);
-    if (role !== 'channel_admin') {
-      throw new ForbiddenException('Only channel admins can invite members');
-    }
-
-    const validUserIds = userIds.filter(id => Types.ObjectId.isValid(id));
-    if (validUserIds.length === 0) {
-      throw new BadRequestException('No valid user IDs provided');
-    }
-
-    if (!channel.workspaceId) {
-      throw new BadRequestException('Channel does not belong to a workspace');
-    }
-    const workspaceIdStr = channel.workspaceId.toString();
-    const workspaceMembersSet =
-      await this.workspaceMemberService.getMemberIdsSet(workspaceIdStr);
-
-    const membersToAdd: any[] = [];
-    const addedMembersDetail: any[] = [];
-
-    for (const uId of validUserIds) {
-      if (!workspaceMembersSet.has(uId)) {
-        continue;
-      }
-
-      const isAlreadyMember = channel.channelMembers?.some(
-        m => m.userId.toString() === uId,
-      );
-      if (isAlreadyMember) {
-        continue;
-      }
-
-      const joinedAt = new Date();
-      membersToAdd.push({
-        userId: new Types.ObjectId(uId),
-        role: 'channel_member',
-        joinedAt,
-        invitedBy: new Types.ObjectId(requesterId),
-      });
-
-      addedMembersDetail.push({
-        userId: uId,
-        role: 'channel_member',
-        joinedAt,
-      });
-    }
-
-    if (membersToAdd.length === 0) {
-      return channel;
-    }
-
-    const updated = await this.channelsRepository.model
-      .findByIdAndUpdate(
-        channelId,
-        {
-          $push: {
-            channelMembers: { $each: membersToAdd },
-          },
-        },
-        { new: true },
-      )
-      .exec();
-
-    if (!updated) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    for (const item of addedMembersDetail) {
-      const envelope = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_ADDED,
-        data: {
-          channelId,
-          userId: item.userId,
-          role: item.role,
-          joinedAt: item.joinedAt,
-          invitedBy: requesterId,
-        },
-        occurredAt: new Date().toISOString(),
-      };
-      this.realtimePublisher.emit(
-        RoomBuilder.channel(channelId),
-        envelope,
-        'chat',
-      );
-      this.realtimePublisher.emit(
-        RoomBuilder.user(item.userId),
-        envelope,
-        'chat',
-      );
-    }
-
-    return updated;
-  }
-
-  async kickMember(
-    channelId: string,
-    targetUserId: string,
-    requesterId: string,
-  ): Promise<ChannelDocument> {
-    if (
-      !Types.ObjectId.isValid(channelId) ||
-      !Types.ObjectId.isValid(targetUserId) ||
-      !Types.ObjectId.isValid(requesterId)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only kick from custom channels');
-    }
-
-    const role = await this.resolveChannelRole(requesterId, channel);
-    if (role !== 'channel_admin') {
-      throw new ForbiddenException('Only channel admins can kick members');
-    }
-
-    const member = channel.channelMembers?.find(
-      m => m.userId.toString() === targetUserId,
-    );
-    if (!member) {
-      throw new BadRequestException('User is not a member of this channel');
-    }
-
-    if (targetUserId === requesterId) {
-      throw new BadRequestException('Use leave endpoint to leave the channel');
-    }
-
-    const updated = await this.channelsRepository.model
-      .findByIdAndUpdate(
-        channelId,
-        {
-          $pull: {
-            channelMembers: { userId: new Types.ObjectId(targetUserId) },
-          },
-        },
-        { new: true },
-      )
-      .exec();
-
-    if (!updated) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    const envelopeRemoved = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_REMOVED,
-      data: {
-        channelId,
-        userId: targetUserId,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-    this.realtimePublisher.emit(
-      RoomBuilder.channel(channelId),
-      envelopeRemoved,
-      'chat',
-    );
-
-    const envelopeKicked = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_KICKED_FROM_CHANNEL,
-      data: {
-        channelId,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-    this.realtimePublisher.emit(
-      RoomBuilder.user(targetUserId),
-      envelopeKicked,
-      'chat',
-    );
-
-    return updated;
-  }
-
-  async updateMemberRole(
-    channelId: string,
-    targetUserId: string,
-    newRole: 'channel_admin' | 'channel_member',
-    requesterId: string,
-  ): Promise<ChannelDocument> {
-    if (
-      !Types.ObjectId.isValid(channelId) ||
-      !Types.ObjectId.isValid(targetUserId) ||
-      !Types.ObjectId.isValid(requesterId)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only update roles in custom channels');
-    }
-
-    const requesterRole = await this.resolveChannelRole(requesterId, channel);
-    if (requesterRole !== 'channel_admin') {
-      throw new ForbiddenException('Only channel admins can change roles');
-    }
-
-    const isMember = channel.channelMembers?.some(
-      m => m.userId.toString() === targetUserId,
-    );
-    if (!isMember) {
-      throw new BadRequestException('User is not a member of this channel');
-    }
-
-    const updated = await this.channelsRepository.model
-      .findOneAndUpdate(
-        {
-          _id: channelId,
-          'channelMembers.userId': new Types.ObjectId(targetUserId),
-        },
-        { $set: { 'channelMembers.$.role': newRole } },
-        { new: true },
-      )
-      .exec();
-
-    if (!updated) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    const envelope = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_UPDATED,
-      data: updated,
-      occurredAt: new Date().toISOString(),
-    };
-    this.realtimePublisher.emit(
-      RoomBuilder.channel(channelId),
-      envelope,
-      'chat',
-    );
-
-    return updated;
-  }
-
-  async setVisibility(
-    channelId: string,
-    isPrivate: boolean,
-    requesterId: string,
-  ): Promise<ChannelDocument> {
-    if (
-      !Types.ObjectId.isValid(channelId) ||
-      !Types.ObjectId.isValid(requesterId)
-    ) {
-      throw new BadRequestException('Invalid IDs');
-    }
-
-    const channel = await this.findById(channelId);
-    if (!channel) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type !== 'custom') {
-      throw new BadRequestException('Can only modify custom channels');
-    }
-
-    const role = await this.resolveChannelRole(requesterId, channel);
-    if (role !== 'channel_admin') {
-      throw new ForbiddenException('Only channel admins can change visibility');
-    }
-
-    if (channel.isPrivate === isPrivate) {
-      return channel;
-    }
-
-    channel.isPrivate = isPrivate;
-    const updated = await channel.save();
-
-    if (!channel.workspaceId) {
-      throw new BadRequestException('Channel must belong to a workspace');
-    }
-    const workspaceIdStr = channel.workspaceId.toString();
-    const wsMembers =
-      await this.workspaceMemberService.getMembers(workspaceIdStr);
-    const wsUserIds = wsMembers
-      .map(m => m.userId?.toString() || '')
-      .filter(id => Types.ObjectId.isValid(id));
-
-    let affectedUserIds: string[] = [];
-
-    if (isPrivate) {
-      const channelMemberIds = new Set(
-        channel.channelMembers.map(m => m.userId.toString()),
-      );
-      affectedUserIds = wsUserIds.filter(id => !channelMemberIds.has(id));
-    } else {
-      affectedUserIds = wsUserIds;
-    }
-
-    const envelope = {
-      eventId: new Types.ObjectId().toString(),
-      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_VISIBILITY_CHANGED,
-      data: {
-        channelId,
-        isPrivate,
-        workspaceId: workspaceIdStr,
-        affectedUserIds,
-      },
-      occurredAt: new Date().toISOString(),
-    };
-
-    this.realtimePublisher.emit(
-      RoomBuilder.workspace(workspaceIdStr),
-      envelope,
-      'chat',
-    );
-
-    return updated;
   }
 
   async removeUserFromAllChannels(
@@ -1677,6 +847,12 @@ export class ChannelsService {
         { $set: { createdBy: systemId } },
       );
 
+      // 4. Update lastMessage.senderName to 'Deleted User' for channels where this user was the last sender
+      await this.channelsRepository.model.updateMany(
+        { 'lastMessage.senderId': userObjectId },
+        { $set: { 'lastMessage.senderName': 'Deleted User' } },
+      );
+
       // 3. Emit member removed socket events for affected custom channels
       for (const channel of affectedCustomChannels) {
         const channelId = channel._id.toString();
@@ -1703,7 +879,7 @@ export class ChannelsService {
     }
   }
 
-  async cleanupOrphanedMembers(): Promise<void> {
+  async cleanupOrphanedAndDemotedMembers(): Promise<void> {
     this.logger.log('Running cleanup of channelMembers for custom channels...');
     try {
       const channels = await this.channelsRepository.model
@@ -1729,23 +905,46 @@ export class ChannelsService {
             ?.map((m: any) => m.userId?.toString()) || [],
         );
 
+        const wsUserIds = new Set(
+          workspace.members
+            ?.map((m: any) => {
+              const uId =
+                typeof m.userId === 'object' && m.userId
+                  ? m.userId._id || m.userId.id
+                  : m.userId;
+              return uId ? uId.toString() : '';
+            })
+            .filter(Boolean) || [],
+        );
+
         const originalCount = channel.channelMembers.length;
+        let modified = false;
+
         channel.channelMembers = channel.channelMembers.filter((m: any) => {
           const userIdStr = m.userId.toString();
+
+          // 1. If user is no longer a member of the workspace, remove them from the custom channel entirely
+          if (!wsUserIds.has(userIdStr)) {
+            modified = true;
+            return false;
+          }
+
+          // 2. If they are a channel_admin but no longer workspace_admin and not the creator, downgrade them to channel_member
           const isWorkspaceAdmin = admins.has(userIdStr);
           const isCreator = channel.createdBy?.toString() === userIdStr;
           const isChannelAdmin = m.role === 'channel_admin';
 
-          // If they are not workspace admin, not creator, but have role channel_admin, remove them.
           if (!isWorkspaceAdmin && !isCreator && isChannelAdmin) {
-            return false;
+            m.role = 'channel_member';
+            modified = true;
           }
+
           return true;
         });
 
-        if (channel.channelMembers.length !== originalCount) {
+        if (modified || channel.channelMembers.length !== originalCount) {
           this.logger.log(
-            `Cleanup: Removed demoted workspace admin from channel ${channel.name} (${channel._id})`,
+            `Cleanup: Cleaned up orphaned members / demoted admins for channel ${channel.name} (${channel._id})`,
           );
           await channel.save();
         }

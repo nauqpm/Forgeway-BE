@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { promises as fs } from 'fs';
 import { Model, Types } from 'mongoose';
+import axios from 'axios';
 
 import { DocumentDoc, DocumentEntity } from '../schemas/document.schema';
 import { UploadDocumentDto } from '../dtos/upload-document.dto';
@@ -63,7 +64,11 @@ export class DocumentsService {
 
     await this.ensureUniqueNameForUser(userId, name);
 
-    const storedFile = await this.storageService.saveUploadedFile(file);
+    const firstWorkspaceId = workspaceIds[0]?.toString();
+    const storedFile = await this.storageService.saveUploadedFile(
+      file,
+      firstWorkspaceId,
+    );
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
@@ -71,6 +76,7 @@ export class DocumentsService {
       originalName: file.originalname,
       filename: storedFile.filename,
       storagePath: storedFile.storagePath,
+      cloudinaryPublicId: storedFile.cloudinaryPublicId,
       mimeType: file.mimetype,
       extension: storedFile.extension,
       size: file.size,
@@ -99,8 +105,12 @@ export class DocumentsService {
 
     await this.ensureUniqueNameForUser(userId, name);
 
-    const storedFile =
-      await this.storageService.saveHtmlContent(sanitizedContent);
+    const firstWorkspaceId = workspaceIds[0]?.toString();
+    const storedFile = await this.storageService.saveHtmlContent(
+      sanitizedContent,
+      firstWorkspaceId,
+      name,
+    );
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
@@ -108,6 +118,7 @@ export class DocumentsService {
       originalName: `${name}${storedFile.extension}`,
       filename: storedFile.filename,
       storagePath: storedFile.storagePath,
+      cloudinaryPublicId: storedFile.cloudinaryPublicId,
       mimeType: 'text/html',
       extension: storedFile.extension,
       size,
@@ -167,7 +178,10 @@ export class DocumentsService {
       { $set: { deletedAt: new Date() } },
     );
 
-    await this.storageService.deleteFile(doc.storagePath);
+    await this.storageService.deleteFile(
+      doc.cloudinaryPublicId,
+      doc.storagePath,
+    );
 
     return { success: true };
   }
@@ -270,7 +284,13 @@ export class DocumentsService {
       );
     }
 
-    const content = await fs.readFile(doc.storagePath, 'utf8');
+    let content = '';
+    if (doc.storagePath.startsWith('http')) {
+      const response = await axios.get(doc.storagePath);
+      content = response.data.toString();
+    } else {
+      content = await fs.readFile(doc.storagePath, 'utf8');
+    }
 
     return { content };
   }
@@ -302,11 +322,29 @@ export class DocumentsService {
     const sanitizedContent = this.sanitizerService.sanitizeContent(dto.content);
     const size = Buffer.byteLength(sanitizedContent, 'utf8');
 
-    await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
+    let storagePath = doc.storagePath;
+    let cloudinaryPublicId = doc.cloudinaryPublicId;
+
+    if (doc.storagePath.startsWith('http') || doc.cloudinaryPublicId) {
+      const firstWorkspaceId = doc.workspaceIds?.[0]?.toString();
+      const storedFile = await this.storageService.saveHtmlContent(
+        sanitizedContent,
+        firstWorkspaceId,
+        doc.name,
+      );
+      storagePath = storedFile.storagePath;
+      cloudinaryPublicId = storedFile.cloudinaryPublicId;
+
+      if (doc.cloudinaryPublicId) {
+        await this.storageService.deleteFile(doc.cloudinaryPublicId);
+      }
+    } else {
+      await fs.writeFile(doc.storagePath, sanitizedContent, 'utf8');
+    }
 
     return this.documentModel.findOneAndUpdate(
       { _id: doc._id },
-      { $set: { size } },
+      { $set: { size, storagePath, cloudinaryPublicId } },
       { new: true },
     );
   }

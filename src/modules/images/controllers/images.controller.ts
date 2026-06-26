@@ -14,9 +14,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage, memoryStorage } from 'multer';
-import { extname, join } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import {
   ApiTags,
   ApiOperation,
@@ -26,7 +24,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { ImagesService } from '../services/images.service';
-import { CloudinaryService } from '../services/cloudinary.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateImageDto, ImageType } from '../dtos/create-image.dto';
 
@@ -44,39 +42,6 @@ const imageFileFilter = (
   callback(null, true);
 };
 
-const storage = diskStorage({
-  destination: (req: any, file, cb) => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    // Lấy module type từ body hoặc query hoặc mặc định là 'others'
-    const moduleType =
-      req.body?.type ||
-      req.query?.type ||
-      req.body?.targetType ||
-      req.query?.targetType ||
-      'others';
-
-    const uploadPath = join('uploads', moduleType, String(year), month, day);
-
-    // Tạo folder nếu chưa tồn tại
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    const originalName = file.originalname.replace(/\.[^/.]+$/, '');
-    const safeName = originalName.replace(/[^a-zA-Z0-9-_]/g, '_');
-    cb(null, `${safeName}-${uniqueSuffix}${ext}`);
-  },
-});
-
 @ApiTags('Images')
 @Controller('imagesapi')
 export class ImagesController {
@@ -89,7 +54,7 @@ export class ImagesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage,
+      storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: imageFileFilter,
     }),
@@ -204,7 +169,7 @@ export class ImagesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
-      storage,
+      storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: imageFileFilter,
     }),

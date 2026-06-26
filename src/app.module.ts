@@ -4,9 +4,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
+import { join } from 'path';
 
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -33,9 +32,8 @@ import { TaskCoversModule } from './modules/task-covers/task-covers.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 
 // Real Estate / Blog Modules
-import { UtilitiesModule } from './modules/utilities/utilities.module';
-import { AddressesModule } from './modules/addresses/addresses.module';
 import { ImagesModule } from './modules/images/images.module';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { VerifyModule } from './modules/verify/verify.module';
 import { validateEnv } from './config/env.validation';
 import { AppController } from './app.controller';
@@ -96,46 +94,7 @@ function parseNonNegativeInteger(value: unknown, fallback: number): number {
     }),
 
     MulterModule.register({
-      storage: diskStorage({
-        destination: (req: any, file, cb) => {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-
-          // Try to determine module type from URL
-          let moduleType = 'others';
-          const url = req.url || '';
-          if (url.includes('tasks') || url.includes('board'))
-            moduleType = 'tasks';
-          else if (url.includes('documents')) moduleType = 'documents';
-          else if (url.includes('comments')) moduleType = 'comments';
-          else if (url.includes('imagesapi'))
-            moduleType = req.body?.type || 'others';
-
-          const uploadPath = join(
-            'uploads',
-            moduleType,
-            String(year),
-            month,
-            day,
-          );
-
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-
-          cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(
-            null,
-            `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
-          );
-        },
-      }),
+      storage: memoryStorage(),
     }),
 
     CommonModule,
@@ -171,9 +130,8 @@ function parseNonNegativeInteger(value: unknown, fallback: number): number {
     DashboardModule,
 
     // Real Estate / Blog Modules
-    UtilitiesModule,
-    AddressesModule,
     ImagesModule,
+    CloudinaryModule,
 
     // Email
     MailerModule.forRoot({

@@ -20,6 +20,12 @@ export class Image {
   @Prop({ required: true })
   size!: number;
 
+  @Prop({ trim: true })
+  cloudinaryPublicId?: string;
+
+  @Prop({ trim: true })
+  migrationStatus?: string;
+
   @Prop({ required: true })
   url!: string;
 
@@ -33,8 +39,17 @@ export class Image {
   })
   type!: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'Workspace', index: true })
+  workspaceId?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  targetType?: string;
+
   @Prop()
   targetId?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Channel', index: true })
+  channelId?: Types.ObjectId;
 
   @Prop({ default: 0 })
   downloadCount!: number;
@@ -48,3 +63,4 @@ export const ImageSchema = SchemaFactory.createForClass(Image);
 ImageSchema.index({ uploadedBy: 1 });
 ImageSchema.index({ type: 1 });
 ImageSchema.index({ targetId: 1 });
+ImageSchema.index({ targetType: 1, targetId: 1 });
