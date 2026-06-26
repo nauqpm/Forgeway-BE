@@ -6,8 +6,12 @@ import { ErrorFactory } from '../../../common/factories/error.factory';
  * This class is kept for backward compatibility and delegates to the shared ErrorFactory.
  */
 export class AuthErrorFactory {
-  static publicLoginFailure() {
-    return ErrorFactory.publicLoginFailure();
+  static publicLoginFailure(retryAfterSeconds = 0) {
+    return ErrorFactory.publicLoginFailure(retryAfterSeconds);
+  }
+
+  static loginRetryLater(retryAfterSeconds: number) {
+    return ErrorFactory.loginRetryLater(retryAfterSeconds);
   }
 
   static invalidCredentials(remainingAttempts?: number) {

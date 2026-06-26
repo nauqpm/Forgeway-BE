@@ -13,6 +13,7 @@ import {
   Logger,
   BadRequestException,
   UnauthorizedException,
+  HttpException,
   Req,
   Res,
 } from '@nestjs/common';
@@ -287,7 +288,23 @@ export class AuthController {
   @ApiBadRequestResponse({
     description: 'Email validation error',
   })
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiResponse({
+    status: 429,
+    description: 'Progressive login cooldown is active',
+    schema: {
+      example: {
+        statusCode: 429,
+        message: 'Please wait before trying again.',
+        code: 'LOGIN_RETRY_LATER',
+        details: {
+          retryAfterSeconds: 4,
+          retryAt: '2026-06-24T10:00:04.000Z',
+        },
+      },
+    },
+  })
+  // Coarse IP safety ceiling. Redis progressive delay handles normal retries.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(
@@ -298,7 +315,9 @@ export class AuthController {
     this.logger.log('Processing login request...');
 
     try {
-      const result = await this.authenticationService.login(loginDto);
+      const result = await this.authenticationService.login(loginDto, {
+        ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
+      });
 
       setAuthCookies(res, this.configService, result.tokens);
 
@@ -388,6 +407,21 @@ export class AuthController {
         user: result.user,
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const details =
+          typeof response === 'object' && response !== null
+            ? (response as { details?: { retryAfterSeconds?: unknown } })
+                .details
+            : undefined;
+        const retryAfterSeconds = details?.retryAfterSeconds;
+        if (
+          error.getStatus() === HttpStatus.TOO_MANY_REQUESTS &&
+          typeof retryAfterSeconds === 'number'
+        ) {
+          res.setHeader('Retry-After', String(retryAfterSeconds));
+        }
+      }
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.LOGIN_FAILED,

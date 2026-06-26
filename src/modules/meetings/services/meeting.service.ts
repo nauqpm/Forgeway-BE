@@ -404,7 +404,9 @@ export class MeetingService {
     const { userId } = event;
     if (!userId || !Types.ObjectId.isValid(userId)) return;
 
-    this.logger.log(`Cascade: User deleted event received in MeetingService. Cleaning up meetings for user ${userId}`);
+    this.logger.log(
+      `Cascade: User deleted event received in MeetingService. Cleaning up meetings for user ${userId}`,
+    );
     const userObjectId = new Types.ObjectId(userId);
     const systemId = new Types.ObjectId('000000000000000000000000');
 
@@ -412,16 +414,19 @@ export class MeetingService {
       // 1. Update createdBy to systemId for meetings created by the deleted user
       await this.meetingsRepository.model.updateMany(
         { createdBy: userObjectId },
-        { $set: { createdBy: systemId } }
+        { $set: { createdBy: systemId } },
       );
 
       // 2. Pull the user from the participants list in all meetings
       await this.meetingsRepository.model.updateMany(
         {},
-        { $pull: { participants: { userId: userObjectId } } }
+        { $pull: { participants: { userId: userObjectId } } },
       );
     } catch (err) {
-      this.logger.error(`Failed to clean up meetings for deleted user: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to clean up meetings for deleted user: ${err.message}`,
+        err.stack,
+      );
     }
   }
 }

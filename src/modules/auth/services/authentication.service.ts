@@ -16,6 +16,11 @@ import { VerifyType } from '../../verify/dtos/verify.dto';
 import { VerifyService } from '../../verify/services/verify.service';
 import { LoginDto, RegisterDto } from '../dtos/auth.dto';
 import { AuthErrorFactory } from '../utils/auth-error.factory';
+import {
+  LoginAttemptContext,
+  LoginAttemptThrottleService,
+} from '../security/login-attempt-throttle.service';
+import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
@@ -30,6 +35,7 @@ export class AuthenticationService implements OnModuleInit {
     private readonly tokenService: TokenService,
     private readonly verifyService: VerifyService,
     private readonly inviteService: InviteService,
+    private readonly loginAttemptThrottleService: LoginAttemptThrottleService,
   ) {}
 
   async onModuleInit() {
@@ -45,8 +51,18 @@ export class AuthenticationService implements OnModuleInit {
     await this.passwordService.verifyPassword(password, this.dummyPasswordHash);
   }
 
-  private throwPublicLoginFailure(): never {
-    throw new UnauthorizedException(AuthErrorFactory.publicLoginFailure());
+  private throwPublicLoginFailure(retryAfterSeconds = 0): never {
+    throw new UnauthorizedException(
+      AuthErrorFactory.publicLoginFailure(retryAfterSeconds),
+    );
+  }
+
+  private async registerLoginFailure(
+    context: LoginAttemptContext,
+  ): Promise<number> {
+    const failure =
+      await this.loginAttemptThrottleService.registerFailure(context);
+    return failure.retryAfterSeconds;
   }
 
   async register(registerDto: RegisterDto) {
@@ -112,12 +128,24 @@ export class AuthenticationService implements OnModuleInit {
     }
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, requestContext: { ip: string }) {
     this.logger.log(`Login requested for email: ${loginDto.email}`);
 
     try {
       if (!EMAIL_POLICY.noWhitespacePattern.test(loginDto.email)) {
         throw new BadRequestException(EMAIL_POLICY.noWhitespaceMessage);
+      }
+
+      const attemptContext: LoginAttemptContext = {
+        email: loginDto.email,
+        ip: requestContext.ip,
+      };
+      const retryAfterSeconds =
+        await this.loginAttemptThrottleService.getRetryAfterSeconds(
+          attemptContext,
+        );
+      if (retryAfterSeconds > 0) {
+        throw new LoginRetryLaterException(retryAfterSeconds);
       }
 
       const user = await this.usersService.findByEmail(loginDto.email);
@@ -129,7 +157,9 @@ export class AuthenticationService implements OnModuleInit {
           `Login failed: Email ${loginDto.email} was not found.`,
         );
         await this.runDummyPasswordCompare(loginDto.password);
-        this.throwPublicLoginFailure();
+        this.throwPublicLoginFailure(
+          await this.registerLoginFailure(attemptContext),
+        );
       }
 
       // === Handle OAuth (no password) user ===
@@ -139,22 +169,9 @@ export class AuthenticationService implements OnModuleInit {
           `Login failed: Account ${loginDto.email} has no password (OAuth).`,
         );
         await this.runDummyPasswordCompare(loginDto.password);
-        this.throwPublicLoginFailure();
-      }
-
-      // === Handle locked account ===
-      const now = new Date();
-      if (user.lockoutUntil && user.lockoutUntil.getTime() > now.getTime()) {
-        this.logger.warn(
-          `Login temporarily locked for email ${loginDto.email}.`,
+        this.throwPublicLoginFailure(
+          await this.registerLoginFailure(attemptContext),
         );
-        await this.runDummyPasswordCompare(loginDto.password);
-        this.throwPublicLoginFailure();
-      }
-
-      // === Reset expired lockout ===
-      if (user.lockoutUntil && user.lockoutUntil.getTime() <= now.getTime()) {
-        await this.usersService.resetLoginFailures(user._id.toString());
       }
 
       // === Verify password ===
@@ -167,15 +184,9 @@ export class AuthenticationService implements OnModuleInit {
         this.logger.warn(
           `Login failed: Incorrect password for email ${loginDto.email}.`,
         );
-        const failureState = await this.usersService.registerFailedLoginAttempt(
-          user._id.toString(),
+        this.throwPublicLoginFailure(
+          await this.registerLoginFailure(attemptContext),
         );
-
-        if (failureState.isLocked) {
-          this.throwPublicLoginFailure();
-        }
-
-        this.throwPublicLoginFailure();
       }
 
       // === Handle non-active status ===
@@ -194,6 +205,8 @@ export class AuthenticationService implements OnModuleInit {
             : AuthErrorFactory.accountDeactivated(),
         );
       }
+
+      await this.loginAttemptThrottleService.clear(attemptContext);
 
       // === Clear any stale failures ===
       if (user.failedLoginAttempts || user.lockoutUntil) {
@@ -233,7 +246,8 @@ export class AuthenticationService implements OnModuleInit {
       const stack = error instanceof Error ? error.stack : undefined;
       if (
         !(error instanceof UnauthorizedException) &&
-        !(error instanceof BadRequestException)
+        !(error instanceof BadRequestException) &&
+        !(error instanceof LoginRetryLaterException)
       ) {
         this.logger.error(
           `System error during login (${loginDto.email}): ${message}`,

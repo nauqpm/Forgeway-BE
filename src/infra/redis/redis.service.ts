@@ -27,19 +27,32 @@ export class RedisService implements OnModuleDestroy {
 
     const client = createClient({
       url,
-      database: this.configService.get<number>('REDIS_DB') ?? 0,
+      database: this.getIntegerConfig('REDIS_DB', 0),
       socket: {
         reconnectStrategy: (retries: number) => Math.min(retries * 50, 1_000),
-        connectTimeout:
-          this.configService.get<number>('REDIS_CONNECT_TIMEOUT_MS') ?? 5_000,
+        connectTimeout: this.getIntegerConfig(
+          'REDIS_CONNECT_TIMEOUT_MS',
+          5_000,
+        ),
       },
     });
 
     client.on('error', (error: Error) => {
-      this.logger.warn(`Redis client ${label} error: ${error.message}`);
+      this.logger.warn(
+        `Redis client ${label} error: ${this.formatError(error)}`,
+      );
     });
 
-    await client.connect();
+    try {
+      await client.connect();
+    } catch (error) {
+      this.logger.warn(
+        `Redis client ${label} unavailable: ${this.formatError(error)}`,
+      );
+      await client.disconnect().catch(() => undefined);
+      return null;
+    }
+
     this.clients.add(client);
     this.logger.log(`Redis client ${label} connected.`);
 
@@ -59,5 +72,36 @@ export class RedisService implements OnModuleDestroy {
   private getRedisUrl(): string | undefined {
     const url = this.configService.get<string>('REDIS_URL')?.trim();
     return url || undefined;
+  }
+
+  private getIntegerConfig(key: string, fallback: number): number {
+    const value = this.configService.get<string | number>(key);
+    if (value === undefined || value === null || value === '') return fallback;
+
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      this.logger.warn(
+        `${key} must be a non-negative integer. Falling back to ${fallback}.`,
+      );
+      return fallback;
+    }
+
+    return parsed;
+  }
+
+  private formatError(error: unknown): string {
+    if (error instanceof AggregateError) {
+      return error.errors.map(item => this.formatError(item)).join('; ');
+    }
+
+    if (error instanceof Error) {
+      const details = [
+        error.message,
+        'code' in error ? String((error as NodeJS.ErrnoException).code) : '',
+      ].filter(Boolean);
+      return details.join(' ');
+    }
+
+    return String(error);
   }
 }

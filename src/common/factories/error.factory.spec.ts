@@ -17,6 +17,20 @@ describe('ErrorFactory', () => {
       });
     });
 
+    it('publicLoginFailure() includes retry details after cooldown starts', () => {
+      const result = ErrorFactory.publicLoginFailure(2);
+      expect(result.code).toBe(AUTH_ERROR_CODES.INVALID_CREDENTIALS);
+      expect(result.details?.retryAfterSeconds).toBe(2);
+      expect(result.details?.retryAt).toEqual(expect.any(String));
+    });
+
+    it('loginRetryLater() returns the progressive cooldown contract', () => {
+      const result = ErrorFactory.loginRetryLater(4);
+      expect(result.code).toBe(AUTH_ERROR_CODES.LOGIN_RETRY_LATER);
+      expect(result.details?.retryAfterSeconds).toBe(4);
+      expect(result.details?.retryAt).toEqual(expect.any(String));
+    });
+
     it('invalidCredentials() returns details when called without args', () => {
       const result = ErrorFactory.invalidCredentials();
       expect(result.message).toBe('Email or password is incorrect.');
@@ -241,6 +255,7 @@ describe('ErrorFactory', () => {
     it('all methods return an object with message (string) and code (string)', () => {
       const methods = [
         ErrorFactory.publicLoginFailure(),
+        ErrorFactory.loginRetryLater(1),
         ErrorFactory.invalidCredentials(),
         ErrorFactory.accountLocked('2026-01-01T00:00:00.000Z'),
         ErrorFactory.emailNotVerified(),

@@ -314,7 +314,10 @@ export class WorkspaceMemberService {
           { $pull: { members: { userId: new Types.ObjectId(userId) } } },
         );
       } catch (err) {
-        this.logger.error(`Failed to clean up workspaces for deleted user: ${err.message}`, err.stack);
+        this.logger.error(
+          `Failed to clean up workspaces for deleted user: ${err.message}`,
+          err.stack,
+        );
       }
     }
   }

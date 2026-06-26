@@ -142,7 +142,9 @@ export class MessagesService {
 
       if (allUserIds.size === 0) return {};
 
-      const validUsers = await this.usersService.getUsersByIds(Array.from(allUserIds));
+      const validUsers = await this.usersService.getUsersByIds(
+        Array.from(allUserIds),
+      );
       const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
 
       for (const [emoji, userIds] of message.reactions.entries()) {
@@ -182,7 +184,9 @@ export class MessagesService {
       });
     }
 
-    const validUsers = await this.usersService.getUsersByIds(Array.from(allUserIds));
+    const validUsers = await this.usersService.getUsersByIds(
+      Array.from(allUserIds),
+    );
     const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
 
     return messages.map(m => {
@@ -201,8 +205,8 @@ export class MessagesService {
       obj.reactions = reactionsRecord;
 
       if (m.lastReplyParticipants) {
-        obj.lastReplyParticipants = m.lastReplyParticipants.filter(p =>
-          p && p.userId && validUserIdsSet.has(p.userId.toString())
+        obj.lastReplyParticipants = m.lastReplyParticipants.filter(
+          p => p && p.userId && validUserIdsSet.has(p.userId.toString()),
         );
       }
 

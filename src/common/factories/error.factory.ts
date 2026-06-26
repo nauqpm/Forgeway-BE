@@ -16,10 +16,33 @@ export interface ErrorPayload {
 
 export class ErrorFactory {
   // ─── Auth ───────────────────────────────────────────────────────────────
-  static publicLoginFailure(): ErrorPayload {
-    return {
+  static publicLoginFailure(retryAfterSeconds = 0): ErrorPayload {
+    const payload: ErrorPayload = {
       message: 'Email or password is incorrect.',
       code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+    };
+
+    if (retryAfterSeconds > 0) {
+      payload.details = this.loginRetryDetails(retryAfterSeconds);
+    }
+
+    return payload;
+  }
+
+  static loginRetryLater(retryAfterSeconds: number): ErrorPayload {
+    return {
+      message: 'Please wait before trying again.',
+      code: AUTH_ERROR_CODES.LOGIN_RETRY_LATER,
+      details: this.loginRetryDetails(retryAfterSeconds),
+    };
+  }
+
+  private static loginRetryDetails(
+    retryAfterSeconds: number,
+  ): Record<string, unknown> {
+    return {
+      retryAfterSeconds,
+      retryAt: new Date(Date.now() + retryAfterSeconds * 1000).toISOString(),
     };
   }
 

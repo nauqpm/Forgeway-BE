@@ -85,7 +85,9 @@ export class RealtimeService {
 
   async disconnectUser(userId: string): Promise<void> {
     if (!this.server) {
-      this.logger.warn('Socket server not ready, cannot disconnect user sockets.');
+      this.logger.warn(
+        'Socket server not ready, cannot disconnect user sockets.',
+      );
       return;
     }
 
@@ -113,7 +115,7 @@ export class RealtimeService {
             const sockets = await nsp.in(userRoom).fetchSockets();
             if (sockets && sockets.length > 0) {
               this.logger.log(
-                `Disconnecting ${sockets.length} socket(s) in namespace "${nsName}" for user ${userId}`
+                `Disconnecting ${sockets.length} socket(s) in namespace "${nsName}" for user ${userId}`,
               );
               for (const socket of sockets) {
                 socket.disconnect(true);
@@ -121,13 +123,15 @@ export class RealtimeService {
             }
           }
         } catch (err) {
-          this.logger.warn(`Error disconnecting sockets in namespace ${nsName}: ${(err as Error).message}`);
+          this.logger.warn(
+            `Error disconnecting sockets in namespace ${nsName}: ${(err as Error).message}`,
+          );
         }
       }
     } catch (error) {
       this.logger.error(
         `Failed to disconnect sockets for user ${userId}: ${(error as Error).message}`,
-        (error as Error).stack
+        (error as Error).stack,
       );
     }
   }

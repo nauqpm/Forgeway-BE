@@ -1,4 +1,4 @@
-﻿import { INestApplicationContext, Logger } from '@nestjs/common';
+import { INestApplicationContext, Logger } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { ServerOptions } from 'socket.io';
@@ -26,7 +26,11 @@ export class RedisSocketIoAdapter extends IoAdapter {
     const [pubClient, subClient] = await Promise.all([
       this.redisService.createClient('socket.io:pub'),
       this.redisService.createClient('socket.io:sub'),
-    ]);
+    ]).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Redis Socket.IO adapter unavailable: ${message}`);
+      return [null, null] as const;
+    });
 
     if (!pubClient || !subClient) {
       this.logger.warn(
