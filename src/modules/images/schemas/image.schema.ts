@@ -20,6 +20,12 @@ export class Image {
   @Prop({ required: true })
   size!: number;
 
+  @Prop({ trim: true })
+  cloudinaryPublicId?: string;
+
+  @Prop({ trim: true })
+  migrationStatus?: string;
+
   @Prop({ required: true })
   url!: string;
 

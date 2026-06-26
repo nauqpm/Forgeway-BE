@@ -30,7 +30,6 @@ export class ImagesService {
       throw new BadRequestException('File is required');
     }
 
-    let url = '';
     const isAvatar =
       dto.type === ImageType.AVATAR ||
       dto.targetType === 'avatar' ||
@@ -38,44 +37,9 @@ export class ImagesService {
       file.fieldname === 'avatars' ||
       dto.type === ('avatars' as any);
 
-    // Auto-route to Cloudinary if it's an avatar
-    if (isAvatar && (file.path || file.buffer)) {
-      let result;
-      if (file.path) {
-        // Case: Uploaded via diskStorage
-        this.logger.log(
-          `Uploading avatar to Cloudinary from path: ${file.path}`,
-        );
-        result = await this.cloudinaryService.uploadImageFromPath(
-          file.path,
-          'avatars',
-        );
-
-        // Cleanup local temp file
-        try {
-          await fs.unlink(file.path);
-        } catch (err) {
-          this.logger.error(
-            `Failed to delete local temp file: ${file.path}`,
-            err,
-          );
-        }
-      } else {
-        // Case: Uploaded via memoryStorage
-        this.logger.log('Uploading avatar to Cloudinary from buffer');
-        result = await this.cloudinaryService.uploadImage(file, 'avatars');
-      }
-      url = result.secure_url;
-    } else if (file.path || file.destination) {
-      // Case: Standard local storage
-      const relativePath = file.destination
-        ? file.destination.replace(/\\/g, '/')
-        : 'uploads/others';
-      url = `/${relativePath}/${file.filename}`.replace(/\/+/g, '/');
-    } else {
-      // Fallback
-      url = `/uploads/others/${file.filename}`;
-    }
+    const folder = isAvatar ? 'avatars' : 'images';
+    this.logger.log(`Uploading image to Cloudinary folder: ${folder}`);
+    const result = await this.cloudinaryService.uploadFile(file, folder);
 
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
@@ -83,7 +47,8 @@ export class ImagesService {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      url: url,
+      url: result.url,
+      cloudinaryPublicId: result.publicId,
       thumbnailUrl: dto.thumbnailUrl,
       type: dto.type || (isAvatar ? ImageType.AVATAR : 'other'),
       targetId: dto.targetId,
@@ -179,11 +144,15 @@ export class ImagesService {
   async delete(id: string): Promise<{ success: boolean; message: string }> {
     const image = await this.findById(id);
 
-    const filePath = join(process.cwd(), 'uploads', image.filename);
-    try {
-      await fs.unlink(filePath);
-    } catch {
-      console.warn(`File not found on disk: ${filePath}`);
+    if (image.cloudinaryPublicId) {
+      await this.cloudinaryService.deleteFile(image.cloudinaryPublicId);
+    } else {
+      const filePath = join(process.cwd(), 'uploads', image.filename);
+      try {
+        await fs.unlink(filePath);
+      } catch {
+        console.warn(`File not found on disk: ${filePath}`);
+      }
     }
 
     await this.imageModel.findByIdAndDelete(id).exec();
