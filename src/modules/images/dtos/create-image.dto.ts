@@ -23,4 +23,8 @@ export class CreateImageDto {
   @IsOptional()
   @IsString()
   thumbnailUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  workspaceId?: string;
 }

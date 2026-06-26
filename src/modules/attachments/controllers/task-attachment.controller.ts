@@ -101,7 +101,10 @@ export class TaskAttachmentController {
   @Get(':attachmentId/download')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Download task attachment file' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Redirect to attachment URL' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Redirect to attachment URL',
+  })
   @ApiForbiddenResponse({ description: 'Workspace access denied' })
   @ApiNotFoundResponse({
     description: 'Workspace, task, or attachment not found',
@@ -130,9 +133,10 @@ export class TaskAttachmentController {
       mimeType: attachment.mimeType,
     });
 
-    if (attachment.url.startsWith('http')) {
+    const fetchUrl = attachment.downloadUrl || attachment.url;
+    if (fetchUrl.startsWith('http')) {
       try {
-        const streamResponse = await axios.get(attachment.url, {
+        const streamResponse = await axios.get(fetchUrl, {
           responseType: 'stream',
         });
         response.setHeader('Content-Type', attachment.mimeType);
@@ -142,7 +146,7 @@ export class TaskAttachmentController {
         );
         streamResponse.data.pipe(response);
         return;
-      } catch (err) {
+      } catch (_err) {
         return response.redirect(attachment.url);
       }
     }
@@ -187,9 +191,10 @@ export class TaskAttachmentController {
       mimeType: attachment.mimeType,
     });
 
-    if (attachment.url.startsWith('http')) {
+    const fetchUrl = attachment.downloadUrl || attachment.url;
+    if (fetchUrl.startsWith('http')) {
       try {
-        const streamResponse = await axios.get(attachment.url, {
+        const streamResponse = await axios.get(fetchUrl, {
           responseType: 'stream',
         });
         response.setHeader('Content-Type', attachment.mimeType);
@@ -199,7 +204,7 @@ export class TaskAttachmentController {
         );
         streamResponse.data.pipe(response);
         return;
-      } catch (err) {
+      } catch (_err) {
         return response.redirect(attachment.url);
       }
     }

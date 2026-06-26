@@ -64,7 +64,11 @@ export class DocumentsService {
 
     await this.ensureUniqueNameForUser(userId, name);
 
-    const storedFile = await this.storageService.saveUploadedFile(file);
+    const firstWorkspaceId = workspaceIds[0]?.toString();
+    const storedFile = await this.storageService.saveUploadedFile(
+      file,
+      firstWorkspaceId,
+    );
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
@@ -101,8 +105,12 @@ export class DocumentsService {
 
     await this.ensureUniqueNameForUser(userId, name);
 
-    const storedFile =
-      await this.storageService.saveHtmlContent(sanitizedContent);
+    const firstWorkspaceId = workspaceIds[0]?.toString();
+    const storedFile = await this.storageService.saveHtmlContent(
+      sanitizedContent,
+      firstWorkspaceId,
+      name,
+    );
 
     return this.documentModel.create({
       uploadedBy: new Types.ObjectId(userId),
@@ -170,7 +178,10 @@ export class DocumentsService {
       { $set: { deletedAt: new Date() } },
     );
 
-    await this.storageService.deleteFile(doc.cloudinaryPublicId, doc.storagePath);
+    await this.storageService.deleteFile(
+      doc.cloudinaryPublicId,
+      doc.storagePath,
+    );
 
     return { success: true };
   }
@@ -315,7 +326,12 @@ export class DocumentsService {
     let cloudinaryPublicId = doc.cloudinaryPublicId;
 
     if (doc.storagePath.startsWith('http') || doc.cloudinaryPublicId) {
-      const storedFile = await this.storageService.saveHtmlContent(sanitizedContent);
+      const firstWorkspaceId = doc.workspaceIds?.[0]?.toString();
+      const storedFile = await this.storageService.saveHtmlContent(
+        sanitizedContent,
+        firstWorkspaceId,
+        doc.name,
+      );
       storagePath = storedFile.storagePath;
       cloudinaryPublicId = storedFile.cloudinaryPublicId;
 

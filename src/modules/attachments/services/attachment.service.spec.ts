@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { AttachmentService } from './attachment.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { getDatePath } from '../../cloudinary/cloudinary.utils';
 
 describe('AttachmentService', () => {
   let attachmentModel: any;
@@ -19,7 +20,36 @@ describe('AttachmentService', () => {
       }),
     } as unknown as jest.Mocked<CloudinaryService>;
 
-    service = new AttachmentService(attachmentModel, cloudinaryService);
+    const workspacesService = {
+      findById: jest.fn().mockResolvedValue({ name: 'Test Workspace' }),
+    } as any;
+
+    const taskModel = {
+      findById: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ title: 'Test Task' }),
+      }),
+    } as any;
+
+    const pageModel = {
+      findById: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ title: 'Test Page' }),
+      }),
+    } as any;
+
+    const channelModel = {
+      findById: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ name: 'Test Channel' }),
+      }),
+    } as any;
+
+    service = new AttachmentService(
+      attachmentModel,
+      taskModel,
+      pageModel,
+      channelModel,
+      cloudinaryService,
+      workspacesService,
+    );
   });
 
   it('uploads file to Cloudinary and saves attachment with publicId and url', async () => {
@@ -48,9 +78,12 @@ describe('AttachmentService', () => {
       userId,
     );
 
+    const expectedFolder = `workspaces/test-workspace_${workspaceId}/test-task_${targetId}/${getDatePath()}`;
+
     expect(cloudinaryService.uploadFile).toHaveBeenCalledWith(
       file,
-      `attachments/task/${workspaceId}`,
+      expectedFolder,
+      expect.any(Object),
     );
 
     expect(attachmentModel).toHaveBeenCalledWith(

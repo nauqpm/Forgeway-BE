@@ -1,9 +1,22 @@
 // Service managing document file storage, including uploaded files, rendered HTML content, and deletions.
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { extname } from 'path';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import {
+  Workspace,
+  WorkspaceDocument,
+} from '../../workspaces/schemas/workspace.schema';
+import {
+  slugify,
+  slugifyFilename,
+  generateShortHash,
+  getDatePath,
+  decodeFilename,
+} from '../../cloudinary/cloudinary.utils';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf',
@@ -28,7 +41,11 @@ export interface StoredUploadedFile {
 
 @Injectable()
 export class DocumentStorageService {
-  constructor(private readonly cloudinaryService: CloudinaryService) {}
+  constructor(
+    private readonly cloudinaryService: CloudinaryService,
+    @InjectModel(Workspace.name)
+    private readonly workspaceModel: Model<WorkspaceDocument>,
+  ) {}
 
   ensureAllowedType(file: Express.Multer.File): string {
     const extension = extname(file.originalname).toLowerCase();
@@ -71,20 +88,43 @@ export class DocumentStorageService {
 
   async saveUploadedFile(
     file: Express.Multer.File,
+    workspaceId?: string,
   ): Promise<StoredUploadedFile> {
     if (!file) {
       throw new BadRequestException('File is required');
     }
+    file.originalname = decodeFilename(file.originalname);
 
     if (file.size > 20 * 1024 * 1024) {
       throw new BadRequestException('File size exceeds limit');
     }
 
     const extension = this.ensureAllowedType(file);
-
     const isImage = ['.png', '.jpg', '.jpeg', '.webp'].includes(extension);
-    const result = await this.cloudinaryService.uploadFile(file, 'documents', {
+
+    let folder = `documents/general/${getDatePath()}`;
+    if (workspaceId && Types.ObjectId.isValid(workspaceId)) {
+      try {
+        const ws = await this.workspaceModel
+          .findById(new Types.ObjectId(workspaceId))
+          .exec();
+        if (ws) {
+          const wsFolder = `${slugify(ws.name)}_${workspaceId}`;
+          folder = `workspaces/${wsFolder}/documents/${getDatePath()}`;
+        }
+      } catch {
+        folder = `workspaces/${workspaceId}/documents/${getDatePath()}`;
+      }
+    }
+    const cleanName = slugifyFilename(file.originalname);
+    const hash = generateShortHash(4);
+    const publicId = isImage
+      ? `${cleanName}_${hash}`
+      : `${cleanName}_${hash}${extension}`;
+
+    const result = await this.cloudinaryService.uploadFile(file, folder, {
       resourceType: isImage ? 'image' : 'raw',
+      publicId,
     });
 
     return {
@@ -95,9 +135,19 @@ export class DocumentStorageService {
     };
   }
 
-  async saveHtmlContent(content: string): Promise<StoredUploadedFile> {
+  async saveHtmlContent(
+    content: string,
+    workspaceId?: string,
+    originalName?: string,
+  ): Promise<StoredUploadedFile> {
     const extension = '.html';
-    const filename = `${randomUUID()}${extension}`;
+    const cleanName = originalName
+      ? slugifyFilename(originalName)
+      : `doc_${randomUUID()}`;
+    const hash = generateShortHash(4);
+    const publicId = `${cleanName}_${hash}${extension}`;
+
+    const filename = `${publicId}`;
 
     const multerFile = {
       buffer: Buffer.from(content, 'utf8'),
@@ -106,8 +156,24 @@ export class DocumentStorageService {
       size: Buffer.byteLength(content, 'utf8'),
     } as Express.Multer.File;
 
-    const result = await this.cloudinaryService.uploadFile(multerFile, 'documents', {
+    let folder = `documents/general/${getDatePath()}`;
+    if (workspaceId && Types.ObjectId.isValid(workspaceId)) {
+      try {
+        const ws = await this.workspaceModel
+          .findById(new Types.ObjectId(workspaceId))
+          .exec();
+        if (ws) {
+          const wsFolder = `${slugify(ws.name)}_${workspaceId}`;
+          folder = `workspaces/${wsFolder}/documents/${getDatePath()}`;
+        }
+      } catch {
+        folder = `workspaces/${workspaceId}/documents/${getDatePath()}`;
+      }
+    }
+
+    const result = await this.cloudinaryService.uploadFile(multerFile, folder, {
       resourceType: 'raw',
+      publicId,
     });
 
     return {

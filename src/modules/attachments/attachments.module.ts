@@ -12,12 +12,16 @@ import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
 import { AttachmentService } from './services/attachment.service';
 import { TaskAttachmentService } from './services/task-attachment.service';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { Page, PageSchema } from '../pages/schemas/page.schema';
+import { Channel, ChannelSchema } from '../chat/schemas/channel.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Attachment.name, schema: AttachmentSchema },
       { name: Task.name, schema: TaskSchema },
+      { name: Page.name, schema: PageSchema },
+      { name: Channel.name, schema: ChannelSchema },
     ]),
     forwardRef(() => AuthModule),
     AuditModule,

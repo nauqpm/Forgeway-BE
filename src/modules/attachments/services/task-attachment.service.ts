@@ -158,7 +158,12 @@ export class TaskAttachmentService {
     taskId: string,
     attachmentId: string,
     userId: string,
-  ): Promise<{ url: string; originalName: string; mimeType: string }> {
+  ): Promise<{
+    url: string;
+    downloadUrl?: string;
+    originalName: string;
+    mimeType: string;
+  }> {
     await this.getReadableTask(workspaceId, taskId, userId);
     const attachment = await this.getReadableAttachment(
       workspaceId,
@@ -174,8 +179,26 @@ export class TaskAttachmentService {
       attachment.originalName || attachment.filename || attachment.storageKey,
     );
 
+    let downloadUrl = attachment.url;
+    if (attachment.cloudinaryPublicId) {
+      try {
+        const { v2: cloudinary } = require('cloudinary');
+        downloadUrl = cloudinary.utils.private_download_url(
+          attachment.cloudinaryPublicId,
+          '',
+          {
+            resource_type: mimeType?.startsWith('image/') ? 'image' : 'raw',
+            type: 'upload',
+          },
+        );
+      } catch (_err) {
+        // Fallback
+      }
+    }
+
     return {
       url: attachment.url || '',
+      downloadUrl,
       originalName: attachment.originalName,
       mimeType,
     };

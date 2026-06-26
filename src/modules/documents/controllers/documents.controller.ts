@@ -194,8 +194,26 @@ export class DocumentsController {
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     if (doc.storagePath.startsWith('http')) {
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        try {
+          const { v2: cloudinary } = require('cloudinary');
+          fetchUrl = cloudinary.utils.private_download_url(
+            doc.cloudinaryPublicId,
+            '',
+            {
+              resource_type: doc.mimeType?.startsWith('image/')
+                ? 'image'
+                : 'raw',
+              type: 'upload',
+            },
+          );
+        } catch (_err) {
+          // Fallback
+        }
+      }
       try {
-        const streamResponse = await axios.get(doc.storagePath, {
+        const streamResponse = await axios.get(fetchUrl, {
           responseType: 'stream',
         });
         res.setHeader('Content-Type', doc.mimeType);
@@ -205,7 +223,7 @@ export class DocumentsController {
         );
         streamResponse.data.pipe(res);
         return;
-      } catch (err) {
+      } catch (_err) {
         return res.redirect(doc.storagePath);
       }
     }
@@ -239,8 +257,26 @@ export class DocumentsController {
   ) {
     const doc = await this.documentsService.resolveDownloadable(userId, id);
     if (doc.storagePath.startsWith('http')) {
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        try {
+          const { v2: cloudinary } = require('cloudinary');
+          fetchUrl = cloudinary.utils.private_download_url(
+            doc.cloudinaryPublicId,
+            '',
+            {
+              resource_type: doc.mimeType?.startsWith('image/')
+                ? 'image'
+                : 'raw',
+              type: 'upload',
+            },
+          );
+        } catch (_err) {
+          // Fallback
+        }
+      }
       try {
-        const streamResponse = await axios.get(doc.storagePath, {
+        const streamResponse = await axios.get(fetchUrl, {
           responseType: 'stream',
         });
         res.setHeader('Content-Type', doc.mimeType);
@@ -250,7 +286,7 @@ export class DocumentsController {
         );
         streamResponse.data.pipe(res);
         return;
-      } catch (err) {
+      } catch (_err) {
         return res.redirect(doc.storagePath);
       }
     }

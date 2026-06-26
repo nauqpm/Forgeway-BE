@@ -100,7 +100,12 @@ export class DocumentVersionService {
     let cloudinaryPublicId = doc.cloudinaryPublicId;
 
     if (doc.storagePath.startsWith('http') || doc.cloudinaryPublicId) {
-      const storedFile = await this.storageService.saveHtmlContent(sanitizedContent);
+      const firstWorkspaceId = doc.workspaceIds?.[0]?.toString();
+      const storedFile = await this.storageService.saveHtmlContent(
+        sanitizedContent,
+        firstWorkspaceId,
+        doc.name,
+      );
       storagePath = storedFile.storagePath;
       cloudinaryPublicId = storedFile.cloudinaryPublicId;
 

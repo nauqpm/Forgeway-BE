@@ -40,7 +40,10 @@ export class CloudinaryService {
   async uploadFile(
     file: Express.Multer.File,
     folder: string,
-    options?: { resourceType?: 'image' | 'video' | 'raw' | 'auto' },
+    options?: {
+      resourceType?: 'image' | 'video' | 'raw' | 'auto';
+      publicId?: string;
+    },
   ): Promise<{ url: string; publicId: string; size: number }> {
     if (!file || !file.buffer) {
       throw new BadRequestException('Invalid file or missing file buffer');
@@ -53,6 +56,7 @@ export class CloudinaryService {
         {
           folder: `sdlc-platform/${folder}`,
           resource_type: resourceType,
+          public_id: options?.publicId,
         },
         (error, res) => {
           if (error) return reject(error);
@@ -91,7 +95,7 @@ export class CloudinaryService {
       if (result && result.result === 'ok') {
         return result;
       }
-    } catch (error) {
+    } catch (_error) {
       // Fallback
     }
 
@@ -106,7 +110,7 @@ export class CloudinaryService {
           },
         );
       });
-    } catch (error) {
+    } catch (_error) {
       // Ignore errors for idempotency
     }
   }

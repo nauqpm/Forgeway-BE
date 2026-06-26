@@ -119,7 +119,9 @@ export class DocumentConversionService {
 
     let buffer: Buffer;
     if (doc.storagePath.startsWith('http')) {
-      const response = await axios.get(doc.storagePath, { responseType: 'arraybuffer' });
+      const response = await axios.get(doc.storagePath, {
+        responseType: 'arraybuffer',
+      });
       buffer = Buffer.from(response.data);
     } else {
       buffer = await fs.readFile(doc.storagePath);
