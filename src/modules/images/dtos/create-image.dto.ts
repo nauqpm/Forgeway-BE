@@ -27,4 +27,12 @@ export class CreateImageDto {
   @IsOptional()
   @IsString()
   workspaceId?: string;
+
+  @IsOptional()
+  @IsString()
+  workspaceName?: string;
+
+  @IsOptional()
+  @IsString()
+  targetName?: string;
 }

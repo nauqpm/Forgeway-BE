@@ -11,10 +11,8 @@ import {
   WorkspaceDocument,
 } from '../../workspaces/schemas/workspace.schema';
 import {
-  slugify,
   slugifyFilename,
   generateShortHash,
-  getDatePath,
   decodeFilename,
 } from '../../cloudinary/cloudinary.utils';
 
@@ -102,20 +100,7 @@ export class DocumentStorageService {
     const extension = this.ensureAllowedType(file);
     const isImage = ['.png', '.jpg', '.jpeg', '.webp'].includes(extension);
 
-    let folder = `documents/general/${getDatePath()}`;
-    if (workspaceId && Types.ObjectId.isValid(workspaceId)) {
-      try {
-        const ws = await this.workspaceModel
-          .findById(new Types.ObjectId(workspaceId))
-          .exec();
-        if (ws) {
-          const wsFolder = `${slugify(ws.name)}_${workspaceId}`;
-          folder = `workspaces/${wsFolder}/documents/${getDatePath()}`;
-        }
-      } catch {
-        folder = `workspaces/${workspaceId}/documents/${getDatePath()}`;
-      }
-    }
+    const folder = 'documents';
     const cleanName = slugifyFilename(file.originalname);
     const hash = generateShortHash(4);
     const publicId = isImage
@@ -156,20 +141,7 @@ export class DocumentStorageService {
       size: Buffer.byteLength(content, 'utf8'),
     } as Express.Multer.File;
 
-    let folder = `documents/general/${getDatePath()}`;
-    if (workspaceId && Types.ObjectId.isValid(workspaceId)) {
-      try {
-        const ws = await this.workspaceModel
-          .findById(new Types.ObjectId(workspaceId))
-          .exec();
-        if (ws) {
-          const wsFolder = `${slugify(ws.name)}_${workspaceId}`;
-          folder = `workspaces/${wsFolder}/documents/${getDatePath()}`;
-        }
-      } catch {
-        folder = `workspaces/${workspaceId}/documents/${getDatePath()}`;
-      }
-    }
+    const folder = 'documents';
 
     const result = await this.cloudinaryService.uploadFile(multerFile, folder, {
       resourceType: 'raw',

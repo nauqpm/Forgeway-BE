@@ -20,7 +20,6 @@ import {
   slugify,
   slugifyFilename,
   generateShortHash,
-  getDatePath,
   decodeFilename,
 } from '../../cloudinary/cloudinary.utils';
 
@@ -55,11 +54,12 @@ export class ImagesService {
       file.fieldname === 'avatars' ||
       dto.type === ('avatars' as any);
 
-    let folder = `general/${getDatePath()}`;
+    let folder = 'general';
     let resolvedWorkspaceId: string | undefined = dto.workspaceId;
+    let channelType: string | undefined = undefined;
 
     if (isAvatar) {
-      folder = `avatars/${getDatePath()}`;
+      folder = 'avatars';
     } else {
       const targetType = dto.targetType;
       const targetId = dto.targetId;
@@ -69,35 +69,55 @@ export class ImagesService {
       if (targetType && targetId && Types.ObjectId.isValid(targetId)) {
         try {
           const lowerType = targetType.toLowerCase();
-          if (lowerType === 'task' || lowerType === 'tasks') {
-            const task = await this.taskModel
-              .findById(new Types.ObjectId(targetId))
-              .exec();
-            if (task) {
-              if (!resolvedWorkspaceId) {
-                resolvedWorkspaceId = task.workspaceId?.toString();
+          if (dto.targetName) {
+            targetFolder = `${slugify(dto.targetName)}_${targetId}`;
+            if (lowerType === 'channel' || lowerType === 'channels') {
+              const channel = await this.channelModel
+                .findById(new Types.ObjectId(targetId))
+                .select('type workspaceId')
+                .exec();
+              if (channel) {
+                channelType = channel.type;
+                if (!resolvedWorkspaceId && channel.workspaceId) {
+                  resolvedWorkspaceId = channel.workspaceId.toString();
+                }
               }
-              targetFolder = `${slugify(task.title)}_${targetId}`;
             }
-          } else if (lowerType === 'page' || lowerType === 'pages') {
-            const page = await this.pageModel
-              .findById(new Types.ObjectId(targetId))
-              .exec();
-            if (page) {
-              if (!resolvedWorkspaceId) {
-                resolvedWorkspaceId = page.workspaceId?.toString();
+          } else {
+            if (lowerType === 'task' || lowerType === 'tasks') {
+              const task = await this.taskModel
+                .findById(new Types.ObjectId(targetId))
+                .select('title workspaceId')
+                .exec();
+              if (task) {
+                if (!resolvedWorkspaceId) {
+                  resolvedWorkspaceId = task.workspaceId?.toString();
+                }
+                targetFolder = `${slugify(task.title)}_${targetId}`;
               }
-              targetFolder = `${slugify(page.title)}_${targetId}`;
-            }
-          } else if (lowerType === 'channel' || lowerType === 'channels') {
-            const channel = await this.channelModel
-              .findById(new Types.ObjectId(targetId))
-              .exec();
-            if (channel) {
-              if (!resolvedWorkspaceId) {
-                resolvedWorkspaceId = channel.workspaceId?.toString();
+            } else if (lowerType === 'page' || lowerType === 'pages') {
+              const page = await this.pageModel
+                .findById(new Types.ObjectId(targetId))
+                .select('title workspaceId')
+                .exec();
+              if (page) {
+                if (!resolvedWorkspaceId) {
+                  resolvedWorkspaceId = page.workspaceId?.toString();
+                }
+                targetFolder = `${slugify(page.title)}_${targetId}`;
               }
-              targetFolder = `${slugify(channel.name)}_${targetId}`;
+            } else if (lowerType === 'channel' || lowerType === 'channels') {
+              const channel = await this.channelModel
+                .findById(new Types.ObjectId(targetId))
+                .select('name type workspaceId')
+                .exec();
+              if (channel) {
+                if (!resolvedWorkspaceId) {
+                  resolvedWorkspaceId = channel.workspaceId?.toString();
+                }
+                targetFolder = `${slugify(channel.name)}_${targetId}`;
+                channelType = channel.type;
+              }
             }
           }
         } catch (err) {
@@ -111,7 +131,9 @@ export class ImagesService {
       // 2. Xác định cấu trúc thư mục Cloudinary
       if (resolvedWorkspaceId) {
         let wsFolder = resolvedWorkspaceId;
-        if (Types.ObjectId.isValid(resolvedWorkspaceId)) {
+        if (dto.workspaceName) {
+          wsFolder = `${slugify(dto.workspaceName)}_${resolvedWorkspaceId}`;
+        } else if (Types.ObjectId.isValid(resolvedWorkspaceId)) {
           try {
             const ws =
               await this.workspacesService.findById(resolvedWorkspaceId);
@@ -125,25 +147,27 @@ export class ImagesService {
 
         const lowerType = targetType ? targetType.toLowerCase() : 'other';
         if (lowerType === 'task' || lowerType === 'tasks') {
-          folder = `workspaces/${wsFolder}/${targetFolder}/${getDatePath()}`;
+          folder = `workspaces/${wsFolder}/tasks/${targetFolder}`;
         } else if (lowerType === 'page' || lowerType === 'pages') {
-          folder = `workspaces/${wsFolder}/pages/${targetFolder}/${getDatePath()}`;
+          folder = `workspaces/${wsFolder}/pages/${targetFolder}`;
         } else if (lowerType === 'channel' || lowerType === 'channels') {
-          folder = `workspaces/${wsFolder}/chat/channels/${targetFolder}/${getDatePath()}`;
+          folder = `workspaces/${wsFolder}/chat/${targetFolder}`;
         } else {
-          folder = `workspaces/${wsFolder}/${lowerType}/${targetFolder}/${getDatePath()}`;
+          folder = `workspaces/${wsFolder}/attachments/${lowerType}/${targetFolder}`;
         }
       } else {
         // Chat general/DM/Announcement hoặc upload ngoài Workspace
-        if (targetType && targetId) {
-          const lowerType = targetType.toLowerCase();
-          if (lowerType === 'channel' || lowerType === 'channels') {
-            folder = `chat/channels/${targetFolder}/${getDatePath()}`;
+        const lowerType = targetType ? targetType.toLowerCase() : 'other';
+        if (lowerType === 'channel' || lowerType === 'channels') {
+          if (channelType === 'dm') {
+            folder = `chat/dm/${targetFolder}`;
           } else {
-            folder = `${lowerType}/${targetFolder}/${getDatePath()}`;
+            folder = `chat/global/${targetFolder}`;
           }
+        } else if (targetType && targetId) {
+          folder = `attachments/${lowerType}/${targetFolder}`;
         } else {
-          folder = `general/${getDatePath()}`;
+          folder = 'general';
         }
       }
     }
@@ -159,6 +183,8 @@ export class ImagesService {
       publicId,
     });
 
+    const isChannel = dto.targetType?.toLowerCase() === 'channel' || dto.targetType?.toLowerCase() === 'channels';
+
     const image = new this.imageModel({
       uploadedBy: new Types.ObjectId(userId),
       filename: file.filename || file.originalname,
@@ -171,6 +197,7 @@ export class ImagesService {
       type: dto.type || (isAvatar ? ImageType.AVATAR : 'other'),
       targetId: dto.targetId,
       targetType: dto.targetType,
+      channelId: isChannel && dto.targetId ? new Types.ObjectId(dto.targetId) : undefined,
       workspaceId: resolvedWorkspaceId
         ? new Types.ObjectId(resolvedWorkspaceId)
         : undefined,

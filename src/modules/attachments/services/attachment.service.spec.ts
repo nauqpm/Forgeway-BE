@@ -1,7 +1,6 @@
 import { Types } from 'mongoose';
 import { AttachmentService } from './attachment.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
-import { getDatePath } from '../../cloudinary/cloudinary.utils';
 
 describe('AttachmentService', () => {
   let attachmentModel: any;
@@ -78,7 +77,7 @@ describe('AttachmentService', () => {
       userId,
     );
 
-    const expectedFolder = `workspaces/test-workspace_${workspaceId}/test-task_${targetId}/${getDatePath()}`;
+    const expectedFolder = `workspaces/test-workspace_${workspaceId}/tasks/test-task_${targetId}`;
 
     expect(cloudinaryService.uploadFile).toHaveBeenCalledWith(
       file,

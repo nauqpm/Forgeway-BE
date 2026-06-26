@@ -48,6 +48,9 @@ export class Image {
   @Prop()
   targetId?: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'Channel', index: true })
+  channelId?: Types.ObjectId;
+
   @Prop({ default: 0 })
   downloadCount!: number;
 

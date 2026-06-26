@@ -86,9 +86,11 @@ export class AttachmentsController {
     const targetType = bodyTargetType || queryTargetType;
     const targetId = bodyTargetId || queryTargetId;
     const workspaceId = req.body?.workspaceId || req.query?.workspaceId;
+    const workspaceName = req.body?.workspaceName || req.query?.workspaceName;
+    const targetName = req.body?.targetName || req.query?.targetName;
 
-    if (!targetType || !['task', 'page'].includes(targetType)) {
-      throw new BadRequestException('targetType must be "task" or "page"');
+    if (!targetType || !['task', 'page', 'channel'].includes(targetType)) {
+      throw new BadRequestException('targetType must be "task", "page" or "channel"');
     }
     if (!targetId) {
       throw new BadRequestException('targetId is required');
@@ -98,9 +100,11 @@ export class AttachmentsController {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      targetType: targetType as 'task' | 'page',
+      targetType: targetType as 'task' | 'page' | 'channel',
       targetId,
       workspaceId,
+      workspaceName,
+      targetName,
     };
 
     return this.attachmentService.create(input, file, req.user.userId);

@@ -35,11 +35,14 @@ export class Attachment {
   @Prop({ trim: true })
   migrationStatus?: string;
 
-  @Prop({ type: String, enum: ['task', 'page'], required: true })
+  @Prop({ type: String, enum: ['task', 'page', 'channel'], required: true })
   targetType!: string;
 
   @Prop({ required: true })
   targetId!: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Channel', index: true })
+  channelId?: Types.ObjectId;
 
   @Prop({ default: 0, min: 0 })
   downloadCount!: number;

@@ -56,6 +56,7 @@ export class TaskAttachmentService {
         size: file.size,
         targetType: 'task',
         targetId: taskId,
+        targetName: task.title,
       },
       file,
       userId,

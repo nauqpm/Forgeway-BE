@@ -13,7 +13,6 @@ import {
   slugify,
   slugifyFilename,
   generateShortHash,
-  getDatePath,
   decodeFilename,
 } from '../../cloudinary/cloudinary.utils';
 
@@ -50,7 +49,8 @@ export class AttachmentService {
       `Creating attachment for ${input.targetType}:${input.targetId}`,
     );
 
-    let folder = `general/${getDatePath()}`;
+    let folder = 'general';
+    let channelType: string | undefined = undefined;
 
     let targetFolder = input.targetId;
     if (
@@ -60,34 +60,54 @@ export class AttachmentService {
     ) {
       try {
         const lowerType = input.targetType.toLowerCase();
-        if (lowerType === 'task' || lowerType === 'tasks') {
-          const task = await this.taskModel
-            .findById(new Types.ObjectId(input.targetId))
-            .exec();
-          if (task) {
-            targetFolder = `${slugify(task.title)}_${input.targetId}`;
-            if (!input.workspaceId && task.workspaceId) {
-              input.workspaceId = task.workspaceId.toString();
+        if (input.targetName) {
+          targetFolder = `${slugify(input.targetName)}_${input.targetId}`;
+          if (lowerType === 'channel' || lowerType === 'channels') {
+            const channel = await this.channelModel
+              .findById(new Types.ObjectId(input.targetId))
+              .select('type workspaceId')
+              .exec();
+            if (channel) {
+              channelType = channel.type;
+              if (!input.workspaceId && channel.workspaceId) {
+                input.workspaceId = channel.workspaceId.toString();
+              }
             }
           }
-        } else if (lowerType === 'page' || lowerType === 'pages') {
-          const page = await this.pageModel
-            .findById(new Types.ObjectId(input.targetId))
-            .exec();
-          if (page) {
-            targetFolder = `${slugify(page.title)}_${input.targetId}`;
-            if (!input.workspaceId && page.workspaceId) {
-              input.workspaceId = page.workspaceId.toString();
+        } else {
+          if (lowerType === 'task' || lowerType === 'tasks') {
+            const task = await this.taskModel
+              .findById(new Types.ObjectId(input.targetId))
+              .select('title workspaceId')
+              .exec();
+            if (task) {
+              targetFolder = `${slugify(task.title)}_${input.targetId}`;
+              if (!input.workspaceId && task.workspaceId) {
+                input.workspaceId = task.workspaceId.toString();
+              }
             }
-          }
-        } else if (lowerType === 'channel' || lowerType === 'channels') {
-          const channel = await this.channelModel
-            .findById(new Types.ObjectId(input.targetId))
-            .exec();
-          if (channel) {
-            targetFolder = `${slugify(channel.name)}_${input.targetId}`;
-            if (!input.workspaceId && channel.workspaceId) {
-              input.workspaceId = channel.workspaceId.toString();
+          } else if (lowerType === 'page' || lowerType === 'pages') {
+            const page = await this.pageModel
+              .findById(new Types.ObjectId(input.targetId))
+              .select('title workspaceId')
+              .exec();
+            if (page) {
+              targetFolder = `${slugify(page.title)}_${input.targetId}`;
+              if (!input.workspaceId && page.workspaceId) {
+                input.workspaceId = page.workspaceId.toString();
+              }
+            }
+          } else if (lowerType === 'channel' || lowerType === 'channels') {
+            const channel = await this.channelModel
+              .findById(new Types.ObjectId(input.targetId))
+              .select('name type workspaceId')
+              .exec();
+            if (channel) {
+              targetFolder = `${slugify(channel.name)}_${input.targetId}`;
+              channelType = channel.type;
+              if (!input.workspaceId && channel.workspaceId) {
+                input.workspaceId = channel.workspaceId.toString();
+              }
             }
           }
         }
@@ -101,7 +121,9 @@ export class AttachmentService {
 
     if (input.workspaceId) {
       let wsFolder = input.workspaceId;
-      if (Types.ObjectId.isValid(input.workspaceId)) {
+      if (input.workspaceName) {
+        wsFolder = `${slugify(input.workspaceName)}_${input.workspaceId}`;
+      } else if (Types.ObjectId.isValid(input.workspaceId)) {
         try {
           const ws = await this.workspacesService.findById(input.workspaceId);
           if (ws) {
@@ -116,22 +138,26 @@ export class AttachmentService {
         ? input.targetType.toLowerCase()
         : 'other';
       if (lowerType === 'task' || lowerType === 'tasks') {
-        folder = `workspaces/${wsFolder}/${targetFolder}/${getDatePath()}`;
+        folder = `workspaces/${wsFolder}/tasks/${targetFolder}`;
       } else if (lowerType === 'page' || lowerType === 'pages') {
-        folder = `workspaces/${wsFolder}/pages/${targetFolder}/${getDatePath()}`;
+        folder = `workspaces/${wsFolder}/pages/${targetFolder}`;
       } else if (lowerType === 'channel' || lowerType === 'channels') {
-        folder = `workspaces/${wsFolder}/chat/channels/${targetFolder}/${getDatePath()}`;
+        folder = `workspaces/${wsFolder}/chat/${targetFolder}`;
       } else {
-        folder = `workspaces/${wsFolder}/attachments/${lowerType}/${targetFolder}/${getDatePath()}`;
+        folder = `workspaces/${wsFolder}/attachments/${lowerType}/${targetFolder}`;
       }
     } else {
       const lowerType = input.targetType
         ? input.targetType.toLowerCase()
         : 'other';
       if (lowerType === 'channel' || lowerType === 'channels') {
-        folder = `chat/channels/${targetFolder}/${getDatePath()}`;
+        if (channelType === 'dm') {
+          folder = `chat/dm/${targetFolder}`;
+        } else {
+          folder = `chat/global/${targetFolder}`;
+        }
       } else {
-        folder = `attachments/${lowerType}/${targetFolder}/${getDatePath()}`;
+        folder = `attachments/${lowerType}/${targetFolder}`;
       }
     }
 
@@ -148,10 +174,14 @@ export class AttachmentService {
       publicId,
     });
 
+    const lowerTargetType = input.targetType?.toLowerCase();
+    const isChannel = lowerTargetType === 'channel' || lowerTargetType === 'channels';
+
     const attachment = new this.attachmentModel({
       workspaceId: input.workspaceId
         ? new Types.ObjectId(input.workspaceId)
         : undefined,
+      channelId: isChannel ? new Types.ObjectId(input.targetId) : undefined,
       uploadedBy: new Types.ObjectId(userId),
       filename: file.filename || file.originalname,
       originalName: input.originalName,
