@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -29,6 +30,16 @@ export class TokenService {
     private readonly usersService: UsersService,
     private readonly auditLogService: AuditLogService,
   ) {}
+
+  private isMongoUnavailable(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const mongoNetworkErrors = [
+      'MongoServerSelectionError',
+      'MongoNetworkTimeoutError',
+      'MongoNetworkError',
+    ];
+    return mongoNetworkErrors.includes(error.name);
+  }
 
   // Public: used by other auth-domain services (password reset, logout, refresh)
   hashToken(token: string): string {
@@ -152,6 +163,11 @@ export class TokenService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(`❌ Error creating tokens: ${err.message}`, err.stack);
+      if (this.isMongoUnavailable(error)) {
+        throw new ServiceUnavailableException(
+          'Database temporarily unavailable',
+        );
+      }
       throw new InternalServerErrorException(
         'Cannot create authentication tokens',
       );
@@ -213,6 +229,11 @@ export class TokenService {
     } catch (error: unknown) {
       const err = error as Error;
       this.logger.error(`❌ Lỗi khi đăng xuất: ${err.message}`, err.stack);
+      if (this.isMongoUnavailable(error)) {
+        throw new ServiceUnavailableException(
+          'Database temporarily unavailable',
+        );
+      }
       throw new InternalServerErrorException('Lỗi khi đăng xuất người dùng.');
     }
   }
@@ -447,6 +468,11 @@ export class TokenService {
         );
       }
       this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
+      if (this.isMongoUnavailable(error)) {
+        throw new ServiceUnavailableException(
+          'Database temporarily unavailable',
+        );
+      }
       throw error;
     }
   }

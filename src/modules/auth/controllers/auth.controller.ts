@@ -12,6 +12,7 @@ import {
   Request,
   Logger,
   BadRequestException,
+  ServiceUnavailableException,
   UnauthorizedException,
   HttpException,
   Req,
@@ -538,6 +539,11 @@ export class AuthController {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
+      if (error instanceof ServiceUnavailableException) {
+        res.set('Retry-After', '30');
+        this.logger.warn('Refresh token failed: database unavailable');
+        throw error;
+      }
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.REFRESH_FAILED,
         severity: 'WARN',
