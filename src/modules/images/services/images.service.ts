@@ -249,7 +249,12 @@ export class ImagesService {
     targetId: string,
   ): Promise<ImageDocument[]> {
     return this.imageModel
-      .find({ type: targetType, targetId })
+      .find({
+        $or: [
+          { targetType, targetId },
+          { type: targetType, targetId }
+        ]
+      })
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -281,7 +286,12 @@ export class ImagesService {
     const skip = (page - 1) * limit;
 
     const filter: Record<string, any> = {};
-    if (targetType) filter.type = targetType;
+    if (targetType) {
+      filter.$or = [
+        { targetType: targetType },
+        { type: targetType }
+      ];
+    }
     if (targetId) filter.targetId = targetId;
     if (userId) filter.uploadedBy = new Types.ObjectId(userId);
 
