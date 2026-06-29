@@ -112,19 +112,25 @@ export class AccountSwitcherService {
       { upsert: true },
     );
 
-    // Enforce max 10 saved accounts per owner. Prune the oldest if over limit.
-    const count = await this.savedAccountModel.countDocuments({
-      ownerUserId: new Types.ObjectId(ownerUserId),
-    });
-    if (count > 10) {
-      const oldest = await this.savedAccountModel
-        .findOne({ ownerUserId: new Types.ObjectId(ownerUserId) })
-        .sort({ lastUsedAt: 1 })
-        .select('_id')
-        .lean();
-      if (oldest) {
-        await this.savedAccountModel.deleteOne({ _id: oldest._id });
+    // Best-effort: prune oldest if owner now exceeds 10 saved accounts.
+    try {
+      const count = await this.savedAccountModel.countDocuments({
+        ownerUserId: new Types.ObjectId(ownerUserId),
+      });
+      if (count > 10) {
+        const oldest = await this.savedAccountModel
+          .findOne({ ownerUserId: new Types.ObjectId(ownerUserId) })
+          .sort({ lastUsedAt: 1 })
+          .select('_id')
+          .lean();
+        if (oldest) {
+          await this.savedAccountModel.deleteOne({ _id: oldest._id });
+        }
       }
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Non-fatal: could not prune saved accounts — ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -230,6 +236,27 @@ export class AccountSwitcherService {
         },
       },
     );
+
+    // Best-effort: create reverse entry so target can switch back to owner.
+    try {
+      const ownerUser = await this.usersService.getUserById(ownerUserId);
+      await this.rememberAccount(
+        targetAccountId,
+        {
+          id: ownerUser._id.toString(),
+          email: ownerUser.email,
+          fullName: ownerUser.fullName ?? undefined,
+          avatar: ownerUser.avatar ?? undefined,
+          role: ownerUser.role,
+          ssoProvider: ownerUser.googleId ? 'google' : null,
+        },
+        { ip: meta.ip, userAgent: meta.userAgent },
+      );
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Non-fatal: could not create reverse switch entry — ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     this.logger.log(
       `🔀 Account switch: ${ownerUserId} → ${String(targetUser._id)} (${targetUser.email})`,
