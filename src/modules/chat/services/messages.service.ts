@@ -742,7 +742,8 @@ export class MessagesService {
     };
 
     if (filters.q && filters.q.trim()) {
-      query.content = { $regex: filters.q.trim(), $options: 'i' };
+      const escapedQuery = filters.q.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      query.content = { $regex: escapedQuery, $options: 'i' };
     }
 
     if (filters.senderId) {
