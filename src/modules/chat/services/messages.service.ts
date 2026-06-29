@@ -716,6 +716,59 @@ export class MessagesService {
     };
   }
 
+  async searchInChannel(
+    channelId: string,
+    userId: string,
+    filters: { q?: string; senderId?: string },
+  ): Promise<any[]> {
+    if (!Types.ObjectId.isValid(channelId)) {
+      throw new NotFoundException('Invalid Channel ID');
+    }
+
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      userId,
+    );
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    const query: any = {
+      channelId: new Types.ObjectId(channelId),
+      deletedAt: null,
+    };
+
+    if (filters.q && filters.q.trim()) {
+      query.content = { $regex: filters.q.trim(), $options: 'i' };
+    }
+
+    if (filters.senderId) {
+      if (!Types.ObjectId.isValid(filters.senderId)) {
+        throw new NotFoundException('Invalid Sender ID');
+      }
+      query.senderId = new Types.ObjectId(filters.senderId);
+    }
+
+    const messages = await this.messagesRepository.model
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate([
+        { path: 'senderId', select: 'fullName avatar email' },
+        { path: 'stickerId' },
+        {
+          path: 'replyToId',
+          populate: [
+            { path: 'senderId', select: 'fullName avatar email' },
+            { path: 'stickerId' },
+          ],
+        },
+      ])
+      .exec();
+
+    return this.populateReactions(messages);
+  }
+
   async edit(messageId: string, userId: string, content: string): Promise<any> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');

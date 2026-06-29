@@ -132,6 +132,18 @@ export class ChannelsController {
     return this.messagesService.findByChannel(id, userId, dto);
   }
 
+  @Get('channels/:id/messages/search')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async searchMessages(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @Query('q') q?: string,
+    @Query('senderId') senderId?: string,
+  ) {
+    return this.messagesService.searchInChannel(id, userId, { q, senderId });
+  }
+
   @Post('channels/:id/messages')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_SEND)
