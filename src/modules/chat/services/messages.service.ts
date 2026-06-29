@@ -735,7 +735,10 @@ export class MessagesService {
 
     const query: any = {
       channelId: new Types.ObjectId(channelId),
-      deletedAt: null,
+      $or: [
+        { deletedAt: null },
+        { deletedAt: { $exists: false } }
+      ]
     };
 
     if (filters.q && filters.q.trim()) {
