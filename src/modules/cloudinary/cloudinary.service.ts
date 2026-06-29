@@ -118,4 +118,14 @@ export class CloudinaryService {
   async deleteImage(publicId: string): Promise<any> {
     return this.deleteFile(publicId);
   }
+
+  getPrivateDownloadUrl(
+    publicId: string,
+    resourceType: 'image' | 'video' | 'raw' | 'auto' | string = 'raw',
+  ): string {
+    return cloudinary.utils.private_download_url(publicId, '', {
+      resource_type: resourceType,
+      type: 'upload',
+    });
+  }
 }
