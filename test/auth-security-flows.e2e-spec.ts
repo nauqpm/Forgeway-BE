@@ -522,6 +522,7 @@ describe('Auth security flows (integration)', () => {
       {
         processPostRegisterInvites: jest.fn().mockResolvedValue(undefined),
       } as unknown as InviteService,
+      {} as any,
     );
 
     await authenticationService.register({
