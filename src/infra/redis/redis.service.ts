@@ -33,7 +33,7 @@ export class RedisService implements OnModuleDestroy {
         connectTimeout: this.getIntegerConfig(
           'REDIS_CONNECT_TIMEOUT_MS',
           5_000,
-        ), 
+        ),
       },
     });
 

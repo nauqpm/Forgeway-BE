@@ -35,8 +35,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       scope: ['email', 'profile'],
       passReqToCallback: true,
     });
-
-    
   }
 
   validate(
