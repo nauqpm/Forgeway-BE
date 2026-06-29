@@ -31,13 +31,17 @@ import {
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateAttachmentInput } from '../dtos/attachment-input.dto';
 import { AttachmentService } from '../services/attachment.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 @ApiTags('Attachments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('attachments')
 export class AttachmentsController {
-  constructor(private readonly attachmentService: AttachmentService) {}
+  constructor(
+    private readonly attachmentService: AttachmentService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List generic attachments by target' })
@@ -73,16 +77,9 @@ export class AttachmentsController {
     if (attachment.cloudinaryPublicId) {
       let fetchUrl: string = attachmentUrl;
       try {
-        const { v2: cloudinary } = require('cloudinary');
-        fetchUrl = cloudinary.utils.private_download_url(
+        fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
           attachment.cloudinaryPublicId,
-          '',
-          {
-            resource_type: attachment.mimeType?.startsWith('image/')
-              ? 'image'
-              : 'raw',
-            type: 'upload',
-          },
+          attachment.mimeType?.startsWith('image/') ? 'image' : 'raw',
         );
       } catch (_err) {
         // Fallback
