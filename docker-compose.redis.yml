@@ -1,7 +1,6 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: al-sdlc-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
