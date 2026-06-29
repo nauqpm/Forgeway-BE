@@ -8,6 +8,7 @@
 /postman/
 *.yaml
 *.yml
+!/docker-compose.redis.yml
 
 # Ngoại lệ: Cho phép Git theo dõi các file yml/yaml nằm trong thư mục .github
 !/.github/**/*.yml
