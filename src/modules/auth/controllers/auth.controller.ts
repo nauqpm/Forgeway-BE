@@ -402,6 +402,7 @@ export class AuthController {
         success: result.success,
         message: result.message,
         user: result.user,
+        tokens: result.tokens, // <--- Added for Mobile apps
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -546,7 +547,14 @@ export class AuthController {
         severity: 'INFO',
       });
 
-      return { success: true, message: 'Token refreshed successfully.' };
+      return {
+        success: true,
+        message: 'Token refreshed successfully.',
+        tokens: {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;

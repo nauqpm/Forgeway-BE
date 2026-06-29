@@ -3,14 +3,18 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   BadRequestException,
   UseGuards,
   Req,
   Res,
   Logger,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { SkipThrottle } from '@nestjs/throttler';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { OAuthService } from '../services/oauth.service';
 import { TokenService } from '../services/token.service';
 import { AccountSwitcherService } from '../services/account-switcher.service';
@@ -201,6 +205,58 @@ export class OAuthController {
         this.configService.get<string>('FRONTEND_URL') ||
         'http://localhost:3000';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
+    }
+  }
+
+  @ApiOperation({
+    summary: 'Google OAuth login for Mobile Apps',
+    description:
+      'Verify idToken directly from mobile client and return access/refresh tokens in body.',
+  })
+  @ApiResponse({ status: 200, description: 'Login successful via Google' })
+  @ApiBody({
+    schema: { type: 'object', properties: { idToken: { type: 'string' } } },
+  })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('google/mobile')
+  async googleAuthMobile(
+    @Body('idToken') idToken: string,
+    @Req() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!idToken) {
+      throw new BadRequestException('idToken is required');
+    }
+
+    try {
+      const { user, accessToken, refreshToken } =
+        await this.oauthService.verifyMobileGoogleToken(idToken);
+
+      // Optionally set cookies as well if mobile web needs it
+      setAuthCookies(res, this.configService, { accessToken, refreshToken });
+
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_SUCCESS,
+        severity: 'INFO',
+        email: user.email,
+        metadata: { role: user.role, client: 'mobile' },
+      });
+
+      return {
+        success: true,
+        message: 'Google login successful',
+        user,
+        tokens: { accessToken, refreshToken },
+      };
+    } catch (error) {
+      this.logger.error('❌ Google Mobile Auth error:', error);
+      this.auditLogService.logRequest(req, {
+        type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_FAILED,
+        severity: 'WARN',
+        metadata: { reason: (error as Error).message, client: 'mobile' },
+      });
+      throw error;
     }
   }
 }
