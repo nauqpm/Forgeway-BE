@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { setAuthCookies } from '../utils/cookie.utils';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
+import { COOKIE_NAMES } from '../constants/cookie.constants';
 
 interface RequestWithUser extends Request {
   user: {
@@ -86,12 +87,15 @@ export class AccountSwitcherController {
       req.ip ??
       undefined;
     const userAgent = req.headers['user-agent'] ?? undefined;
+    const ownerRefreshToken = req.cookies?.[COOKIE_NAMES.REFRESH] as
+      | string
+      | undefined;
 
     try {
       const result = await this.accountSwitcher.switchToAccount(
         ownerId,
         dto.accountId,
-        { ip, userAgent },
+        { ip, userAgent, ownerRefreshToken },
       );
 
       // Rotate cookies to the new identity

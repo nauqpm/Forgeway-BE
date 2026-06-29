@@ -118,4 +118,13 @@ export class RecentLoginsService {
       accountId: new Types.ObjectId(accountId),
     });
   }
+
+  /**
+   * Xoá toàn bộ danh sách "gần đây" của device khi logout.
+   * Giữ cookie device_id để device identity còn đó cho lần login sau.
+   */
+  async clearForDevice(deviceId: string): Promise<void> {
+    if (!deviceId) return;
+    await this.recentLoginModel.deleteMany({ deviceId });
+  }
 }

@@ -465,6 +465,17 @@ export class AuthController {
         refreshToken,
       );
 
+      const deviceId = getDeviceIdFromRequest(req);
+      if (deviceId) {
+        await this.recentLoginsService
+          .clearForDevice(deviceId)
+          .catch((err: Error) =>
+            this.logger.warn(
+              `Non-fatal: could not clear recent logins on logout — ${err.message}`,
+            ),
+          );
+      }
+
       clearAuthCookies(res, this.configService);
 
       this.auditLogService.logRequest(req, {

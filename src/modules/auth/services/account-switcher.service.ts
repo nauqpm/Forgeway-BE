@@ -111,6 +111,21 @@ export class AccountSwitcherService {
       },
       { upsert: true },
     );
+
+    // Enforce max 10 saved accounts per owner. Prune the oldest if over limit.
+    const count = await this.savedAccountModel.countDocuments({
+      ownerUserId: new Types.ObjectId(ownerUserId),
+    });
+    if (count > 10) {
+      const oldest = await this.savedAccountModel
+        .findOne({ ownerUserId: new Types.ObjectId(ownerUserId) })
+        .sort({ lastUsedAt: 1 })
+        .select('_id')
+        .lean();
+      if (oldest) {
+        await this.savedAccountModel.deleteOne({ _id: oldest._id });
+      }
+    }
   }
 
   /**
@@ -146,7 +161,7 @@ export class AccountSwitcherService {
   async switchToAccount(
     ownerUserId: string,
     targetAccountId: string,
-    meta: { ip?: string; userAgent?: string },
+    meta: { ip?: string; userAgent?: string; ownerRefreshToken?: string },
   ): Promise<SwitchTokensResult> {
     if (
       !Types.ObjectId.isValid(ownerUserId) ||
@@ -174,6 +189,18 @@ export class AccountSwitcherService {
     const targetUser = await this.usersService.getUserById(targetAccountId);
     if (targetUser.status !== USER_STATUSES.ACTIVE) {
       throw new ForbiddenException('Account đích hiện không khả dụng');
+    }
+
+    // Revoke the owner's refresh token so their previous session can no longer be silently refreshed.
+    // Best-effort: a failure here must not abort the switch.
+    if (meta.ownerRefreshToken) {
+      await this.tokenService
+        .revokeSessionTokens(undefined, meta.ownerRefreshToken)
+        .catch((err: Error) =>
+          this.logger.warn(
+            `Non-fatal: could not revoke owner refresh token on switch — ${err.message}`,
+          ),
+        );
     }
 
     // 3. Issue new tokens for the target account
