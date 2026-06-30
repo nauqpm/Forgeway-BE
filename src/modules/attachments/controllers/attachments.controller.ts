@@ -28,6 +28,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Image, ImageDocument } from '../../images/schemas/image.schema';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateAttachmentInput } from '../dtos/attachment-input.dto';
 import { AttachmentService } from '../services/attachment.service';
@@ -41,6 +44,7 @@ export class AttachmentsController {
   constructor(
     private readonly attachmentService: AttachmentService,
     private readonly cloudinaryService: CloudinaryService,
+    @InjectModel(Image.name) private readonly imageModel: Model<ImageDocument>,
   ) {}
 
   @Get()
@@ -59,27 +63,46 @@ export class AttachmentsController {
       throw new BadRequestException('URL parameter is required');
     }
 
-    const attachment = await this.attachmentService.findByUrl(url);
-    if (!attachment || !attachment.url) {
-      throw new NotFoundException('Attachment not found or has no URL');
+    let attachment = await this.attachmentService.findByUrl(url);
+    let isImageModel = false;
+    let fileObj: any = attachment;
+
+    if (!attachment) {
+      // If not found in attachments, check images collection (for uploaded images)
+      const image = await this.imageModel.findOne({ url }).exec();
+      if (image) {
+        fileObj = image;
+        isImageModel = true;
+      }
     }
 
-    const attachmentUrl = attachment.url;
+    if (!fileObj || !fileObj.url) {
+      throw new NotFoundException('Attachment or Image not found or has no URL');
+    }
+
+    const attachmentUrl = fileObj.url;
 
     try {
-      await this.attachmentService.incrementDownloadCount(
-        attachment._id.toString(),
-      );
+      if (isImageModel) {
+        await this.imageModel.updateOne(
+          { _id: fileObj._id },
+          { $inc: { downloadCount: 1 } }
+        );
+      } else {
+        await this.attachmentService.incrementDownloadCount(
+          fileObj._id.toString(),
+        );
+      }
     } catch (_e) {
       // Ignore
     }
 
-    if (attachment.cloudinaryPublicId) {
+    if (fileObj.cloudinaryPublicId) {
       let fetchUrl: string = attachmentUrl;
       try {
         fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
-          attachment.cloudinaryPublicId,
-          attachment.mimeType?.startsWith('image/') ? 'image' : 'raw',
+          fileObj.cloudinaryPublicId,
+          fileObj.mimeType?.startsWith('image/') ? 'image' : 'raw',
         );
       } catch (_err) {
         // Fallback
@@ -91,11 +114,11 @@ export class AttachmentsController {
         });
         res.setHeader(
           'Content-Type',
-          attachment.mimeType || 'application/octet-stream',
+          fileObj.mimeType || 'application/octet-stream',
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename="${encodeURIComponent(attachment.originalName || attachment.filename || 'file')}"`,
+          `attachment; filename="${encodeURIComponent(fileObj.originalName || fileObj.filename || 'file')}"`,
         );
         streamResponse.data.pipe(res);
         return;

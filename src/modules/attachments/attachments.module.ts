@@ -14,6 +14,7 @@ import { TaskAttachmentService } from './services/task-attachment.service';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { Page, PageSchema } from '../pages/schemas/page.schema';
 import { Channel, ChannelSchema } from '../chat/schemas/channel.schema';
+import { Image, ImageSchema } from '../images/schemas/image.schema';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { Channel, ChannelSchema } from '../chat/schemas/channel.schema';
       { name: Task.name, schema: TaskSchema },
       { name: Page.name, schema: PageSchema },
       { name: Channel.name, schema: ChannelSchema },
+      { name: Image.name, schema: ImageSchema },
     ]),
     forwardRef(() => AuthModule),
     AuditModule,
