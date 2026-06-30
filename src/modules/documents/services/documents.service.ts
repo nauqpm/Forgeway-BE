@@ -26,6 +26,7 @@ import { DocumentStorageService } from './document-storage.service';
 import { DocumentSanitizerService } from './document-sanitizer.service';
 import { DocumentVersionService } from './document-version.service';
 import { DocumentConversionService } from './document-conversion.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { escapeRegex } from '../utils/document-html.util';
 
 @Injectable()
@@ -39,6 +40,7 @@ export class DocumentsService {
     private readonly sanitizerService: DocumentSanitizerService,
     private readonly versionService: DocumentVersionService,
     private readonly conversionService: DocumentConversionService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async upload(
@@ -288,7 +290,7 @@ export class DocumentsService {
     if (doc.storagePath.startsWith('http')) {
       let fetchUrl = doc.storagePath;
       if (doc.cloudinaryPublicId) {
-        fetchUrl = this.storageService.getPrivateUrl(
+        fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
           doc.cloudinaryPublicId,
           doc.mimeType?.startsWith('image/') ? 'image' : 'raw',
           doc.documentType === 'online' ? 'authenticated' : 'upload',

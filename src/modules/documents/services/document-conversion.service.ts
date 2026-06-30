@@ -9,6 +9,7 @@ import axios from 'axios';
 import { DocumentDoc } from '../schemas/document.schema';
 import { DocumentAccessService } from './document-access.service';
 import { DocumentSanitizerService } from './document-sanitizer.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { escapeHtml } from '../utils/document-html.util';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class DocumentConversionService {
   constructor(
     private readonly accessService: DocumentAccessService,
     private readonly sanitizerService: DocumentSanitizerService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async exportOnlineToDocx(
@@ -32,7 +34,15 @@ export class DocumentConversionService {
 
     let content = '';
     if (doc.storagePath.startsWith('http')) {
-      const response = await axios.get(doc.storagePath);
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
+          doc.cloudinaryPublicId,
+          doc.mimeType?.startsWith('image/') ? 'image' : 'raw',
+          doc.documentType === 'online' ? 'authenticated' : 'upload',
+        );
+      }
+      const response = await axios.get(fetchUrl);
       content = response.data.toString();
     } else {
       content = await fs.readFile(doc.storagePath, 'utf8');
@@ -108,7 +118,15 @@ export class DocumentConversionService {
     if (doc.documentType === 'online') {
       let content = '';
       if (doc.storagePath.startsWith('http')) {
-        const response = await axios.get(doc.storagePath);
+        let fetchUrl = doc.storagePath;
+        if (doc.cloudinaryPublicId) {
+          fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
+            doc.cloudinaryPublicId,
+            doc.mimeType?.startsWith('image/') ? 'image' : 'raw',
+            'authenticated',
+          );
+        }
+        const response = await axios.get(fetchUrl);
         content = response.data.toString();
       } else {
         content = await fs.readFile(doc.storagePath, 'utf8');
@@ -119,7 +137,15 @@ export class DocumentConversionService {
 
     let buffer: Buffer;
     if (doc.storagePath.startsWith('http')) {
-      const response = await axios.get(doc.storagePath, {
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
+          doc.cloudinaryPublicId,
+          doc.mimeType?.startsWith('image/') ? 'image' : 'raw',
+          doc.documentType === 'online' ? 'authenticated' : 'upload',
+        );
+      }
+      const response = await axios.get(fetchUrl, {
         responseType: 'arraybuffer',
       });
       buffer = Buffer.from(response.data);
