@@ -142,7 +142,7 @@ export class DocumentConversionService {
         fetchUrl = this.cloudinaryService.getPrivateDownloadUrl(
           doc.cloudinaryPublicId,
           doc.mimeType?.startsWith('image/') ? 'image' : 'raw',
-          doc.documentType === 'online' ? 'authenticated' : 'upload',
+          'upload',
         );
       }
       const response = await axios.get(fetchUrl, {
