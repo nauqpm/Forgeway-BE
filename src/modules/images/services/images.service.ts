@@ -252,8 +252,8 @@ export class ImagesService {
       .find({
         $or: [
           { targetType, targetId },
-          { type: targetType, targetId }
-        ]
+          { type: targetType, targetId },
+        ],
       })
       .sort({ createdAt: -1 })
       .exec();
@@ -287,10 +287,7 @@ export class ImagesService {
 
     const filter: Record<string, any> = {};
     if (targetType) {
-      filter.$or = [
-        { targetType: targetType },
-        { type: targetType }
-      ];
+      filter.$or = [{ targetType: targetType }, { type: targetType }];
     }
     if (targetId) filter.targetId = targetId;
     if (userId) filter.uploadedBy = new Types.ObjectId(userId);

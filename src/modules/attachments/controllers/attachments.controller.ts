@@ -63,7 +63,7 @@ export class AttachmentsController {
       throw new BadRequestException('URL parameter is required');
     }
 
-    let attachment = await this.attachmentService.findByUrl(url);
+    const attachment = await this.attachmentService.findByUrl(url);
     let isImageModel = false;
     let fileObj: any = attachment;
 
@@ -77,7 +77,9 @@ export class AttachmentsController {
     }
 
     if (!fileObj || !fileObj.url) {
-      throw new NotFoundException('Attachment or Image not found or has no URL');
+      throw new NotFoundException(
+        'Attachment or Image not found or has no URL',
+      );
     }
 
     const attachmentUrl = fileObj.url;
@@ -86,7 +88,7 @@ export class AttachmentsController {
       if (isImageModel) {
         await this.imageModel.updateOne(
           { _id: fileObj._id },
-          { $inc: { downloadCount: 1 } }
+          { $inc: { downloadCount: 1 } },
         );
       } else {
         await this.attachmentService.incrementDownloadCount(

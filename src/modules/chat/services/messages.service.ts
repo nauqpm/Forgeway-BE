@@ -735,14 +735,13 @@ export class MessagesService {
 
     const query: any = {
       channelId: new Types.ObjectId(channelId),
-      $or: [
-        { deletedAt: null },
-        { deletedAt: { $exists: false } }
-      ]
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
     };
 
     if (filters.q && filters.q.trim()) {
-      const escapedQuery = filters.q.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const escapedQuery = filters.q
+        .trim()
+        .replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
       query.content = { $regex: escapedQuery, $options: 'i' };
     }
 
