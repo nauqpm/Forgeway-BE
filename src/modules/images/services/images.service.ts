@@ -3,8 +3,6 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -35,7 +33,6 @@ export class ImagesService {
     @InjectModel(Page.name) private readonly pageModel: Model<PageDocument>,
     @InjectModel(Channel.name)
     private readonly channelModel: Model<ChannelDocument>,
-    @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
@@ -72,9 +69,19 @@ export class ImagesService {
       if (targetType && targetId && Types.ObjectId.isValid(targetId)) {
         try {
           const lowerType = targetType.toLowerCase();
+          const key = lowerType.replace(/s$/, '');
+
+          const RESOLVERS: Record<string, { model: Model<any>; nameField: string }> = {
+            task: { model: this.taskModel, nameField: 'title' },
+            page: { model: this.pageModel, nameField: 'title' },
+            channel: { model: this.channelModel, nameField: 'name' },
+          };
+
+          const resolver = RESOLVERS[key];
+
           if (dto.targetName) {
             targetFolder = `${slugify(dto.targetName)}_${targetId}`;
-            if (lowerType === 'channel' || lowerType === 'channels') {
+            if (key === 'channel') {
               const channel = await this.channelModel
                 .findById(new Types.ObjectId(targetId))
                 .select('type workspaceId')
@@ -86,40 +93,20 @@ export class ImagesService {
                 }
               }
             }
-          } else {
-            if (lowerType === 'task' || lowerType === 'tasks') {
-              const task = await this.taskModel
-                .findById(new Types.ObjectId(targetId))
-                .select('title workspaceId')
-                .exec();
-              if (task) {
-                if (!resolvedWorkspaceId) {
-                  resolvedWorkspaceId = task.workspaceId?.toString();
-                }
-                targetFolder = `${slugify(task.title)}_${targetId}`;
+          } else if (resolver) {
+            const selectFields = key === 'channel' ? 'name type workspaceId' : `${resolver.nameField} workspaceId`;
+            const doc = await resolver.model
+              .findById(new Types.ObjectId(targetId))
+              .select(selectFields)
+              .exec();
+            if (doc) {
+              if (!resolvedWorkspaceId && doc.workspaceId) {
+                resolvedWorkspaceId = doc.workspaceId.toString();
               }
-            } else if (lowerType === 'page' || lowerType === 'pages') {
-              const page = await this.pageModel
-                .findById(new Types.ObjectId(targetId))
-                .select('title workspaceId')
-                .exec();
-              if (page) {
-                if (!resolvedWorkspaceId) {
-                  resolvedWorkspaceId = page.workspaceId?.toString();
-                }
-                targetFolder = `${slugify(page.title)}_${targetId}`;
-              }
-            } else if (lowerType === 'channel' || lowerType === 'channels') {
-              const channel = await this.channelModel
-                .findById(new Types.ObjectId(targetId))
-                .select('name type workspaceId')
-                .exec();
-              if (channel) {
-                if (!resolvedWorkspaceId) {
-                  resolvedWorkspaceId = channel.workspaceId?.toString();
-                }
-                targetFolder = `${slugify(channel.name)}_${targetId}`;
-                channelType = channel.type;
+              const nameValue = doc[resolver.nameField] as string;
+              targetFolder = `${slugify(nameValue)}_${targetId}`;
+              if (key === 'channel') {
+                channelType = (doc as any).type;
               }
             }
           }
@@ -311,6 +298,7 @@ export class ImagesService {
     if (image.cloudinaryPublicId) {
       await this.cloudinaryService.deleteFile(image.cloudinaryPublicId);
     } else {
+      // Legacy fallback for pre-Cloudinary records.
       const filePath = join(process.cwd(), 'uploads', image.filename);
       try {
         await fs.unlink(filePath);

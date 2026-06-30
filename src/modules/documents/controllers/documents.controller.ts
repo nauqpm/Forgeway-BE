@@ -205,7 +205,7 @@ export class DocumentsController {
               resource_type: doc.mimeType?.startsWith('image/')
                 ? 'image'
                 : 'raw',
-              type: 'upload',
+              type: doc.documentType === 'online' ? 'authenticated' : 'upload',
             },
           );
         } catch (_err) {
@@ -268,7 +268,7 @@ export class DocumentsController {
               resource_type: doc.mimeType?.startsWith('image/')
                 ? 'image'
                 : 'raw',
-              type: 'upload',
+              type: doc.documentType === 'online' ? 'authenticated' : 'upload',
             },
           );
         } catch (_err) {

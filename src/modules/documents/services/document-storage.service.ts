@@ -86,7 +86,7 @@ export class DocumentStorageService {
 
   async saveUploadedFile(
     file: Express.Multer.File,
-    _workspaceId?: string,
+    workspaceId?: string,
   ): Promise<StoredUploadedFile> {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -100,7 +100,9 @@ export class DocumentStorageService {
     const extension = this.ensureAllowedType(file);
     const isImage = ['.png', '.jpg', '.jpeg', '.webp'].includes(extension);
 
-    const folder = 'documents';
+    const folder = workspaceId
+      ? `workspaces/${workspaceId}/documents`
+      : 'documents';
     const cleanName = slugifyFilename(file.originalname);
     const hash = generateShortHash(4);
     const publicId = isImage
@@ -141,11 +143,14 @@ export class DocumentStorageService {
       size: Buffer.byteLength(content, 'utf8'),
     } as Express.Multer.File;
 
-    const folder = 'documents';
+    const folder = workspaceId
+      ? `workspaces/${workspaceId}/documents`
+      : 'documents';
 
     const result = await this.cloudinaryService.uploadFile(multerFile, folder, {
       resourceType: 'raw',
       publicId,
+      type: 'authenticated',
     });
 
     return {

@@ -43,6 +43,7 @@ export class CloudinaryService {
     options?: {
       resourceType?: 'image' | 'video' | 'raw' | 'auto';
       publicId?: string;
+      type?: 'authenticated' | 'private' | 'upload';
     },
   ): Promise<{ url: string; publicId: string; size: number }> {
     if (!file || !file.buffer) {
@@ -57,6 +58,7 @@ export class CloudinaryService {
           folder: `sdlc-platform/${folder}`,
           resource_type: resourceType,
           public_id: options?.publicId,
+          type: options?.type,
         },
         (error, res) => {
           if (error) return reject(error);
@@ -113,10 +115,6 @@ export class CloudinaryService {
     } catch (_error) {
       // Ignore errors for idempotency
     }
-  }
-
-  async deleteImage(publicId: string): Promise<any> {
-    return this.deleteFile(publicId);
   }
 
   getPrivateDownloadUrl(
