@@ -245,6 +245,13 @@ export class DashboardService {
       .select(
         'title key columnId type priority workspaceId createdAt updatedAt createdBy updatedBy',
       )
+      .populate('workspaceId', 'name key type')
+      .exec();
+
+    const myTasks = await this.taskModel
+      .find({ assigneeId: userObjectId })
+      .select('title key columnId type priority workspaceId createdAt updatedAt')
+      .populate('workspaceId', 'name key type')
       .exec();
 
     return {
@@ -253,6 +260,7 @@ export class DashboardService {
       tasksByPriority,
       recentlyCompleted,
       recentActivity,
+      myTasks,
     };
   }
 

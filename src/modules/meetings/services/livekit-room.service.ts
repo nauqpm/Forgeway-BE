@@ -9,9 +9,9 @@ export class LivekitRoomService {
 
   constructor(private readonly configService: ConfigService) {
     this.roomServiceClient = new RoomServiceClient(
-      this.configService.getOrThrow<string>('LIVEKIT_URL'),
-      this.configService.getOrThrow<string>('LIVEKIT_API_KEY'),
-      this.configService.getOrThrow<string>('LIVEKIT_API_SECRET'),
+      this.configService.get<string>('LIVEKIT_URL') || 'http://localhost:7880',
+      this.configService.get<string>('LIVEKIT_API_KEY') || 'devkey',
+      this.configService.get<string>('LIVEKIT_API_SECRET') || 'secret',
     );
   }
 
