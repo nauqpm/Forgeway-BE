@@ -71,7 +71,10 @@ export class ImagesService {
           const lowerType = targetType.toLowerCase();
           const key = lowerType.replace(/s$/, '');
 
-          const RESOLVERS: Record<string, { model: Model<any>; nameField: string }> = {
+          const RESOLVERS: Record<
+            string,
+            { model: Model<any>; nameField: string }
+          > = {
             task: { model: this.taskModel, nameField: 'title' },
             page: { model: this.pageModel, nameField: 'title' },
             channel: { model: this.channelModel, nameField: 'name' },
@@ -94,7 +97,10 @@ export class ImagesService {
               }
             }
           } else if (resolver) {
-            const selectFields = key === 'channel' ? 'name type workspaceId' : `${resolver.nameField} workspaceId`;
+            const selectFields =
+              key === 'channel'
+                ? 'name type workspaceId'
+                : `${resolver.nameField} workspaceId`;
             const doc = await resolver.model
               .findById(new Types.ObjectId(targetId))
               .select(selectFields)
@@ -106,7 +112,7 @@ export class ImagesService {
               const nameValue = doc[resolver.nameField] as string;
               targetFolder = `${slugify(nameValue)}_${targetId}`;
               if (key === 'channel') {
-                channelType = (doc as any).type;
+                channelType = doc.type;
               }
             }
           }
