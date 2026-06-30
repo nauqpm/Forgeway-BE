@@ -25,7 +25,7 @@ import { Channel, ChannelSchema } from '../chat/schemas/channel.schema';
       storage: memoryStorage(),
     }),
     forwardRef(() => AuthModule),
-    WorkspacesModule,
+    forwardRef(() => WorkspacesModule),
     CloudinaryModule,
   ],
   controllers: [ImagesController],
