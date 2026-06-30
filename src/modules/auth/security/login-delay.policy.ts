@@ -1,6 +1,6 @@
 export const LOGIN_DELAY_POLICY = {
   freeFailedAttempts: 5,
-  backoffSeconds: [1, 2, 4, 8, 16, 30],
+  backoffSeconds: [1, 2, 4, 8, 16, 30, 60],
   failureWindowMs: 15 * 60 * 1000,
 } as const;
 

@@ -8,6 +8,8 @@ describe('getLoginDelaySeconds', () => {
     expect(getLoginDelaySeconds(5)).toBe(1);
     expect(getLoginDelaySeconds(6)).toBe(2);
     expect(getLoginDelaySeconds(10)).toBe(30);
+    expect(getLoginDelaySeconds(11)).toBe(60);
+    expect(getLoginDelaySeconds(100)).toBe(60);
   });
 });
 

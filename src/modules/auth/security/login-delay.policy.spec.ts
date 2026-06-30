@@ -12,7 +12,8 @@ describe('login delay policy', () => {
     [8, 8],
     [9, 16],
     [10, 30],
-    [100, 30],
+    [11, 60],
+    [100, 60],
   ])('maps failed attempt %i to %i seconds', (attempts, expected) => {
     expect(getLoginDelaySeconds(attempts)).toBe(expected);
   });

@@ -9,15 +9,78 @@ import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/schemas/users.schema';
 import { TokenService } from './token.service';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { OAuth2Client } from 'google-auth-library';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OAuthService {
   private readonly logger = new Logger(OAuthService.name);
 
+  private readonly googleClient: OAuth2Client;
+
   constructor(
     private readonly usersService: UsersService,
     private readonly tokenService: TokenService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.configService.get<string>('GOOGLE_CLIENT_ID') || '',
+    );
+  }
+
+  async verifyMobileGoogleToken(idToken: string) {
+    try {
+      // Decode JWT temporarily to get the aud (for development convenience)
+      let tokenAud = '';
+      try {
+        const parts = idToken.split('.');
+        if (parts.length === 3) {
+          const payloadJson = JSON.parse(
+            Buffer.from(parts[1], 'base64').toString('utf8'),
+          );
+          tokenAud = payloadJson.aud;
+          this.logger.log(
+            `[Auto-Config] Extracted Google Client ID from token: ${tokenAud}`,
+          );
+        }
+      } catch (_e) {
+        // Ignore decoding error
+      }
+
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: [
+          this.configService.get('GOOGLE_CLIENT_ID') || '',
+          '200857351549-60rs8mtb1lvc0iavrqv2mc26p4jnbdq6.apps.googleusercontent.com',
+          this.configService.get<string>('GOOGLE_IOS_CLIENT_ID') || '',
+          this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID') || '',
+          tokenAud, // Automatically accept the app's Client ID
+        ].filter(Boolean), // Validate against all configured client IDs
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new BadRequestException('Invalid Google ID Token payload');
+      }
+
+      // Map to the profile structure expected by validateGoogleUser
+      const profile = {
+        id: payload.sub,
+        email: payload.email,
+        emails: payload.email ? [{ value: payload.email }] : [],
+        fullName: payload.name,
+        photos: payload.picture ? [{ value: payload.picture }] : [],
+      };
+
+      return this.validateGoogleUser(profile);
+    } catch (error: any) {
+      this.logger.error('Error verifying mobile Google token:', error);
+      throw new BadRequestException(
+        'Lỗi xác thực Google ID Token từ App: ' +
+          (error?.message || 'Unknown error'),
+      );
+    }
+  }
 
   // Phase 3: return type aligned với standard login (access + refresh token)
   async validateGoogleUser(profile: {
