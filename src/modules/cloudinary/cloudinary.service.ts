@@ -120,10 +120,11 @@ export class CloudinaryService {
   getPrivateDownloadUrl(
     publicId: string,
     resourceType: 'image' | 'video' | 'raw' | 'auto' | string = 'raw',
+    type: string = 'upload',
   ): string {
     return cloudinary.utils.private_download_url(publicId, '', {
       resource_type: resourceType,
-      type: 'upload',
+      type,
     });
   }
 }

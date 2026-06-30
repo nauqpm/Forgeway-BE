@@ -286,7 +286,15 @@ export class DocumentsService {
 
     let content = '';
     if (doc.storagePath.startsWith('http')) {
-      const response = await axios.get(doc.storagePath);
+      let fetchUrl = doc.storagePath;
+      if (doc.cloudinaryPublicId) {
+        fetchUrl = this.storageService.getPrivateUrl(
+          doc.cloudinaryPublicId,
+          doc.mimeType?.startsWith('image/') ? 'image' : 'raw',
+          doc.documentType === 'online' ? 'authenticated' : 'upload',
+        );
+      }
+      const response = await axios.get(fetchUrl);
       content = response.data.toString();
     } else {
       content = await fs.readFile(doc.storagePath, 'utf8');

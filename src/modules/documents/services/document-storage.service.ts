@@ -172,4 +172,16 @@ export class DocumentStorageService {
       }
     }
   }
+
+  getPrivateUrl(
+    publicId: string,
+    resourceType: string = 'raw',
+    type: string = 'upload',
+  ): string {
+    return this.cloudinaryService.getPrivateDownloadUrl(
+      publicId,
+      resourceType,
+      type,
+    );
+  }
 }
