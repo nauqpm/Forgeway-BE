@@ -66,28 +66,21 @@ export class AuditLogService {
     });
 
     const structuredLog = {
+      category: 'SECURITY',
       event: payload.type,
       severity: payload.severity,
       userId: payload.userId,
       ip: payload.ip,
       ...(payload.metadata ? { meta: payload.metadata } : {}),
     };
+    const message = JSON.stringify(structuredLog);
 
     if (payload.severity === 'CRITICAL') {
-      this.logger.error(
-        `[SECURITY] ${payload.type}`,
-        JSON.stringify(structuredLog),
-      );
+      this.logger.error(message);
     } else if (payload.severity === 'WARN') {
-      this.logger.warn(
-        `[SECURITY] ${payload.type}`,
-        JSON.stringify(structuredLog),
-      );
+      this.logger.warn(message);
     } else {
-      this.logger.log(
-        `[SECURITY] ${payload.type}`,
-        JSON.stringify(structuredLog),
-      );
+      this.logger.log(message);
     }
   }
 

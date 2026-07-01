@@ -28,7 +28,8 @@ export class LivekitWebhookController {
     private readonly meetingService: MeetingService,
     private readonly configService: ConfigService,
   ) {
-    const apiKey = this.configService.get<string>('LIVEKIT_API_KEY') || 'devkey';
+    const apiKey =
+      this.configService.get<string>('LIVEKIT_API_KEY') || 'devkey';
     const apiSecret =
       this.configService.get<string>('LIVEKIT_API_SECRET') || 'secret';
     this.receiver = new WebhookReceiver(apiKey, apiSecret);

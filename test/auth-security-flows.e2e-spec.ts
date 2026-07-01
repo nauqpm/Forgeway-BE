@@ -8,11 +8,13 @@ import { Types } from 'mongoose';
 import request = require('supertest');
 import { AccountSwitcherService } from '../src/modules/auth/services/account-switcher.service';
 import { RecentLoginsService } from '../src/modules/auth/services/recent-logins.service';
+import { LoginSessionTrackingService } from '../src/modules/auth/services/login-session-tracking.service';
 import { AuthTokenConfigService } from '../src/modules/auth/config/auth-token-config.service';
 
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 import { USER_STATUSES } from '../src/common/constants/user-status.constants';
-import { AuthController } from '../src/modules/auth/controllers/auth.controller';
+import { AuthProfileController } from '../src/modules/auth/controllers/auth-profile.controller';
+import { AuthSessionController } from '../src/modules/auth/controllers/auth-session.controller';
 import { JwtAuthGuard } from '../src/modules/auth/guards/jwt-auth.guard';
 import { Token } from '../src/modules/auth/schemas/token.schema';
 import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
@@ -559,7 +561,7 @@ describe('Auth logout revoke path (e2e)', () => {
     tokenModel = new InMemoryTokenModel();
 
     const moduleRef = await Test.createTestingModule({
-      controllers: [AuthController],
+      controllers: [AuthProfileController, AuthSessionController],
       providers: [
         JwtAuthGuard,
         {
@@ -606,7 +608,12 @@ describe('Auth logout revoke path (e2e)', () => {
             logRequest: jest.fn(),
           },
         },
+        AuthTokenConfigService,
         TokenService,
+        {
+          provide: LoginSessionTrackingService,
+          useValue: { trackLoginSession: jest.fn() },
+        },
         {
           provide: AccountSwitcherService,
           useValue: { rememberAccount: jest.fn() },

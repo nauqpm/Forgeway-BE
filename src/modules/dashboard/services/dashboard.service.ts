@@ -250,7 +250,9 @@ export class DashboardService {
 
     const myTasks = await this.taskModel
       .find({ assigneeId: userObjectId })
-      .select('title key columnId type priority workspaceId createdAt updatedAt')
+      .select(
+        'title key columnId type priority workspaceId createdAt updatedAt',
+      )
       .populate('workspaceId', 'name key type')
       .exec();
 

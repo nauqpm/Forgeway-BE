@@ -7,7 +7,9 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import request = require('supertest');
 import { App } from 'supertest/types';
 
-import { AuthController } from '../src/modules/auth/controllers/auth.controller';
+import { AuthProfileController } from '../src/modules/auth/controllers/auth-profile.controller';
+import { AuthRegistrationController } from '../src/modules/auth/controllers/auth-registration.controller';
+import { AuthSessionController } from '../src/modules/auth/controllers/auth-session.controller';
 import { PasswordController } from '../src/modules/auth/controllers/password.controller';
 import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
 import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
@@ -16,6 +18,7 @@ import { TokenService } from '../src/modules/auth/services/token.service';
 import { UsersService } from '../src/modules/users/services/users.service';
 import { AccountSwitcherService } from '../src/modules/auth/services/account-switcher.service';
 import { RecentLoginsService } from '../src/modules/auth/services/recent-logins.service';
+import { LoginSessionTrackingService } from '../src/modules/auth/services/login-session-tracking.service';
 import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 
 describe('Auth throttling (e2e)', () => {
@@ -67,7 +70,12 @@ describe('Auth throttling (e2e)', () => {
       imports: [
         ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
       ],
-      controllers: [AuthController, PasswordController],
+      controllers: [
+        AuthProfileController,
+        AuthRegistrationController,
+        AuthSessionController,
+        PasswordController,
+      ],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: AuthenticationService, useValue: authenticationServiceMock },
@@ -90,6 +98,12 @@ describe('Auth throttling (e2e)', () => {
           useValue: { verify: jest.fn(), sign: jest.fn() },
         },
         { provide: TokenService, useValue: tokenServiceMock },
+        {
+          provide: LoginSessionTrackingService,
+          useValue: {
+            trackLoginSession: jest.fn().mockResolvedValue({}),
+          },
+        },
         {
           provide: AccountSwitcherService,
           useValue: { rememberAccount: jest.fn() },
@@ -147,7 +161,7 @@ describe('Auth throttling (e2e)', () => {
     expect(existingEmailResponse.body).not.toHaveProperty('isValid');
   });
 
-  it('sets login cookies without returning raw tokens in the response body', async () => {
+  it('sets login cookies and returns tokens for mobile clients', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'test@example.com', password: 'WrongPass1!' })
@@ -162,7 +176,10 @@ describe('Auth throttling (e2e)', () => {
     );
     expect(response.body).not.toHaveProperty('accessToken');
     expect(response.body).not.toHaveProperty('refreshToken');
-    expect(response.body).not.toHaveProperty('tokens');
+    expect(response.body.tokens).toEqual({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
     expect(response.body.user).toEqual({
       id: 'user-1',
       email: 'test@example.com',
@@ -170,7 +187,7 @@ describe('Auth throttling (e2e)', () => {
     });
   });
 
-  it('sets refresh cookies without returning raw tokens in the response body', async () => {
+  it('sets refresh cookies and returns tokens for mobile clients', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/refresh')
       .send({ refreshToken: 'refresh-token' })
@@ -185,7 +202,10 @@ describe('Auth throttling (e2e)', () => {
     );
     expect(response.body).not.toHaveProperty('accessToken');
     expect(response.body).not.toHaveProperty('refreshToken');
-    expect(response.body).not.toHaveProperty('tokens');
+    expect(response.body.tokens).toEqual({
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+    });
     expect(response.body.success).toBe(true);
   });
 
@@ -193,7 +213,7 @@ describe('Auth throttling (e2e)', () => {
     const responses = await postUntilLimited(
       '/auth/login',
       { email: 'test@example.com', password: 'WrongPass1!' },
-      6,
+      31,
     );
 
     expect(responses.some(res => res.status === 429)).toBe(true);

@@ -2,7 +2,9 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { AuthController } from './controllers/auth.controller';
+import { AuthSessionController } from './controllers/auth-session.controller';
+import { AuthProfileController } from './controllers/auth-profile.controller';
+import { AuthRegistrationController } from './controllers/auth-registration.controller';
 import { OAuthController } from './controllers/oauth.controller';
 import { PasswordController } from './controllers/password.controller';
 import { PermissionController } from './controllers/permission.controller';
@@ -18,6 +20,7 @@ import { AuthenticationService } from './services/authentication.service';
 import { PasswordService } from './services/password.service';
 import { AccountSwitcherService } from './services/account-switcher.service';
 import { RecentLoginsService } from './services/recent-logins.service';
+import { LoginSessionTrackingService } from './services/login-session-tracking.service';
 import { TokenModule } from './token.module';
 import { Otp, OtpSchema } from './schemas/otp.schema';
 import { Token, TokenSchema } from './schemas/token.schema';
@@ -58,7 +61,9 @@ import { RedisModule } from '@/infra/redis/redis.module';
     ]),
   ],
   controllers: [
-    AuthController,
+    AuthSessionController,
+    AuthProfileController,
+    AuthRegistrationController,
     OAuthController,
     PasswordController,
     PermissionController,
@@ -74,6 +79,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     OAuthService,
     AccountSwitcherService,
     RecentLoginsService,
+    LoginSessionTrackingService,
     LoginAttemptThrottleService,
     JwtStrategy,
     GoogleStrategy,
