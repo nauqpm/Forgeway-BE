@@ -16,7 +16,9 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { OtpService } from './services/otp.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { OAuthService } from './services/oauth.service';
-import { AuthenticationService } from './services/authentication.service';
+import { AuthRegistrationService } from './services/auth-registration.service';
+import { RegistrationVerificationService } from './services/registration-verification.service';
+import { CredentialLoginService } from './services/credential-login.service';
 import { PasswordService } from './services/password.service';
 import { AccountSwitcherService } from './services/account-switcher.service';
 import { RecentLoginsService } from './services/recent-logins.service';
@@ -72,7 +74,9 @@ import { RedisModule } from '@/infra/redis/redis.module';
     RecentLoginsController,
   ],
   providers: [
-    AuthenticationService,
+    AuthRegistrationService,
+    RegistrationVerificationService,
+    CredentialLoginService,
     PasswordService,
     OtpService,
     PasswordResetService,
@@ -85,7 +89,6 @@ import { RedisModule } from '@/infra/redis/redis.module';
     GoogleStrategy,
   ],
   exports: [
-    AuthenticationService,
     PasswordService,
     OtpService,
     PasswordResetService,

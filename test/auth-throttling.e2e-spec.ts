@@ -11,7 +11,9 @@ import { AuthProfileController } from '../src/modules/auth/controllers/auth-prof
 import { AuthRegistrationController } from '../src/modules/auth/controllers/auth-registration.controller';
 import { AuthSessionController } from '../src/modules/auth/controllers/auth-session.controller';
 import { PasswordController } from '../src/modules/auth/controllers/password.controller';
-import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
+import { AuthRegistrationService } from '../src/modules/auth/services/auth-registration.service';
+import { RegistrationVerificationService } from '../src/modules/auth/services/registration-verification.service';
+import { CredentialLoginService } from '../src/modules/auth/services/credential-login.service';
 import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
@@ -24,7 +26,16 @@ import { GLOBAL_ROLES } from '../src/common/constants/global-role.constants';
 describe('Auth throttling (e2e)', () => {
   let app: INestApplication<App>;
 
-  const authenticationServiceMock = {
+  const authRegistrationServiceMock = {
+    register: jest.fn(),
+  };
+
+  const registrationVerificationServiceMock = {
+    verifyRegistrationEmail: jest.fn(),
+    resendRegistrationVerification: jest.fn(),
+  };
+
+  const credentialLoginServiceMock = {
     login: jest.fn().mockResolvedValue({
       success: true,
       message: 'ok',
@@ -78,7 +89,18 @@ describe('Auth throttling (e2e)', () => {
       ],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
-        { provide: AuthenticationService, useValue: authenticationServiceMock },
+        {
+          provide: AuthRegistrationService,
+          useValue: authRegistrationServiceMock,
+        },
+        {
+          provide: RegistrationVerificationService,
+          useValue: registrationVerificationServiceMock,
+        },
+        {
+          provide: CredentialLoginService,
+          useValue: credentialLoginServiceMock,
+        },
         { provide: PasswordResetService, useValue: passwordResetServiceMock },
         { provide: UsersService, useValue: { getUserById: jest.fn() } },
         {

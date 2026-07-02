@@ -22,7 +22,10 @@ import { InviteService } from '../src/modules/workspaces/services/invite.service
 import { OtpService } from '../src/modules/auth/services/otp.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
-import { AuthenticationService } from '../src/modules/auth/services/authentication.service';
+
+import { AuthRegistrationService } from '../src/modules/auth/services/auth-registration.service';
+import { RegistrationVerificationService } from '../src/modules/auth/services/registration-verification.service';
+import { CredentialLoginService } from '../src/modules/auth/services/credential-login.service';
 import { UsersService } from '../src/modules/users/services/users.service';
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
 import { PasswordService } from '../src/modules/auth/services/password.service';
@@ -516,22 +519,22 @@ describe('Auth security flows (integration)', () => {
       sendVerificationEmail: jest.fn(),
       verifyCode: jest.fn(),
     } as unknown as VerifyService;
-    const authenticationService = new AuthenticationService(
+    const authRegistrationService = new AuthRegistrationService(
       usersService,
-      new PasswordService(),
-      tokenService,
       verifyService,
       {
         processPostRegisterInvites: jest.fn().mockResolvedValue(undefined),
       } as unknown as InviteService,
-      {} as any,
     );
-
-    await authenticationService.register({
+    const registrationVerificationService = new RegistrationVerificationService(
+      usersService,
+      verifyService,
+    );
+    await authRegistrationService.register({
       email: 'new-user@example.com',
       password: 'StrongPassword1!',
     });
-    await authenticationService.verifyRegistrationEmail(
+    await registrationVerificationService.verifyRegistrationEmail(
       'new-user@example.com',
       '123456',
     );
@@ -595,9 +598,8 @@ describe('Auth logout revoke path (e2e)', () => {
           },
         },
         {
-          provide: AuthenticationService,
+          provide: CredentialLoginService,
           useValue: {
-            register: jest.fn(),
             login: jest.fn(),
           },
         },

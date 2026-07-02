@@ -27,7 +27,8 @@ import {
   ResendVerificationDto,
   VerifyEmailDto,
 } from '../dtos/auth.dto';
-import { AuthenticationService } from '../services/authentication.service';
+import { AuthRegistrationService } from '../services/auth-registration.service';
+import { RegistrationVerificationService } from '../services/registration-verification.service';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -35,7 +36,8 @@ export class AuthRegistrationController {
   private readonly logger = new Logger(AuthRegistrationController.name);
 
   constructor(
-    private readonly authenticationService: AuthenticationService,
+    private readonly authRegistrationService: AuthRegistrationService,
+    private readonly registrationVerificationService: RegistrationVerificationService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
@@ -101,7 +103,7 @@ export class AuthRegistrationController {
     this.logger.log('Starting user registration...');
 
     try {
-      const result = await this.authenticationService.register(registerDto);
+      const result = await this.authRegistrationService.register(registerDto);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.REGISTER_SUCCESS,
         severity: 'INFO',
@@ -144,10 +146,11 @@ export class AuthRegistrationController {
   @Post('verify-email')
   async verifyEmail(@Body() dto: VerifyEmailDto, @Req() req: ExpressRequest) {
     try {
-      const result = await this.authenticationService.verifyRegistrationEmail(
-        dto.email,
-        dto.code,
-      );
+      const result =
+        await this.registrationVerificationService.verifyRegistrationEmail(
+          dto.email,
+          dto.code,
+        );
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.EMAIL_VERIFICATION_SUCCESS,
         severity: 'INFO',
@@ -187,7 +190,7 @@ export class AuthRegistrationController {
   ) {
     try {
       const result =
-        await this.authenticationService.resendRegistrationVerification(
+        await this.registrationVerificationService.resendRegistrationVerification(
           dto.email,
         );
       this.auditLogService.logRequest(req, {

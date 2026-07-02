@@ -5,14 +5,18 @@ import request = require('supertest');
 import { App } from 'supertest/types';
 
 import { AuthRegistrationController } from './auth-registration.controller';
-import { AuthenticationService } from '../services/authentication.service';
+import { AuthRegistrationService } from '../services/auth-registration.service';
+import { RegistrationVerificationService } from '../services/registration-verification.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 
 describe('AuthRegistrationController', () => {
   let app: INestApplication<App>;
 
-  const authenticationServiceMock = {
+  const authRegistrationServiceMock = {
     register: jest.fn(),
+  };
+
+  const registrationVerificationServiceMock = {
     verifyRegistrationEmail: jest.fn(),
     resendRegistrationVerification: jest.fn(),
   };
@@ -28,7 +32,14 @@ describe('AuthRegistrationController', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AuthRegistrationController],
       providers: [
-        { provide: AuthenticationService, useValue: authenticationServiceMock },
+        {
+          provide: AuthRegistrationService,
+          useValue: authRegistrationServiceMock,
+        },
+        {
+          provide: RegistrationVerificationService,
+          useValue: registrationVerificationServiceMock,
+        },
         { provide: AuditLogService, useValue: auditLogServiceMock },
       ],
     }).compile();
@@ -86,7 +97,7 @@ describe('AuthRegistrationController', () => {
           'Registration successful. Please check your email to verify your account.',
         email: registerDto.email,
       };
-      authenticationServiceMock.register.mockResolvedValue(serviceResult);
+      authRegistrationServiceMock.register.mockResolvedValue(serviceResult);
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
@@ -94,7 +105,7 @@ describe('AuthRegistrationController', () => {
         .expect(201);
 
       expect(response.body).toEqual(serviceResult);
-      expect(authenticationServiceMock.register).toHaveBeenCalledWith(
+      expect(authRegistrationServiceMock.register).toHaveBeenCalledWith(
         registerDto,
       );
       expect(auditLogServiceMock.logRequest).toHaveBeenCalledWith(
@@ -110,7 +121,7 @@ describe('AuthRegistrationController', () => {
     it('audits failure when registration throws and re-throws the error', async () => {
       const error = new Error('Email already in use');
       (error as any).status = 409;
-      authenticationServiceMock.register.mockRejectedValue(error);
+      authRegistrationServiceMock.register.mockRejectedValue(error);
 
       await request(app.getHttpServer())
         .post('/auth/register')
@@ -137,7 +148,7 @@ describe('AuthRegistrationController', () => {
         success: true,
         message: 'Email verification successful.',
       };
-      authenticationServiceMock.verifyRegistrationEmail.mockResolvedValue(
+      registrationVerificationServiceMock.verifyRegistrationEmail.mockResolvedValue(
         serviceResult,
       );
 
@@ -148,7 +159,7 @@ describe('AuthRegistrationController', () => {
 
       expect(response.body).toEqual(serviceResult);
       expect(
-        authenticationServiceMock.verifyRegistrationEmail,
+        registrationVerificationServiceMock.verifyRegistrationEmail,
       ).toHaveBeenCalledWith(verifyDto.email, verifyDto.code);
       expect(auditLogServiceMock.logRequest).toHaveBeenCalledWith(
         expect.anything(),
@@ -163,7 +174,7 @@ describe('AuthRegistrationController', () => {
     it('audits failure on verification error and re-throws', async () => {
       const error = new Error('Invalid code');
       (error as any).status = 400;
-      authenticationServiceMock.verifyRegistrationEmail.mockRejectedValue(
+      registrationVerificationServiceMock.verifyRegistrationEmail.mockRejectedValue(
         error,
       );
 
@@ -193,7 +204,7 @@ describe('AuthRegistrationController', () => {
         message:
           'If the email requires verification, new instructions have been sent.',
       };
-      authenticationServiceMock.resendRegistrationVerification.mockResolvedValue(
+      registrationVerificationServiceMock.resendRegistrationVerification.mockResolvedValue(
         serviceResult,
       );
 
@@ -204,7 +215,7 @@ describe('AuthRegistrationController', () => {
 
       expect(response.body).toEqual(serviceResult);
       expect(
-        authenticationServiceMock.resendRegistrationVerification,
+        registrationVerificationServiceMock.resendRegistrationVerification,
       ).toHaveBeenCalledWith(resendDto.email);
       expect(auditLogServiceMock.logRequest).toHaveBeenCalledWith(
         expect.anything(),
@@ -219,7 +230,7 @@ describe('AuthRegistrationController', () => {
     it('audits failure on resend error and re-throws', async () => {
       const error = new Error('Send failed');
       (error as any).status = 500;
-      authenticationServiceMock.resendRegistrationVerification.mockRejectedValue(
+      registrationVerificationServiceMock.resendRegistrationVerification.mockRejectedValue(
         error,
       );
 

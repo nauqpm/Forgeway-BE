@@ -21,7 +21,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthenticationService } from '../services/authentication.service';
+import { CredentialLoginService } from '../services/credential-login.service';
 import { TokenService } from '../services/token.service';
 import { RecentLoginsService } from '../services/recent-logins.service';
 import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
@@ -58,7 +58,7 @@ export class AuthSessionController {
   private readonly logger = new Logger(AuthSessionController.name);
 
   constructor(
-    private readonly authenticationService: AuthenticationService,
+    private readonly credentialLoginService: CredentialLoginService,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
@@ -131,7 +131,7 @@ export class AuthSessionController {
     this.logger.log('Processing login request...');
 
     try {
-      const result = await this.authenticationService.login(loginDto, {
+      const result = await this.credentialLoginService.login(loginDto, {
         ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
       });
 

@@ -11,7 +11,7 @@ import request = require('supertest');
 import { App } from 'supertest/types';
 
 import { AuthSessionController } from './auth-session.controller';
-import { AuthenticationService } from '../services/authentication.service';
+import { CredentialLoginService } from '../services/credential-login.service';
 import { TokenService } from '../services/token.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { AccountSwitcherService } from '../services/account-switcher.service';
@@ -34,7 +34,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 describe('AuthSessionController', () => {
   let app: INestApplication<App>;
 
-  const authenticationServiceMock = {
+  const credentialLoginServiceMock = {
     login: jest.fn(),
   };
 
@@ -80,7 +80,10 @@ describe('AuthSessionController', () => {
       controllers: [AuthSessionController],
       providers: [
         JwtAuthGuard,
-        { provide: AuthenticationService, useValue: authenticationServiceMock },
+        {
+          provide: CredentialLoginService,
+          useValue: credentialLoginServiceMock,
+        },
         { provide: TokenService, useValue: tokenServiceMock },
         { provide: ConfigService, useValue: configServiceMock },
         { provide: AuditLogService, useValue: auditLogServiceMock },
@@ -130,7 +133,7 @@ describe('AuthSessionController', () => {
     };
 
     it('sets access and refresh HttpOnly cookies on successful login', async () => {
-      authenticationServiceMock.login.mockResolvedValue(loginResult);
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
 
       const response = await request(app.getHttpServer())
         .post('/auth/login')
@@ -161,7 +164,7 @@ describe('AuthSessionController', () => {
 
     it('returns 429 LOGIN_RETRY_LATER with Retry-After header on login cooldown', async () => {
       const retryAfterSeconds = 5;
-      authenticationServiceMock.login.mockRejectedValue(
+      credentialLoginServiceMock.login.mockRejectedValue(
         new LoginRetryLaterException(retryAfterSeconds),
       );
 
@@ -183,7 +186,7 @@ describe('AuthSessionController', () => {
     it('audits login failure and re-throws the error', async () => {
       const error = new Error('Invalid credentials');
       (error as any).status = 401;
-      authenticationServiceMock.login.mockRejectedValue(error);
+      credentialLoginServiceMock.login.mockRejectedValue(error);
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -206,7 +209,7 @@ describe('AuthSessionController', () => {
       jest
         .spyOn(RecentLoginsService, 'generateDeviceId')
         .mockReturnValue(generatedId);
-      authenticationServiceMock.login.mockResolvedValue(loginResult);
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -228,7 +231,7 @@ describe('AuthSessionController', () => {
       (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(
         'existing-device-id',
       );
-      authenticationServiceMock.login.mockResolvedValue(loginResult);
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -246,7 +249,7 @@ describe('AuthSessionController', () => {
       tokenServiceMock.peekUserIdFromAccessToken.mockReturnValue(
         loginResult.user.id,
       );
-      authenticationServiceMock.login.mockResolvedValue(loginResult);
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
 
       await request(app.getHttpServer())
         .post('/auth/login')
@@ -263,7 +266,7 @@ describe('AuthSessionController', () => {
       accountSwitcherMock.rememberAccount.mockRejectedValue(
         new Error('DB error'),
       );
-      authenticationServiceMock.login.mockResolvedValue(loginResult);
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
 
       await request(app.getHttpServer())
         .post('/auth/login')
