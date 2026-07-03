@@ -87,6 +87,14 @@ export class Task {
   @Prop({ type: Number, min: 0, max: 100 })
   storyPoints?: number;
 
+  /** Tổng số giờ đã log (cộng dồn từ tất cả WorkLog entries của task này) */
+  @Prop({ type: Number, min: 0, default: 0 })
+  timeLogged!: number;
+
+  /** Thời gian ước lượng còn lại (giờ). FE gửi lên dạng số thực. */
+  @Prop({ type: Number, min: 0 })
+  timeEstimated?: number;
+
   @Prop({ type: Date })
   startDate?: Date;
 

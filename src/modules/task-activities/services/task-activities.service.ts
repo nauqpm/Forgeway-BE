@@ -354,6 +354,44 @@ export class TaskActivitiesService {
     );
   }
 
+  /**
+   * Ghi nhận sự kiện Log Work vào lịch sử task.
+   *
+   * @param task          - Task document sau khi cập nhật (chứa timeLogged mới nhất)
+   * @param actorId       - ID người dùng thực hiện log
+   * @param hoursSpent    - Số giờ log trong lần này
+   * @param timeEstimated - Thời gian ước lượng còn lại (giờ)
+   */
+  async recordWorkLogged(
+    task: unknown,
+    actorId: string,
+    hoursSpent: number,
+    timeEstimated?: number,
+  ): Promise<void> {
+    const snapshot = this.createSnapshot(task);
+    if (!snapshot) {
+      return;
+    }
+
+    const plain =
+      typeof (task as { toObject?: () => unknown }).toObject === 'function'
+        ? ((task as { toObject: () => unknown }).toObject() as Record<string, unknown>)
+        : (task as Record<string, unknown>);
+
+    await this.recordSafely({
+      workspaceId: snapshot.workspaceId,
+      taskId: snapshot.id,
+      taskKey: snapshot.key,
+      actorId,
+      type: TASK_ACTIVITY_TYPES.WORK_LOGGED,
+      metadata: {
+        hoursSpent,
+        totalLogged: typeof plain.timeLogged === 'number' ? plain.timeLogged : 0,
+        timeEstimated: timeEstimated ?? null,
+      },
+    });
+  }
+
   async recordTaskPermanentlyDeleted(
     task: unknown,
     actorId: string,
