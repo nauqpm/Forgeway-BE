@@ -36,6 +36,12 @@ export class Sprint {
   @Prop()
   completedAt?: Date;
 
+  @Prop({ type: Number })
+  committedStoryPoints?: number;
+
+  @Prop({ type: Number })
+  committedTasksCount?: number;
+
   @Prop({ type: Date, default: null, index: true })
   deletedAt!: Date | null;
 

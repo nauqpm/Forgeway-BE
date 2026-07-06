@@ -11,18 +11,26 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { AuthModule } from '../auth/auth.module';
 
+import {
+  Workspace,
+  WorkspaceSchema,
+} from '../workspaces/schemas/workspace.schema';
+
+import { WorkLogReportsController } from './controllers/work-log-reports.controller';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: WorkLog.name, schema: WorkLogSchema },
       { name: Task.name, schema: TaskSchema },
+      { name: Workspace.name, schema: WorkspaceSchema },
     ]),
     forwardRef(() => TasksModule),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => AuthModule),
     TaskActivitiesModule,
   ],
-  controllers: [WorkLogsController],
+  controllers: [WorkLogsController, WorkLogReportsController],
   providers: [WorkLogsService, WorkLogsRepository, WorkLogMapper],
   exports: [WorkLogsService],
 })
