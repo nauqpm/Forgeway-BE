@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { WorkLogDocument } from '../schemas/work-log.schema';
-import { WorkLogDto, WorkLogListDto } from '../dtos/responses/work-log.dto';
+import { WorkLogDto } from '../dtos/responses/work-log.dto';
 
 @Injectable()
 export class WorkLogMapper {
