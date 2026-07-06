@@ -39,13 +39,13 @@ import { ScrumService } from '../services/scrum.service';
 
 @ApiTags('Workspaces - Scrum')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, WorkspaceTypeGuard('scrum'))
 @Controller('workspaces/:workspaceId')
 export class ScrumController {
   constructor(private readonly scrumService: ScrumService) {}
 
   @Post('sprints')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @ApiOperation({ summary: 'Create a new sprint' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
@@ -58,10 +58,7 @@ export class ScrumController {
   }
 
   @Get('sprints')
-  @UseGuards(
-    WorkspaceTypeGuard('scrum'),
-    ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER),
-  )
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get all sprints in workspace' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   async findByWorkspace(@Param('workspaceId') workspaceId: string) {
@@ -69,7 +66,7 @@ export class ScrumController {
   }
 
   @Patch('sprints/:sprintId')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @ApiOperation({ summary: 'Update sprint name/goal/dates' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
@@ -89,7 +86,7 @@ export class ScrumController {
   }
 
   @Delete('sprints/:sprintId')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a planning sprint' })
@@ -104,7 +101,7 @@ export class ScrumController {
   }
 
   @Post('sprints/:sprintId/start')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Start a sprint' })
@@ -125,7 +122,7 @@ export class ScrumController {
   }
 
   @Post('sprints/:sprintId/complete')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete a sprint' })
@@ -146,10 +143,7 @@ export class ScrumController {
   }
 
   @Get('backlog')
-  @UseGuards(
-    WorkspaceTypeGuard('scrum'),
-    ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER),
-  )
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get workspace backlog' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiQuery({
@@ -166,10 +160,7 @@ export class ScrumController {
   }
 
   @Get('active-sprint')
-  @UseGuards(
-    WorkspaceTypeGuard('scrum'),
-    ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER),
-  )
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get active sprint for workspace' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   async getActiveSprint(@Param('workspaceId') workspaceId: string) {
@@ -177,7 +168,7 @@ export class ScrumController {
   }
 
   @Post('sprints/:sprintId/tasks')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Move tasks/issues into a sprint' })
@@ -198,7 +189,7 @@ export class ScrumController {
   }
 
   @Post('backlog/tasks')
-  @UseGuards(WorkspaceTypeGuard('scrum'), WorkspaceRoleGuard)
+  @UseGuards(WorkspaceRoleGuard)
   @RequirePermissions(WORKSPACE_PERMISSIONS.SPRINT_MANAGE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Move tasks/issues back to backlog' })
@@ -216,10 +207,7 @@ export class ScrumController {
   }
 
   @Get('sprints/:sprintId/tasks')
-  @UseGuards(
-    WorkspaceTypeGuard('scrum'),
-    ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER),
-  )
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get tasks in sprint' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
@@ -231,10 +219,7 @@ export class ScrumController {
   }
 
   @Get('sprints/:sprintId/complete-preview')
-  @UseGuards(
-    WorkspaceTypeGuard('scrum'),
-    ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER),
-  )
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get sprint completion preview' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   @ApiParam({ name: 'sprintId', description: 'Sprint ID' })
@@ -246,33 +231,10 @@ export class ScrumController {
   }
 
   @Get('reports/sprint-velocity')
-  @UseGuards(
-    WorkspaceTypeGuard('scrum'),
-    ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER),
-  )
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Get sprint velocity report' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
   async getSprintVelocityReport(@Param('workspaceId') workspaceId: string) {
     return this.scrumService.getSprintVelocityReport(workspaceId);
-  }
-
-  @Get('reports/cumulative-flow')
-  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
-  @ApiOperation({ summary: 'Get workspace cumulative flow report' })
-  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
-  @ApiQuery({
-    name: 'days',
-    required: false,
-    type: Number,
-    description: 'Number of days',
-  })
-  async getCumulativeFlowReport(
-    @Param('workspaceId') workspaceId: string,
-    @Query('days') days?: string,
-  ) {
-    return this.scrumService.getCumulativeFlowReport(
-      workspaceId,
-      days ? Number(days) : 30,
-    );
   }
 }
