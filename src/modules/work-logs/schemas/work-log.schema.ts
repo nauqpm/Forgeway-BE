@@ -18,7 +18,13 @@ export class WorkLog {
   taskId!: Types.ObjectId;
 
   /** Key của task (ví dụ: AL-42) để hiển thị nhanh */
-  @Prop({ type: String, required: true, trim: true, uppercase: true, index: true })
+  @Prop({
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true,
+    index: true,
+  })
   taskKey!: string;
 
   /** Người thực hiện log */

@@ -37,6 +37,9 @@ export class WorkLogListDto {
   @ApiProperty({ description: 'Total number of work log entries' })
   total!: number;
 
-  @ApiProperty({ description: 'Total hours logged across all entries', example: 8.5 })
+  @ApiProperty({
+    description: 'Total hours logged across all entries',
+    example: 8.5,
+  })
   totalHours!: number;
 }

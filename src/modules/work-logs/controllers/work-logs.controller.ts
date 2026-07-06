@@ -44,7 +44,9 @@ export class WorkLogsController {
   @ApiOperation({ summary: 'Log work time for a task' })
   @ApiResponse({ status: HttpStatus.CREATED, type: WorkLogDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  @ApiForbiddenResponse({ description: 'Workspace membership/permissions required' })
+  @ApiForbiddenResponse({
+    description: 'Workspace membership/permissions required',
+  })
   @ApiNotFoundResponse({ description: 'Task not found' })
   async createWorkLog(
     @Param('workspaceId') workspaceId: string,
@@ -60,7 +62,9 @@ export class WorkLogsController {
   @ApiOperation({ summary: 'Get all work logs for a task' })
   @ApiResponse({ status: HttpStatus.OK, type: WorkLogListDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  @ApiForbiddenResponse({ description: 'Workspace membership/permissions required' })
+  @ApiForbiddenResponse({
+    description: 'Workspace membership/permissions required',
+  })
   @ApiNotFoundResponse({ description: 'Task not found' })
   async getWorkLogs(
     @Param('workspaceId') workspaceId: string,
@@ -73,16 +77,25 @@ export class WorkLogsController {
   @ApiOperation({ summary: 'Update a work log' })
   @ApiResponse({ status: HttpStatus.OK, type: WorkLogDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  @ApiForbiddenResponse({ description: 'Workspace membership/permissions required' })
+  @ApiForbiddenResponse({
+    description: 'Workspace membership/permissions required',
+  })
   @ApiNotFoundResponse({ description: 'Work log not found' })
   async updateWorkLog(
     @Param('workspaceId') workspaceId: string,
     @Param('taskId') taskId: string,
     @Param('logId') logId: string,
-    @Body() dto: import('../dtos/requests/update-work-log.dto').UpdateWorkLogDto,
+    @Body()
+    dto: import('../dtos/requests/update-work-log.dto').UpdateWorkLogDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<WorkLogDto> {
-    return this.workLogsService.update(workspaceId, taskId, logId, user.userId, dto);
+    return this.workLogsService.update(
+      workspaceId,
+      taskId,
+      logId,
+      user.userId,
+      dto,
+    );
   }
 
   @Delete(':logId')
@@ -90,7 +103,9 @@ export class WorkLogsController {
   @ApiOperation({ summary: 'Delete a work log' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
-  @ApiForbiddenResponse({ description: 'Workspace membership/permissions required' })
+  @ApiForbiddenResponse({
+    description: 'Workspace membership/permissions required',
+  })
   @ApiNotFoundResponse({ description: 'Work log not found' })
   async deleteWorkLog(
     @Param('workspaceId') workspaceId: string,

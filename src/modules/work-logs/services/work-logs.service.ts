@@ -66,7 +66,10 @@ export class WorkLogsService {
     return this.workLogMapper.mapToDto(workLog);
   }
 
-  async getByTaskId(workspaceId: string, taskId: string): Promise<WorkLogListDto> {
+  async getByTaskId(
+    workspaceId: string,
+    taskId: string,
+  ): Promise<WorkLogListDto> {
     const task = await this.taskModel.findOne({
       _id: new Types.ObjectId(taskId),
       workspaceId: new Types.ObjectId(workspaceId),
@@ -104,13 +107,14 @@ export class WorkLogsService {
     const updateData: any = {};
     if (dto.hoursSpent !== undefined) updateData.hoursSpent = dto.hoursSpent;
     if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.loggedAt !== undefined) updateData.loggedAt = new Date(dto.loggedAt);
+    if (dto.loggedAt !== undefined)
+      updateData.loggedAt = new Date(dto.loggedAt);
 
     const updatedLog = await this.workLogsRepository.update(logId, updateData);
 
     // recalculate sum and update task
     const totalHours = await this.workLogsRepository.sumHoursForTask(taskId);
-    
+
     const taskUpdateData: any = { timeLogged: totalHours };
     if (dto.timeEstimated !== undefined) {
       taskUpdateData.timeEstimated = dto.timeEstimated;
@@ -142,7 +146,7 @@ export class WorkLogsService {
 
     // recalculate sum and update task
     const totalHours = await this.workLogsRepository.sumHoursForTask(taskId);
-    
+
     const taskUpdateData: any = { timeLogged: totalHours };
     if (adjustTimeRemaining && newTimeEstimated !== undefined) {
       taskUpdateData.timeEstimated = newTimeEstimated;

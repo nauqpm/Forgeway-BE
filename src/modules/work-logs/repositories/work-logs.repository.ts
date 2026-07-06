@@ -50,9 +50,16 @@ export class WorkLogsRepository {
       .exec();
   }
 
-  async update(id: string, data: Partial<WorkLog>): Promise<WorkLogDocument | null> {
+  async update(
+    id: string,
+    data: Partial<WorkLog>,
+  ): Promise<WorkLogDocument | null> {
     return this.workLogModel
-      .findOneAndUpdate({ _id: new Types.ObjectId(id) }, { $set: data }, { new: true })
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id) },
+        { $set: data },
+        { new: true },
+      )
       .exec();
   }
 

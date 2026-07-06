@@ -123,6 +123,9 @@ export class TaskDetailDto {
   timeLogged?: number;
 
   /** Thời gian ước lượng còn lại (giờ) */
-  @ApiPropertyOptional({ description: 'Estimated time remaining in hours', example: 6 })
+  @ApiPropertyOptional({
+    description: 'Estimated time remaining in hours',
+    example: 6,
+  })
   timeEstimated?: number;
 }

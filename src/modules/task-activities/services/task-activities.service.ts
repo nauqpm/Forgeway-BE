@@ -375,7 +375,10 @@ export class TaskActivitiesService {
 
     const plain =
       typeof (task as { toObject?: () => unknown }).toObject === 'function'
-        ? ((task as { toObject: () => unknown }).toObject() as Record<string, unknown>)
+        ? ((task as { toObject: () => unknown }).toObject() as Record<
+            string,
+            unknown
+          >)
         : (task as Record<string, unknown>);
 
     await this.recordSafely({
@@ -386,7 +389,8 @@ export class TaskActivitiesService {
       type: TASK_ACTIVITY_TYPES.WORK_LOGGED,
       metadata: {
         hoursSpent,
-        totalLogged: typeof plain.timeLogged === 'number' ? plain.timeLogged : 0,
+        totalLogged:
+          typeof plain.timeLogged === 'number' ? plain.timeLogged : 0,
         timeEstimated: timeEstimated ?? null,
       },
     });

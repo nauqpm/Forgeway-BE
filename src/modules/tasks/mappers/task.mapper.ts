@@ -48,8 +48,12 @@ export class TaskMapper {
       deletedBy: this.toOptionalId(plainTask.deletedBy),
       createdAt: plainTask.createdAt,
       updatedAt: plainTask.updatedAt,
-      timeLogged: typeof plainTask.timeLogged === 'number' ? plainTask.timeLogged : 0,
-      timeEstimated: typeof plainTask.timeEstimated === 'number' ? plainTask.timeEstimated : undefined,
+      timeLogged:
+        typeof plainTask.timeLogged === 'number' ? plainTask.timeLogged : 0,
+      timeEstimated:
+        typeof plainTask.timeEstimated === 'number'
+          ? plainTask.timeEstimated
+          : undefined,
     };
   }
 
@@ -93,8 +97,12 @@ export class TaskMapper {
       isDeleted: plainTask.isDeleted || false,
       createdAt: plainTask.createdAt,
       updatedAt: plainTask.updatedAt,
-      timeLogged: typeof plainTask.timeLogged === 'number' ? plainTask.timeLogged : 0,
-      timeEstimated: typeof plainTask.timeEstimated === 'number' ? plainTask.timeEstimated : undefined,
+      timeLogged:
+        typeof plainTask.timeLogged === 'number' ? plainTask.timeLogged : 0,
+      timeEstimated:
+        typeof plainTask.timeEstimated === 'number'
+          ? plainTask.timeEstimated
+          : undefined,
     };
   }
 
