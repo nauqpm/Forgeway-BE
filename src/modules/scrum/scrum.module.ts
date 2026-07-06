@@ -11,6 +11,7 @@ import {
 } from '../workspaces/schemas/workspace.schema';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ScrumController } from './controllers/scrum.controller';
+import { WorkspaceReportsController } from './controllers/workspace-reports.controller';
 import { Sprint, SprintSchema } from './schemas/sprint.schema';
 import { BacklogService } from './services/backlog.service';
 import { BoardStatusService } from './services/board-status.service';
@@ -20,6 +21,10 @@ import { SprintDomainEventPublisher } from './services/sprint-domain-event.publi
 import { SprintLifecycleService } from './services/sprint-lifecycle.service';
 import { SprintQueryService } from './services/sprint-query.service';
 import { SprintTaskMovementService } from './services/sprint-task-movement.service';
+import {
+  TaskActivity,
+  TaskActivitySchema,
+} from '../task-activities/schemas/task-activity.schema';
 
 @Module({
   imports: [
@@ -28,12 +33,13 @@ import { SprintTaskMovementService } from './services/sprint-task-movement.servi
       { name: Task.name, schema: TaskSchema },
       { name: Board.name, schema: BoardSchema },
       { name: Workspace.name, schema: WorkspaceSchema },
+      { name: TaskActivity.name, schema: TaskActivitySchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkspacesModule),
     forwardRef(() => KanbanModule),
   ],
-  controllers: [ScrumController],
+  controllers: [ScrumController, WorkspaceReportsController],
   providers: [
     ScrumService,
     SprintCommandService,

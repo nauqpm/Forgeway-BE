@@ -30,6 +30,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { LabelsModule } from './modules/labels/labels.module';
 import { TaskCoversModule } from './modules/task-covers/task-covers.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { WorkLogsModule } from './modules/work-logs/work-logs.module';
 
 // Real Estate / Blog Modules
 import { ImagesModule } from './modules/images/images.module';
@@ -120,6 +121,7 @@ function parseNonNegativeInteger(value: unknown, fallback: number): number {
     LabelsModule,
     TaskCoversModule,
     DocumentsModule,
+    WorkLogsModule,
 
     // Confluence Modules
     PagesModule,

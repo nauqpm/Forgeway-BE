@@ -159,6 +159,17 @@ export class ScrumService {
     }
   }
 
+  getSprintVelocityReport(workspaceId: string): Promise<any[]> {
+    return this.sprintQueryService.getSprintVelocityReport(workspaceId);
+  }
+
+  getCumulativeFlowReport(
+    workspaceId: string,
+    days?: number,
+  ): Promise<{ statuses: string[]; data: any[] }> {
+    return this.sprintQueryService.getCumulativeFlowReport(workspaceId, days);
+  }
+
   deleteByWorkspace(workspaceId: string): Promise<void> {
     return this.sprintCommandService.deleteByWorkspace(workspaceId);
   }

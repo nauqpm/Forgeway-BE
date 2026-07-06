@@ -69,10 +69,26 @@ export class SprintLifecycleService {
       throw new BadRequestException(ErrorFactory.activeSprintExists());
     }
 
+    const tasks = await this.taskModel
+      .find({
+        workspaceId: workspaceObjectId,
+        sprintId: sprintObjectId,
+        isDeleted: { $ne: true },
+      })
+      .lean()
+      .exec();
+
+    let committedStoryPoints = 0;
+    tasks.forEach(t => {
+      committedStoryPoints += t.storyPoints || 0;
+    });
+
     sprint.status = 'active';
     sprint.startDate = new Date(dto.startDate);
     sprint.endDate = new Date(dto.endDate);
     sprint.startedAt = new Date();
+    sprint.committedStoryPoints = committedStoryPoints;
+    sprint.committedTasksCount = tasks.length;
 
     return sprint.save();
   }

@@ -211,6 +211,17 @@ export class TaskUpdateService {
       workspaceId,
     );
     await this.taskActivitiesService.recordTaskUpdated(existing, task, userId);
+
+    // Ghi nhận activity Log Work riêng biệt nếu có cập nhật timeLogged
+    if (updateTaskDto.timeLogged !== undefined) {
+      await this.taskActivitiesService.recordWorkLogged(
+        task,
+        userId,
+        updateTaskDto.timeLogged,
+        updateTaskDto.timeEstimated,
+      );
+    }
+
     this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
     return this.taskMapper.mapToDto(task);
