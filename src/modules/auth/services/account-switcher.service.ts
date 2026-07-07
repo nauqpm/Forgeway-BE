@@ -12,7 +12,8 @@ import {
 } from '../schemas/saved-account.schema';
 import { UsersService } from '../../users/services/users.service';
 import { TokenService } from './token.service';
-import { USER_STATUSES } from '../../../common/constants/user-status.constants';
+import { SwitchCredentialDto } from '../dtos/switch-account.dto';
+import { AccountSwitchTargetAuthService } from './account-switch-target-auth.service';
 
 export interface SwitchTokensResult {
   accessToken: string;
@@ -36,6 +37,7 @@ export class AccountSwitcherService {
     private readonly savedAccountModel: Model<SavedAccountDocument>,
     private readonly usersService: UsersService,
     private readonly tokenService: TokenService,
+    private readonly targetAuthService: AccountSwitchTargetAuthService,
   ) {}
 
   /**
@@ -154,19 +156,18 @@ export class AccountSwitcherService {
   /**
    * Switch the active session into another account the owner has previously used.
    *
-   * SECURITY NOTE (per product decision): no password re-prompt is required.
-   * Trust is anchored on the owner's currently-valid session.
-   *
    * Flow:
    *  1. Validate the saved-account entry exists AND belongs to the current owner.
    *  2. Load target user; ensure still ACTIVE.
-   *  3. Revoke current session's tokens (audit + fairness: previous identity is logged out).
-   *  4. Issue a fresh access/refresh pair for the target account.
-   *  5. Upsert the saved-account entry (lastUsedAt + IP/UA).
+   *  3. Verify the target account credential.
+   *  4. Revoke current session's tokens (audit + fairness: previous identity is logged out).
+   *  5. Issue a fresh access/refresh pair for the target account.
+   *  6. Upsert the saved-account entry (lastUsedAt + IP/UA).
    */
   async switchToAccount(
     ownerUserId: string,
     targetAccountId: string,
+    credential: SwitchCredentialDto,
     meta: { ip?: string; userAgent?: string; ownerRefreshToken?: string },
   ): Promise<SwitchTokensResult> {
     if (
@@ -192,10 +193,11 @@ export class AccountSwitcherService {
     }
 
     // 2. Load target user
-    const targetUser = await this.usersService.getUserById(targetAccountId);
-    if (targetUser.status !== USER_STATUSES.ACTIVE) {
-      throw new ForbiddenException('Account đích hiện không khả dụng');
-    }
+    const targetUser = await this.targetAuthService.verifyTargetCredential(
+      targetAccountId,
+      credential,
+      { ip: meta.ip },
+    );
 
     // Revoke the owner's refresh token so their previous session can no longer be silently refreshed.
     // Best-effort: a failure here must not abort the switch.

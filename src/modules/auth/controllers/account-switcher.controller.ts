@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -22,7 +23,10 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AccountSwitcherService } from '../services/account-switcher.service';
-import { SwitchAccountDto } from '../dtos/switch-account.dto';
+import {
+  isValidSwitchCredentialShape,
+  SwitchAccountDto,
+} from '../dtos/switch-account.dto';
 import { SavedAccountResponseDto } from '../dtos/saved-account.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { setAuthCookies } from '../utils/cookie.utils';
@@ -92,9 +96,16 @@ export class AccountSwitcherController {
       | undefined;
 
     try {
+      if (!isValidSwitchCredentialShape(dto.credential)) {
+        throw new BadRequestException(
+          'Credential must include exactly one field matching credential.type',
+        );
+      }
+
       const result = await this.accountSwitcher.switchToAccount(
         ownerId,
         dto.accountId,
+        dto.credential,
         { ip, userAgent, ownerRefreshToken },
       );
 

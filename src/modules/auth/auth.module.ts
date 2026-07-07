@@ -21,6 +21,7 @@ import { RegistrationVerificationService } from './services/registration-verific
 import { CredentialLoginService } from './services/credential-login.service';
 import { PasswordService } from './services/password.service';
 import { AccountSwitcherService } from './services/account-switcher.service';
+import { AccountSwitchTargetAuthService } from './services/account-switch-target-auth.service';
 import { RecentLoginsService } from './services/recent-logins.service';
 import { LoginSessionTrackingService } from './services/login-session-tracking.service';
 import { TokenModule } from './token.module';
@@ -82,6 +83,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     PasswordResetService,
     OAuthService,
     AccountSwitcherService,
+    AccountSwitchTargetAuthService,
     RecentLoginsService,
     LoginSessionTrackingService,
     LoginAttemptThrottleService,
