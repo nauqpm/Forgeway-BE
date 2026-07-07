@@ -41,6 +41,11 @@ describe('SprintLifecycleService', () => {
         {
           provide: getModelToken(Task.name),
           useValue: {
+            find: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue([]),
+              }),
+            }),
             updateMany: jest.fn(),
           },
         },

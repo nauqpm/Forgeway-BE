@@ -79,6 +79,16 @@ export class TaskDataTransformerService {
       );
     }
 
+    // timeLogged: FE gửi dạng giờ (số thực), ghi thẳng vào DB
+    if (dto.timeLogged !== undefined) {
+      updateData.timeLogged = Math.max(0, dto.timeLogged);
+    }
+
+    // timeEstimated: FE gửi dạng giờ (số thực), ghi thẳng vào DB
+    if (dto.timeEstimated !== undefined) {
+      updateData.timeEstimated = Math.max(0, dto.timeEstimated);
+    }
+
     return updateData;
   }
 }

@@ -229,4 +229,12 @@ export class ScrumController {
   ) {
     return this.scrumService.getCompleteSprintPreview(workspaceId, sprintId);
   }
+
+  @Get('reports/sprint-velocity')
+  @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Get sprint velocity report' })
+  @ApiParam({ name: 'workspaceId', description: 'Workspace ID' })
+  async getSprintVelocityReport(@Param('workspaceId') workspaceId: string) {
+    return this.scrumService.getSprintVelocityReport(workspaceId);
+  }
 }

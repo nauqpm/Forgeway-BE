@@ -117,4 +117,15 @@ export class TaskDetailDto {
 
   @ApiPropertyOptional()
   updatedAt?: Date;
+
+  /** Tổng số giờ đã log (cộng dồn từ tất cả WorkLog entries) */
+  @ApiPropertyOptional({ description: 'Total hours logged', example: 4.5 })
+  timeLogged?: number;
+
+  /** Thời gian ước lượng còn lại (giờ) */
+  @ApiPropertyOptional({
+    description: 'Estimated time remaining in hours',
+    example: 6,
+  })
+  timeEstimated?: number;
 }
