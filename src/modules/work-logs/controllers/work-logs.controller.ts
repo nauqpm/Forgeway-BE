@@ -29,13 +29,17 @@ import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { CreateWorkLogDto } from '../dtos/requests/create-work-log.dto';
 import { WorkLogDto, WorkLogListDto } from '../dtos/responses/work-log.dto';
 import { WorkLogsService } from '../services/work-logs.service';
+import { WorkLogsQueryService } from '../services/work-logs-query.service';
 
 @ApiTags('Workspace Board Task Work Logs')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces/:workspaceId/board-tasks/:taskId/work-logs')
 export class WorkLogsController {
-  constructor(private readonly workLogsService: WorkLogsService) {}
+  constructor(
+    private readonly workLogsService: WorkLogsService,
+    private readonly workLogsQueryService: WorkLogsQueryService,
+  ) {}
 
   @Post()
   @UseGuards(WorkspaceRoleGuard)
@@ -70,10 +74,12 @@ export class WorkLogsController {
     @Param('workspaceId') workspaceId: string,
     @Param('taskId') taskId: string,
   ): Promise<WorkLogListDto> {
-    return this.workLogsService.getByTaskId(workspaceId, taskId);
+    return this.workLogsQueryService.getByTaskId(workspaceId, taskId);
   }
 
   @Patch(':logId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @ApiOperation({ summary: 'Update a work log' })
   @ApiResponse({ status: HttpStatus.OK, type: WorkLogDto })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
@@ -99,6 +105,8 @@ export class WorkLogsController {
   }
 
   @Delete(':logId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a work log' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })

@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { WorkLog, WorkLogSchema } from './schemas/work-log.schema';
 import { WorkLogsController } from './controllers/work-logs.controller';
 import { WorkLogsService } from './services/work-logs.service';
+import { WorkLogsQueryService } from './services/work-logs-query.service';
 import { WorkLogsRepository } from './repositories/work-logs.repository';
 import { WorkLogMapper } from './mappers/work-log.mapper';
 import { TasksModule } from '../tasks/tasks.module';
@@ -31,7 +32,12 @@ import { WorkLogReportsController } from './controllers/work-log-reports.control
     TaskActivitiesModule,
   ],
   controllers: [WorkLogsController, WorkLogReportsController],
-  providers: [WorkLogsService, WorkLogsRepository, WorkLogMapper],
-  exports: [WorkLogsService],
+  providers: [
+    WorkLogsService,
+    WorkLogsQueryService,
+    WorkLogsRepository,
+    WorkLogMapper,
+  ],
+  exports: [WorkLogsService, WorkLogsQueryService],
 })
 export class WorkLogsModule {}

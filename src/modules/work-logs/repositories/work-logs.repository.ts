@@ -50,6 +50,20 @@ export class WorkLogsRepository {
       .exec();
   }
 
+  async findByIdForTask(
+    workspaceId: string,
+    taskId: string,
+    id: string,
+  ): Promise<WorkLogDocument | null> {
+    return this.workLogModel
+      .findOne({
+        _id: new Types.ObjectId(id),
+        workspaceId: new Types.ObjectId(workspaceId),
+        taskId: new Types.ObjectId(taskId),
+      })
+      .exec();
+  }
+
   async update(
     id: string,
     data: Partial<WorkLog>,
