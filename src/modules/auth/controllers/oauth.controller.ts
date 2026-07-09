@@ -1,36 +1,33 @@
-// 📁 src/modules/auth/controllers/oauth.controller.ts
-
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
-  BadRequestException,
-  UseGuards,
-  Req,
-  Res,
-  Logger,
   HttpCode,
   HttpStatus,
+  Logger,
+  Post,
+  Req,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
-import { OAuthService } from '../services/oauth.service';
-import { TokenService } from '../services/token.service';
-import { AccountSwitcherService } from '../services/account-switcher.service';
-import { RecentLoginsService } from '../services/recent-logins.service';
-import { GoogleAuthGuard } from '../guards/google-auth.guard';
-import { Response, Request as ExpressRequest } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { Request as ExpressRequest, Response } from 'express';
+
+import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { AuditLogService } from '../../audit/services/audit-log.service';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
+import { GoogleAuthGuard } from '../guards/google-auth.guard';
+import { OAuthService } from '../services/oauth.service';
+import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
+import { TokenService } from '../services/token.service';
 import {
   getDeviceIdFromRequest,
   setAuthCookies,
   setDeviceIdCookie,
 } from '../utils/cookie.utils';
-import { COOKIE_NAMES } from '../constants/cookie.constants';
-import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
-import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -48,18 +45,15 @@ export class OAuthController {
   constructor(
     private readonly oauthService: OAuthService,
     private readonly tokenService: TokenService,
-    private readonly accountSwitcher: AccountSwitcherService,
-    private readonly recentLoginsService: RecentLoginsService,
+    private readonly loginSessionTrackingService: LoginSessionTrackingService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  // 👉 Chuyển hướng đến Google để xác thực
-  // OAuth handoff is not credential-bearing; skip only this route explicitly.
-  @ApiOperation({ summary: 'Chuyển hướng đến Google để đăng nhập' })
+  @ApiOperation({ summary: 'Redirect to Google for sign-in' })
   @ApiResponse({
     status: 302,
-    description: 'Redirect đến trang đăng nhập Google',
+    description: 'Redirect to Google sign-in page',
   })
   @Get('google')
   @SkipThrottle()
@@ -68,128 +62,47 @@ export class OAuthController {
     return;
   }
 
-  // 🔄 Google OAuth callback — cấp access + refresh token (đồng nhất với login thường)
-  // Provider callbacks can burst during retries, so this skip is explicit and local.
   @ApiOperation({
     summary: 'Google OAuth callback',
     description:
-      'Callback từ Google sau khi xác thực. Token được set vào HttpOnly Cookie và redirect về frontend.',
+      'Handle the Google callback, set HttpOnly cookies, and redirect back to the frontend.',
   })
   @ApiResponse({
     status: 302,
-    description: 'Redirect về frontend dashboard sau khi đăng nhập thành công',
+    description:
+      'Redirect back to the frontend after a successful Google login',
   })
   @Get('google/redirect')
   @SkipThrottle()
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req: RequestWithUser, @Res() res: Response) {
-    // // 🐛 DEBUG LOG — REMOVE AFTER PRODUCTION INVESTIGATION
-    // console.log('=============== GOOGLE CALLBACK ====================');
-    // console.log('Callback reached');
-    // console.log('Query:', req.query);
-    // console.log('Host:', req.headers.host);
-    // console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
-    // console.log('X-Forwarded-Host:', req.headers['x-forwarded-host']);
-    // console.log('===================================================');
-
     try {
       if (!req.user) {
         throw new BadRequestException('Google login failed');
       }
 
-      // ✅ Phase 3: Nhận đủ access + refresh token (đồng nhất với login thường)
-      const { user, accessToken, refreshToken } =
-        await this.oauthService.validateGoogleUser(req.user);
+      const { user } = await this.oauthService.validateGoogleUser(req.user);
 
       if (!user) {
-        throw new BadRequestException('Xác thực Google thất bại');
+        throw new BadRequestException('Google authentication failed');
       }
 
-      // ✅ Set cả 2 HttpOnly cookies — token KHÔNG xuất hiện trên URL
-      // Peek existing session BEFORE overwriting cookies to detect multi-account scenario.
-      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
-        | string
-        | undefined;
-      const existingRootUserId =
-        this.tokenService.peekUserIdFromAccessToken(existingAccess);
-
-      const newUserId = user._id.toString();
-      const rootUserId =
-        existingRootUserId && existingRootUserId !== newUserId
-          ? existingRootUserId
-          : undefined;
-
-      let finalAccessToken = accessToken;
-      let finalRefreshToken = refreshToken;
-      if (rootUserId) {
-        // Re-issue tokens with rootUserId so account-switching resolves to correct owner.
-        const reissued = await this.tokenService.createAndSaveTokens(
-          newUserId,
-          user.email,
-          user.role,
-          user.fullName ?? undefined,
-          user.avatar ?? undefined,
-          rootUserId,
-        );
-        finalAccessToken = reissued.accessToken;
-        finalRefreshToken = reissued.refreshToken;
-        this.logger.log(
-          `Multi-account Google login: issued token for ${newUserId} with rootUserId=${rootUserId}`,
-        );
-      }
+      const finalTokens = await this.tokenService.createAndSaveTokens(
+        user._id.toString(),
+        user.email,
+        user.role,
+        user.fullName ?? undefined,
+        user.avatar ?? undefined,
+      );
 
       setAuthCookies(res, this.configService, {
-        accessToken: finalAccessToken,
-        refreshToken: finalRefreshToken,
+        accessToken: finalTokens.accessToken,
+        refreshToken: finalTokens.refreshToken,
       });
 
-      // Hook: remember this Google account under the root owner (populates switcher dropdown).
-      if (rootUserId && rootUserId !== newUserId) {
-        try {
-          const ip =
-            (req.headers['x-forwarded-for'] as string | undefined)
-              ?.split(',')[0]
-              ?.trim() ??
-            req.ip ??
-            undefined;
-          const userAgent = req.headers['user-agent'] ?? undefined;
-          await this.accountSwitcher.rememberAccount(
-            rootUserId,
-            {
-              id: newUserId,
-              email: user.email,
-              fullName: user.fullName ?? undefined,
-              avatar: user.avatar ?? undefined,
-              role: user.role,
-              ssoProvider: 'google',
-            },
-            { ip, userAgent },
-          );
-        } catch (rememberErr) {
-          this.logger.warn(
-            `rememberAccount failed (google): ${(rememberErr as Error).message}`,
-          );
-        }
-      }
-
-      // Hook: ghi nhận account này là "gần đây trên thiết bị" — luôn chạy,
-      // kể cả khi không có owner cũ, để hiển thị "Tài khoản gần đây" sau logout.
-      try {
-        const ip =
-          (req.headers['x-forwarded-for'] as string | undefined)
-            ?.split(',')[0]
-            ?.trim() ??
-          req.ip ??
-          undefined;
-        const userAgent = req.headers['user-agent'] ?? undefined;
-        let deviceId = getDeviceIdFromRequest(req);
-        if (!deviceId) {
-          deviceId = RecentLoginsService.generateDeviceId();
-          setDeviceIdCookie(res, this.configService, deviceId);
-        }
-        await this.recentLoginsService.remember(
-          deviceId,
-          {
+      const trackingResult =
+        await this.loginSessionTrackingService.trackLoginSession({
+          loggedInUser: {
             id: user._id.toString(),
             email: user.email,
             fullName: user.fullName ?? undefined,
@@ -197,11 +110,18 @@ export class OAuthController {
             role: user.role,
             ssoProvider: 'google',
           },
-          { ip, userAgent },
-        );
-      } catch (recentErr) {
-        this.logger.warn(
-          `recentLogins.remember failed (google): ${(recentErr as Error).message}`,
+          deviceId: getDeviceIdFromRequest(req) ?? undefined,
+          ip:
+            (req.headers['x-forwarded-for'] as string | undefined)
+              ?.split(',')[0]
+              ?.trim() ?? req.ip,
+          userAgent: req.headers['user-agent'],
+        });
+      if (trackingResult.generatedDeviceId) {
+        setDeviceIdCookie(
+          res,
+          this.configService,
+          trackingResult.generatedDeviceId,
         );
       }
 
@@ -225,7 +145,7 @@ export class OAuthController {
 
       return res.redirect(redirectUrl);
     } catch (error) {
-      this.logger.error('❌ Lỗi xác thực Google:', error);
+      this.logger.error('Google authentication failed', error);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_FAILED,
         severity: 'WARN',
@@ -239,9 +159,9 @@ export class OAuthController {
   }
 
   @ApiOperation({
-    summary: 'Google OAuth login for Mobile Apps',
+    summary: 'Google OAuth login for mobile apps',
     description:
-      'Verify idToken directly from mobile client and return access/refresh tokens in body.',
+      'Verify idToken directly from the mobile client and return access and refresh tokens in the body.',
   })
   @ApiResponse({ status: 200, description: 'Login successful via Google' })
   @ApiBody({
@@ -260,11 +180,20 @@ export class OAuthController {
     }
 
     try {
-      const { user, accessToken, refreshToken } =
-        await this.oauthService.verifyMobileGoogleToken(idToken);
+      const { user } = await this.oauthService.verifyMobileGoogleToken(idToken);
 
-      // Optionally set cookies as well if mobile web needs it
-      setAuthCookies(res, this.configService, { accessToken, refreshToken });
+      const tokens = await this.tokenService.createAndSaveTokens(
+        user._id.toString(),
+        user.email,
+        user.role,
+        user.fullName,
+        user.avatar,
+      );
+
+      setAuthCookies(res, this.configService, {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
 
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_SUCCESS,
@@ -277,10 +206,10 @@ export class OAuthController {
         success: true,
         message: 'Google login successful',
         user,
-        tokens: { accessToken, refreshToken },
+        tokens,
       };
     } catch (error) {
-      this.logger.error('❌ Google Mobile Auth error:', error);
+      this.logger.error('Google mobile auth failed', error);
       this.auditLogService.logRequest(req, {
         type: SECURITY_EVENT_TYPES.GOOGLE_LOGIN_FAILED,
         severity: 'WARN',

@@ -1,47 +1,46 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   HttpCode,
   HttpStatus,
-  UseGuards,
-  Request,
   Logger,
+  Post,
+  Req,
+  Request,
+  Res,
   ServiceUnavailableException,
   UnauthorizedException,
-  Req,
-  Res,
+  UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
-  ApiTags,
+  ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
-  ApiBadRequestResponse,
+  ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { CredentialLoginService } from '../services/credential-login.service';
-import { TokenService } from '../services/token.service';
-import { RecentLoginsService } from '../services/recent-logins.service';
-import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
+import { Request as ExpressRequest, Response } from 'express';
+
+import { AuditLogService } from '../../audit/services/audit-log.service';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { LoginDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
+import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { Response, Request as ExpressRequest } from 'express';
-import { ConfigService } from '@nestjs/config';
-import { AuditLogService } from '../../audit/services/audit-log.service';
+import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
+import { CredentialLoginService } from '../services/credential-login.service';
+import { TokenService } from '../services/token.service';
 import {
   clearAuthCookies,
   getDeviceIdFromRequest,
   setAuthCookies,
   setDeviceIdCookie,
 } from '../utils/cookie.utils';
-import { COOKIE_NAMES } from '../constants/cookie.constants';
-import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { applyRetryAfterHeader } from '../utils/retry-after.utils';
 
-// Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends ExpressRequest {
   user: {
     userId: string;
@@ -50,8 +49,6 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
-// Never put @SkipThrottle() at controller level; it can hide a global auth bypass.
-// Keep public auth routes explicitly throttled at method level.
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthSessionController {
@@ -62,7 +59,6 @@ export class AuthSessionController {
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
-    private readonly recentLoginsService: RecentLoginsService,
     private readonly loginSessionTrackingService: LoginSessionTrackingService,
   ) {}
 
@@ -119,7 +115,6 @@ export class AuthSessionController {
       },
     },
   })
-  // Coarse IP safety ceiling. Redis progressive delay handles normal retries.
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -131,54 +126,30 @@ export class AuthSessionController {
     this.logger.log('Processing login request...');
 
     try {
-      // Peek the existing session BEFORE login so we can detect multi-account scenario.
-      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
-        | string
-        | undefined;
-      const existingRootUserId =
-        this.tokenService.peekUserIdFromAccessToken(existingAccess);
-
       const result = await this.credentialLoginService.login(loginDto, {
         ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
       });
 
-      // If a different user was already logged in, the new user's tokens must carry
-      // rootUserId so that account-switching always resolves to the correct owner.
-      const newUserId = result.user.id;
-      const rootUserId =
-        existingRootUserId && existingRootUserId !== newUserId
-          ? existingRootUserId
-          : undefined;
-
-      let finalTokens = result.tokens;
-      if (rootUserId) {
-        // Re-issue tokens with rootUserId embedded (credential-login doesn't know about it).
-        finalTokens = await this.tokenService.createAndSaveTokens(
-          newUserId,
-          result.user.email,
-          result.user.role,
-          result.user.fullName,
-          result.user.avatar,
-          rootUserId,
-        );
-        this.logger.log(
-          `Multi-account login: issued token for ${newUserId} with rootUserId=${rootUserId}`,
-        );
-      }
+      const finalTokens = await this.tokenService.createAndSaveTokens(
+        result.user.id,
+        result.user.email,
+        result.user.role,
+        result.user.fullName,
+        result.user.avatar,
+      );
 
       setAuthCookies(res, this.configService, finalTokens);
 
       const trackingResult =
         await this.loginSessionTrackingService.trackLoginSession({
           loggedInUser: {
-            id: newUserId,
+            id: result.user.id,
             email: result.user.email,
             fullName: result.user.fullName,
             avatar: result.user.avatar,
             role: result.user.role,
             ssoProvider: result.user.ssoProvider === 'google' ? 'google' : null,
           },
-          existingAccessToken: existingAccess,
           deviceId: getDeviceIdFromRequest(req) ?? undefined,
           ip:
             (req.headers['x-forwarded-for'] as string | undefined)
@@ -198,17 +169,14 @@ export class AuthSessionController {
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
         severity: 'INFO',
         email: loginDto.email,
-        metadata: { role: result.user.role, rootUserId },
+        metadata: { role: result.user.role },
       });
 
       return {
         success: result.success,
         message: result.message,
-        user: {
-          ...result.user,
-          ...(rootUserId ? { rootUser: { id: rootUserId } } : {}),
-        },
-        tokens: finalTokens, // for Mobile apps
+        user: result.user,
+        tokens: finalTokens,
       };
     } catch (error) {
       applyRetryAfterHeader(error, res);
@@ -257,17 +225,6 @@ export class AuthSessionController {
         accessToken,
         refreshToken,
       );
-
-      const deviceId = getDeviceIdFromRequest(req);
-      if (deviceId) {
-        await this.recentLoginsService
-          .clearForDevice(deviceId)
-          .catch((err: Error) =>
-            this.logger.warn(
-              `Non-fatal: could not clear recent logins on logout — ${err.message}`,
-            ),
-          );
-      }
 
       clearAuthCookies(res, this.configService);
 

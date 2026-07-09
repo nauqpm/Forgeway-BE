@@ -138,16 +138,6 @@ export class CredentialLoginService implements OnModuleInit {
 
       await this.loginAttemptThrottleService.clear(attemptContext);
 
-      // === Issue tokens ===
-      const { accessToken, refreshToken } =
-        await this.tokenService.createAndSaveTokens(
-          user._id.toString(),
-          user.email,
-          user.role,
-          user.fullName,
-          user.avatar,
-        );
-
       this.logger.log(
         `Login successful: ${user.email} (ID: ${String(user._id)})`,
       );
@@ -155,7 +145,6 @@ export class CredentialLoginService implements OnModuleInit {
       return {
         success: true,
         message: 'Sign-in successful.',
-        tokens: { accessToken, refreshToken },
         user: {
           id: user._id.toString(),
           email: user.email,

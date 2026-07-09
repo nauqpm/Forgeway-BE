@@ -9,8 +9,7 @@ import { OAuthController } from './controllers/oauth.controller';
 import { PasswordController } from './controllers/password.controller';
 import { PermissionController } from './controllers/permission.controller';
 import { UserManagementController } from './controllers/user-management.controller';
-import { AccountSwitcherController } from './controllers/account-switcher.controller';
-import { RecentLoginsController } from './controllers/recent-logins.controller';
+import { DeviceSwitchAccountsController } from './controllers/device-switch-accounts.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { OtpService } from './services/otp.service';
@@ -20,18 +19,16 @@ import { AuthRegistrationService } from './services/auth-registration.service';
 import { RegistrationVerificationService } from './services/registration-verification.service';
 import { CredentialLoginService } from './services/credential-login.service';
 import { PasswordService } from './services/password.service';
-import { AccountSwitcherService } from './services/account-switcher.service';
-import { RecentLoginsService } from './services/recent-logins.service';
+import { DeviceSwitchAccountsService } from './services/device-switch-accounts.service';
 import { LoginSessionTrackingService } from './services/login-session-tracking.service';
 import { TokenModule } from './token.module';
 import { Otp, OtpSchema } from './schemas/otp.schema';
 import { Token, TokenSchema } from './schemas/token.schema';
 import { Auth, AuthSchema } from './schemas/auth.schema';
 import {
-  SavedAccount,
-  SavedAccountSchema,
-} from './schemas/saved-account.schema';
-import { RecentLogin, RecentLoginSchema } from './schemas/recent-login.schema';
+  DeviceSwitchAccount,
+  DeviceSwitchAccountSchema,
+} from './schemas/device-switch-account.schema';
 import { LoginAttemptThrottleService } from './security/login-attempt-throttle.service';
 
 import { User, UserSchema } from '../users/schemas/users.schema';
@@ -58,8 +55,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
       { name: Otp.name, schema: OtpSchema },
       { name: Token.name, schema: TokenSchema },
       { name: Auth.name, schema: AuthSchema },
-      { name: SavedAccount.name, schema: SavedAccountSchema },
-      { name: RecentLogin.name, schema: RecentLoginSchema },
+      { name: DeviceSwitchAccount.name, schema: DeviceSwitchAccountSchema },
     ]),
   ],
   controllers: [
@@ -70,8 +66,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     PasswordController,
     PermissionController,
     UserManagementController,
-    AccountSwitcherController,
-    RecentLoginsController,
+    DeviceSwitchAccountsController,
   ],
   providers: [
     AuthRegistrationService,
@@ -81,8 +76,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     OtpService,
     PasswordResetService,
     OAuthService,
-    AccountSwitcherService,
-    RecentLoginsService,
+    DeviceSwitchAccountsService,
     LoginSessionTrackingService,
     LoginAttemptThrottleService,
     JwtStrategy,
@@ -93,8 +87,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     OtpService,
     PasswordResetService,
     OAuthService,
-    AccountSwitcherService,
-    RecentLoginsService,
+    DeviceSwitchAccountsService,
     JwtStrategy,
     GuardsModule,
     TokenModule,
