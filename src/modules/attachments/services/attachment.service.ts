@@ -176,10 +176,21 @@ export class AttachmentService {
       ? `${cleanName}_${hash}`
       : `${cleanName}_${hash}${ext}`;
 
-    const result = await this.cloudinaryService.uploadFile(file, folder, {
-      resourceType: isImage ? 'image' : 'raw',
-      publicId,
-    });
+    this.logger.log('1. Start upload');
+
+    let result: { url: string; publicId: string; size: number };
+    try {
+      result = await this.cloudinaryService.uploadFile(file, folder, {
+        resourceType: isImage ? 'image' : 'raw',
+        publicId,
+      });
+      this.logger.log('2. Upload success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`2. Upload failed: ${message}`, stack);
+      throw error;
+    }
 
     const lowerTargetType = input.targetType?.toLowerCase();
     const isChannel =
