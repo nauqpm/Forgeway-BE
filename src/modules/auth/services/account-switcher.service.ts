@@ -181,13 +181,11 @@ export class AccountSwitcherService {
    *  6. Upsert saved-account entry and create reverse entry (target → root).
    *
    * @param rootOwnerUserId - Root/original user from JWT (`rootUserId ?? userId`). Never changes.
-   * @param currentUserId   - The currently active user (may differ from root if already switched).
    * @param targetAccountId - The account to switch into.
    * @param meta            - IP, User-Agent, and current refresh token.
    */
   async switchToAccount(
     rootOwnerUserId: string,
-    currentUserId: string,
     targetAccountId: string,
     meta: { ip?: string; userAgent?: string; ownerRefreshToken?: string },
   ): Promise<SwitchTokensResult> {
@@ -196,9 +194,6 @@ export class AccountSwitcherService {
       !Types.ObjectId.isValid(targetAccountId)
     ) {
       throw new BadRequestException('Invalid id');
-    }
-    if (currentUserId === targetAccountId) {
-      throw new BadRequestException('Bạn đã ở trong account này');
     }
 
     // Special case: switching back to root never needs a saved-account entry.
@@ -314,7 +309,7 @@ export class AccountSwitcherService {
     }
 
     this.logger.log(
-      `🔀 Account switch: root=${rootOwnerUserId} current=${currentUserId} → ${String(targetUser._id)} (${targetUser.email})`,
+      `🔀 Account switch: root=${rootOwnerUserId} → ${String(targetUser._id)} (${targetUser.email})`,
     );
 
     return {

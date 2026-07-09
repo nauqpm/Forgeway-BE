@@ -95,7 +95,6 @@ export class AccountSwitcherController {
     try {
       const result = await this.accountSwitcher.switchToAccount(
         rootUserId,
-        req.user.userId,
         dto.accountId,
         { ip, userAgent, ownerRefreshToken },
       );

@@ -41,8 +41,12 @@ describe('AuthSessionController', () => {
   const tokenServiceMock = {
     refreshAccessToken: jest.fn(),
     revokeSessionTokens: jest.fn(),
-    peekUserIdFromAccessToken: jest.fn(),
+    peekUserIdFromAccessToken: jest.fn().mockReturnValue(null),
     findActiveAccessToken: jest.fn(),
+    createAndSaveTokens: jest.fn().mockResolvedValue({
+      accessToken: 'access-token-value',
+      refreshToken: 'refresh-token-value',
+    }),
   };
 
   const configServiceMock = {
