@@ -95,9 +95,7 @@ describe('AccountSwitcherController', () => {
     });
   };
 
-  it(
-    'lists switchable accounts for the root owner instead of the acting switched user',
-    async () => {
+  it('lists switchable accounts for the root owner instead of the acting switched user', async () => {
     authenticateAsSwitchedSession();
     accountSwitcherServiceMock.listSavedAccounts.mockResolvedValue([
       {
@@ -116,9 +114,7 @@ describe('AccountSwitcherController', () => {
     expect(accountSwitcherServiceMock.listSavedAccounts).toHaveBeenCalledWith(
       'aaaaaaaaaaaaaaaaaaaaaaaa',
     );
-    },
-    15_000,
-  );
+  }, 15_000);
 
   it('switches using the root owner and returns rootUser in the response', async () => {
     authenticateAsSwitchedSession();
