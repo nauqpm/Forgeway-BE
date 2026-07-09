@@ -106,15 +106,45 @@ export class OAuthController {
       }
 
       // ✅ Set cả 2 HttpOnly cookies — token KHÔNG xuất hiện trên URL
-      setAuthCookies(res, this.configService, { accessToken, refreshToken });
-
-      // Hook: remember this Google account under any active session owner (populates switcher dropdown).
+      // Peek existing session BEFORE overwriting cookies to detect multi-account scenario.
       const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
         | string
         | undefined;
-      const ownerUserId =
+      const existingRootUserId =
         this.tokenService.peekUserIdFromAccessToken(existingAccess);
-      if (ownerUserId && ownerUserId !== user._id.toString()) {
+
+      const newUserId = user._id.toString();
+      const rootUserId =
+        existingRootUserId && existingRootUserId !== newUserId
+          ? existingRootUserId
+          : undefined;
+
+      let finalAccessToken = accessToken;
+      let finalRefreshToken = refreshToken;
+      if (rootUserId) {
+        // Re-issue tokens with rootUserId so account-switching resolves to correct owner.
+        const reissued = await this.tokenService.createAndSaveTokens(
+          newUserId,
+          user.email,
+          user.role,
+          user.fullName ?? undefined,
+          user.avatar ?? undefined,
+          rootUserId,
+        );
+        finalAccessToken = reissued.accessToken;
+        finalRefreshToken = reissued.refreshToken;
+        this.logger.log(
+          `Multi-account Google login: issued token for ${newUserId} with rootUserId=${rootUserId}`,
+        );
+      }
+
+      setAuthCookies(res, this.configService, {
+        accessToken: finalAccessToken,
+        refreshToken: finalRefreshToken,
+      });
+
+      // Hook: remember this Google account under the root owner (populates switcher dropdown).
+      if (rootUserId && rootUserId !== newUserId) {
         try {
           const ip =
             (req.headers['x-forwarded-for'] as string | undefined)
@@ -124,9 +154,9 @@ export class OAuthController {
             undefined;
           const userAgent = req.headers['user-agent'] ?? undefined;
           await this.accountSwitcher.rememberAccount(
-            ownerUserId,
+            rootUserId,
             {
-              id: user._id.toString(),
+              id: newUserId,
               email: user.email,
               fullName: user.fullName ?? undefined,
               avatar: user.avatar ?? undefined,

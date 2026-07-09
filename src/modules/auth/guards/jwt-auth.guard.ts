@@ -23,7 +23,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly jwtService: JwtService,
     private readonly tokenService: TokenService,
     private readonly auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
@@ -97,6 +97,7 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = {
       userId: decoded.userId,
+      rootUserId: decoded.rootUserId,
       email: decoded.email,
       role: decoded.role,
     };

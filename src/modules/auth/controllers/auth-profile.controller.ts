@@ -1,4 +1,4 @@
-// 📁 src/modules/auth/controllers/auth-profile.controller.ts
+// src/modules/auth/controllers/auth-profile.controller.ts
 
 import {
   Controller,
@@ -42,6 +42,9 @@ export class AuthProfileController {
         fullName: 'John Doe',
         role: 'user',
         avatar: 'https://...',
+        rootUser: {
+          id: '...',
+        },
       },
     },
   })
@@ -55,8 +58,17 @@ export class AuthProfileController {
     if (!userId) {
       throw new UnauthorizedException('User ID not found in request');
     }
+
     try {
-      return await this.userService.getUserById(userId);
+      const user = await this.userService.getUserById(userId);
+      const userRecord = user as unknown as { toObject?: () => object };
+      const serializedUser =
+        typeof userRecord.toObject === 'function' ? userRecord.toObject() : user;
+
+      return {
+        ...serializedUser,
+        rootUser: { id: req.user?.rootUserId ?? userId },
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to get user profile: ${message}`);

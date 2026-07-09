@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -33,6 +34,7 @@ import { COOKIE_NAMES } from '../constants/cookie.constants';
 interface RequestWithUser extends Request {
   user: {
     userId: string;
+    rootUserId?: string;
     email?: string;
     role?: string;
   };
@@ -49,7 +51,7 @@ export class AccountSwitcherController {
     private readonly accountSwitcher: AccountSwitcherService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   @Get()
   @ApiOperation({
@@ -60,7 +62,7 @@ export class AccountSwitcherController {
   })
   @ApiResponse({ status: 200, type: [SavedAccountResponseDto] })
   async list(@Req() req: RequestWithUser) {
-    const ownerId = req.user.userId;
+    const ownerId = req.user.rootUserId ?? req.user.userId;
     return this.accountSwitcher.listSavedAccounts(ownerId);
   }
 
@@ -79,7 +81,7 @@ export class AccountSwitcherController {
     @Res({ passthrough: true }) res: Response,
     @Body() dto: SwitchAccountDto,
   ) {
-    const ownerId = req.user.userId;
+    const rootUserId = req.user.rootUserId ?? req.user.userId;
     const ip =
       (req.headers['x-forwarded-for'] as string | undefined)
         ?.split(',')[0]
@@ -93,7 +95,8 @@ export class AccountSwitcherController {
 
     try {
       const result = await this.accountSwitcher.switchToAccount(
-        ownerId,
+        rootUserId,
+        req.user.userId,
         dto.accountId,
         { ip, userAgent, ownerRefreshToken },
       );
@@ -109,7 +112,7 @@ export class AccountSwitcherController {
         severity: 'INFO',
         userId: result.user.id,
         email: result.user.email,
-        metadata: { via: 'account-switch', fromUserId: ownerId },
+        metadata: { via: 'account-switch', fromUserId: rootUserId },
       });
 
       return {
@@ -126,7 +129,7 @@ export class AccountSwitcherController {
         metadata: {
           via: 'account-switch',
           reason: message,
-          fromUserId: ownerId,
+          fromUserId: rootUserId,
         },
       });
       throw error;
@@ -142,7 +145,7 @@ export class AccountSwitcherController {
     @Req() req: RequestWithUser,
     @Param('accountId') accountId: string,
   ) {
-    const ownerId = req.user.userId;
+    const ownerId = req.user.rootUserId ?? req.user.userId;
     await this.accountSwitcher.forgetAccount(ownerId, accountId);
     return {
       success: true,

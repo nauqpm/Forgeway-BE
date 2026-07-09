@@ -131,19 +131,47 @@ export class AuthSessionController {
     this.logger.log('Processing login request...');
 
     try {
+      // Peek the existing session BEFORE login so we can detect multi-account scenario.
+      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
+        | string
+        | undefined;
+      const existingRootUserId =
+        this.tokenService.peekUserIdFromAccessToken(existingAccess);
+
       const result = await this.credentialLoginService.login(loginDto, {
         ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
       });
 
-      setAuthCookies(res, this.configService, result.tokens);
+      // If a different user was already logged in, the new user's tokens must carry
+      // rootUserId so that account-switching always resolves to the correct owner.
+      const newUserId = result.user.id;
+      const rootUserId =
+        existingRootUserId && existingRootUserId !== newUserId
+          ? existingRootUserId
+          : undefined;
 
-      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
-        | string
-        | undefined;
+      let finalTokens = result.tokens;
+      if (rootUserId) {
+        // Re-issue tokens with rootUserId embedded (credential-login doesn't know about it).
+        finalTokens = await this.tokenService.createAndSaveTokens(
+          newUserId,
+          result.user.email,
+          result.user.role,
+          result.user.fullName,
+          result.user.avatar,
+          rootUserId,
+        );
+        this.logger.log(
+          `Multi-account login: issued token for ${newUserId} with rootUserId=${rootUserId}`,
+        );
+      }
+
+      setAuthCookies(res, this.configService, finalTokens);
+
       const trackingResult =
         await this.loginSessionTrackingService.trackLoginSession({
           loggedInUser: {
-            id: result.user.id,
+            id: newUserId,
             email: result.user.email,
             fullName: result.user.fullName,
             avatar: result.user.avatar,
@@ -170,14 +198,17 @@ export class AuthSessionController {
         type: SECURITY_EVENT_TYPES.LOGIN_SUCCESS,
         severity: 'INFO',
         email: loginDto.email,
-        metadata: { role: result.user.role },
+        metadata: { role: result.user.role, rootUserId },
       });
 
       return {
         success: result.success,
         message: result.message,
-        user: result.user,
-        tokens: result.tokens, // <--- Added for Mobile apps
+        user: {
+          ...result.user,
+          ...(rootUserId ? { rootUser: { id: rootUserId } } : {}),
+        },
+        tokens: finalTokens, // for Mobile apps
       };
     } catch (error) {
       applyRetryAfterHeader(error, res);

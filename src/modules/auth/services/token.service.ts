@@ -29,7 +29,7 @@ export class TokenService {
     private readonly authTokenConfig: AuthTokenConfigService,
     private readonly usersService: UsersService,
     private readonly auditLogService: AuditLogService,
-  ) {}
+  ) { }
 
   private isMongoUnavailable(error: unknown): boolean {
     if (!(error instanceof Error)) return false;
@@ -47,7 +47,7 @@ export class TokenService {
   }
 
   /**
-   * Best-effort: extract userId from a JWT access token without enforcing expiry.
+   * Best-effort: extract the effective owner id from a JWT access token without enforcing expiry.
    * Used only to discover the "current owner" so we can populate the account switcher
    * when a second account logs in on the same browser. Returns null on any error.
    */
@@ -56,6 +56,7 @@ export class TokenService {
     try {
       const payload = this.jwtService.verify<{
         userId?: string;
+        rootUserId?: string;
         type?: string;
       }>(token, { ignoreExpiration: true });
       if (
@@ -64,10 +65,10 @@ export class TokenService {
         payload.type === TOKEN_TYPES.ACCESS &&
         payload.userId
       ) {
-        return payload.userId;
+        return payload.rootUserId ?? payload.userId;
       }
     } catch {
-      // Invalid signature, malformed, etc. — treat as no owner.
+      // Invalid signature, malformed, etc. - treat as no owner.
     }
     return null;
   }
@@ -100,7 +101,7 @@ export class TokenService {
 
       await newToken.save();
       this.logger.log(
-        `✅ Token được lưu thành công vào database cho user: ${email}`,
+        `✅ Token đã được lưu thành công vào database cho user: ${email}`,
       );
       return token;
     } catch (error) {
@@ -119,6 +120,7 @@ export class TokenService {
     role: string,
     fullName?: string,
     avatar?: string,
+    rootUserId?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const accessToken = this.createAccessToken(
@@ -127,8 +129,9 @@ export class TokenService {
         role,
         fullName,
         avatar,
+        rootUserId,
       );
-      const refreshToken = this.createRefreshToken(userId);
+      const refreshToken = this.createRefreshToken(userId, rootUserId);
 
       const familyId = randomBytes(16).toString('hex');
       const accessExpiry = this.authTokenConfig.getAccessTokenExpiresAt();
@@ -162,7 +165,7 @@ export class TokenService {
       return { accessToken, refreshToken };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Error creating tokens: ${err.message}`, err.stack);
+      this.logger.error(`❌ Lỗi khi tạo tokens: ${err.message}`, err.stack);
       if (this.isMongoUnavailable(error)) {
         throw new ServiceUnavailableException(
           'Database temporarily unavailable',
@@ -180,6 +183,7 @@ export class TokenService {
     role: string,
     fullName?: string,
     avatar?: string,
+    rootUserId?: string,
   ): string {
     const payload = {
       userId,
@@ -188,14 +192,16 @@ export class TokenService {
       fullName,
       avatar,
       type: TOKEN_TYPES.ACCESS,
+      ...(rootUserId ? { rootUserId } : {}),
     };
     return this.jwtService.sign(payload);
   }
 
-  private createRefreshToken(userId: string): string {
+  private createRefreshToken(userId: string, rootUserId?: string): string {
     // Add jti to avoid identical JWT when issued within same second (token field has unique index)
     const payload = {
       userId,
+      ...(rootUserId ? { rootUserId } : {}),
       type: TOKEN_TYPES.REFRESH,
       jti: randomBytes(8).toString('hex'),
     };
@@ -268,7 +274,7 @@ export class TokenService {
 
     if (!resetGrant?.trim()) {
       this.logger.warn('Password reset grant consume rejected: empty grant');
-      throw new BadRequestException('Reset grant khong hop le');
+      throw new BadRequestException('Reset grant không hợp lệ');
     }
 
     const consumed = await this.tokenModel.findOneAndUpdate(
@@ -326,7 +332,7 @@ export class TokenService {
     return { email: activeGrant.email };
   }
   /**
-   * 🔄 Refresh Access Token
+   * ðŸ”„ Refresh Access Token
    * SEC-8: Atomic consume + token family theft detection
    * Refresh token rotation with family reuse detection (behavior preserved)
    */
@@ -418,8 +424,12 @@ export class TokenService {
         user.role,
         user.fullName,
         user.avatar,
+        decoded.rootUserId,
       );
-      const newRefreshToken = this.createRefreshToken(user._id.toString());
+      const newRefreshToken = this.createRefreshToken(
+        user._id.toString(),
+        decoded.rootUserId,
+      );
 
       const familyId = consumed.familyId ?? randomBytes(16).toString('hex');
 
