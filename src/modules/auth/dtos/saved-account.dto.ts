@@ -21,4 +21,7 @@ export class SavedAccountResponseDto {
 
   @ApiProperty()
   lastUsedAt!: Date;
+
+  @ApiProperty({ enum: ['parked', 'reauth_required'] })
+  switchState!: 'parked' | 'reauth_required';
 }

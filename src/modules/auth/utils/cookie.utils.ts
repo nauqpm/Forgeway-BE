@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { CookieOptions, Response } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 import {
   getAccessCookieOptions,
@@ -7,6 +8,51 @@ import {
   getRefreshCookieOptions,
 } from '../../../config/cookie.config';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
+
+const DEVICE_COOKIE_SEPARATOR = '.';
+
+function getDeviceIdSecret(configService: ConfigService): string {
+  return (
+    configService.get<string>('DEVICE_ID_SECRET') ||
+    configService.get<string>('ACCOUNT_SWITCH_STATE_SECRET') ||
+    configService.get<string>('JWT_SECRET') ||
+    'device-id-dev-secret'
+  );
+}
+
+function signDeviceId(configService: ConfigService, deviceId: string): string {
+  return createHmac('sha256', getDeviceIdSecret(configService))
+    .update(deviceId)
+    .digest('base64url');
+}
+
+function getSignedDeviceIdCookieValue(
+  configService: ConfigService,
+  deviceId: string,
+): string {
+  return `${deviceId}${DEVICE_COOKIE_SEPARATOR}${signDeviceId(configService, deviceId)}`;
+}
+
+function verifySignedDeviceId(
+  configService: ConfigService,
+  value: string,
+): string | null {
+  const separatorIndex = value.lastIndexOf(DEVICE_COOKIE_SEPARATOR);
+  if (separatorIndex <= 0) {
+    return value;
+  }
+
+  const deviceId = value.slice(0, separatorIndex);
+  const signature = value.slice(separatorIndex + 1);
+  const expected = signDeviceId(configService, deviceId);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (signatureBuffer.length !== expectedBuffer.length) {
+    return null;
+  }
+
+  return timingSafeEqual(signatureBuffer, expectedBuffer) ? deviceId : null;
+}
 
 export function setAccessTokenCookie(
   res: Response,
@@ -39,7 +85,7 @@ export function setDeviceIdCookie(
 ): void {
   res.cookie(
     COOKIE_NAMES.DEVICE,
-    deviceId,
+    getSignedDeviceIdCookieValue(configService, deviceId),
     getDeviceCookieOptions(configService),
   );
 }
@@ -58,9 +104,12 @@ export function setAuthCookies(
  */
 export function getDeviceIdFromRequest(req: {
   cookies?: Record<string, unknown>;
-}): string | null {
+}, configService?: ConfigService): string | null {
   const v = req.cookies?.[COOKIE_NAMES.DEVICE];
-  return typeof v === 'string' && v.length > 0 ? v : null;
+  if (typeof v !== 'string' || v.length === 0) {
+    return null;
+  }
+  return configService ? verifySignedDeviceId(configService, v) : v;
 }
 
 /**

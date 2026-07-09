@@ -114,6 +114,13 @@ export class OAuthController {
         | undefined;
       const ownerUserId =
         this.tokenService.peekUserIdFromAccessToken(existingAccess);
+      let deviceId = getDeviceIdFromRequest(req, this.configService);
+      if (!deviceId) {
+        deviceId = RecentLoginsService.generateDeviceId();
+        setDeviceIdCookie(res, this.configService, deviceId);
+      } else if (req.cookies?.[COOKIE_NAMES.DEVICE] === deviceId) {
+        setDeviceIdCookie(res, this.configService, deviceId);
+      }
       if (ownerUserId && ownerUserId !== user._id.toString()) {
         try {
           const ip =
@@ -133,7 +140,7 @@ export class OAuthController {
               role: user.role,
               ssoProvider: 'google',
             },
-            { ip, userAgent },
+            { ip, userAgent, refreshToken, deviceId },
           );
         } catch (rememberErr) {
           this.logger.warn(
@@ -152,11 +159,6 @@ export class OAuthController {
           req.ip ??
           undefined;
         const userAgent = req.headers['user-agent'] ?? undefined;
-        let deviceId = getDeviceIdFromRequest(req);
-        if (!deviceId) {
-          deviceId = RecentLoginsService.generateDeviceId();
-          setDeviceIdCookie(res, this.configService, deviceId);
-        }
         await this.recentLoginsService.remember(
           deviceId,
           {

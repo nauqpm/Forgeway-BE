@@ -12,7 +12,7 @@ export type RecentLoginDocument = RecentLogin & Document;
  *  - Mục đích: hiển thị "Tài khoản gần đây trên thiết bị này" trong dropdown.
  *
  * SECURITY:
- *  - `deviceId` là UUID ngẫu nhiên HttpOnly → user không thể tự sửa, server mới phát hành.
+ *  - `deviceId` is a raw UUID stored server-side; the browser cookie is signed and HttpOnly.
  *  - Cookie tồn tại 1 năm. Nếu user xoá cookie device_id → list "gần đây" trống cho lần login tới.
  *  - Endpoint list dùng `JwtAuthGuard` → phải có session hiện tại, nhưng nội dung trả theo device.
  *    Điều này cho phép account A thấy account B đã login cùng máy, kể cả khi B không nằm trong

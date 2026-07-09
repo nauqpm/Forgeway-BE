@@ -3,13 +3,19 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
   SavedAccount,
   SavedAccountDocument,
 } from '../schemas/saved-account.schema';
+import {
+  ParkedSession,
+  ParkedSessionDocument,
+} from '../schemas/parked-session.schema';
 import { UsersService } from '../../users/services/users.service';
 import { TokenService } from './token.service';
 import { SwitchCredentialDto } from '../dtos/switch-account.dto';
@@ -35,6 +41,8 @@ export class AccountSwitcherService {
   constructor(
     @InjectModel(SavedAccount.name)
     private readonly savedAccountModel: Model<SavedAccountDocument>,
+    @InjectModel(ParkedSession.name)
+    private readonly parkedSessionModel: Model<ParkedSessionDocument>,
     private readonly usersService: UsersService,
     private readonly tokenService: TokenService,
     private readonly targetAuthService: AccountSwitchTargetAuthService,
@@ -44,7 +52,7 @@ export class AccountSwitcherService {
    * List all saved accounts visible to the owner, ordered by lastUsedAt desc.
    * Owner is the current logged-in user. We never return entries the owner didn't create.
    */
-  async listSavedAccounts(ownerUserId: string) {
+  async listSavedAccounts(ownerUserId: string, deviceId?: string) {
     if (!Types.ObjectId.isValid(ownerUserId)) {
       throw new BadRequestException('Invalid owner user id');
     }
@@ -54,6 +62,27 @@ export class AccountSwitcherService {
       .lean()
       .exec();
 
+    const accountIds = docs.map(d => d.accountId);
+    const parkedDocs =
+      deviceId && accountIds.length > 0
+        ? await this.parkedSessionModel
+            .find({
+              ownerUserId: new Types.ObjectId(ownerUserId),
+              accountId: { $in: accountIds },
+              deviceId,
+            })
+            .lean()
+            .exec()
+        : [];
+    const activeHashes = await this.tokenService.findActiveRefreshTokenHashes(
+      parkedDocs.map(d => d.refreshTokenHash),
+    );
+    const parkedAccountIds = new Set(
+      parkedDocs
+        .filter(d => activeHashes.has(d.refreshTokenHash))
+        .map(d => d.accountId.toString()),
+    );
+
     return docs.map(d => ({
       accountId: d.accountId.toString(),
       email: d.email,
@@ -62,6 +91,9 @@ export class AccountSwitcherService {
       role: d.role,
       ssoProvider: d.ssoProvider ?? null,
       lastUsedAt: d.lastUsedAt,
+      switchState: parkedAccountIds.has(d.accountId.toString())
+        ? 'parked'
+        : 'reauth_required',
     }));
   }
 
@@ -80,7 +112,12 @@ export class AccountSwitcherService {
       role: string;
       ssoProvider?: 'google' | null;
     },
-    meta: { ip?: string; userAgent?: string },
+    meta: {
+      ip?: string;
+      userAgent?: string;
+      refreshToken?: string;
+      deviceId?: string;
+    },
   ): Promise<void> {
     if (
       !Types.ObjectId.isValid(ownerUserId) ||
@@ -113,6 +150,25 @@ export class AccountSwitcherService {
       },
       { upsert: true },
     );
+
+    if (meta.refreshToken && meta.deviceId) {
+      await this.parkedSessionModel.updateOne(
+        {
+          ownerUserId: new Types.ObjectId(ownerUserId),
+          accountId: new Types.ObjectId(account.id),
+          deviceId: meta.deviceId,
+        },
+        {
+          $set: {
+            refreshTokenHash: this.tokenService.hashToken(meta.refreshToken),
+            lastUsedAt: new Date(),
+            lastIp: meta.ip,
+            lastUserAgent: meta.userAgent,
+          },
+        },
+        { upsert: true },
+      );
+    }
 
     // Best-effort: prune oldest if owner now exceeds 10 saved accounts.
     try {
@@ -151,6 +207,10 @@ export class AccountSwitcherService {
       ownerUserId: new Types.ObjectId(ownerUserId),
       accountId: new Types.ObjectId(accountId),
     });
+    await this.parkedSessionModel.deleteMany({
+      ownerUserId: new Types.ObjectId(ownerUserId),
+      accountId: new Types.ObjectId(accountId),
+    });
   }
 
   /**
@@ -168,7 +228,12 @@ export class AccountSwitcherService {
     ownerUserId: string,
     targetAccountId: string,
     credential: SwitchCredentialDto,
-    meta: { ip?: string; userAgent?: string; ownerRefreshToken?: string },
+    meta: {
+      ip?: string;
+      userAgent?: string;
+      ownerRefreshToken?: string;
+      deviceId?: string;
+    },
   ): Promise<SwitchTokensResult> {
     if (
       !Types.ObjectId.isValid(ownerUserId) ||
@@ -192,11 +257,20 @@ export class AccountSwitcherService {
       );
     }
 
+    if (credential.type === 'parked') {
+      return this.switchWithParkedSession(
+        ownerUserId,
+        targetAccountId,
+        entry._id as Types.ObjectId,
+        meta,
+      );
+    }
+
     // 2. Load target user
     const targetUser = await this.targetAuthService.verifyTargetCredential(
       targetAccountId,
       credential,
-      { ip: meta.ip },
+      { ip: meta.ip, deviceId: meta.deviceId },
     );
 
     // Revoke the owner's refresh token so their previous session can no longer be silently refreshed.
@@ -220,6 +294,25 @@ export class AccountSwitcherService {
         targetUser.fullName,
         targetUser.avatar,
       );
+
+    if (meta.deviceId) {
+      await this.parkedSessionModel.updateOne(
+        {
+          ownerUserId: new Types.ObjectId(ownerUserId),
+          accountId: new Types.ObjectId(targetAccountId),
+          deviceId: meta.deviceId,
+        },
+        {
+          $set: {
+            refreshTokenHash: this.tokenService.hashToken(refreshToken),
+            lastUsedAt: new Date(),
+            lastIp: meta.ip,
+            lastUserAgent: meta.userAgent,
+          },
+        },
+        { upsert: true },
+      );
+    }
 
     // 4. Update the saved-account entry timestamp
     await this.savedAccountModel.updateOne(
@@ -275,6 +368,95 @@ export class AccountSwitcherService {
         role: targetUser.role,
         ssoProvider: targetUser.googleId ? 'google' : null,
       },
+    };
+  }
+
+  private async switchWithParkedSession(
+    ownerUserId: string,
+    targetAccountId: string,
+    savedEntryId: Types.ObjectId,
+    meta: {
+      ip?: string;
+      userAgent?: string;
+      ownerRefreshToken?: string;
+      deviceId?: string;
+    },
+  ): Promise<SwitchTokensResult> {
+    if (!meta.deviceId) {
+      throw new UnauthorizedException({
+        code: 'REAUTH_REQUIRED',
+        message: 'REAUTH_REQUIRED',
+      });
+    }
+
+    const parked = await this.parkedSessionModel.findOne({
+      ownerUserId: new Types.ObjectId(ownerUserId),
+      accountId: new Types.ObjectId(targetAccountId),
+      deviceId: meta.deviceId,
+    });
+    if (!parked) {
+      throw new UnauthorizedException({
+        code: 'REAUTH_REQUIRED',
+        message: 'REAUTH_REQUIRED',
+      });
+    }
+
+    const targetUser = await this.usersService.getUserById(targetAccountId);
+    if (!targetUser || targetUser.status !== USER_STATUSES.ACTIVE) {
+      await this.parkedSessionModel.deleteOne({ _id: parked._id });
+      throw new UnauthorizedException({
+        code: 'REAUTH_REQUIRED',
+        message: 'REAUTH_REQUIRED',
+      });
+    }
+
+    const result = await this.tokenService.rotateRefreshTokenByHash(
+      parked.refreshTokenHash,
+      targetAccountId,
+    );
+
+    if (meta.ownerRefreshToken) {
+      await this.tokenService
+        .revokeSessionTokens(undefined, meta.ownerRefreshToken)
+        .catch((err: Error) =>
+          this.logger.warn(
+            `Non-fatal: could not revoke owner refresh token on parked switch - ${err.message}`,
+          ),
+        );
+    }
+
+    await this.parkedSessionModel.updateOne(
+      { _id: parked._id },
+      {
+        $set: {
+          refreshTokenHash: this.tokenService.hashToken(result.refreshToken),
+          lastUsedAt: new Date(),
+          lastIp: meta.ip,
+          lastUserAgent: meta.userAgent,
+        },
+      },
+    );
+
+    await this.savedAccountModel.updateOne(
+      { _id: savedEntryId },
+      {
+        $set: {
+          lastUsedAt: new Date(),
+          lastIp: meta.ip,
+          lastUserAgent: meta.userAgent,
+          email: result.user.email,
+          fullName: result.user.fullName,
+          avatar: result.user.avatar,
+          role: result.user.role,
+          ssoProvider: result.user.ssoProvider ?? null,
+        },
+      },
+    );
+
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: result.user,
     };
   }
 }

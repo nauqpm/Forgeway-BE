@@ -22,6 +22,8 @@ import { CredentialLoginService } from './services/credential-login.service';
 import { PasswordService } from './services/password.service';
 import { AccountSwitcherService } from './services/account-switcher.service';
 import { AccountSwitchTargetAuthService } from './services/account-switch-target-auth.service';
+import { AccountSwitchSsoService } from './services/account-switch-sso.service';
+import { AccountSwitchSecurityAlertService } from './services/account-switch-security-alert.service';
 import { RecentLoginsService } from './services/recent-logins.service';
 import { LoginSessionTrackingService } from './services/login-session-tracking.service';
 import { TokenModule } from './token.module';
@@ -32,6 +34,14 @@ import {
   SavedAccount,
   SavedAccountSchema,
 } from './schemas/saved-account.schema';
+import {
+  ParkedSession,
+  ParkedSessionSchema,
+} from './schemas/parked-session.schema';
+import {
+  AccountSwitchPendingState,
+  AccountSwitchPendingStateSchema,
+} from './schemas/account-switch-pending-state.schema';
 import { RecentLogin, RecentLoginSchema } from './schemas/recent-login.schema';
 import { LoginAttemptThrottleService } from './security/login-attempt-throttle.service';
 
@@ -60,6 +70,11 @@ import { RedisModule } from '@/infra/redis/redis.module';
       { name: Token.name, schema: TokenSchema },
       { name: Auth.name, schema: AuthSchema },
       { name: SavedAccount.name, schema: SavedAccountSchema },
+      { name: ParkedSession.name, schema: ParkedSessionSchema },
+      {
+        name: AccountSwitchPendingState.name,
+        schema: AccountSwitchPendingStateSchema,
+      },
       { name: RecentLogin.name, schema: RecentLoginSchema },
     ]),
   ],
@@ -84,6 +99,8 @@ import { RedisModule } from '@/infra/redis/redis.module';
     OAuthService,
     AccountSwitcherService,
     AccountSwitchTargetAuthService,
+    AccountSwitchSsoService,
+    AccountSwitchSecurityAlertService,
     RecentLoginsService,
     LoginSessionTrackingService,
     LoginAttemptThrottleService,

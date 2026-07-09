@@ -18,6 +18,7 @@ import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { RefreshJwtPayload } from '../types/jwt-payload.type';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
+import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 
 @Injectable()
 export class TokenService {
@@ -536,6 +537,158 @@ export class TokenService {
   }
 
   // 🔍 Legacy: tìm token theo hash (giữ backward compat nội bộ)
+  async findActiveRefreshTokenHashes(hashes: string[]): Promise<Set<string>> {
+    if (hashes.length === 0) {
+      return new Set();
+    }
+
+    const docs = await this.tokenModel
+      .find({
+        token: { $in: hashes },
+        status: true,
+        type: TOKEN_TYPES.REFRESH,
+        expiresAt: { $gt: new Date() },
+      })
+      .select('token')
+      .lean()
+      .exec();
+
+    return new Set(docs.map(doc => doc.token));
+  }
+
+  async rotateRefreshTokenByHash(
+    refreshTokenHash: string,
+    expectedUserId: string,
+  ): Promise<{
+    success: boolean;
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      email: string;
+      fullName?: string;
+      avatar?: string;
+      role: string;
+      ssoProvider?: 'google' | null;
+    };
+  }> {
+    const user = await this.usersService.getUserById(expectedUserId);
+    if (!user || user.status !== USER_STATUSES.ACTIVE) {
+      throw new UnauthorizedException({
+        code: 'REAUTH_REQUIRED',
+        message: 'REAUTH_REQUIRED',
+      });
+    }
+
+    const consumed = await this.tokenModel.findOneAndUpdate(
+      {
+        token: refreshTokenHash,
+        userId: expectedUserId,
+        status: true,
+        type: TOKEN_TYPES.REFRESH,
+        expiresAt: { $gt: new Date() },
+      },
+      { $set: { status: false } },
+      { new: false },
+    );
+
+    if (!consumed) {
+      const revokedToken = await this.tokenModel.findOne({
+        token: refreshTokenHash,
+        status: false,
+        type: TOKEN_TYPES.REFRESH,
+      });
+
+      if (revokedToken?.familyId) {
+        const revokedAgeMs = Date.now() - revokedToken.updatedAt.getTime();
+        const CONCURRENT_GRACE_MS = 15_000;
+
+        if (revokedAgeMs > CONCURRENT_GRACE_MS) {
+          await this.tokenModel.updateMany(
+            { familyId: revokedToken.familyId, status: true },
+            { $set: { status: false } },
+          );
+          this.logger.error(
+            `🚨 PARKED TOKEN THEFT DETECTED — familyId: ${String(revokedToken.familyId)}, userId: ${String(revokedToken.userId)}`,
+          );
+          this.auditLogService.log({
+            type: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
+            severity: 'CRITICAL',
+            userId: revokedToken.userId?.toString(),
+            metadata: { familyId: revokedToken.familyId, revokedAgeMs },
+          });
+        } else {
+          this.auditLogService.log({
+            type: SECURITY_EVENT_TYPES.REFRESH_REUSED,
+            severity: 'WARN',
+            userId: revokedToken.userId?.toString(),
+            metadata: {
+              familyId: revokedToken.familyId,
+              revokedAgeMs,
+              withinGrace: true,
+            },
+          });
+        }
+      }
+
+      throw new UnauthorizedException({
+        code: 'REAUTH_REQUIRED',
+        message: 'REAUTH_REQUIRED',
+      });
+    }
+
+    await this.tokenModel.updateMany(
+      { userId: expectedUserId, type: TOKEN_TYPES.ACCESS, status: true },
+      { $set: { status: false } },
+    );
+
+    const accessToken = this.createAccessToken(
+      user._id.toString(),
+      user.email,
+      user.role,
+      user.fullName,
+      user.avatar,
+    );
+    const refreshToken = this.createRefreshToken(user._id.toString());
+    const familyId = consumed.familyId ?? randomBytes(16).toString('hex');
+
+    await this.tokenModel.create({
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      token: this.hashToken(accessToken),
+      deviceInfo: 'Web',
+      status: true,
+      type: TOKEN_TYPES.ACCESS,
+      expiresAt: this.authTokenConfig.getAccessTokenExpiresAt(),
+    });
+
+    await this.tokenModel.create({
+      userId: user._id.toString(),
+      email: user.email,
+      token: this.hashToken(refreshToken),
+      deviceInfo: 'Web',
+      status: true,
+      type: TOKEN_TYPES.REFRESH,
+      familyId,
+      expiresAt: this.authTokenConfig.getRefreshTokenExpiresAt(),
+    });
+
+    return {
+      success: true,
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        fullName: user.fullName,
+        avatar: user.avatar,
+        role: user.role,
+        ssoProvider: user.googleId ? 'google' : null,
+      },
+    };
+  }
+
   async findToken(token: string): Promise<TokenDocument | null> {
     this.logger.log(`🔍 Tìm token trong database`);
     try {

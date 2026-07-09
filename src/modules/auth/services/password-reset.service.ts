@@ -4,6 +4,9 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+
 
 import { UsersService } from '../../users/services/users.service';
 import { VerifyService } from '../../verify/services/verify.service';
@@ -15,6 +18,11 @@ import {
 import { OtpService } from './otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import {
+  ParkedSession,
+  ParkedSessionDocument,
+} from '../schemas/parked-session.schema';
+
 
 @Injectable()
 export class PasswordResetService {
@@ -26,6 +34,8 @@ export class PasswordResetService {
     private readonly otpService: OtpService,
     private readonly passwordService: PasswordService,
     private readonly verifyService: VerifyService,
+    @InjectModel(ParkedSession.name)
+    private readonly parkedSessionModel: Model<ParkedSessionDocument>,
   ) {}
 
   async requestPasswordReset(dto: RequestPasswordResetDto) {
@@ -143,8 +153,9 @@ export class PasswordResetService {
     this.logger.log(`Password updated for userId: ${String(user._id)}`);
 
     await this.tokenService.invalidateAllTokensForUser(user._id.toString());
+    await this.parkedSessionModel.deleteMany({ ownerUserId: user._id.toString() });
     this.logger.log(
-      `Existing sessions invalidated after password reset for userId: ${String(user._id)}`,
+      `Existing sessions and parked sessions invalidated after password reset for userId: ${String(user._id)}`,
     );
 
     return { success: true, message: 'Password has been reset successfully.' };

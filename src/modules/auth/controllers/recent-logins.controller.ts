@@ -16,6 +16,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { IsMongoId } from 'class-validator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -46,7 +47,10 @@ class AccountIdParam {
 export class RecentLoginsController {
   private readonly logger = new Logger(RecentLoginsController.name);
 
-  constructor(private readonly recentLogins: RecentLoginsService) {}
+  constructor(
+    private readonly recentLogins: RecentLoginsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -58,7 +62,7 @@ export class RecentLoginsController {
   })
   @ApiResponse({ status: 200, description: 'List of recent accounts' })
   async list(@Req() req: RequestWithUser) {
-    const deviceId = getDeviceIdFromRequest(req);
+    const deviceId = getDeviceIdFromRequest(req, this.configService);
     if (!deviceId) {
       // Chưa từng login trên device này → trả rỗng (không lỗi)
       return [];
@@ -72,7 +76,7 @@ export class RecentLoginsController {
     summary: "Remove an account from the device's recent logins list",
   })
   async forget(@Req() req: RequestWithUser, @Param() params: AccountIdParam) {
-    const deviceId = getDeviceIdFromRequest(req);
+    const deviceId = getDeviceIdFromRequest(req, this.configService);
     if (!deviceId) {
       // Không có deviceId thì không có gì để xoá
       return {

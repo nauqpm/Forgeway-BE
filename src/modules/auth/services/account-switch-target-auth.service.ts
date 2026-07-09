@@ -11,6 +11,9 @@ import { LoginAttemptThrottleService } from '../security/login-attempt-throttle.
 import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { AuthErrorFactory } from '../utils/auth-error.factory';
 import { PasswordService } from './password.service';
+import { AccountSwitchSecurityAlertService } from './account-switch-security-alert.service';
+import { AuditLogService } from '../../audit/services/audit-log.service';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 
 export interface AccountSwitchTargetUser {
   _id: { toString(): string };
@@ -29,12 +32,14 @@ export class AccountSwitchTargetAuthService {
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
     private readonly loginAttemptThrottleService: LoginAttemptThrottleService,
+    private readonly securityAlertService: AccountSwitchSecurityAlertService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async verifyTargetCredential(
     targetAccountId: string,
     credential: SwitchCredentialDto,
-    context: { ip?: string },
+    context: { ip?: string; deviceId?: string },
   ): Promise<AccountSwitchTargetUser> {
     const targetUser = (await this.usersService.getUserById(
       targetAccountId,
@@ -75,6 +80,26 @@ export class AccountSwitchTargetAuthService {
     if (!isPasswordValid) {
       const failure =
         await this.loginAttemptThrottleService.registerFailure(attemptContext);
+      if (failure.retryAfterSeconds > 0) {
+        const notificationSent =
+          await this.securityAlertService.sendTargetLockoutEmail({
+            targetEmail: targetUser.email,
+            ip: context.ip,
+            deviceId: context.deviceId,
+          });
+        this.auditLogService.log({
+          type: SECURITY_EVENT_TYPES.ACCOUNT_SWITCH_FAILED,
+          severity: 'WARN',
+          userId: targetUser._id.toString(),
+          email: targetUser.email,
+          metadata: {
+            triggeredVia: 'account-switch',
+            targetUserId: targetUser._id.toString(),
+            notificationSent,
+            reason: 'target-lockout',
+          },
+        });
+      }
       throw new UnauthorizedException(
         AuthErrorFactory.publicLoginFailure(failure.retryAfterSeconds),
       );

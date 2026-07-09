@@ -4,16 +4,14 @@ import { Document, Types } from 'mongoose';
 export type SavedAccountDocument = SavedAccount & Document;
 
 /**
- * SavedAccount = một account mà owner đã từng đăng nhập thành công trên cùng browser.
+ * SavedAccount is the owner-scoped switcher entry.
  *
  * SECURITY:
- * - Lưu theo `ownerUserId` (account đang login) → chỉ chính owner mới đọc được list của mình.
- * - Không lưu password. Chỉ lưu `accountId` tham chiếu + metadata công khai.
- * - Switch vẫn dùng refresh token còn hạn trong DB; token mới được cấp qua luồng "switch" có audit.
- * - Per requirement: "never reauth" → KHÔNG yêu cầu password khi switch.
- *   Đây là quyết định chấp nhận rủi ro; cân nhắc bật xác thực lại sau nếu cần.
- */
-@Schema({ timestamps: true, collection: 'saved_accounts' })
+ * - Stores public account metadata only; no credentials or raw tokens.
+ * - Switching still has to prove access to the target account, either with
+ *   target credentials/SSO or a valid server-side parked session.
+ * - Parked sessions live in parked_sessions, not saved_accounts.
+ */@Schema({ timestamps: true, collection: 'saved_accounts' })
 export class SavedAccount {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   ownerUserId!: Types.ObjectId;

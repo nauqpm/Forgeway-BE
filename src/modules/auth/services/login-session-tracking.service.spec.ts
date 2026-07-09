@@ -51,7 +51,12 @@ describe('LoginSessionTrackingService', () => {
     expect(accountSwitcherService.rememberAccount).toHaveBeenCalledWith(
       'owner-1',
       expect.objectContaining({ id: 'account-2', ssoProvider: 'google' }),
-      { ip: input.ip, userAgent: input.userAgent },
+      {
+        ip: input.ip,
+        userAgent: input.userAgent,
+        refreshToken: undefined,
+        deviceId: input.deviceId,
+      },
     );
     expect(recentLoginsService.remember).toHaveBeenCalledWith(
       input.deviceId,

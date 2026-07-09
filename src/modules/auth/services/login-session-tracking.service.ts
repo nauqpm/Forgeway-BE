@@ -16,6 +16,7 @@ export interface LoginSessionUser {
 export interface LoginSessionTrackingInput {
   loggedInUser: LoginSessionUser;
   existingAccessToken?: string;
+  refreshToken?: string;
   deviceId?: string;
   ip?: string;
   userAgent?: string;
@@ -43,7 +44,15 @@ export class LoginSessionTrackingService {
       ssoProvider:
         input.loggedInUser.ssoProvider === 'google' ? 'google' : null,
     };
-    const meta = { ip: input.ip, userAgent: input.userAgent };
+    const deviceId = input.deviceId ?? RecentLoginsService.generateDeviceId();
+    const generatedDeviceId = input.deviceId ? undefined : deviceId;
+    const recentMeta = { ip: input.ip, userAgent: input.userAgent };
+    const savedMeta = {
+      ip: input.ip,
+      userAgent: input.userAgent,
+      refreshToken: input.refreshToken,
+      deviceId,
+    };
     const ownerUserId = this.tokenService.peekUserIdFromAccessToken(
       input.existingAccessToken,
     );
@@ -53,7 +62,7 @@ export class LoginSessionTrackingService {
         await this.accountSwitcherService.rememberAccount(
           ownerUserId,
           account,
-          meta,
+          savedMeta,
         );
       } catch (error) {
         this.logger.warn(
@@ -62,11 +71,8 @@ export class LoginSessionTrackingService {
       }
     }
 
-    const deviceId = input.deviceId ?? RecentLoginsService.generateDeviceId();
-    const generatedDeviceId = input.deviceId ? undefined : deviceId;
-
     try {
-      await this.recentLoginsService.remember(deviceId, account, meta);
+      await this.recentLoginsService.remember(deviceId, account, recentMeta);
     } catch (error) {
       this.logger.warn(
         `recentLogins.remember failed: ${this.getErrorMessage(error)}`,

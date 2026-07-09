@@ -140,6 +140,7 @@ export class AuthSessionController {
       const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
         | string
         | undefined;
+      const deviceId = getDeviceIdFromRequest(req, this.configService);
       const trackingResult =
         await this.loginSessionTrackingService.trackLoginSession({
           loggedInUser: {
@@ -151,19 +152,21 @@ export class AuthSessionController {
             ssoProvider: result.user.ssoProvider === 'google' ? 'google' : null,
           },
           existingAccessToken: existingAccess,
-          deviceId: getDeviceIdFromRequest(req) ?? undefined,
+          refreshToken: result.tokens.refreshToken,
+          deviceId: deviceId ?? undefined,
           ip:
             (req.headers['x-forwarded-for'] as string | undefined)
               ?.split(',')[0]
               ?.trim() ?? req.ip,
           userAgent: req.headers['user-agent'],
         });
-      if (trackingResult.generatedDeviceId) {
-        setDeviceIdCookie(
-          res,
-          this.configService,
-          trackingResult.generatedDeviceId,
-        );
+      const deviceIdToWrite = trackingResult.generatedDeviceId ?? deviceId;
+      if (
+        deviceIdToWrite &&
+        (trackingResult.generatedDeviceId ||
+          req.cookies?.[COOKIE_NAMES.DEVICE] === deviceIdToWrite)
+      ) {
+        setDeviceIdCookie(res, this.configService, deviceIdToWrite);
       }
 
       this.auditLogService.logRequest(req, {
@@ -227,7 +230,7 @@ export class AuthSessionController {
         refreshToken,
       );
 
-      const deviceId = getDeviceIdFromRequest(req);
+      const deviceId = getDeviceIdFromRequest(req, this.configService);
       if (deviceId) {
         await this.recentLoginsService
           .clearForDevice(deviceId)

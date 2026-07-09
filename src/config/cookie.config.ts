@@ -55,9 +55,8 @@ export const getRefreshCookieOptions = (
     ) * 1000,
 });
 
-// Device id cookie: 1 năm. HttpOnly + lax để browser tự gửi theo mọi request trong cùng site.
-// Mục đích: định danh browser cho "Tài khoản gần đây trên thiết bị này".
-// Không nhạy cảm (chỉ là UUID ngẫu nhiên, không leak identity), nên có thể giữ 1 năm.
+// Device id cookie: signed browser identifier for recent logins and parked-session binding.
+// The stored database value remains the raw UUID; the cookie value is signed in cookie.utils.ts.
 export const getDeviceCookieOptions = (
   configService: ConfigService,
 ): CookieOptions => ({
