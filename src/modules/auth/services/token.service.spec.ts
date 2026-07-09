@@ -30,8 +30,12 @@ describe('TokenService', () => {
   const authTokenConfig = {
     refreshTokenSecret: 'refresh-secret',
     refreshTokenTtlSeconds: 7 * 24 * 60 * 60,
-    getAccessTokenExpiresAt: jest.fn(() => new Date('2026-07-09T10:15:00.000Z')),
-    getRefreshTokenExpiresAt: jest.fn(() => new Date('2026-07-16T10:00:00.000Z')),
+    getAccessTokenExpiresAt: jest.fn(
+      () => new Date('2026-07-09T10:15:00.000Z'),
+    ),
+    getRefreshTokenExpiresAt: jest.fn(
+      () => new Date('2026-07-16T10:00:00.000Z'),
+    ),
   };
 
   let service: TokenService;
@@ -112,7 +116,9 @@ describe('TokenService', () => {
         type: TOKEN_TYPES.ACCESS,
       });
 
-    expect(service.peekUserIdFromAccessToken('switched-token')).toBe('account-a');
+    expect(service.peekUserIdFromAccessToken('switched-token')).toBe(
+      'account-a',
+    );
     expect(service.peekUserIdFromAccessToken('direct-token')).toBe('account-a');
   });
 

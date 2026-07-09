@@ -29,7 +29,7 @@ export class TokenService {
     private readonly authTokenConfig: AuthTokenConfigService,
     private readonly usersService: UsersService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   private isMongoUnavailable(error: unknown): boolean {
     if (!(error instanceof Error)) return false;

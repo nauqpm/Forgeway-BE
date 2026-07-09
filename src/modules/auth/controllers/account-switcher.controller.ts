@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -51,7 +50,7 @@ export class AccountSwitcherController {
     private readonly accountSwitcher: AccountSwitcherService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   @Get()
   @ApiOperation({

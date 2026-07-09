@@ -71,7 +71,10 @@ export class SavedAccount {
 export const SavedAccountSchema = SchemaFactory.createForClass(SavedAccount);
 
 // PRIMARY: Mỗi root-owner chỉ lưu 1 bản ghi cho mỗi account khác
-SavedAccountSchema.index({ rootOwnerUserId: 1, accountId: 1 }, { unique: true });
+SavedAccountSchema.index(
+  { rootOwnerUserId: 1, accountId: 1 },
+  { unique: true },
+);
 
 // QUERY: Danh sách theo root-owner, sắp xếp gần nhất trước
 SavedAccountSchema.index({ rootOwnerUserId: 1, lastUsedAt: -1 });

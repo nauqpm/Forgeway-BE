@@ -56,7 +56,7 @@ export class AccountSwitcherService {
       .lean()
       .exec();
 
-    return docs.map((d) => ({
+    return docs.map(d => ({
       accountId: d.accountId.toString(),
       email: d.email,
       fullName: d.fullName,

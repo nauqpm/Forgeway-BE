@@ -98,7 +98,11 @@ describe('AccountSwitcherController', () => {
   it('lists switchable accounts for the root owner instead of the acting switched user', async () => {
     authenticateAsSwitchedSession();
     accountSwitcherServiceMock.listSavedAccounts.mockResolvedValue([
-      { accountId: 'bbbbbbbbbbbbbbbbbbbbbbbb', email: 'b@example.com', role: 'user' },
+      {
+        accountId: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+        email: 'b@example.com',
+        role: 'user',
+      },
     ]);
 
     const response = await request(app.getHttpServer())
@@ -127,7 +131,10 @@ describe('AccountSwitcherController', () => {
 
     const response = await request(app.getHttpServer())
       .post('/auth/accounts/switch')
-      .set('Cookie', ['access_token=valid-token', 'refresh_token=refresh-token'])
+      .set('Cookie', [
+        'access_token=valid-token',
+        'refresh_token=refresh-token',
+      ])
       .send({ accountId: 'cccccccccccccccccccccccc' })
       .expect(200);
 
@@ -144,7 +151,9 @@ describe('AccountSwitcherController', () => {
         refreshToken: 'next-refresh-token',
       },
     );
-    expect(response.body.user.rootUser).toEqual({ id: 'aaaaaaaaaaaaaaaaaaaaaaaa' });
+    expect(response.body.user.rootUser).toEqual({
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+    });
   });
 
   it('forgets accounts against the root owner list', async () => {

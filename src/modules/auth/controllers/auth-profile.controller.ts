@@ -63,7 +63,9 @@ export class AuthProfileController {
       const user = await this.userService.getUserById(userId);
       const userRecord = user as unknown as { toObject?: () => object };
       const serializedUser =
-        typeof userRecord.toObject === 'function' ? userRecord.toObject() : user;
+        typeof userRecord.toObject === 'function'
+          ? userRecord.toObject()
+          : user;
 
       return {
         ...serializedUser,
