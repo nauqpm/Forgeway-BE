@@ -73,7 +73,31 @@ describe('AuthProfileController', () => {
       avatar: 'avatar.png',
     };
 
-    it('returns user profile when authenticated', async () => {
+    it('returns user profile with rootUser when authenticated through a switched session', async () => {
+      jwtServiceMock.verify.mockReturnValue({
+        userId: 'user-1',
+        rootUserId: 'root-user-1',
+        email: 'user@example.com',
+        role: GLOBAL_ROLES.USER,
+        type: 'access',
+      });
+      tokenServiceMock.findActiveAccessToken.mockResolvedValue({
+        userId: { toString: () => 'user-1' },
+      });
+      usersServiceMock.getUserById.mockResolvedValue(userProfile);
+
+      const response = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', 'access_token=valid-token')
+        .expect(200);
+
+      expect(response.body).toEqual({
+        ...userProfile,
+        rootUser: { id: 'root-user-1' },
+      });
+    });
+
+    it('falls back to the acting user as rootUser for direct sessions', async () => {
       jwtServiceMock.verify.mockReturnValue({
         userId: 'user-1',
         email: 'user@example.com',
@@ -90,7 +114,7 @@ describe('AuthProfileController', () => {
         .set('Cookie', 'access_token=valid-token')
         .expect(200);
 
-      expect(response.body).toEqual(userProfile);
+      expect(response.body.rootUser).toEqual({ id: 'user-1' });
     });
 
     it('returns 401 when not authenticated', async () => {

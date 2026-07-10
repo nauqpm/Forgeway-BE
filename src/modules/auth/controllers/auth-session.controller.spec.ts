@@ -1,7 +1,7 @@
 import {
   INestApplication,
-  ValidationPipe,
   ServiceUnavailableException,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -10,16 +10,15 @@ import cookieParser = require('cookie-parser');
 import request = require('supertest');
 import { App } from 'supertest/types';
 
-import { AuthSessionController } from './auth-session.controller';
-import { CredentialLoginService } from '../services/credential-login.service';
-import { TokenService } from '../services/token.service';
-import { AuditLogService } from '../../audit/services/audit-log.service';
-import { AccountSwitcherService } from '../services/account-switcher.service';
-import { RecentLoginsService } from '../services/recent-logins.service';
-import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
-import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { AUTH_ERROR_CODES } from '../../../common/constants/error-codes.constants';
+import { AuditLogService } from '../../audit/services/audit-log.service';
+import { AuthSessionController } from './auth-session.controller';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { LoginRetryLaterException } from '../security/login-retry-later.exception';
+import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
+import { CredentialLoginService } from '../services/credential-login.service';
+import { TokenService } from '../services/token.service';
 
 jest.mock('../utils/cookie.utils', () => ({
   setAuthCookies: jest.fn(),
@@ -29,7 +28,6 @@ jest.mock('../utils/cookie.utils', () => ({
 }));
 
 import * as cookieUtils from '../utils/cookie.utils';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 describe('AuthSessionController', () => {
   let app: INestApplication<App>;
@@ -41,8 +39,11 @@ describe('AuthSessionController', () => {
   const tokenServiceMock = {
     refreshAccessToken: jest.fn(),
     revokeSessionTokens: jest.fn(),
-    peekUserIdFromAccessToken: jest.fn(),
     findActiveAccessToken: jest.fn(),
+    createAndSaveTokens: jest.fn().mockResolvedValue({
+      accessToken: 'access-token-value',
+      refreshToken: 'refresh-token-value',
+    }),
   };
 
   const configServiceMock = {
@@ -57,13 +58,10 @@ describe('AuthSessionController', () => {
     log: jest.fn(),
   };
 
-  const accountSwitcherMock = {
-    rememberAccount: jest.fn(),
-  };
-
-  const recentLoginsMock = {
-    remember: jest.fn(),
-    clearForDevice: jest.fn(),
+  const loginSessionTrackingServiceMock = {
+    trackLoginSession: jest
+      .fn()
+      .mockResolvedValue({ generatedDeviceId: undefined }),
   };
 
   const jwtServiceMock = {
@@ -75,6 +73,9 @@ describe('AuthSessionController', () => {
     jest.clearAllMocks();
 
     (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(null);
+    loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
+      generatedDeviceId: undefined,
+    });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AuthSessionController],
@@ -87,9 +88,10 @@ describe('AuthSessionController', () => {
         { provide: TokenService, useValue: tokenServiceMock },
         { provide: ConfigService, useValue: configServiceMock },
         { provide: AuditLogService, useValue: auditLogServiceMock },
-        { provide: AccountSwitcherService, useValue: accountSwitcherMock },
-        { provide: RecentLoginsService, useValue: recentLoginsMock },
-        LoginSessionTrackingService,
+        {
+          provide: LoginSessionTrackingService,
+          useValue: loginSessionTrackingServiceMock,
+        },
         { provide: JwtService, useValue: jwtServiceMock },
       ],
     }).compile();
@@ -117,10 +119,6 @@ describe('AuthSessionController', () => {
     const loginResult = {
       success: true,
       message: 'Sign-in successful.',
-      tokens: {
-        accessToken: 'access-token-value',
-        refreshToken: 'refresh-token-value',
-      },
       user: {
         id: 'user-1',
         email: 'user@example.com',
@@ -151,14 +149,59 @@ describe('AuthSessionController', () => {
           avatar: loginResult.user.avatar,
           googleId: loginResult.user.googleId,
         },
-        tokens: loginResult.tokens,
+        tokens: {
+          accessToken: 'access-token-value',
+          refreshToken: 'refresh-token-value',
+        },
       });
       expect(response.body).not.toHaveProperty('accessToken');
       expect(response.body).not.toHaveProperty('refreshToken');
       expect(cookieUtils.setAuthCookies).toHaveBeenCalledWith(
         expect.anything(),
         configServiceMock,
-        loginResult.tokens,
+        {
+          accessToken: 'access-token-value',
+          refreshToken: 'refresh-token-value',
+        },
+      );
+    });
+
+    it('tracks successful login against the device registry', async () => {
+      (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(
+        'existing-device-id',
+      );
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
+
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(200);
+
+      expect(
+        loginSessionTrackingServiceMock.trackLoginSession,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deviceId: 'existing-device-id',
+          loggedInUser: expect.objectContaining({ id: loginResult.user.id }),
+        }),
+      );
+    });
+
+    it('sets a device cookie when tracking generates a new device id', async () => {
+      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
+      loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
+        generatedDeviceId: 'new-device-uuid',
+      });
+
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(200);
+
+      expect(cookieUtils.setDeviceIdCookie).toHaveBeenCalledWith(
+        expect.anything(),
+        configServiceMock,
+        'new-device-uuid',
       );
     });
 
@@ -185,7 +228,7 @@ describe('AuthSessionController', () => {
 
     it('audits login failure and re-throws the error', async () => {
       const error = new Error('Invalid credentials');
-      (error as any).status = 401;
+      (error as Error & { status?: number }).status = 401;
       credentialLoginServiceMock.login.mockRejectedValue(error);
 
       await request(app.getHttpServer())
@@ -203,86 +246,15 @@ describe('AuthSessionController', () => {
         },
       );
     });
-
-    it('generates device ID when none is present and sets cookie', async () => {
-      const generatedId = 'new-device-uuid';
-      jest
-        .spyOn(RecentLoginsService, 'generateDeviceId')
-        .mockReturnValue(generatedId);
-      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
-
-      await request(app.getHttpServer())
-        .post('/auth/login')
-        .send(loginDto)
-        .expect(200);
-
-      expect(recentLoginsMock.remember).toHaveBeenCalled();
-      expect(cookieUtils.setDeviceIdCookie).toHaveBeenCalledWith(
-        expect.anything(),
-        configServiceMock,
-        generatedId,
-      );
-    });
-
-    it('calls account switcher when existing access token has a different owner', async () => {
-      tokenServiceMock.peekUserIdFromAccessToken.mockReturnValue(
-        'owner-user-id',
-      );
-      (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(
-        'existing-device-id',
-      );
-      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
-
-      await request(app.getHttpServer())
-        .post('/auth/login')
-        .send(loginDto)
-        .expect(200);
-
-      expect(accountSwitcherMock.rememberAccount).toHaveBeenCalledWith(
-        'owner-user-id',
-        expect.objectContaining({ id: loginResult.user.id }),
-        expect.any(Object),
-      );
-    });
-
-    it('does not call account switcher when owner is the same as logged-in user', async () => {
-      tokenServiceMock.peekUserIdFromAccessToken.mockReturnValue(
-        loginResult.user.id,
-      );
-      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
-
-      await request(app.getHttpServer())
-        .post('/auth/login')
-        .send(loginDto)
-        .expect(200);
-
-      expect(accountSwitcherMock.rememberAccount).not.toHaveBeenCalled();
-    });
-
-    it('does not fail login when account switcher throws', async () => {
-      tokenServiceMock.peekUserIdFromAccessToken.mockReturnValue(
-        'owner-user-id',
-      );
-      accountSwitcherMock.rememberAccount.mockRejectedValue(
-        new Error('DB error'),
-      );
-      credentialLoginServiceMock.login.mockResolvedValue(loginResult);
-
-      await request(app.getHttpServer())
-        .post('/auth/login')
-        .send(loginDto)
-        .expect(200);
-    });
   });
 
   describe('POST /auth/logout', () => {
-    const logoutResult = { message: 'Đăng xuất thành công' };
+    const logoutResult = { message: 'Dang xuat thanh cong' };
 
     it('revokes session tokens and clears cookies', async () => {
       tokenServiceMock.revokeSessionTokens.mockResolvedValue(logoutResult);
       const validToken = 'valid-jwt-token';
 
-      // JwtAuthGuard needs a valid token to pass
       jwtServiceMock.verify.mockReturnValue({
         userId: 'user-1',
         email: 'user@example.com',

@@ -1,5 +1,6 @@
 export interface JwtPayload {
   userId: string;
+  rootUserId?: string;
   email?: string;
   role?: string;
   type?: string;
@@ -9,5 +10,6 @@ export interface JwtPayload {
 
 export interface RefreshJwtPayload extends JwtPayload {
   userId: string;
+  rootUserId?: string;
   type: 'refresh';
 }

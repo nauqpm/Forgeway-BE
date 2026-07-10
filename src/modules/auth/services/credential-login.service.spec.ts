@@ -233,7 +233,7 @@ describe('CredentialLoginService', () => {
       });
     });
 
-    it('creates tokens with correct user metadata on success', async () => {
+    it('returns correct user metadata on success', async () => {
       const userWithGoogle = createActiveUser({
         fullName: 'Test User',
         avatar: 'avatar.png',
@@ -252,13 +252,6 @@ describe('CredentialLoginService', () => {
         googleId: 'google-123',
         ssoProvider: 'google',
       });
-      expect(tokenService.createAndSaveTokens).toHaveBeenCalledWith(
-        'user-id',
-        loginDto.email,
-        'user',
-        'Test User',
-        'avatar.png',
-      );
     });
   });
 
