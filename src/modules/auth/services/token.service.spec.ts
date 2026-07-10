@@ -1,4 +1,4 @@
-﻿import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
@@ -7,6 +7,7 @@ import { UsersService } from '../../users/services/users.service';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { PasswordResetGrantService } from './password-reset-grant.service';
+import { TokenIssuerService } from './token-issuer.service';
 import { TokenService } from './token.service';
 
 describe('TokenService', () => {
@@ -29,6 +30,10 @@ describe('TokenService', () => {
 
   const auditLogService = {
     log: jest.fn(),
+  };
+
+  const tokenIssuerService = {
+    createAndSaveTokens: jest.fn(),
   };
 
   const passwordResetGrantService = {
@@ -59,6 +64,7 @@ describe('TokenService', () => {
       usersService as unknown as UsersService,
       auditLogService as unknown as AuditLogService,
       passwordResetGrantService as unknown as PasswordResetGrantService,
+      tokenIssuerService as unknown as TokenIssuerService,
     );
   });
 
@@ -66,14 +72,27 @@ describe('TokenService', () => {
     jest.useRealTimers();
   });
 
-  describe('token pair issuance', () => {
-    it('creates access and refresh tokens with jti and stores only hashes', async () => {
-      jwtService.sign
-        .mockReturnValueOnce('access-token')
-        .mockReturnValueOnce('refresh-token');
-      tokenModel.create.mockResolvedValue({});
+  describe('token pair issuance facade', () => {
+    it('delegates createAndSaveTokens to TokenIssuerService', async () => {
+      tokenIssuerService.createAndSaveTokens.mockResolvedValue({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
 
-      const result = await service.createAndSaveTokens(
+      await expect(
+        service.createAndSaveTokens(
+          'account-b',
+          'b@example.com',
+          'user',
+          'Account B',
+          'avatar.png',
+          'account-a',
+        ),
+      ).resolves.toEqual({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+      expect(tokenIssuerService.createAndSaveTokens).toHaveBeenCalledWith(
         'account-b',
         'b@example.com',
         'user',
@@ -81,82 +100,6 @@ describe('TokenService', () => {
         'avatar.png',
         'account-a',
       );
-
-      expect(result).toEqual({
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      });
-      expect(jwtService.sign).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          userId: 'account-b',
-          email: 'b@example.com',
-          role: 'user',
-          fullName: 'Account B',
-          avatar: 'avatar.png',
-          rootUserId: 'account-a',
-          type: TOKEN_TYPES.ACCESS,
-          jti: expect.any(String),
-        }),
-      );
-      expect(jwtService.sign).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          userId: 'account-b',
-          rootUserId: 'account-a',
-          type: TOKEN_TYPES.REFRESH,
-          jti: expect.any(String),
-        }),
-        expect.objectContaining({
-          secret: authTokenConfig.refreshTokenSecret,
-          expiresIn: authTokenConfig.refreshTokenTtlSeconds,
-        }),
-      );
-      expect(tokenModel.create).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          userId: 'account-b',
-          email: 'b@example.com',
-          role: 'user',
-          token: service.hashToken('access-token'),
-          status: true,
-          type: TOKEN_TYPES.ACCESS,
-          expiresAt: new Date('2026-07-09T10:15:00.000Z'),
-        }),
-      );
-      expect(tokenModel.create).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          userId: 'account-b',
-          email: 'b@example.com',
-          token: service.hashToken('refresh-token'),
-          status: true,
-          type: TOKEN_TYPES.REFRESH,
-          familyId: expect.any(String),
-          expiresAt: new Date('2026-07-16T10:00:00.000Z'),
-        }),
-      );
-      expect(tokenModel.create.mock.calls[0][0].token).not.toBe('access-token');
-      expect(tokenModel.create.mock.calls[1][0].token).not.toBe(
-        'refresh-token',
-      );
-    });
-
-    it('does not include rootUserId for direct-login token issuance', async () => {
-      jwtService.sign
-        .mockReturnValueOnce('direct-access-token')
-        .mockReturnValueOnce('direct-refresh-token');
-      tokenModel.create.mockResolvedValue({});
-
-      await service.createAndSaveTokens('account-a', 'a@example.com', 'user');
-
-      const accessPayload = jwtService.sign.mock.calls[0][0];
-      const refreshPayload = jwtService.sign.mock.calls[1][0];
-
-      expect(accessPayload.rootUserId).toBeUndefined();
-      expect(refreshPayload.rootUserId).toBeUndefined();
-      expect(accessPayload.jti).toEqual(expect.any(String));
-      expect(refreshPayload.jti).toEqual(expect.any(String));
     });
 
     it('peeks rootUserId from access tokens before falling back to userId', () => {

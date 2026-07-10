@@ -20,6 +20,7 @@ import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { isMongoUnavailable } from '../../../common/utils/mongo-error.util';
 import { hashToken } from '../utils/token-hash.util';
 import { PasswordResetGrantService } from './password-reset-grant.service';
+import { TokenIssuerService } from './token-issuer.service';
 
 @Injectable()
 export class TokenService {
@@ -32,6 +33,7 @@ export class TokenService {
     private readonly usersService: UsersService,
     private readonly auditLogService: AuditLogService,
     private readonly passwordResetGrantService: PasswordResetGrantService,
+    private readonly tokenIssuerService: TokenIssuerService,
   ) {}
 
   // Public: used by other auth-domain services (password reset, logout, refresh)
@@ -113,62 +115,14 @@ export class TokenService {
     avatar?: string,
     rootUserId?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    try {
-      const accessToken = this.createAccessToken(
-        userId,
-        email,
-        role,
-        fullName,
-        avatar,
-        rootUserId,
-      );
-      const refreshToken = this.createRefreshToken(userId, rootUserId);
-
-      const familyId = randomBytes(16).toString('hex');
-      const accessExpiry = this.authTokenConfig.getAccessTokenExpiresAt();
-      const refreshExpiry = this.authTokenConfig.getRefreshTokenExpiresAt();
-
-      await this.tokenModel.create({
-        userId,
-        email,
-        role,
-        token: this.hashToken(accessToken),
-        deviceInfo: 'Web',
-        status: true,
-        type: TOKEN_TYPES.ACCESS,
-        expiresAt: accessExpiry,
-      });
-
-      await this.tokenModel.create({
-        userId,
-        email,
-        token: this.hashToken(refreshToken),
-        deviceInfo: 'Web',
-        status: true,
-        type: TOKEN_TYPES.REFRESH,
-        familyId,
-        expiresAt: refreshExpiry,
-      });
-
-      this.logger.debug(
-        `Token pair stored for userId: ${userId}, family: ${familyId}`,
-      );
-      return { accessToken, refreshToken };
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(
-        `Token pair creation failed: ${err.message}`,
-        err.stack,
-      );
-      if (isMongoUnavailable(error)) {
-        throw new ServiceUnavailableException(
-          'Database temporarily unavailable',
-        );
-      }
-      throw new InternalServerErrorException(
-        'Cannot create authentication tokens',
-      );
-    }
+    return this.tokenIssuerService.createAndSaveTokens(
+      userId,
+      email,
+      role,
+      fullName,
+      avatar,
+      rootUserId,
+    );
   }
 
   private createAccessToken(
