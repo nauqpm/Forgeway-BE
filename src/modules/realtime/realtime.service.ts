@@ -8,6 +8,7 @@ export const BOARD_REALTIME_EVENTS = {
 
 export type BoardDeltaAction =
   | 'board:columns-replaced'
+  | 'board:refresh'
   | 'column:created'
   | 'column:updated'
   | 'column:deleted'

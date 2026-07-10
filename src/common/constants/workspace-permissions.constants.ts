@@ -7,6 +7,7 @@ export const WORKSPACE_PERMISSIONS = {
   TASK_EDIT: 'task:edit',
   TASK_DELETE: 'task:delete',
   TASK_MOVE: 'task:move',
+  TASK_BULK_IMPORT: 'task:bulk_import',
   SPRINT_MANAGE: 'sprint:manage',
   PAGE_CREATE: 'page:create',
   PAGE_EDIT: 'page:edit',
