@@ -6,7 +6,7 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { stringify } from 'csv-stringify/sync';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { TaskReadRepository } from '../repositories/task-read.repository';
 import { KanbanService } from '../../kanban/services/kanban.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
@@ -30,8 +30,8 @@ const EXPORT_COLUMNS = [
   'Type',
   'Status',
   'Priority',
-  'Assignee',
-  'Reporter',
+  'Assignee Email',
+  'Reporter Email',
   'Story Points',
   'Labels',
   'Sprint',
@@ -63,7 +63,7 @@ export class TaskCsvExportService {
     @Inject(forwardRef(() => LabelService))
     private readonly labelService: LabelService,
     private readonly taskWordExportService: TaskWordExportService,
-  ) {}
+  ) { }
 
   async exportTasks(
     workspaceId: string,
@@ -93,7 +93,7 @@ export class TaskCsvExportService {
     const format = dto.format ?? ExportFormat.CSV;
 
     if (format === ExportFormat.XLSX) {
-      return this.buildXlsx(rows, workspaceId);
+      return await this.buildXlsx(rows, workspaceId);
     }
     if (format === ExportFormat.DOCX) {
       return await this.taskWordExportService.buildDocx(
@@ -105,6 +105,131 @@ export class TaskCsvExportService {
     }
 
     return this.buildCsv(rows, workspaceId);
+  }
+
+  async generateImportTemplate(
+    workspaceId: string,
+    format: 'csv' | 'xlsx' = 'xlsx',
+  ): Promise<{ file: StreamableFile; contentType: string; filename: string }> {
+    const importHeaders = [
+      'Title',
+      'Description',
+      'Type',
+      'Priority',
+      'Status',
+      'Assignee Email',
+      'Story Points',
+      'Start Date',
+      'Due Date',
+    ];
+
+    const sampleRow = [
+      'Example task',
+      'Description for task',
+      'Task',
+      'Medium',
+      'To do',
+      'user@example.com',
+      '5',
+      '2026-01-01',
+      '2026-01-15',
+    ];
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Import Template');
+
+    worksheet.addRow(importHeaders);
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF263238' },
+    };
+    headerRow.alignment = { horizontal: 'center' };
+
+    worksheet.addRow(sampleRow);
+
+    worksheet.columns.forEach((column, i) => {
+      column.width = Math.max(importHeaders[i].length, sampleRow[i].length) + 2;
+    });
+
+    for (let i = 2; i <= 1000; i++) {
+      worksheet.getCell(`C${i}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"Task,Bug,Story,Epic"'],
+      };
+
+      worksheet.getCell(`D${i}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"Lowest,Low,Medium,High,Highest"'],
+      };
+
+      worksheet.getCell(`E${i}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"To Do,In Progress,Done,In Process"'],
+      };
+    }
+
+    // Add conditional formatting for Type
+    worksheet.addConditionalFormatting({
+      ref: 'C2:C1000',
+      rules: [
+        { type: 'cellIs', operator: 'equal', formulae: ['"Task"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Bug"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Story"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Epic"'], style: { font: { color: { argb: 'FF9333EA' }, bold: true } } },
+      ] as any
+    });
+
+    // Add conditional formatting for Priority
+    worksheet.addConditionalFormatting({
+      ref: 'D2:D1000',
+      rules: [
+        { type: 'cellIs', operator: 'equal', formulae: ['"Highest"'], style: { font: { color: { argb: 'FF8B0000' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"High"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Medium"'], style: { font: { color: { argb: 'FFD97706' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Low"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Lowest"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
+      ] as any
+    });
+
+    // Add conditional formatting for Status
+    worksheet.addConditionalFormatting({
+      ref: 'E2:E1000',
+      rules: [
+        { type: 'cellIs', operator: 'equal', formulae: ['"To do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"To Do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"In Process"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"In Progress"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Done"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFC6EFCE' } }, font: { color: { argb: 'FF006100' }, bold: true } } },
+      ] as any
+    });
+
+    if (format === 'csv') {
+      const csvContent = stringify([importHeaders, sampleRow]);
+      const bom = '\uFEFF';
+      const buffer = Buffer.from(bom + csvContent, 'utf-8');
+      return {
+        file: new StreamableFile(buffer),
+        contentType: 'text/csv; charset=utf-8',
+        filename: `import-issue-template.csv`,
+      };
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const filename = `import-issue-template.xlsx`;
+
+    return {
+      file: new StreamableFile(Buffer.from(buffer)),
+      contentType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      filename,
+    };
   }
 
   private async queryTasks(
@@ -193,7 +318,7 @@ export class TaskCsvExportService {
       const doc = u as any;
       const id = (doc._id || doc.id)?.toString();
       if (id) {
-        usersMap.set(id, doc.fullName || doc.email || id);
+        usersMap.set(id, doc.email || id);
       }
     }
 
@@ -248,22 +373,18 @@ export class TaskCsvExportService {
     };
 
     const aId = extractId(plain.assigneeId);
-    let assigneeName = aId ? resolved.users.get(aId) : '';
-    if (!assigneeName && plain.assigneeId?.fullName) {
-      assigneeName = plain.assigneeId.fullName;
-    } else if (!assigneeName && plain.assigneeId?.email) {
-      assigneeName = plain.assigneeId.email;
+    let assigneeEmail = aId ? resolved.users.get(aId) : '';
+    if (!assigneeEmail && plain.assigneeId?.email) {
+      assigneeEmail = plain.assigneeId.email;
     }
-    assigneeName = assigneeName || '';
+    assigneeEmail = assigneeEmail || '';
 
     const rId = extractId(plain.reporterId);
-    let reporterName = rId ? resolved.users.get(rId) : '';
-    if (!reporterName && plain.reporterId?.fullName) {
-      reporterName = plain.reporterId.fullName;
-    } else if (!reporterName && plain.reporterId?.email) {
-      reporterName = plain.reporterId.email;
+    let reporterEmail = rId ? resolved.users.get(rId) : '';
+    if (!reporterEmail && plain.reporterId?.email) {
+      reporterEmail = plain.reporterId.email;
     }
-    reporterName = reporterName || '';
+    reporterEmail = reporterEmail || '';
 
     const cId = extractId(plain.columnId);
     const statusName = cId
@@ -301,8 +422,8 @@ export class TaskCsvExportService {
       typeName,
       statusName,
       priorityName,
-      assigneeName,
-      reporterName,
+      assigneeEmail,
+      reporterEmail,
       plain.storyPoints != null ? String(plain.storyPoints) : '',
       labelNames,
       sprintName,
@@ -333,32 +454,101 @@ export class TaskCsvExportService {
     };
   }
 
-  private buildXlsx(
+  private async buildXlsx(
     rows: string[][],
     workspaceId: string,
-  ): { file: StreamableFile; contentType: string; filename: string } {
-    const ws = XLSX.utils.aoa_to_sheet([EXPORT_COLUMNS, ...rows]);
+  ): Promise<{ file: StreamableFile; contentType: string; filename: string }> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Tasks');
 
-    const colWidths = EXPORT_COLUMNS.map((header, i) => {
-      let maxLen = header.length;
-      for (const row of rows) {
+    worksheet.addRow(EXPORT_COLUMNS);
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF263238' },
+    };
+    headerRow.alignment = { horizontal: 'center' };
+
+    rows.forEach(row => {
+      worksheet.addRow(row);
+    });
+
+    worksheet.columns.forEach((column, i) => {
+      let maxLen = EXPORT_COLUMNS[i].length;
+      rows.forEach(row => {
         if (row[i] && row[i].length > maxLen) {
           maxLen = Math.min(row[i].length, 50);
         }
-      }
-      return { wch: maxLen + 2 };
+      });
+      column.width = maxLen + 2;
     });
-    ws['!cols'] = colWidths;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Tasks');
+    for (let i = 2; i <= Math.max(rows.length + 1, 100); i++) {
+      const typeCell = worksheet.getCell(`D${i}`);
+      typeCell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"Task,Bug,Story,Epic"'],
+      };
 
-    const xlsxBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      const priorityCell = worksheet.getCell(`F${i}`);
+      priorityCell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"Lowest,Low,Medium,High,Highest"'],
+      };
 
+      const statusCell = worksheet.getCell(`E${i}`);
+      statusCell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"To Do,In Progress,Done,In Process"'],
+      };
+    }
+
+    // Add conditional formatting for Type (Column D in Export)
+    worksheet.addConditionalFormatting({
+      ref: 'D2:D1000',
+      rules: [
+        { type: 'cellIs', operator: 'equal', formulae: ['"Task"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Bug"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Story"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Epic"'], style: { font: { color: { argb: 'FF9333EA' }, bold: true } } },
+      ] as any
+    });
+
+    // Add conditional formatting for Priority (Column F in Export)
+    worksheet.addConditionalFormatting({
+      ref: 'F2:F1000',
+      rules: [
+        { type: 'cellIs', operator: 'equal', formulae: ['"Highest"'], style: { font: { color: { argb: 'FF8B0000' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"High"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Medium"'], style: { font: { color: { argb: 'FFD97706' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Low"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Lowest"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
+      ] as any
+    });
+
+    // Add conditional formatting for Status (Column E in Export)
+    worksheet.addConditionalFormatting({
+      ref: 'E2:E1000',
+      rules: [
+        { type: 'cellIs', operator: 'equal', formulae: ['"To do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"To Do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"In Process"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"In Progress"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
+        { type: 'cellIs', operator: 'equal', formulae: ['"Done"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFC6EFCE' } }, font: { color: { argb: 'FF006100' }, bold: true } } },
+      ] as any
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
     const filename = `tasks-${workspaceId}-${this.dateStamp()}.xlsx`;
 
     return {
-      file: new StreamableFile(xlsxBuffer as Buffer),
+      file: new StreamableFile(Buffer.from(buffer)),
       contentType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       filename,

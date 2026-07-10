@@ -94,6 +94,25 @@ export class TaskQueryController {
     }
   }
 
+  @Get('import/template')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Download XLSX import template' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'File download' })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async downloadImportTemplate(
+    @Param('workspaceId') workspaceId: string,
+    @Query('format') format: 'csv' | 'xlsx',
+    @Res({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const result = await this.taskCsvExportService.generateImportTemplate(workspaceId, format);
+    res.set({
+      'Content-Type': result.contentType,
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
+    });
+    return result.file;
+  }
+
   @Get('export')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Export tasks as CSV or Excel' })

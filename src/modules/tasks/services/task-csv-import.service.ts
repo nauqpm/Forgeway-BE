@@ -149,29 +149,30 @@ export class TaskCsvImportService {
       const errors: string[] = [];
       const warnings: string[] = [];
 
-      const title = record['title'] || '';
+      const title = record['Title'] || record['title'] || '';
       if (!title) {
         errors.push('Tiêu đề (title) không được để trống.');
       } else if (title.length > 255) {
         errors.push('Tiêu đề (title) vượt quá 255 ký tự.');
       }
 
-      const type = (record['type'] || 'task').toLowerCase();
+      const type = (record['Type'] || record['type'] || 'task').toLowerCase();
       if (!TASK_TYPES.includes(type as any)) {
         errors.push(
           `Loại task (type) không hợp lệ. Phải là: ${TASK_TYPES.join(', ')}.`,
         );
       }
 
-      const priority = (record['priority'] || 'medium').toLowerCase();
+      const priority = (record['Priority'] || record['priority'] || 'medium').toLowerCase();
       if (!TASK_PRIORITIES.includes(priority as any)) {
         errors.push(
           `Độ ưu tiên (priority) không hợp lệ. Phải là: ${TASK_PRIORITIES.join(', ')}.`,
         );
       }
 
-      const assigneeEmail = record['assigneeEmail']
-        ? record['assigneeEmail'].trim().toLowerCase()
+      const assigneeEmailRaw = record['Assignee Email'] || record['assigneeEmail'];
+      const assigneeEmail = assigneeEmailRaw
+        ? assigneeEmailRaw.trim().toLowerCase()
         : '';
       let assigneeId: string | undefined;
 
@@ -184,7 +185,7 @@ export class TaskCsvImportService {
         }
       }
 
-      const storyPointsStr = record['storyPoints'];
+      const storyPointsStr = record['Story Points'] || record['storyPoints'];
       let storyPoints: number | undefined;
       if (storyPointsStr) {
         storyPoints = parseFloat(storyPointsStr);
@@ -194,8 +195,9 @@ export class TaskCsvImportService {
       }
 
       let parsedStartDate: string | undefined;
-      if (record['startDate']) {
-        const d = new Date(record['startDate']);
+      const startDateRaw = record['Start Date'] || record['startDate'];
+      if (startDateRaw) {
+        const d = new Date(startDateRaw);
         if (isNaN(d.getTime())) {
           errors.push('Ngày bắt đầu (startDate) không đúng định dạng hợp lệ.');
         } else {
@@ -204,8 +206,9 @@ export class TaskCsvImportService {
       }
 
       let parsedDueDate: string | undefined;
-      if (record['dueDate']) {
-        const d = new Date(record['dueDate']);
+      const dueDateRaw = record['Due Date'] || record['dueDate'];
+      if (dueDateRaw) {
+        const d = new Date(dueDateRaw);
         if (isNaN(d.getTime())) {
           errors.push('Ngày đến hạn (dueDate) không đúng định dạng hợp lệ.');
         } else {
@@ -225,7 +228,7 @@ export class TaskCsvImportService {
         validCount++;
       }
 
-      const description = record['description'] || '';
+      const description = record['Description'] || record['description'] || '';
       if (description.length > 5000) {
         errors.push('Mô tả (description) vượt quá 5000 ký tự.');
       }
@@ -235,7 +238,7 @@ export class TaskCsvImportService {
         description,
         type,
         priority,
-        status: record['status'] ? record['status'].trim() : 'todo',
+        status: record['Status'] || record['status'] ? (record['Status'] || record['status']).trim() : 'todo',
       };
 
       if (assigneeId) {
