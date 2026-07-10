@@ -57,7 +57,8 @@ export class CredentialLoginService implements OnModuleInit {
   }
 
   async login(loginDto: LoginDto, requestContext: { ip: string }) {
-    this.logger.log(`Login requested for email: ${loginDto.email}`);
+    const normalizedEmail = loginDto.email.trim().toLowerCase();
+    this.logger.log(`Login requested for email: ${normalizedEmail}`);
 
     try {
       if (!EMAIL_POLICY.noWhitespacePattern.test(loginDto.email)) {
@@ -65,7 +66,7 @@ export class CredentialLoginService implements OnModuleInit {
       }
 
       const attemptContext: LoginAttemptContext = {
-        email: loginDto.email,
+        email: normalizedEmail,
         ip: requestContext.ip,
       };
       const retryAfterSeconds =
@@ -76,13 +77,13 @@ export class CredentialLoginService implements OnModuleInit {
         throw new LoginRetryLaterException(retryAfterSeconds);
       }
 
-      const user = await this.usersService.findByEmail(loginDto.email);
+      const user = await this.usersService.findByEmail(normalizedEmail);
 
       // === Handle non-existent user ===
       // Return same response shape as a real wrong password to prevent user enumeration.
       if (!user) {
         this.logger.warn(
-          `Login failed: Email ${loginDto.email} was not found.`,
+          `Login failed: Email ${normalizedEmail} was not found.`,
         );
         await this.runDummyPasswordCompare(loginDto.password);
         this.throwPublicLoginFailure(
@@ -94,7 +95,7 @@ export class CredentialLoginService implements OnModuleInit {
       // Return generic invalid credentials to prevent OAuth account enumeration.
       if (!user.password) {
         this.logger.warn(
-          `Login failed: Account ${loginDto.email} has no password (OAuth).`,
+          `Login failed: Account ${normalizedEmail} has no password (OAuth).`,
         );
         await this.runDummyPasswordCompare(loginDto.password);
         this.throwPublicLoginFailure(
@@ -110,7 +111,7 @@ export class CredentialLoginService implements OnModuleInit {
 
       if (!isPasswordValid) {
         this.logger.warn(
-          `Login failed: Incorrect password for email ${loginDto.email}.`,
+          `Login failed: Incorrect password for email ${normalizedEmail}.`,
         );
         this.throwPublicLoginFailure(
           await this.registerLoginFailure(attemptContext),
@@ -120,7 +121,7 @@ export class CredentialLoginService implements OnModuleInit {
       // === Handle non-active status ===
       if (user.status !== USER_STATUSES.ACTIVE) {
         this.logger.warn(
-          `Login failed: Account ${loginDto.email} is not active (status: ${user.status}).`,
+          `Login failed: Account ${normalizedEmail} is not active (status: ${user.status}).`,
         );
 
         if (user.status === USER_STATUSES.PENDING_VERIFICATION) {

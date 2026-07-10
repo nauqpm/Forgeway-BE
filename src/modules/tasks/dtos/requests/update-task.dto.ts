@@ -55,6 +55,7 @@ export class UpdateTaskDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @Max(100)
   storyPoints?: number;
 
   @ApiPropertyOptional({ type: String, nullable: true })

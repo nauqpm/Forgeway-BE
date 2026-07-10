@@ -149,13 +149,29 @@ export class TaskNormalizerService {
     }
 
     if (status) {
-      const column = columns.find(
+      const normalizedStatus = status.toLowerCase();
+      let column = columns.find(
         item =>
-          item.id === status || (item.mappedStatuses || []).includes(status),
+          item.id.toLowerCase() === normalizedStatus ||
+          item.name.toLowerCase() === normalizedStatus ||
+          (item.mappedStatuses || []).some(s => s.toLowerCase() === normalizedStatus),
       );
+
+      // Fallback alias for common Excel templates
+      if (!column && normalizedStatus === 'in process') {
+        const fallbackStatus = 'in progress';
+        column = columns.find(
+          item =>
+            item.id.toLowerCase() === fallbackStatus ||
+            item.id.toLowerCase() === 'in-progress' ||
+            item.name.toLowerCase() === fallbackStatus ||
+            (item.mappedStatuses || []).some(s => s.toLowerCase() === fallbackStatus),
+        );
+      }
       if (!column) {
+        const available = columns.map(c => `'${c.name}'`).join(', ');
         throw new BadRequestException(
-          `Status "${status}" does not map to any column in this board`,
+          `Status "${status}" does not map to any column in this board. Available: ${available}`,
         );
       }
       return column;
@@ -175,6 +191,22 @@ export class TaskNormalizerService {
     requestedStatus?: string,
   ): string {
     if (requestedStatus) {
+      const normalizedReq = requestedStatus.toLowerCase();
+      const exactMatch = (column.mappedStatuses || []).find(s => s.toLowerCase() === normalizedReq);
+      if (exactMatch) {
+        return exactMatch;
+      }
+      if (column.id.toLowerCase() === normalizedReq) {
+        return column.id;
+      }
+      if (column.name.toLowerCase() === normalizedReq) {
+        return (column.mappedStatuses || [])[0] || column.id;
+      }
+      
+      // Fallback alias
+      if (normalizedReq === 'in process' && (column.id.toLowerCase() === 'in-progress' || column.name.toLowerCase() === 'in progress')) {
+        return (column.mappedStatuses || [])[0] || column.id;
+      }
       return requestedStatus;
     }
 

@@ -7,6 +7,7 @@ import {
   IsNumber,
   MaxLength,
   Min,
+  Max,
   IsMongoId,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -70,6 +71,7 @@ export class CreateTaskDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @Max(100)
   storyPoints?: number;
 
   @ApiPropertyOptional()

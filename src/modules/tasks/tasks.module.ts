@@ -9,6 +9,8 @@ import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LabelsModule } from '../labels/labels.module';
+import { JwtModule } from '@nestjs/jwt';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TaskQueryController } from './controllers/task-query.controller';
 import { TaskDetailController } from './controllers/task-detail.controller';
@@ -47,6 +49,9 @@ import { TaskCreateService } from './services/task-create.service';
 import { TaskQueryService } from './services/task-query.service';
 import { TaskUpdateService } from './services/task-update.service';
 import { TaskLifecycleService } from './services/task-lifecycle.service';
+import { TaskCsvImportService } from './services/task-csv-import.service';
+import { TaskCsvExportService } from './services/task-csv-export.service';
+import { TaskWordExportService } from './services/task-word-export.service';
 import { TaskAuditService } from './shared/task-audit.service';
 
 @Module({
@@ -63,8 +68,13 @@ import { TaskAuditService } from './shared/task-audit.service';
     forwardRef(() => AuthModule),
     RealtimeModule,
     forwardRef(() => NotificationsModule),
+    forwardRef(() => LabelsModule),
     TaskActivitiesModule,
     AuditModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'secretKey',
+      signOptions: { expiresIn: '10m' },
+    }),
   ],
   controllers: [
     TaskQueryController,
@@ -100,6 +110,9 @@ import { TaskAuditService } from './shared/task-audit.service';
     TaskQueryService,
     TaskUpdateService,
     TaskLifecycleService,
+    TaskCsvImportService,
+    TaskCsvExportService,
+    TaskWordExportService,
     TaskAuditService,
     WorkspaceRoleGuard,
   ],
