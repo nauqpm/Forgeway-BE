@@ -11,13 +11,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Token, TokenDocument } from '../schemas/token.schema';
 import { JwtService } from '@nestjs/jwt';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { UsersService } from '../../users/services/users.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { RefreshJwtPayload } from '../types/jwt-payload.type';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
+import { isMongoUnavailable } from '../../../common/utils/mongo-error.util';
+import { hashToken } from '../utils/token-hash.util';
 
 @Injectable()
 export class TokenService {
@@ -31,19 +33,9 @@ export class TokenService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  private isMongoUnavailable(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    const mongoNetworkErrors = [
-      'MongoServerSelectionError',
-      'MongoNetworkTimeoutError',
-      'MongoNetworkError',
-    ];
-    return mongoNetworkErrors.includes(error.name);
-  }
-
   // Public: used by other auth-domain services (password reset, logout, refresh)
   hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    return hashToken(token);
   }
 
   /**
@@ -82,7 +74,7 @@ export class TokenService {
     avatar?: string,
     deviceInfo: string = 'Web',
   ): Promise<string> {
-    this.logger.log(`🔑 Tạo token mới cho userId: ${userId}, email: ${email}`);
+    this.logger.log(`Creating token for userId: ${userId}, email: ${email}`);
 
     try {
       const payload = { userId, email, role, fullName, avatar };
@@ -100,13 +92,11 @@ export class TokenService {
       });
 
       await newToken.save();
-      this.logger.log(
-        `✅ Token đã được lưu thành công vào database cho user: ${email}`,
-      );
+      this.logger.log(`Token stored for user: ${email}`);
       return token;
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi tạo token: ${err.message}`, err.stack);
+      this.logger.error(`Token creation failed: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Không thể tạo token.');
     }
   }
@@ -160,13 +150,16 @@ export class TokenService {
       });
 
       this.logger.debug(
-        `🔑 Tokens đã được tạo và lưu cho userId: ${userId}, family: ${familyId}`,
+        `Token pair stored for userId: ${userId}, family: ${familyId}`,
       );
       return { accessToken, refreshToken };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi tạo tokens: ${err.message}`, err.stack);
-      if (this.isMongoUnavailable(error)) {
+      this.logger.error(
+        `Token pair creation failed: ${err.message}`,
+        err.stack,
+      );
+      if (isMongoUnavailable(error)) {
         throw new ServiceUnavailableException(
           'Database temporarily unavailable',
         );
@@ -235,8 +228,11 @@ export class TokenService {
       return { message: 'Đăng xuất thành công' };
     } catch (error: unknown) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi đăng xuất: ${err.message}`, err.stack);
-      if (this.isMongoUnavailable(error)) {
+      this.logger.error(
+        `Session token revocation failed: ${err.message}`,
+        err.stack,
+      );
+      if (isMongoUnavailable(error)) {
         throw new ServiceUnavailableException(
           'Database temporarily unavailable',
         );
@@ -376,7 +372,7 @@ export class TokenService {
               { $set: { status: false } },
             );
             this.logger.error(
-              `🚨 REFRESH TOKEN THEFT DETECTED — familyId: ${String(revokedToken.familyId)}, userId: ${String(revokedToken.userId)}`,
+              `Refresh token reuse detected outside grace window; familyId: ${String(revokedToken.familyId)}, userId: ${String(revokedToken.userId)}`,
             );
             this.auditLogService.log({
               type: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
@@ -460,7 +456,7 @@ export class TokenService {
       });
 
       this.logger.debug(
-        `🔄 Token rotated — userId: ${decoded.userId}, family: ${familyId}`,
+        `Token rotated for userId: ${decoded.userId}, family: ${familyId}`,
       );
 
       return {
@@ -478,8 +474,11 @@ export class TokenService {
           'Refresh token đã hết hạn, vui lòng đăng nhập lại',
         );
       }
-      this.logger.error(`❌ Lỗi khi refresh token: ${err.message}`, err.stack);
-      if (this.isMongoUnavailable(error)) {
+      this.logger.error(
+        `Refresh token rotation failed: ${err.message}`,
+        err.stack,
+      );
+      if (isMongoUnavailable(error)) {
         throw new ServiceUnavailableException(
           'Database temporarily unavailable',
         );
@@ -488,25 +487,25 @@ export class TokenService {
     }
   }
 
-  // 🚪 Đăng xuất và hủy token
+  // Invalidate one raw token.
   async invalidateToken(token: string): Promise<void> {
-    this.logger.log(`🚪 Hủy token`);
+    this.logger.log('Invalidating token');
     try {
       await this.tokenModel.updateOne(
         { token: this.hashToken(token) },
         { status: false },
       );
-      this.logger.log(`✅ Token đã được hủy`);
+      this.logger.log('Token invalidated');
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi hủy token: ${err.message}`, err.stack);
+      this.logger.error(`Token invalidation failed: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Không thể hủy token.');
     }
   }
 
-  // 🔍 Tìm access token (không check expiresAt — JWT expiry tự xử lý)
+  // Find an active access token. JWT expiry is handled by token verification.
   async findActiveAccessToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log(`🔍 Tìm access token trong database`);
+    this.logger.log('Finding active access token');
     try {
       return await this.tokenModel
         .findOne({
@@ -518,16 +517,16 @@ export class TokenService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi tìm access token: ${err.message}`,
+        `Find active access token failed: ${err.message}`,
         err.stack,
       );
       throw new InternalServerErrorException('Không thể tìm thấy token.');
     }
   }
 
-  // 🔍 Tìm refresh token (check expiresAt nếu có)
+  // Find an active refresh token.
   async findActiveRefreshToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log(`🔍 Tìm refresh token trong database`);
+    this.logger.log('Finding active refresh token');
     try {
       return await this.tokenModel
         .findOne({
@@ -539,16 +538,16 @@ export class TokenService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi tìm refresh token: ${err.message}`,
+        `Find active refresh token failed: ${err.message}`,
         err.stack,
       );
       throw new InternalServerErrorException('Không thể tìm thấy token.');
     }
   }
 
-  // 🔍 Legacy: tìm token theo hash (giữ backward compat nội bộ)
+  // Legacy lookup by hash for internal backward compatibility.
   async findToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log(`🔍 Tìm token trong database`);
+    this.logger.log('Finding token');
     try {
       return await this.tokenModel
         .findOne({
@@ -558,21 +557,21 @@ export class TokenService {
         .exec();
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`❌ Lỗi khi tìm token: ${err.message}`, err.stack);
+      this.logger.error(`Find token failed: ${err.message}`, err.stack);
       throw new InternalServerErrorException('Không thể tìm thấy token.');
     }
   }
 
-  // 📤 Xóa tất cả token của người dùng (Ví dụ khi đăng xuất tất cả thiết bị)
+  // Invalidate all tokens for a user, such as sign out from all devices.
   async invalidateAllTokensForUser(userId: string): Promise<void> {
-    this.logger.log(`📤 Hủy tất cả token của userId: ${userId}`);
+    this.logger.log(`Invalidating all tokens for userId: ${userId}`);
     try {
       await this.tokenModel.updateMany({ userId }, { status: false });
-      this.logger.log(`✅ Tất cả token của userId ${userId} đã bị hủy`);
+      this.logger.log(`All tokens invalidated for userId: ${userId}`);
     } catch (error) {
       const err = error as Error;
       this.logger.error(
-        `❌ Lỗi khi hủy tất cả token của userId ${userId}: ${err.message}`,
+        `Invalidate all tokens failed for userId ${userId}: ${err.message}`,
         err.stack,
       );
       throw new InternalServerErrorException(
