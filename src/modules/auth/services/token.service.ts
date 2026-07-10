@@ -6,21 +6,17 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Token, TokenDocument } from '../schemas/token.schema';
-import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
-import { UsersService } from '../../users/services/users.service';
-import { AuditLogService } from '../../audit/services/audit-log.service';
-import { TOKEN_TYPES } from '../constants/token.constants';
-import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
-import { RefreshJwtPayload } from '../types/jwt-payload.type';
-import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { isMongoUnavailable } from '../../../common/utils/mongo-error.util';
+import { AuthTokenConfigService } from '../config/auth-token-config.service';
+import { TOKEN_TYPES } from '../constants/token.constants';
+import { Token, TokenDocument } from '../schemas/token.schema';
 import { hashToken } from '../utils/token-hash.util';
 import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
+import { TokenRefreshService } from './token-refresh.service';
 
 @Injectable()
 export class TokenService {
@@ -30,10 +26,9 @@ export class TokenService {
     @InjectModel(Token.name) private readonly tokenModel: Model<TokenDocument>,
     private readonly jwtService: JwtService,
     private readonly authTokenConfig: AuthTokenConfigService,
-    private readonly usersService: UsersService,
-    private readonly auditLogService: AuditLogService,
     private readonly passwordResetGrantService: PasswordResetGrantService,
     private readonly tokenIssuerService: TokenIssuerService,
+    private readonly tokenRefreshService: TokenRefreshService,
   ) {}
 
   // Public: used by other auth-domain services (password reset, logout, refresh)
@@ -43,8 +38,7 @@ export class TokenService {
 
   /**
    * Best-effort: extract the effective owner id from a JWT access token without enforcing expiry.
-   * Used only to discover the "current owner" so we can populate the account switcher
-   * when a second account logs in on the same browser. Returns null on any error.
+   * Used only to discover the current owner for account switcher population.
    */
   peekUserIdFromAccessToken(token: string | undefined): string | null {
     if (!token) return null;
@@ -68,7 +62,7 @@ export class TokenService {
     return null;
   }
 
-  // Legacy single-token creator (kept for backward compat if used elsewhere)
+  // Legacy single-token creator (kept for backward compatibility if used elsewhere).
   async createAndSaveToken(
     userId: string,
     email: string,
@@ -104,9 +98,6 @@ export class TokenService {
     }
   }
 
-  /**
-   * Access(15m) + Refresh(7d) token pair issuance (behavior preserved)
-   */
   async createAndSaveTokens(
     userId: string,
     email: string,
@@ -125,44 +116,12 @@ export class TokenService {
     );
   }
 
-  private createAccessToken(
-    userId: string,
-    email: string,
-    role: string,
-    fullName?: string,
-    avatar?: string,
-    rootUserId?: string,
-  ): string {
-    const payload = {
-      userId,
-      email,
-      role,
-      fullName,
-      avatar,
-      type: TOKEN_TYPES.ACCESS,
-      jti: randomBytes(8).toString('hex'),
-      ...(rootUserId ? { rootUserId } : {}),
-    };
-    return this.jwtService.sign(payload);
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
+    return this.tokenRefreshService.refreshAccessToken(refreshToken);
   }
 
-  private createRefreshToken(userId: string, rootUserId?: string): string {
-    // Add jti to avoid identical JWT when issued within same second (token field has unique index)
-    const payload = {
-      userId,
-      ...(rootUserId ? { rootUserId } : {}),
-      type: TOKEN_TYPES.REFRESH,
-      jti: randomBytes(8).toString('hex'),
-    };
-    return this.jwtService.sign(payload, {
-      secret: this.authTokenConfig.refreshTokenSecret,
-      expiresIn: this.authTokenConfig.refreshTokenTtlSeconds,
-    });
-  }
-
-  /**
-   * Revoke current session tokens (access + refresh) by raw token(s)
-   */
   async revokeSessionTokens(
     accessToken?: string,
     refreshToken?: string,
@@ -174,7 +133,7 @@ export class TokenService {
     try {
       const hashedTokens = (
         [accessToken, refreshToken].filter(Boolean) as string[]
-      ).map(t => this.hashToken(t));
+      ).map(token => this.hashToken(token));
 
       await this.tokenModel.updateMany(
         { token: { $in: hashedTokens } },
@@ -196,181 +155,21 @@ export class TokenService {
     }
   }
 
-  async createResetGrant(
+  createResetGrant(
     userId: string,
     email: string,
   ): Promise<{ resetGrant: string; expiresInMs: number }> {
     return this.passwordResetGrantService.createResetGrant(userId, email);
   }
 
-  async consumeResetGrant(resetGrant: string): Promise<{ email: string }> {
+  consumeResetGrant(resetGrant: string): Promise<{ email: string }> {
     return this.passwordResetGrantService.consumeResetGrant(resetGrant);
   }
 
-  async validateResetGrant(resetGrant: string): Promise<{ email: string }> {
+  validateResetGrant(resetGrant: string): Promise<{ email: string }> {
     return this.passwordResetGrantService.validateResetGrant(resetGrant);
   }
 
-  /**
-   * ðŸ”„ Refresh Access Token
-   * SEC-8: Atomic consume + token family theft detection
-   * Refresh token rotation with family reuse detection (behavior preserved)
-   */
-  async refreshAccessToken(
-    refreshToken: string,
-  ): Promise<{ success: boolean; accessToken: string; refreshToken: string }> {
-    try {
-      const decoded = this.jwtService.verify<RefreshJwtPayload>(refreshToken, {
-        secret: this.authTokenConfig.refreshTokenSecret,
-      });
-
-      if (decoded.type !== TOKEN_TYPES.REFRESH) {
-        throw new UnauthorizedException('Token không phải là refresh token');
-      }
-
-      const consumed = await this.tokenModel.findOneAndUpdate(
-        {
-          token: this.hashToken(refreshToken),
-          status: true,
-          type: TOKEN_TYPES.REFRESH,
-        },
-        { $set: { status: false } },
-        { new: false },
-      );
-
-      if (!consumed) {
-        const revokedToken = await this.tokenModel.findOne({
-          token: this.hashToken(refreshToken),
-          status: false,
-          type: TOKEN_TYPES.REFRESH,
-        });
-
-        if (revokedToken?.familyId) {
-          const revokedAgeMs = Date.now() - revokedToken.updatedAt.getTime();
-          const CONCURRENT_GRACE_MS = 15_000;
-
-          if (revokedAgeMs > CONCURRENT_GRACE_MS) {
-            await this.tokenModel.updateMany(
-              { familyId: revokedToken.familyId, status: true },
-              { $set: { status: false } },
-            );
-            this.logger.error(
-              `Refresh token reuse detected outside grace window; familyId: ${String(revokedToken.familyId)}, userId: ${String(revokedToken.userId)}`,
-            );
-            this.auditLogService.log({
-              type: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
-              severity: 'CRITICAL',
-              userId: revokedToken.userId?.toString(),
-              metadata: { familyId: revokedToken.familyId, revokedAgeMs },
-            });
-            throw new UnauthorizedException({
-              statusCode: 401,
-              error: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
-              message:
-                'Phiên đăng nhập bị thu hồi do phát hiện dấu hiệu bất thường. Vui lòng đăng nhập lại.',
-            });
-          }
-
-          this.auditLogService.log({
-            type: SECURITY_EVENT_TYPES.REFRESH_REUSED,
-            severity: 'WARN',
-            userId: revokedToken.userId?.toString(),
-            metadata: {
-              familyId: revokedToken.familyId,
-              revokedAgeMs,
-              withinGrace: true,
-            },
-          });
-        }
-
-        throw new UnauthorizedException(
-          'Refresh token không hợp lệ hoặc đã hết hạn',
-        );
-      }
-
-      const user = await this.usersService.getUserById(decoded.userId);
-      if (!user) {
-        throw new UnauthorizedException('User không tồn tại');
-      }
-
-      await this.tokenModel.updateMany(
-        { userId: decoded.userId, type: TOKEN_TYPES.ACCESS, status: true },
-        { $set: { status: false } },
-      );
-
-      const newAccessToken = this.createAccessToken(
-        user._id.toString(),
-        user.email,
-        user.role,
-        user.fullName,
-        user.avatar,
-        decoded.rootUserId,
-      );
-      const newRefreshToken = this.createRefreshToken(
-        user._id.toString(),
-        decoded.rootUserId,
-      );
-
-      const familyId = consumed.familyId ?? randomBytes(16).toString('hex');
-
-      const accessExpiry = this.authTokenConfig.getAccessTokenExpiresAt();
-      const refreshExpiry = this.authTokenConfig.getRefreshTokenExpiresAt();
-
-      await this.tokenModel.create({
-        userId: user._id.toString(),
-        email: user.email,
-        role: user.role,
-        token: this.hashToken(newAccessToken),
-        deviceInfo: 'Web',
-        status: true,
-        type: TOKEN_TYPES.ACCESS,
-        expiresAt: accessExpiry,
-      });
-
-      await this.tokenModel.create({
-        userId: user._id.toString(),
-        email: user.email,
-        token: this.hashToken(newRefreshToken),
-        deviceInfo: 'Web',
-        status: true,
-        type: TOKEN_TYPES.REFRESH,
-        familyId,
-        expiresAt: refreshExpiry,
-      });
-
-      this.logger.debug(
-        `Token rotated for userId: ${decoded.userId}, family: ${familyId}`,
-      );
-
-      return {
-        success: true,
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      };
-    } catch (error: unknown) {
-      const err = error as Error;
-      if (err.name === 'JsonWebTokenError') {
-        throw new UnauthorizedException('Refresh token không hợp lệ');
-      }
-      if (err.name === 'TokenExpiredError') {
-        throw new UnauthorizedException(
-          'Refresh token đã hết hạn, vui lòng đăng nhập lại',
-        );
-      }
-      this.logger.error(
-        `Refresh token rotation failed: ${err.message}`,
-        err.stack,
-      );
-      if (isMongoUnavailable(error)) {
-        throw new ServiceUnavailableException(
-          'Database temporarily unavailable',
-        );
-      }
-      throw error;
-    }
-  }
-
-  // Invalidate one raw token.
   async invalidateToken(token: string): Promise<void> {
     this.logger.log('Invalidating token');
     try {
@@ -386,7 +185,6 @@ export class TokenService {
     }
   }
 
-  // Find an active access token. JWT expiry is handled by token verification.
   async findActiveAccessToken(token: string): Promise<TokenDocument | null> {
     this.logger.log('Finding active access token');
     try {
@@ -407,7 +205,6 @@ export class TokenService {
     }
   }
 
-  // Find an active refresh token.
   async findActiveRefreshToken(token: string): Promise<TokenDocument | null> {
     this.logger.log('Finding active refresh token');
     try {
@@ -428,7 +225,6 @@ export class TokenService {
     }
   }
 
-  // Legacy lookup by hash for internal backward compatibility.
   async findToken(token: string): Promise<TokenDocument | null> {
     this.logger.log('Finding token');
     try {
@@ -445,7 +241,6 @@ export class TokenService {
     }
   }
 
-  // Invalidate all tokens for a user, such as sign out from all devices.
   async invalidateAllTokensForUser(userId: string): Promise<void> {
     this.logger.log(`Invalidating all tokens for userId: ${userId}`);
     try {

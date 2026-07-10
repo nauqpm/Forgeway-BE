@@ -23,6 +23,7 @@ import { OtpService } from '../src/modules/auth/services/otp.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
 import { PasswordResetGrantService } from '../src/modules/auth/services/password-reset-grant.service';
 import { TokenIssuerService } from '../src/modules/auth/services/token-issuer.service';
+import { TokenRefreshService } from '../src/modules/auth/services/token-refresh.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
 
 import { AuthRegistrationService } from '../src/modules/auth/services/auth-registration.service';
@@ -238,25 +239,34 @@ describe('Auth security flows (integration)', () => {
     const authTokenConfigService = new AuthTokenConfigService(
       configService as unknown as ConfigService,
     );
+    const usersService = {
+      getUserById: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        role: GLOBAL_ROLES.USER,
+        fullName: 'User',
+        avatar: 'avatar.png',
+      }),
+    } as unknown as UsersService;
+    const auditLogService = { log: jest.fn() } as unknown as AuditLogService;
+    const tokenIssuerService = new TokenIssuerService(
+      tokenModel as unknown as never,
+      jwtService,
+      authTokenConfigService,
+    );
     tokenService = new TokenService(
       tokenModel as unknown as never,
       jwtService,
       authTokenConfigService,
-      {
-        getUserById: jest.fn().mockResolvedValue({
-          _id: { toString: () => userId },
-          email: 'user@example.com',
-          role: GLOBAL_ROLES.USER,
-          fullName: 'User',
-          avatar: 'avatar.png',
-        }),
-      } as unknown as UsersService,
-      { log: jest.fn() } as unknown as AuditLogService,
       new PasswordResetGrantService(tokenModel as unknown as never),
-      new TokenIssuerService(
+      tokenIssuerService,
+      new TokenRefreshService(
         tokenModel as unknown as never,
         jwtService,
         authTokenConfigService,
+        usersService,
+        auditLogService,
+        tokenIssuerService,
       ),
     );
   });
@@ -621,6 +631,7 @@ describe('Auth logout revoke path (e2e)', () => {
         AuthTokenConfigService,
         PasswordResetGrantService,
         TokenIssuerService,
+        TokenRefreshService,
         TokenService,
         {
           provide: LoginSessionTrackingService,

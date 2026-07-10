@@ -1,19 +1,15 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-
-import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
-import { AuditLogService } from '../../audit/services/audit-log.service';
-import { UsersService } from '../../users/services/users.service';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
+import { TokenRefreshService } from './token-refresh.service';
 import { TokenService } from './token.service';
 
 describe('TokenService', () => {
   const tokenModel = {
     create: jest.fn(),
-    findOneAndUpdate: jest.fn(),
     updateMany: jest.fn(),
     updateOne: jest.fn(),
     findOne: jest.fn(),
@@ -24,16 +20,12 @@ describe('TokenService', () => {
     verify: jest.fn(),
   };
 
-  const usersService = {
-    getUserById: jest.fn(),
-  };
-
-  const auditLogService = {
-    log: jest.fn(),
-  };
-
   const tokenIssuerService = {
     createAndSaveTokens: jest.fn(),
+  };
+
+  const tokenRefreshService = {
+    refreshAccessToken: jest.fn(),
   };
 
   const passwordResetGrantService = {
@@ -43,13 +35,8 @@ describe('TokenService', () => {
   };
 
   const authTokenConfig = {
-    refreshTokenSecret: 'refresh-secret',
-    refreshTokenTtlSeconds: 7 * 24 * 60 * 60,
     getAccessTokenExpiresAt: jest.fn(
       () => new Date('2026-07-09T10:15:00.000Z'),
-    ),
-    getRefreshTokenExpiresAt: jest.fn(
-      () => new Date('2026-07-16T10:00:00.000Z'),
     ),
   };
 
@@ -61,15 +48,10 @@ describe('TokenService', () => {
       tokenModel as never,
       jwtService as unknown as JwtService,
       authTokenConfig as unknown as AuthTokenConfigService,
-      usersService as unknown as UsersService,
-      auditLogService as unknown as AuditLogService,
       passwordResetGrantService as unknown as PasswordResetGrantService,
       tokenIssuerService as unknown as TokenIssuerService,
+      tokenRefreshService as unknown as TokenRefreshService,
     );
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
   });
 
   describe('token pair issuance facade', () => {
@@ -123,147 +105,23 @@ describe('TokenService', () => {
     });
   });
 
-  describe('refresh token rotation', () => {
-    const setupSuccessfulRefresh = () => {
-      jwtService.verify.mockReturnValue({
-        userId: 'account-b',
-        rootUserId: 'account-a',
-        type: TOKEN_TYPES.REFRESH,
-      });
-      tokenModel.findOneAndUpdate.mockResolvedValue({
-        familyId: 'family-1',
-        updatedAt: new Date('2026-07-09T10:00:00.000Z'),
-        userId: 'account-b',
-      });
-      usersService.getUserById.mockResolvedValue({
-        _id: { toString: () => 'account-b' },
-        email: 'b@example.com',
-        role: 'user',
-        fullName: 'Account B',
-        avatar: 'avatar.png',
-      });
-      tokenModel.updateMany.mockResolvedValue({});
-      tokenModel.create.mockResolvedValue({});
-      jwtService.sign
-        .mockReturnValueOnce('rotated-access-token')
-        .mockReturnValueOnce('rotated-refresh-token');
-    };
-
-    it('consumes old refresh token, revokes old access tokens, and creates rotated tokens', async () => {
-      setupSuccessfulRefresh();
-
-      const result = await service.refreshAccessToken('refresh-token');
-
-      expect(result).toEqual({
+  describe('refresh token facade', () => {
+    it('delegates refreshAccessToken to TokenRefreshService', async () => {
+      tokenRefreshService.refreshAccessToken.mockResolvedValue({
         success: true,
         accessToken: 'rotated-access-token',
         refreshToken: 'rotated-refresh-token',
       });
-      expect(tokenModel.findOneAndUpdate).toHaveBeenCalledWith(
-        {
-          token: service.hashToken('refresh-token'),
-          status: true,
-          type: TOKEN_TYPES.REFRESH,
-        },
-        { $set: { status: false } },
-        { new: false },
-      );
-      expect(tokenModel.updateMany).toHaveBeenCalledWith(
-        { userId: 'account-b', type: TOKEN_TYPES.ACCESS, status: true },
-        { $set: { status: false } },
-      );
-      expect(jwtService.sign).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          userId: 'account-b',
-          rootUserId: 'account-a',
-          type: TOKEN_TYPES.ACCESS,
-          jti: expect.any(String),
-        }),
-      );
-      expect(jwtService.sign).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          userId: 'account-b',
-          rootUserId: 'account-a',
-          type: TOKEN_TYPES.REFRESH,
-          jti: expect.any(String),
-        }),
-        expect.any(Object),
-      );
-      expect(tokenModel.create).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          token: service.hashToken('rotated-refresh-token'),
-          type: TOKEN_TYPES.REFRESH,
-          familyId: 'family-1',
-        }),
-      );
-    });
 
-    it('logs refresh reuse inside grace window without revoking the token family', async () => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-07-09T10:00:10.000Z'));
-      jwtService.verify.mockReturnValue({
-        userId: 'account-b',
-        type: TOKEN_TYPES.REFRESH,
+      await expect(
+        service.refreshAccessToken('refresh-token'),
+      ).resolves.toEqual({
+        success: true,
+        accessToken: 'rotated-access-token',
+        refreshToken: 'rotated-refresh-token',
       });
-      tokenModel.findOneAndUpdate.mockResolvedValue(null);
-      tokenModel.findOne.mockResolvedValue({
-        familyId: 'family-1',
-        userId: 'account-b',
-        updatedAt: new Date('2026-07-09T10:00:00.000Z'),
-      });
-
-      await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
-
-      expect(auditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: SECURITY_EVENT_TYPES.REFRESH_REUSED,
-          severity: 'WARN',
-          userId: 'account-b',
-          metadata: expect.objectContaining({
-            familyId: 'family-1',
-            withinGrace: true,
-          }),
-        }),
-      );
-      expect(tokenModel.updateMany).not.toHaveBeenCalledWith(
-        { familyId: 'family-1', status: true },
-        { $set: { status: false } },
-      );
-    });
-
-    it('revokes token family when a refresh token is reused outside grace window', async () => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-07-09T10:00:20.000Z'));
-      jwtService.verify.mockReturnValue({
-        userId: 'account-b',
-        type: TOKEN_TYPES.REFRESH,
-      });
-      tokenModel.findOneAndUpdate.mockResolvedValue(null);
-      tokenModel.findOne.mockResolvedValue({
-        familyId: 'family-1',
-        userId: 'account-b',
-        updatedAt: new Date('2026-07-09T10:00:00.000Z'),
-      });
-      tokenModel.updateMany.mockResolvedValue({});
-
-      await expect(service.refreshAccessToken('refresh-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
-
-      expect(tokenModel.updateMany).toHaveBeenCalledWith(
-        { familyId: 'family-1', status: true },
-        { $set: { status: false } },
-      );
-      expect(auditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
-          severity: 'CRITICAL',
-          userId: 'account-b',
-          metadata: expect.objectContaining({ familyId: 'family-1' }),
-        }),
+      expect(tokenRefreshService.refreshAccessToken).toHaveBeenCalledWith(
+        'refresh-token',
       );
     });
   });
@@ -278,7 +136,6 @@ describe('TokenService', () => {
       );
 
       expect(result.message).toContain('thành công');
-
       expect(tokenModel.updateMany).toHaveBeenCalledWith(
         {
           token: {
