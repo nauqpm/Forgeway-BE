@@ -19,10 +19,10 @@ import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
-    // Needed for TokenService(TokenModel)
+    // Needed by sub-services (TokenIssuerService, TokenRefreshService, PasswordResetGrantService, TokenLookupService)
     MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
 
-    // Needed for TokenService(JwtService)
+    // Needed by TokenService(peekUserIdFromAccessToken) and TokenIssuerService/TokenRefreshService
     JwtModule.registerAsync({
       imports: [AuthTokenConfigModule],
       inject: [AuthTokenConfigService],
@@ -35,10 +35,10 @@ import { AuditModule } from '../audit/audit.module';
     }),
     AuthTokenConfigModule,
 
-    // Needed for TokenService(UsersService)
+    // Needed by sub-services (TokenRefreshService)
     forwardRef(() => UsersModule),
 
-    // Needed for TokenService(AuditLogService) — circular: TokenModule ↔ AuditModule
+    // Needed by sub-services (TokenRefreshService) — circular: TokenModule ↔ AuditModule
     forwardRef(() => AuditModule),
   ],
   providers: [

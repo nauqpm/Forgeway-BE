@@ -18,7 +18,10 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
 import { CredentialLoginService } from '../services/credential-login.service';
-import { TokenService } from '../services/token.service';
+import { TokenIssuerService } from '../services/token-issuer.service';
+import { TokenRefreshService } from '../services/token-refresh.service';
+import { TokenRevocationService } from '../services/token-revocation.service';
+import { TokenLookupService } from '../services/token-lookup.service';
 
 jest.mock('../utils/cookie.utils', () => ({
   setAuthCookies: jest.fn(),
@@ -36,14 +39,23 @@ describe('AuthSessionController', () => {
     login: jest.fn(),
   };
 
-  const tokenServiceMock = {
-    refreshAccessToken: jest.fn(),
-    revokeSessionTokens: jest.fn(),
-    findActiveAccessToken: jest.fn(),
+  const tokenIssuerServiceMock = {
     createAndSaveTokens: jest.fn().mockResolvedValue({
       accessToken: 'access-token-value',
       refreshToken: 'refresh-token-value',
     }),
+  };
+
+  const tokenRevocationServiceMock = {
+    revokeSessionTokens: jest.fn(),
+  };
+
+  const tokenRefreshServiceMock = {
+    refreshAccessToken: jest.fn(),
+  };
+
+  const tokenLookupServiceMock = {
+    findActiveAccessToken: jest.fn(),
   };
 
   const configServiceMock = {
@@ -85,7 +97,13 @@ describe('AuthSessionController', () => {
           provide: CredentialLoginService,
           useValue: credentialLoginServiceMock,
         },
-        { provide: TokenService, useValue: tokenServiceMock },
+        { provide: TokenIssuerService, useValue: tokenIssuerServiceMock },
+        {
+          provide: TokenRevocationService,
+          useValue: tokenRevocationServiceMock,
+        },
+        { provide: TokenRefreshService, useValue: tokenRefreshServiceMock },
+        { provide: TokenLookupService, useValue: tokenLookupServiceMock },
         { provide: ConfigService, useValue: configServiceMock },
         { provide: AuditLogService, useValue: auditLogServiceMock },
         {
@@ -252,7 +270,9 @@ describe('AuthSessionController', () => {
     const logoutResult = { message: 'Dang xuat thanh cong' };
 
     it('revokes session tokens and clears cookies', async () => {
-      tokenServiceMock.revokeSessionTokens.mockResolvedValue(logoutResult);
+      tokenRevocationServiceMock.revokeSessionTokens.mockResolvedValue(
+        logoutResult,
+      );
       const validToken = 'valid-jwt-token';
 
       jwtServiceMock.verify.mockReturnValue({
@@ -261,7 +281,7 @@ describe('AuthSessionController', () => {
         role: GLOBAL_ROLES.USER,
         type: 'access',
       });
-      tokenServiceMock.findActiveAccessToken.mockResolvedValue({
+      tokenLookupServiceMock.findActiveAccessToken.mockResolvedValue({
         userId: { toString: () => 'user-1' },
       });
 
@@ -299,7 +319,9 @@ describe('AuthSessionController', () => {
     };
 
     it('rotates tokens and updates cookies on success', async () => {
-      tokenServiceMock.refreshAccessToken.mockResolvedValue(refreshResult);
+      tokenRefreshServiceMock.refreshAccessToken.mockResolvedValue(
+        refreshResult,
+      );
 
       const response = await request(app.getHttpServer())
         .post('/auth/refresh')
@@ -349,7 +371,7 @@ describe('AuthSessionController', () => {
     });
 
     it('returns 503 with Retry-After: 30 when database is unavailable', async () => {
-      tokenServiceMock.refreshAccessToken.mockRejectedValue(
+      tokenRefreshServiceMock.refreshAccessToken.mockRejectedValue(
         new ServiceUnavailableException('Database temporarily unavailable'),
       );
 

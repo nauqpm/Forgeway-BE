@@ -16,7 +16,10 @@ import { RegistrationVerificationService } from '../src/modules/auth/services/re
 import { CredentialLoginService } from '../src/modules/auth/services/credential-login.service';
 import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { PasswordResetService } from '../src/modules/auth/services/password-reset.service';
-import { TokenService } from '../src/modules/auth/services/token.service';
+import { TokenIssuerService } from '../src/modules/auth/services/token-issuer.service';
+import { TokenRefreshService } from '../src/modules/auth/services/token-refresh.service';
+import { TokenRevocationService } from '../src/modules/auth/services/token-revocation.service';
+import { TokenLookupService } from '../src/modules/auth/services/token-lookup.service';
 import { UsersService } from '../src/modules/users/services/users.service';
 import { AccountSwitcherService } from '../src/modules/auth/services/account-switcher.service';
 import { RecentLoginsService } from '../src/modules/auth/services/recent-logins.service';
@@ -48,19 +51,27 @@ describe('Auth throttling (e2e)', () => {
     }),
   };
 
-  const tokenServiceMock = {
+  const tokenIssuerServiceMock = {
     createAndSaveTokens: jest.fn().mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
     }),
+  };
+
+  const tokenRefreshServiceMock = {
     refreshAccessToken: jest.fn().mockResolvedValue({
       success: true,
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
     }),
+  };
+
+  const tokenRevocationServiceMock = {
     revokeSessionTokens: jest.fn().mockResolvedValue({ message: 'ok' }),
+  };
+
+  const tokenLookupServiceMock = {
     findActiveAccessToken: jest.fn(),
-    peekUserIdFromAccessToken: jest.fn(),
   };
 
   const passwordResetServiceMock = {
@@ -123,7 +134,13 @@ describe('Auth throttling (e2e)', () => {
           provide: JwtService,
           useValue: { verify: jest.fn(), sign: jest.fn() },
         },
-        { provide: TokenService, useValue: tokenServiceMock },
+        { provide: TokenIssuerService, useValue: tokenIssuerServiceMock },
+        { provide: TokenRefreshService, useValue: tokenRefreshServiceMock },
+        {
+          provide: TokenRevocationService,
+          useValue: tokenRevocationServiceMock,
+        },
+        { provide: TokenLookupService, useValue: tokenLookupServiceMock },
         {
           provide: LoginSessionTrackingService,
           useValue: {

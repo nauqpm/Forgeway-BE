@@ -7,7 +7,7 @@ import {
 
 import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/schemas/users.schema';
-import { TokenService } from './token.service';
+
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { OAuth2Client } from 'google-auth-library';
 import { ConfigService } from '@nestjs/config';
@@ -20,7 +20,6 @@ export class OAuthService {
 
   constructor(
     private readonly usersService: UsersService,
-    private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
   ) {
     this.googleClient = new OAuth2Client(

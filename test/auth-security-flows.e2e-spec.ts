@@ -337,9 +337,16 @@ describe('Auth security flows (integration)', () => {
       }),
       updatePassword: jest.fn().mockResolvedValue({ success: true }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       {} as VerifyService,
@@ -407,9 +414,16 @@ describe('Auth security flows (integration)', () => {
       }),
       updatePassword: jest.fn().mockResolvedValue({ success: true }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       {} as VerifyService,
@@ -449,9 +463,16 @@ describe('Auth security flows (integration)', () => {
       }),
       updatePassword: jest.fn().mockResolvedValue({ success: true }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       {} as VerifyService,
@@ -499,9 +520,16 @@ describe('Auth security flows (integration)', () => {
           email: 'user@example.com',
         }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       verifyService,
