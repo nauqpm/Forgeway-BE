@@ -182,6 +182,28 @@ export class PagesService {
     return page;
   }
 
+  async findBySlugInWorkspace(
+    slug: string,
+    workspaceId: string,
+  ): Promise<PageDocument> {
+    this.logger.debug(
+      `Finding page by slug "${slug}" in workspace ${workspaceId}`,
+    );
+
+    if (!Types.ObjectId.isValid(workspaceId)) {
+      throw new NotFoundException(`Page with slug "${slug}" not found`);
+    }
+
+    const page = await this.pageModel
+      .findOne({ slug, workspaceId: new Types.ObjectId(workspaceId) })
+      .populate('lastEditedBy', 'fullName')
+      .exec();
+    if (!page) {
+      throw new NotFoundException(`Page with slug "${slug}" not found`);
+    }
+    return page;
+  }
+
   async findAll(filter: FilterPageDto): Promise<{
     data: PageDocument[];
     total: number;
@@ -755,11 +777,17 @@ export class PagesService {
     versionId: string,
   ): Promise<PageVersionDocument> {
     this.logger.debug(`Fetching version ${versionId} for page ${pageId}`);
+    if (!Types.ObjectId.isValid(pageId)) {
+      throw new NotFoundException(`Page with id ${pageId} not found`);
+    }
     if (!Types.ObjectId.isValid(versionId)) {
       throw new NotFoundException(`Version with id ${versionId} not found`);
     }
     const version = await this.pageVersionModel
-      .findOne({ _id: versionId, pageId })
+      .findOne({
+        _id: new Types.ObjectId(versionId),
+        pageId: new Types.ObjectId(pageId),
+      })
       .populate('createdBy', 'fullName')
       .exec();
     if (!version) {
