@@ -73,6 +73,34 @@ describe('AuthProfileController', () => {
       avatar: 'avatar.png',
     };
 
+    it('uses the user JSON contract so switched sessions receive id, not _id', async () => {
+      jwtServiceMock.verify.mockReturnValue({
+        userId: 'user-1',
+        rootUserId: 'root-user-1',
+        email: 'user@example.com',
+        role: GLOBAL_ROLES.USER,
+        type: 'access',
+      });
+      tokenServiceMock.findActiveAccessToken.mockResolvedValue({
+        userId: { toString: () => 'user-1' },
+      });
+      usersServiceMock.getUserById.mockResolvedValue({
+        toObject: () => userProfile,
+        toJSON: () => ({ ...userProfile, id: 'user-1', _id: undefined }),
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', 'access_token=valid-token')
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        id: 'user-1',
+        rootUser: { id: 'root-user-1' },
+      });
+      expect(response.body).not.toHaveProperty('_id');
+    });
+
     it('returns user profile with rootUser when authenticated through a switched session', async () => {
       jwtServiceMock.verify.mockReturnValue({
         userId: 'user-1',
