@@ -6,6 +6,7 @@ import { AuthTokenConfigModule } from './config/auth-token-config.module';
 import { AuthTokenConfigService } from './config/auth-token-config.service';
 
 import { TokenService } from './services/token.service';
+import { PasswordResetGrantService } from './services/password-reset-grant.service';
 
 import { Token, TokenSchema } from './schemas/token.schema';
 
@@ -36,7 +37,7 @@ import { AuditModule } from '../audit/audit.module';
     // Needed for TokenService(AuditLogService) — circular: TokenModule ↔ AuditModule
     forwardRef(() => AuditModule),
   ],
-  providers: [TokenService],
-  exports: [TokenService, MongooseModule],
+  providers: [TokenService, PasswordResetGrantService],
+  exports: [TokenService, PasswordResetGrantService, MongooseModule],
 })
 export class TokenModule {}

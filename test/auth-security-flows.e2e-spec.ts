@@ -21,6 +21,7 @@ import { AuditLogService } from '../src/modules/audit/services/audit-log.service
 import { InviteService } from '../src/modules/workspaces/services/invite.service';
 import { OtpService } from '../src/modules/auth/services/otp.service';
 import { TokenService } from '../src/modules/auth/services/token.service';
+import { PasswordResetGrantService } from '../src/modules/auth/services/password-reset-grant.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
 
 import { AuthRegistrationService } from '../src/modules/auth/services/auth-registration.service';
@@ -250,6 +251,7 @@ describe('Auth security flows (integration)', () => {
         }),
       } as unknown as UsersService,
       { log: jest.fn() } as unknown as AuditLogService,
+      new PasswordResetGrantService(tokenModel as unknown as never),
     );
   });
 
@@ -611,6 +613,7 @@ describe('Auth logout revoke path (e2e)', () => {
           },
         },
         AuthTokenConfigService,
+        PasswordResetGrantService,
         TokenService,
         {
           provide: LoginSessionTrackingService,

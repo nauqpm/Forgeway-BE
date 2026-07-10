@@ -1,7 +1,4 @@
-﻿import {
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+﻿import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
@@ -9,6 +6,7 @@ import { AuditLogService } from '../../audit/services/audit-log.service';
 import { UsersService } from '../../users/services/users.service';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
+import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenService } from './token.service';
 
 describe('TokenService', () => {
@@ -33,6 +31,12 @@ describe('TokenService', () => {
     log: jest.fn(),
   };
 
+  const passwordResetGrantService = {
+    createResetGrant: jest.fn(),
+    consumeResetGrant: jest.fn(),
+    validateResetGrant: jest.fn(),
+  };
+
   const authTokenConfig = {
     refreshTokenSecret: 'refresh-secret',
     refreshTokenTtlSeconds: 7 * 24 * 60 * 60,
@@ -54,6 +58,7 @@ describe('TokenService', () => {
       authTokenConfig as unknown as AuthTokenConfigService,
       usersService as unknown as UsersService,
       auditLogService as unknown as AuditLogService,
+      passwordResetGrantService as unknown as PasswordResetGrantService,
     );
   });
 
@@ -254,9 +259,7 @@ describe('TokenService', () => {
     });
 
     it('logs refresh reuse inside grace window without revoking the token family', async () => {
-      jest.useFakeTimers().setSystemTime(
-        new Date('2026-07-09T10:00:10.000Z'),
-      );
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-09T10:00:10.000Z'));
       jwtService.verify.mockReturnValue({
         userId: 'account-b',
         type: TOKEN_TYPES.REFRESH,
@@ -290,9 +293,7 @@ describe('TokenService', () => {
     });
 
     it('revokes token family when a refresh token is reused outside grace window', async () => {
-      jest.useFakeTimers().setSystemTime(
-        new Date('2026-07-09T10:00:20.000Z'),
-      );
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-09T10:00:20.000Z'));
       jwtService.verify.mockReturnValue({
         userId: 'account-b',
         type: TOKEN_TYPES.REFRESH,
@@ -328,7 +329,10 @@ describe('TokenService', () => {
     it('revokes access and refresh session tokens by hash', async () => {
       tokenModel.updateMany.mockResolvedValue({});
 
-      const result = await service.revokeSessionTokens('access-token', 'refresh-token');
+      const result = await service.revokeSessionTokens(
+        'access-token',
+        'refresh-token',
+      );
 
       expect(result.message).toContain('thành công');
 
@@ -374,83 +378,45 @@ describe('TokenService', () => {
     });
   });
 
-  describe('password reset grant', () => {
-    it('creates a hashed reset grant with expiry', async () => {
-      tokenModel.create.mockResolvedValue({});
+  describe('password reset grant facade', () => {
+    it('delegates createResetGrant to PasswordResetGrantService', async () => {
+      passwordResetGrantService.createResetGrant.mockResolvedValue({
+        resetGrant: 'grant',
+        expiresInMs: 600000,
+      });
 
-      const result = await service.createResetGrant('account-a', 'a@test.com');
-
-      expect(result.resetGrant).toEqual(expect.any(String));
-      expect(result.expiresInMs).toBe(10 * 60 * 1000);
-      expect(tokenModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: 'account-a',
-          email: 'a@test.com',
-          token: service.hashToken(result.resetGrant),
-          deviceInfo: 'Password Reset Grant',
-          status: true,
-          type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
-          expiresAt: expect.any(Date),
-        }),
-      );
-      expect(tokenModel.create.mock.calls[0][0].token).not.toBe(
-        result.resetGrant,
+      await expect(
+        service.createResetGrant('account-a', 'a@test.com'),
+      ).resolves.toEqual({ resetGrant: 'grant', expiresInMs: 600000 });
+      expect(passwordResetGrantService.createResetGrant).toHaveBeenCalledWith(
+        'account-a',
+        'a@test.com',
       );
     });
 
-    it('consumes an active reset grant', async () => {
-      tokenModel.findOneAndUpdate.mockResolvedValue({ email: 'a@test.com' });
+    it('delegates consumeResetGrant to PasswordResetGrantService', async () => {
+      passwordResetGrantService.consumeResetGrant.mockResolvedValue({
+        email: 'a@test.com',
+      });
 
       await expect(service.consumeResetGrant('grant')).resolves.toEqual({
         email: 'a@test.com',
       });
-      expect(tokenModel.findOneAndUpdate).toHaveBeenCalledWith(
-        {
-          token: service.hashToken('grant'),
-          status: true,
-          type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
-          expiresAt: { $gt: expect.any(Date) },
-        },
-        { $set: { status: false } },
-        { new: false },
+      expect(passwordResetGrantService.consumeResetGrant).toHaveBeenCalledWith(
+        'grant',
       );
     });
 
-    it('validates an active reset grant without consuming it', async () => {
-      tokenModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ email: 'a@test.com' }),
+    it('delegates validateResetGrant to PasswordResetGrantService', async () => {
+      passwordResetGrantService.validateResetGrant.mockResolvedValue({
+        email: 'a@test.com',
       });
 
       await expect(service.validateResetGrant('grant')).resolves.toEqual({
         email: 'a@test.com',
       });
-      expect(tokenModel.findOne).toHaveBeenCalledWith({
-        token: service.hashToken('grant'),
-        status: true,
-        type: TOKEN_TYPES.PASSWORD_RESET_GRANT,
-        expiresAt: { $gt: expect.any(Date) },
-      });
-      expect(tokenModel.findOneAndUpdate).not.toHaveBeenCalled();
-    });
-
-    it('rejects empty reset grants', async () => {
-      await expect(service.consumeResetGrant('')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.validateResetGrant('')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('rejects invalid, expired, or reused reset grants', async () => {
-      tokenModel.findOneAndUpdate.mockResolvedValue(null);
-      tokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
-
-      await expect(service.consumeResetGrant('grant')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.validateResetGrant('grant')).rejects.toThrow(
-        UnauthorizedException,
+      expect(passwordResetGrantService.validateResetGrant).toHaveBeenCalledWith(
+        'grant',
       );
     });
   });
@@ -458,7 +424,9 @@ describe('TokenService', () => {
   describe('token lookup', () => {
     it('finds active access token by hash', async () => {
       const tokenDoc = { token: 'hashed' };
-      tokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(tokenDoc) });
+      tokenModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(tokenDoc),
+      });
 
       await expect(service.findActiveAccessToken('access-token')).resolves.toBe(
         tokenDoc,
@@ -472,7 +440,9 @@ describe('TokenService', () => {
 
     it('finds active refresh token by hash', async () => {
       const tokenDoc = { token: 'hashed' };
-      tokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(tokenDoc) });
+      tokenModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(tokenDoc),
+      });
 
       await expect(
         service.findActiveRefreshToken('refresh-token'),
@@ -486,7 +456,9 @@ describe('TokenService', () => {
 
     it('finds legacy token by hash', async () => {
       const tokenDoc = { token: 'hashed' };
-      tokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(tokenDoc) });
+      tokenModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(tokenDoc),
+      });
 
       await expect(service.findToken('token')).resolves.toBe(tokenDoc);
       expect(tokenModel.findOne).toHaveBeenCalledWith({
