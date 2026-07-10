@@ -5,6 +5,7 @@ import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
 import { TokenRefreshService } from './token-refresh.service';
 import { TokenRevocationService } from './token-revocation.service';
+import { TokenLookupService } from './token-lookup.service';
 import { TokenService } from './token.service';
 
 describe('TokenService', () => {
@@ -34,6 +35,12 @@ describe('TokenService', () => {
     invalidateAllTokensForUser: jest.fn(),
   };
 
+  const tokenLookupService = {
+    findActiveAccessToken: jest.fn(),
+    findActiveRefreshToken: jest.fn(),
+    findToken: jest.fn(),
+  };
+
   const passwordResetGrantService = {
     createResetGrant: jest.fn(),
     consumeResetGrant: jest.fn(),
@@ -58,6 +65,7 @@ describe('TokenService', () => {
       tokenIssuerService as unknown as TokenIssuerService,
       tokenRefreshService as unknown as TokenRefreshService,
       tokenRevocationService as unknown as TokenRevocationService,
+      tokenLookupService as unknown as TokenLookupService,
     );
   });
 
@@ -214,50 +222,37 @@ describe('TokenService', () => {
     });
   });
 
-  describe('token lookup', () => {
-    it('finds active access token by hash', async () => {
+  describe('token lookup facade', () => {
+    it('delegates findActiveAccessToken to TokenLookupService', async () => {
       const tokenDoc = { token: 'hashed' };
-      tokenModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(tokenDoc),
-      });
+      tokenLookupService.findActiveAccessToken.mockResolvedValue(tokenDoc);
 
       await expect(service.findActiveAccessToken('access-token')).resolves.toBe(
         tokenDoc,
       );
-      expect(tokenModel.findOne).toHaveBeenCalledWith({
-        token: service.hashToken('access-token'),
-        status: true,
-        type: TOKEN_TYPES.ACCESS,
-      });
+      expect(tokenLookupService.findActiveAccessToken).toHaveBeenCalledWith(
+        'access-token',
+      );
     });
 
-    it('finds active refresh token by hash', async () => {
+    it('delegates findActiveRefreshToken to TokenLookupService', async () => {
       const tokenDoc = { token: 'hashed' };
-      tokenModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(tokenDoc),
-      });
+      tokenLookupService.findActiveRefreshToken.mockResolvedValue(tokenDoc);
 
       await expect(
         service.findActiveRefreshToken('refresh-token'),
       ).resolves.toBe(tokenDoc);
-      expect(tokenModel.findOne).toHaveBeenCalledWith({
-        token: service.hashToken('refresh-token'),
-        status: true,
-        type: TOKEN_TYPES.REFRESH,
-      });
+      expect(tokenLookupService.findActiveRefreshToken).toHaveBeenCalledWith(
+        'refresh-token',
+      );
     });
 
-    it('finds legacy token by hash', async () => {
+    it('delegates findToken to TokenLookupService', async () => {
       const tokenDoc = { token: 'hashed' };
-      tokenModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(tokenDoc),
-      });
+      tokenLookupService.findToken.mockResolvedValue(tokenDoc);
 
       await expect(service.findToken('token')).resolves.toBe(tokenDoc);
-      expect(tokenModel.findOne).toHaveBeenCalledWith({
-        token: service.hashToken('token'),
-        status: true,
-      });
+      expect(tokenLookupService.findToken).toHaveBeenCalledWith('token');
     });
   });
 });

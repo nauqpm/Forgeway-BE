@@ -15,6 +15,7 @@ import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
 import { TokenRefreshService } from './token-refresh.service';
 import { TokenRevocationService } from './token-revocation.service';
+import { TokenLookupService } from './token-lookup.service';
 
 @Injectable()
 export class TokenService {
@@ -28,6 +29,7 @@ export class TokenService {
     private readonly tokenIssuerService: TokenIssuerService,
     private readonly tokenRefreshService: TokenRefreshService,
     private readonly tokenRevocationService: TokenRevocationService,
+    private readonly tokenLookupService: TokenLookupService,
   ) {}
 
   // Public: used by other auth-domain services (password reset, logout, refresh)
@@ -153,65 +155,15 @@ export class TokenService {
   }
 
   async findActiveAccessToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log('Finding active access token');
-    try {
-      return await this.tokenModel
-        .findOne({
-          token: this.hashToken(token),
-          status: true,
-          type: TOKEN_TYPES.ACCESS,
-        })
-        .exec();
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(
-        `Find active access token failed: ${err.message}`,
-        err.stack,
-      );
-      throw new InternalServerErrorException(
-        'Kh\u00f4ng th\u1ec3 t\u00ecm th\u1ea5y token.',
-      );
-    }
+    return this.tokenLookupService.findActiveAccessToken(token);
   }
 
   async findActiveRefreshToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log('Finding active refresh token');
-    try {
-      return await this.tokenModel
-        .findOne({
-          token: this.hashToken(token),
-          status: true,
-          type: TOKEN_TYPES.REFRESH,
-        })
-        .exec();
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(
-        `Find active refresh token failed: ${err.message}`,
-        err.stack,
-      );
-      throw new InternalServerErrorException(
-        'Kh\u00f4ng th\u1ec3 t\u00ecm th\u1ea5y token.',
-      );
-    }
+    return this.tokenLookupService.findActiveRefreshToken(token);
   }
 
   async findToken(token: string): Promise<TokenDocument | null> {
-    this.logger.log('Finding token');
-    try {
-      return await this.tokenModel
-        .findOne({
-          token: this.hashToken(token),
-          status: true,
-        })
-        .exec();
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`Find token failed: ${err.message}`, err.stack);
-      throw new InternalServerErrorException(
-        'Kh\u00f4ng th\u1ec3 t\u00ecm th\u1ea5y token.',
-      );
-    }
+    return this.tokenLookupService.findToken(token);
   }
 
   invalidateAllTokensForUser(userId: string): Promise<void> {
