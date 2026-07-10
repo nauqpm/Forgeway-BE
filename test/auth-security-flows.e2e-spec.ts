@@ -257,9 +257,7 @@ describe('Auth security flows (integration)', () => {
       authTokenConfigService,
     );
     tokenService = new TokenService(
-      tokenModel as unknown as never,
       jwtService,
-      authTokenConfigService,
       new PasswordResetGrantService(tokenModel as unknown as never),
       tokenIssuerService,
       new TokenRefreshService(

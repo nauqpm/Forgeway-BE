@@ -1,5 +1,4 @@
 import { JwtService } from '@nestjs/jwt';
-import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
@@ -9,13 +8,6 @@ import { TokenLookupService } from './token-lookup.service';
 import { TokenService } from './token.service';
 
 describe('TokenService', () => {
-  const tokenModel = {
-    create: jest.fn(),
-    updateMany: jest.fn(),
-    updateOne: jest.fn(),
-    findOne: jest.fn(),
-  };
-
   const jwtService = {
     sign: jest.fn(),
     verify: jest.fn(),
@@ -47,20 +39,12 @@ describe('TokenService', () => {
     validateResetGrant: jest.fn(),
   };
 
-  const authTokenConfig = {
-    getAccessTokenExpiresAt: jest.fn(
-      () => new Date('2026-07-09T10:15:00.000Z'),
-    ),
-  };
-
   let service: TokenService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     service = new TokenService(
-      tokenModel as never,
       jwtService as unknown as JwtService,
-      authTokenConfig as unknown as AuthTokenConfigService,
       passwordResetGrantService as unknown as PasswordResetGrantService,
       tokenIssuerService as unknown as TokenIssuerService,
       tokenRefreshService as unknown as TokenRefreshService,

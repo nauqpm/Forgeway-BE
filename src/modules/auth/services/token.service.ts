@@ -1,15 +1,8 @@
 // src/modules/auth/services/token.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
-import { Token, TokenDocument } from '../schemas/token.schema';
+import { TokenDocument } from '../schemas/token.schema';
 import { hashToken } from '../utils/token-hash.util';
 import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
@@ -19,12 +12,8 @@ import { TokenLookupService } from './token-lookup.service';
 
 @Injectable()
 export class TokenService {
-  private readonly logger = new Logger(TokenService.name);
-
   constructor(
-    @InjectModel(Token.name) private readonly tokenModel: Model<TokenDocument>,
     private readonly jwtService: JwtService,
-    private readonly authTokenConfig: AuthTokenConfigService,
     private readonly passwordResetGrantService: PasswordResetGrantService,
     private readonly tokenIssuerService: TokenIssuerService,
     private readonly tokenRefreshService: TokenRefreshService,
@@ -32,7 +21,7 @@ export class TokenService {
     private readonly tokenLookupService: TokenLookupService,
   ) {}
 
-  // Public: used by other auth-domain services (password reset, logout, refresh)
+  // Public: compatibility wrapper - used by other auth-domain services (password reset, logout, refresh)
   hashToken(token: string): string {
     return hashToken(token);
   }
@@ -61,44 +50,6 @@ export class TokenService {
       // Invalid signature, malformed, etc. - treat as no owner.
     }
     return null;
-  }
-
-  // Legacy single-token creator (kept for backward compatibility if used elsewhere).
-  async createAndSaveToken(
-    userId: string,
-    email: string,
-    role: string,
-    fullName?: string,
-    avatar?: string,
-    deviceInfo: string = 'Web',
-  ): Promise<string> {
-    this.logger.log(`Creating token for userId: ${userId}, email: ${email}`);
-
-    try {
-      const payload = { userId, email, role, fullName, avatar };
-      const token = this.jwtService.sign(payload);
-
-      const expiresAt = this.authTokenConfig.getAccessTokenExpiresAt();
-
-      const newToken = new this.tokenModel({
-        userId,
-        email,
-        token: this.hashToken(token),
-        deviceInfo,
-        status: true,
-        expiresAt,
-      });
-
-      await newToken.save();
-      this.logger.log(`Token stored for user: ${email}`);
-      return token;
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`Token creation failed: ${err.message}`, err.stack);
-      throw new InternalServerErrorException(
-        'Kh\u00f4ng th\u1ec3 t\u1ea1o token.',
-      );
-    }
   }
 
   async createAndSaveTokens(
