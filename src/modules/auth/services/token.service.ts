@@ -192,6 +192,7 @@ export class TokenService {
       fullName,
       avatar,
       type: TOKEN_TYPES.ACCESS,
+      jti: randomBytes(8).toString('hex'),
       ...(rootUserId ? { rootUserId } : {}),
     };
     return this.jwtService.sign(payload);
