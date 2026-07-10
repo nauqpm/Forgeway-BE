@@ -3,13 +3,10 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-  ServiceUnavailableException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { isMongoUnavailable } from '../../../common/utils/mongo-error.util';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { Token, TokenDocument } from '../schemas/token.schema';
@@ -17,6 +14,7 @@ import { hashToken } from '../utils/token-hash.util';
 import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
 import { TokenRefreshService } from './token-refresh.service';
+import { TokenRevocationService } from './token-revocation.service';
 
 @Injectable()
 export class TokenService {
@@ -29,6 +27,7 @@ export class TokenService {
     private readonly passwordResetGrantService: PasswordResetGrantService,
     private readonly tokenIssuerService: TokenIssuerService,
     private readonly tokenRefreshService: TokenRefreshService,
+    private readonly tokenRevocationService: TokenRevocationService,
   ) {}
 
   // Public: used by other auth-domain services (password reset, logout, refresh)
@@ -94,7 +93,9 @@ export class TokenService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Token creation failed: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Không thể tạo token.');
+      throw new InternalServerErrorException(
+        'Kh\u00f4ng th\u1ec3 t\u1ea1o token.',
+      );
     }
   }
 
@@ -122,37 +123,14 @@ export class TokenService {
     return this.tokenRefreshService.refreshAccessToken(refreshToken);
   }
 
-  async revokeSessionTokens(
+  revokeSessionTokens(
     accessToken?: string,
     refreshToken?: string,
   ): Promise<{ message: string }> {
-    if (!accessToken && !refreshToken) {
-      throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
-    }
-
-    try {
-      const hashedTokens = (
-        [accessToken, refreshToken].filter(Boolean) as string[]
-      ).map(token => this.hashToken(token));
-
-      await this.tokenModel.updateMany(
-        { token: { $in: hashedTokens } },
-        { status: false },
-      );
-      return { message: 'Đăng xuất thành công' };
-    } catch (error: unknown) {
-      const err = error as Error;
-      this.logger.error(
-        `Session token revocation failed: ${err.message}`,
-        err.stack,
-      );
-      if (isMongoUnavailable(error)) {
-        throw new ServiceUnavailableException(
-          'Database temporarily unavailable',
-        );
-      }
-      throw new InternalServerErrorException('Lỗi khi đăng xuất người dùng.');
-    }
+    return this.tokenRevocationService.revokeSessionTokens(
+      accessToken,
+      refreshToken,
+    );
   }
 
   createResetGrant(
@@ -170,19 +148,8 @@ export class TokenService {
     return this.passwordResetGrantService.validateResetGrant(resetGrant);
   }
 
-  async invalidateToken(token: string): Promise<void> {
-    this.logger.log('Invalidating token');
-    try {
-      await this.tokenModel.updateOne(
-        { token: this.hashToken(token) },
-        { status: false },
-      );
-      this.logger.log('Token invalidated');
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`Token invalidation failed: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Không thể hủy token.');
-    }
+  invalidateToken(token: string): Promise<void> {
+    return this.tokenRevocationService.invalidateToken(token);
   }
 
   async findActiveAccessToken(token: string): Promise<TokenDocument | null> {
@@ -201,7 +168,9 @@ export class TokenService {
         `Find active access token failed: ${err.message}`,
         err.stack,
       );
-      throw new InternalServerErrorException('Không thể tìm thấy token.');
+      throw new InternalServerErrorException(
+        'Kh\u00f4ng th\u1ec3 t\u00ecm th\u1ea5y token.',
+      );
     }
   }
 
@@ -221,7 +190,9 @@ export class TokenService {
         `Find active refresh token failed: ${err.message}`,
         err.stack,
       );
-      throw new InternalServerErrorException('Không thể tìm thấy token.');
+      throw new InternalServerErrorException(
+        'Kh\u00f4ng th\u1ec3 t\u00ecm th\u1ea5y token.',
+      );
     }
   }
 
@@ -237,24 +208,13 @@ export class TokenService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Find token failed: ${err.message}`, err.stack);
-      throw new InternalServerErrorException('Không thể tìm thấy token.');
+      throw new InternalServerErrorException(
+        'Kh\u00f4ng th\u1ec3 t\u00ecm th\u1ea5y token.',
+      );
     }
   }
 
-  async invalidateAllTokensForUser(userId: string): Promise<void> {
-    this.logger.log(`Invalidating all tokens for userId: ${userId}`);
-    try {
-      await this.tokenModel.updateMany({ userId }, { status: false });
-      this.logger.log(`All tokens invalidated for userId: ${userId}`);
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(
-        `Invalidate all tokens failed for userId ${userId}: ${err.message}`,
-        err.stack,
-      );
-      throw new InternalServerErrorException(
-        'Không thể hủy tất cả token của người dùng.',
-      );
-    }
+  invalidateAllTokensForUser(userId: string): Promise<void> {
+    return this.tokenRevocationService.invalidateAllTokensForUser(userId);
   }
 }

@@ -49,6 +49,10 @@ describe('Auth throttling (e2e)', () => {
   };
 
   const tokenServiceMock = {
+    createAndSaveTokens: jest.fn().mockResolvedValue({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    }),
     refreshAccessToken: jest.fn().mockResolvedValue({
       success: true,
       accessToken: 'new-access-token',

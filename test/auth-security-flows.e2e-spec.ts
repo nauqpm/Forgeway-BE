@@ -24,6 +24,7 @@ import { TokenService } from '../src/modules/auth/services/token.service';
 import { PasswordResetGrantService } from '../src/modules/auth/services/password-reset-grant.service';
 import { TokenIssuerService } from '../src/modules/auth/services/token-issuer.service';
 import { TokenRefreshService } from '../src/modules/auth/services/token-refresh.service';
+import { TokenRevocationService } from '../src/modules/auth/services/token-revocation.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
 
 import { AuthRegistrationService } from '../src/modules/auth/services/auth-registration.service';
@@ -268,6 +269,7 @@ describe('Auth security flows (integration)', () => {
         auditLogService,
         tokenIssuerService,
       ),
+      new TokenRevocationService(tokenModel as unknown as never),
     );
   });
 
@@ -632,6 +634,7 @@ describe('Auth logout revoke path (e2e)', () => {
         PasswordResetGrantService,
         TokenIssuerService,
         TokenRefreshService,
+        TokenRevocationService,
         TokenService,
         {
           provide: LoginSessionTrackingService,

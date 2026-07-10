@@ -1,10 +1,10 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthTokenConfigService } from '../config/auth-token-config.service';
 import { TOKEN_TYPES } from '../constants/token.constants';
 import { PasswordResetGrantService } from './password-reset-grant.service';
 import { TokenIssuerService } from './token-issuer.service';
 import { TokenRefreshService } from './token-refresh.service';
+import { TokenRevocationService } from './token-revocation.service';
 import { TokenService } from './token.service';
 
 describe('TokenService', () => {
@@ -26,6 +26,12 @@ describe('TokenService', () => {
 
   const tokenRefreshService = {
     refreshAccessToken: jest.fn(),
+  };
+
+  const tokenRevocationService = {
+    revokeSessionTokens: jest.fn(),
+    invalidateToken: jest.fn(),
+    invalidateAllTokensForUser: jest.fn(),
   };
 
   const passwordResetGrantService = {
@@ -51,6 +57,7 @@ describe('TokenService', () => {
       passwordResetGrantService as unknown as PasswordResetGrantService,
       tokenIssuerService as unknown as TokenIssuerService,
       tokenRefreshService as unknown as TokenRefreshService,
+      tokenRevocationService as unknown as TokenRevocationService,
     );
   });
 
@@ -126,55 +133,41 @@ describe('TokenService', () => {
     });
   });
 
-  describe('token revocation', () => {
-    it('revokes access and refresh session tokens by hash', async () => {
-      tokenModel.updateMany.mockResolvedValue({});
+  describe('token revocation facade', () => {
+    it('delegates revokeSessionTokens to TokenRevocationService', async () => {
+      tokenRevocationService.revokeSessionTokens.mockResolvedValue({
+        message: 'Đăng xuất thành công',
+      });
 
-      const result = await service.revokeSessionTokens(
+      await expect(
+        service.revokeSessionTokens('access-token', 'refresh-token'),
+      ).resolves.toEqual({ message: 'Đăng xuất thành công' });
+      expect(tokenRevocationService.revokeSessionTokens).toHaveBeenCalledWith(
         'access-token',
         'refresh-token',
       );
-
-      expect(result.message).toContain('thành công');
-      expect(tokenModel.updateMany).toHaveBeenCalledWith(
-        {
-          token: {
-            $in: [
-              service.hashToken('access-token'),
-              service.hashToken('refresh-token'),
-            ],
-          },
-        },
-        { status: false },
-      );
     });
 
-    it('rejects revokeSessionTokens when both tokens are missing', async () => {
-      await expect(service.revokeSessionTokens()).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('invalidates one token by hash', async () => {
-      tokenModel.updateOne.mockResolvedValue({});
+    it('delegates invalidateToken to TokenRevocationService', async () => {
+      tokenRevocationService.invalidateToken.mockResolvedValue(undefined);
 
       await service.invalidateToken('access-token');
 
-      expect(tokenModel.updateOne).toHaveBeenCalledWith(
-        { token: service.hashToken('access-token') },
-        { status: false },
+      expect(tokenRevocationService.invalidateToken).toHaveBeenCalledWith(
+        'access-token',
       );
     });
 
-    it('invalidates all tokens for a user', async () => {
-      tokenModel.updateMany.mockResolvedValue({});
+    it('delegates invalidateAllTokensForUser to TokenRevocationService', async () => {
+      tokenRevocationService.invalidateAllTokensForUser.mockResolvedValue(
+        undefined,
+      );
 
       await service.invalidateAllTokensForUser('account-a');
 
-      expect(tokenModel.updateMany).toHaveBeenCalledWith(
-        { userId: 'account-a' },
-        { status: false },
-      );
+      expect(
+        tokenRevocationService.invalidateAllTokensForUser,
+      ).toHaveBeenCalledWith('account-a');
     });
   });
 

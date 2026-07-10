@@ -9,6 +9,7 @@ import { TokenService } from './services/token.service';
 import { PasswordResetGrantService } from './services/password-reset-grant.service';
 import { TokenIssuerService } from './services/token-issuer.service';
 import { TokenRefreshService } from './services/token-refresh.service';
+import { TokenRevocationService } from './services/token-revocation.service';
 
 import { Token, TokenSchema } from './schemas/token.schema';
 
@@ -44,12 +45,14 @@ import { AuditModule } from '../audit/audit.module';
     PasswordResetGrantService,
     TokenIssuerService,
     TokenRefreshService,
+    TokenRevocationService,
   ],
   exports: [
     TokenService,
     PasswordResetGrantService,
     TokenIssuerService,
     TokenRefreshService,
+    TokenRevocationService,
     MongooseModule,
   ],
 })
