@@ -16,7 +16,6 @@ import { TaskDependencyService } from '../services/task-dependency.service';
 import { TaskAuditService } from '../shared/task-audit.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { RealtimeService } from '../../realtime/realtime.service';
-import { TokenService } from '../../auth/services/token.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 
@@ -138,10 +137,6 @@ describe('TaskControllers - Route Registration (smoke)', () => {
         {
           provide: JwtService,
           useValue: { verify: jest.fn(), sign: jest.fn() },
-        },
-        {
-          provide: TokenService,
-          useValue: { findActiveAccessToken: jest.fn(), hashToken: jest.fn() },
         },
       ],
     })

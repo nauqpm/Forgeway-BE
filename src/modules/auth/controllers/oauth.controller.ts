@@ -22,7 +22,7 @@ import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { OAuthService } from '../services/oauth.service';
 import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
-import { TokenService } from '../services/token.service';
+import { TokenIssuerService } from '../services/token-issuer.service';
 import {
   getDeviceIdFromRequest,
   setAuthCookies,
@@ -44,7 +44,7 @@ export class OAuthController {
 
   constructor(
     private readonly oauthService: OAuthService,
-    private readonly tokenService: TokenService,
+    private readonly tokenIssuerService: TokenIssuerService,
     private readonly loginSessionTrackingService: LoginSessionTrackingService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
@@ -87,7 +87,7 @@ export class OAuthController {
         throw new BadRequestException('Google authentication failed');
       }
 
-      const finalTokens = await this.tokenService.createAndSaveTokens(
+      const finalTokens = await this.tokenIssuerService.createAndSaveTokens(
         user._id.toString(),
         user.email,
         user.role,
@@ -182,7 +182,7 @@ export class OAuthController {
     try {
       const { user } = await this.oauthService.verifyMobileGoogleToken(idToken);
 
-      const tokens = await this.tokenService.createAndSaveTokens(
+      const tokens = await this.tokenIssuerService.createAndSaveTokens(
         user._id.toString(),
         user.email,
         user.role,

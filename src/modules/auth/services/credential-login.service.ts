@@ -17,7 +17,6 @@ import {
 } from '../security/login-attempt-throttle.service';
 import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
 
 @Injectable()
 export class CredentialLoginService implements OnModuleInit {
@@ -27,7 +26,6 @@ export class CredentialLoginService implements OnModuleInit {
   constructor(
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
-    private readonly tokenService: TokenService,
     private readonly loginAttemptThrottleService: LoginAttemptThrottleService,
   ) {}
 

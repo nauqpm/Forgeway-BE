@@ -14,7 +14,8 @@ import {
 } from '../dtos/password-reset.dto';
 import { OtpService } from './otp.service';
 import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
+import { PasswordResetGrantService } from './password-reset-grant.service';
+import { TokenRevocationService } from './token-revocation.service';
 
 @Injectable()
 export class PasswordResetService {
@@ -22,7 +23,8 @@ export class PasswordResetService {
 
   constructor(
     private readonly usersService: UsersService,
-    private readonly tokenService: TokenService,
+    private readonly passwordResetGrantService: PasswordResetGrantService,
+    private readonly tokenRevocationService: TokenRevocationService,
     private readonly otpService: OtpService,
     private readonly passwordService: PasswordService,
     private readonly verifyService: VerifyService,
@@ -81,7 +83,10 @@ export class PasswordResetService {
     }
 
     const { resetGrant, expiresInMs } =
-      await this.tokenService.createResetGrant(user._id.toString(), user.email);
+      await this.passwordResetGrantService.createResetGrant(
+        user._id.toString(),
+        user.email,
+      );
 
     this.logger.log(
       `Password reset grant issued for userId: ${String(user._id)}; expiresInMs: ${expiresInMs}`,
@@ -97,7 +102,7 @@ export class PasswordResetService {
   async resetPasswordWithGrant(dto: ResetPasswordWithGrantDto) {
     this.logger.log('Password reset with grant requested');
 
-    const { email } = await this.tokenService.validateResetGrant(
+    const { email } = await this.passwordResetGrantService.validateResetGrant(
       dto.resetGrant,
     );
     this.logger.debug(`Password reset grant validated for email: ${email}`);
@@ -125,9 +130,8 @@ export class PasswordResetService {
       );
     }
 
-    const consumedGrant = await this.tokenService.consumeResetGrant(
-      dto.resetGrant,
-    );
+    const consumedGrant =
+      await this.passwordResetGrantService.consumeResetGrant(dto.resetGrant);
     if (consumedGrant.email !== email) {
       this.logger.error(
         `Password reset grant email mismatch during consume for userId: ${String(user._id)}`,
@@ -142,7 +146,9 @@ export class PasswordResetService {
     await this.usersService.updatePassword(email, hashedPassword);
     this.logger.log(`Password updated for userId: ${String(user._id)}`);
 
-    await this.tokenService.invalidateAllTokensForUser(user._id.toString());
+    await this.tokenRevocationService.invalidateAllTokensForUser(
+      user._id.toString(),
+    );
     this.logger.log(
       `Existing sessions invalidated after password reset for userId: ${String(user._id)}`,
     );

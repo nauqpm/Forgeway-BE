@@ -11,7 +11,8 @@ import {
   SavedAccountDocument,
 } from '../schemas/saved-account.schema';
 import { UsersService } from '../../users/services/users.service';
-import { TokenService } from './token.service';
+import { TokenIssuerService } from './token-issuer.service';
+import { TokenRevocationService } from './token-revocation.service';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
 
 export interface SwitchTokensResult {
@@ -38,7 +39,8 @@ export class AccountSwitcherService {
     @InjectModel(SavedAccount.name)
     private readonly savedAccountModel: Model<SavedAccountDocument>,
     private readonly usersService: UsersService,
-    private readonly tokenService: TokenService,
+    private readonly tokenIssuerService: TokenIssuerService,
+    private readonly tokenRevocationService: TokenRevocationService,
   ) {}
 
   /**
@@ -221,7 +223,7 @@ export class AccountSwitcherService {
 
     // 3. Revoke the current session's refresh token (best-effort, non-blocking).
     if (meta.ownerRefreshToken) {
-      await this.tokenService
+      await this.tokenRevocationService
         .revokeSessionTokens(undefined, meta.ownerRefreshToken)
         .catch((err: Error) =>
           this.logger.warn(
@@ -233,7 +235,7 @@ export class AccountSwitcherService {
     // 4. Issue new tokens for the target account.
     //    rootOwnerUserId is embedded in JWT so the next switch still knows the root.
     const { accessToken, refreshToken } =
-      await this.tokenService.createAndSaveTokens(
+      await this.tokenIssuerService.createAndSaveTokens(
         targetUser._id.toString(),
         targetUser.email,
         targetUser.role,

@@ -32,7 +32,9 @@ import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
 import { CredentialLoginService } from '../services/credential-login.service';
-import { TokenService } from '../services/token.service';
+import { TokenIssuerService } from '../services/token-issuer.service';
+import { TokenRefreshService } from '../services/token-refresh.service';
+import { TokenRevocationService } from '../services/token-revocation.service';
 import {
   clearAuthCookies,
   getDeviceIdFromRequest,
@@ -56,7 +58,9 @@ export class AuthSessionController {
 
   constructor(
     private readonly credentialLoginService: CredentialLoginService,
-    private readonly tokenService: TokenService,
+    private readonly tokenIssuerService: TokenIssuerService,
+    private readonly tokenRevocationService: TokenRevocationService,
+    private readonly tokenRefreshService: TokenRefreshService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
     private readonly loginSessionTrackingService: LoginSessionTrackingService,
@@ -130,7 +134,7 @@ export class AuthSessionController {
         ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
       });
 
-      const finalTokens = await this.tokenService.createAndSaveTokens(
+      const finalTokens = await this.tokenIssuerService.createAndSaveTokens(
         result.user.id,
         result.user.email,
         result.user.role,
@@ -221,7 +225,7 @@ export class AuthSessionController {
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH];
 
     try {
-      const result = await this.tokenService.revokeSessionTokens(
+      const result = await this.tokenRevocationService.revokeSessionTokens(
         accessToken,
         refreshToken,
       );
@@ -284,7 +288,8 @@ export class AuthSessionController {
     }
 
     try {
-      const result = await this.tokenService.refreshAccessToken(refreshToken);
+      const result =
+        await this.tokenRefreshService.refreshAccessToken(refreshToken);
 
       setAuthCookies(res, this.configService, {
         accessToken: result.accessToken,
