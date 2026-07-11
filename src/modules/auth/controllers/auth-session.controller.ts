@@ -1,47 +1,48 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   HttpCode,
   HttpStatus,
-  UseGuards,
-  Request,
   Logger,
+  Post,
+  Req,
+  Request,
+  Res,
   ServiceUnavailableException,
   UnauthorizedException,
-  Req,
-  Res,
+  UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
-  ApiTags,
+  ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
-  ApiBadRequestResponse,
+  ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { CredentialLoginService } from '../services/credential-login.service';
-import { TokenService } from '../services/token.service';
-import { RecentLoginsService } from '../services/recent-logins.service';
-import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
+import { Request as ExpressRequest, Response } from 'express';
+
+import { AuditLogService } from '../../audit/services/audit-log.service';
+import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { LoginDto } from '../dtos/auth.dto';
 import { RefreshTokenDto } from '../dtos/refresh-token.dto';
+import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { Response, Request as ExpressRequest } from 'express';
-import { ConfigService } from '@nestjs/config';
-import { AuditLogService } from '../../audit/services/audit-log.service';
+import { LoginSessionTrackingService } from '../services/login-session-tracking.service';
+import { CredentialLoginService } from '../services/credential-login.service';
+import { TokenIssuerService } from '../services/token-issuer.service';
+import { TokenRefreshService } from '../services/token-refresh.service';
+import { TokenRevocationService } from '../services/token-revocation.service';
 import {
   clearAuthCookies,
   getDeviceIdFromRequest,
   setAuthCookies,
   setDeviceIdCookie,
 } from '../utils/cookie.utils';
-import { COOKIE_NAMES } from '../constants/cookie.constants';
-import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { applyRetryAfterHeader } from '../utils/retry-after.utils';
 
-// Interface để định nghĩa kiểu dữ liệu của req.user
 interface RequestWithUser extends ExpressRequest {
   user: {
     userId: string;
@@ -50,8 +51,6 @@ interface RequestWithUser extends ExpressRequest {
   };
 }
 
-// Never put @SkipThrottle() at controller level; it can hide a global auth bypass.
-// Keep public auth routes explicitly throttled at method level.
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthSessionController {
@@ -59,10 +58,11 @@ export class AuthSessionController {
 
   constructor(
     private readonly credentialLoginService: CredentialLoginService,
-    private readonly tokenService: TokenService,
+    private readonly tokenIssuerService: TokenIssuerService,
+    private readonly tokenRevocationService: TokenRevocationService,
+    private readonly tokenRefreshService: TokenRefreshService,
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
-    private readonly recentLoginsService: RecentLoginsService,
     private readonly loginSessionTrackingService: LoginSessionTrackingService,
   ) {}
 
@@ -119,7 +119,6 @@ export class AuthSessionController {
       },
     },
   })
-  // Coarse IP safety ceiling. Redis progressive delay handles normal retries.
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -135,11 +134,16 @@ export class AuthSessionController {
         ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
       });
 
-      setAuthCookies(res, this.configService, result.tokens);
+      const finalTokens = await this.tokenIssuerService.createAndSaveTokens(
+        result.user.id,
+        result.user.email,
+        result.user.role,
+        result.user.fullName,
+        result.user.avatar,
+      );
 
-      const existingAccess = req.cookies?.[COOKIE_NAMES.ACCESS] as
-        | string
-        | undefined;
+      setAuthCookies(res, this.configService, finalTokens);
+
       const trackingResult =
         await this.loginSessionTrackingService.trackLoginSession({
           loggedInUser: {
@@ -150,7 +154,6 @@ export class AuthSessionController {
             role: result.user.role,
             ssoProvider: result.user.ssoProvider === 'google' ? 'google' : null,
           },
-          existingAccessToken: existingAccess,
           deviceId: getDeviceIdFromRequest(req) ?? undefined,
           ip:
             (req.headers['x-forwarded-for'] as string | undefined)
@@ -177,7 +180,7 @@ export class AuthSessionController {
         success: result.success,
         message: result.message,
         user: result.user,
-        tokens: result.tokens, // <--- Added for Mobile apps
+        tokens: finalTokens,
       };
     } catch (error) {
       applyRetryAfterHeader(error, res);
@@ -222,21 +225,10 @@ export class AuthSessionController {
     const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH];
 
     try {
-      const result = await this.tokenService.revokeSessionTokens(
+      const result = await this.tokenRevocationService.revokeSessionTokens(
         accessToken,
         refreshToken,
       );
-
-      const deviceId = getDeviceIdFromRequest(req);
-      if (deviceId) {
-        await this.recentLoginsService
-          .clearForDevice(deviceId)
-          .catch((err: Error) =>
-            this.logger.warn(
-              `Non-fatal: could not clear recent logins on logout — ${err.message}`,
-            ),
-          );
-      }
 
       clearAuthCookies(res, this.configService);
 
@@ -296,7 +288,8 @@ export class AuthSessionController {
     }
 
     try {
-      const result = await this.tokenService.refreshAccessToken(refreshToken);
+      const result =
+        await this.tokenRefreshService.refreshAccessToken(refreshToken);
 
       setAuthCookies(res, this.configService, {
         accessToken: result.accessToken,

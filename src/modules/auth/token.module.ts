@@ -5,7 +5,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthTokenConfigModule } from './config/auth-token-config.module';
 import { AuthTokenConfigService } from './config/auth-token-config.service';
 
-import { TokenService } from './services/token.service';
+import { PasswordResetGrantService } from './services/password-reset-grant.service';
+import { TokenIssuerService } from './services/token-issuer.service';
+import { TokenRefreshService } from './services/token-refresh.service';
+import { TokenRevocationService } from './services/token-revocation.service';
+import { TokenLookupService } from './services/token-lookup.service';
 
 import { Token, TokenSchema } from './schemas/token.schema';
 
@@ -14,10 +18,10 @@ import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
-    // Needed for TokenService(TokenModel)
+    // Token persistence for issuer, refresh, reset grant, revocation, and lookup services.
     MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
 
-    // Needed for TokenService(JwtService)
+    // JWT signing and verification for token issuer and refresh services.
     JwtModule.registerAsync({
       imports: [AuthTokenConfigModule],
       inject: [AuthTokenConfigService],
@@ -30,13 +34,26 @@ import { AuditModule } from '../audit/audit.module';
     }),
     AuthTokenConfigModule,
 
-    // Needed for TokenService(UsersService)
+    // TokenRefreshService validates the user before rotating tokens.
     forwardRef(() => UsersModule),
 
-    // Needed for TokenService(AuditLogService) — circular: TokenModule ↔ AuditModule
+    // TokenRefreshService logs token-family reuse events.
     forwardRef(() => AuditModule),
   ],
-  providers: [TokenService],
-  exports: [TokenService, MongooseModule],
+  providers: [
+    PasswordResetGrantService,
+    TokenIssuerService,
+    TokenRefreshService,
+    TokenRevocationService,
+    TokenLookupService,
+  ],
+  exports: [
+    PasswordResetGrantService,
+    TokenIssuerService,
+    TokenRefreshService,
+    TokenRevocationService,
+    TokenLookupService,
+    MongooseModule,
+  ],
 })
 export class TokenModule {}

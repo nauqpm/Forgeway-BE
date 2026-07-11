@@ -7,7 +7,6 @@ import { LoginAttemptThrottleService } from '../security/login-attempt-throttle.
 import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { CredentialLoginService } from './credential-login.service';
 import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
 
 describe('CredentialLoginService', () => {
   const loginDto = {
@@ -23,9 +22,7 @@ describe('CredentialLoginService', () => {
     hashPassword: jest.fn(),
     verifyPassword: jest.fn(),
   };
-  const tokenService = {
-    createAndSaveTokens: jest.fn(),
-  };
+
   const loginAttemptThrottleService = {
     getRetryAfterSeconds: jest.fn(),
     registerFailure: jest.fn(),
@@ -45,7 +42,6 @@ describe('CredentialLoginService', () => {
     service = new CredentialLoginService(
       usersService as never,
       passwordService,
-      tokenService as never,
       loginAttemptThrottleService as never,
     );
   });
@@ -214,10 +210,6 @@ describe('CredentialLoginService', () => {
     beforeEach(() => {
       usersService.findByEmail.mockResolvedValue(createActiveUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      tokenService.createAndSaveTokens.mockResolvedValue({
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      });
     });
 
     it('clears progressive delay state after a successful login', async () => {
@@ -233,7 +225,7 @@ describe('CredentialLoginService', () => {
       });
     });
 
-    it('creates tokens with correct user metadata on success', async () => {
+    it('returns correct user metadata on success', async () => {
       const userWithGoogle = createActiveUser({
         fullName: 'Test User',
         avatar: 'avatar.png',
@@ -252,13 +244,6 @@ describe('CredentialLoginService', () => {
         googleId: 'google-123',
         ssoProvider: 'google',
       });
-      expect(tokenService.createAndSaveTokens).toHaveBeenCalledWith(
-        'user-id',
-        loginDto.email,
-        'user',
-        'Test User',
-        'avatar.png',
-      );
     });
   });
 
@@ -323,7 +308,7 @@ describe('CredentialLoginService', () => {
           CredentialLoginService,
           { provide: UsersService, useValue: usersService },
           { provide: PasswordService, useValue: passwordService },
-          { provide: TokenService, useValue: tokenService },
+
           {
             provide: LoginAttemptThrottleService,
             useValue: loginAttemptThrottleService,

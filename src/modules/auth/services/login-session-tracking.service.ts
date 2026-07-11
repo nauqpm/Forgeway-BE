@@ -1,8 +1,8 @@
+import { randomUUID } from 'crypto';
+
 import { Injectable, Logger } from '@nestjs/common';
 
-import { AccountSwitcherService } from './account-switcher.service';
-import { RecentLoginsService } from './recent-logins.service';
-import { TokenService } from './token.service';
+import { DeviceSwitchAccountsService } from './device-switch-accounts.service';
 
 export interface LoginSessionUser {
   id: string;
@@ -15,7 +15,6 @@ export interface LoginSessionUser {
 
 export interface LoginSessionTrackingInput {
   loggedInUser: LoginSessionUser;
-  existingAccessToken?: string;
   deviceId?: string;
   ip?: string;
   userAgent?: string;
@@ -30,46 +29,37 @@ export class LoginSessionTrackingService {
   private readonly logger = new Logger(LoginSessionTrackingService.name);
 
   constructor(
-    private readonly tokenService: TokenService,
-    private readonly accountSwitcherService: AccountSwitcherService,
-    private readonly recentLoginsService: RecentLoginsService,
+    private readonly deviceSwitchAccountsService: DeviceSwitchAccountsService,
   ) {}
+
+  static generateDeviceId(): string {
+    return randomUUID();
+  }
 
   async trackLoginSession(
     input: LoginSessionTrackingInput,
   ): Promise<LoginSessionTrackingResult> {
-    const account: LoginSessionUser = {
-      ...input.loggedInUser,
-      ssoProvider:
-        input.loggedInUser.ssoProvider === 'google' ? 'google' : null,
-    };
-    const meta = { ip: input.ip, userAgent: input.userAgent };
-    const ownerUserId = this.tokenService.peekUserIdFromAccessToken(
-      input.existingAccessToken,
-    );
-
-    if (ownerUserId && ownerUserId !== account.id) {
-      try {
-        await this.accountSwitcherService.rememberAccount(
-          ownerUserId,
-          account,
-          meta,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `rememberAccount failed: ${this.getErrorMessage(error)}`,
-        );
-      }
-    }
-
-    const deviceId = input.deviceId ?? RecentLoginsService.generateDeviceId();
+    const deviceId =
+      input.deviceId ?? LoginSessionTrackingService.generateDeviceId();
     const generatedDeviceId = input.deviceId ? undefined : deviceId;
 
     try {
-      await this.recentLoginsService.remember(deviceId, account, meta);
+      await this.deviceSwitchAccountsService.rememberSuccessfulLogin(
+        deviceId,
+        {
+          id: input.loggedInUser.id,
+          email: input.loggedInUser.email,
+          fullName: input.loggedInUser.fullName,
+          avatar: input.loggedInUser.avatar,
+          role: input.loggedInUser.role,
+          ssoProvider:
+            input.loggedInUser.ssoProvider === 'google' ? 'google' : null,
+        },
+        { ip: input.ip, userAgent: input.userAgent },
+      );
     } catch (error) {
       this.logger.warn(
-        `recentLogins.remember failed: ${this.getErrorMessage(error)}`,
+        `rememberSuccessfulLogin failed: ${this.getErrorMessage(error)}`,
       );
     }
 

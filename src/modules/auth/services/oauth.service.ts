@@ -7,7 +7,7 @@ import {
 
 import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/schemas/users.schema';
-import { TokenService } from './token.service';
+
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { OAuth2Client } from 'google-auth-library';
 import { ConfigService } from '@nestjs/config';
@@ -20,7 +20,6 @@ export class OAuthService {
 
   constructor(
     private readonly usersService: UsersService,
-    private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
   ) {
     this.googleClient = new OAuth2Client(
@@ -89,7 +88,7 @@ export class OAuthService {
     id?: string;
     fullName?: string;
     photos?: { value: string }[];
-  }): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  }): Promise<{ user: User }> {
     if (!profile || typeof profile !== 'object') {
       throw new BadRequestException(
         'Lỗi xác thực Google: Dữ liệu không hợp lệ',
@@ -155,17 +154,7 @@ export class OAuthService {
         throw new BadRequestException('Lỗi xử lý thông tin người dùng');
       }
 
-      // Issue access+refresh pair — identical behavior (delegated)
-      const { accessToken, refreshToken } =
-        await this.tokenService.createAndSaveTokens(
-          currentUser._id.toString(),
-          currentUser.email,
-          currentUser.role,
-          currentUser.fullName,
-          currentUser.avatar,
-        );
-
-      return { user: currentUser, accessToken, refreshToken };
+      return { user: currentUser };
     } catch (error) {
       this.logger.error('❌ Lỗi trong quá trình xác thực Google:', error);
       if (error instanceof BadRequestException) {

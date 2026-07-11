@@ -20,7 +20,12 @@ import { Token } from '../src/modules/auth/schemas/token.schema';
 import { AuditLogService } from '../src/modules/audit/services/audit-log.service';
 import { InviteService } from '../src/modules/workspaces/services/invite.service';
 import { OtpService } from '../src/modules/auth/services/otp.service';
-import { TokenService } from '../src/modules/auth/services/token.service';
+import { hashToken } from '../src/modules/auth/utils/token-hash.util';
+import { PasswordResetGrantService } from '../src/modules/auth/services/password-reset-grant.service';
+import { TokenIssuerService } from '../src/modules/auth/services/token-issuer.service';
+import { TokenRefreshService } from '../src/modules/auth/services/token-refresh.service';
+import { TokenRevocationService } from '../src/modules/auth/services/token-revocation.service';
+import { TokenLookupService } from '../src/modules/auth/services/token-lookup.service';
 import { TOKEN_TYPES } from '../src/modules/auth/constants/token.constants';
 
 import { AuthRegistrationService } from '../src/modules/auth/services/auth-registration.service';
@@ -229,47 +234,60 @@ describe('Auth security flows (integration)', () => {
   };
 
   let tokenModel: InMemoryTokenModel;
-  let tokenService: TokenService;
+  let tokenIssuer: TokenIssuerService;
+  let tokenRefresh: TokenRefreshService;
+  let passwordResetGrant: PasswordResetGrantService;
 
   beforeEach(() => {
     tokenModel = new InMemoryTokenModel();
     const authTokenConfigService = new AuthTokenConfigService(
       configService as unknown as ConfigService,
     );
-    tokenService = new TokenService(
+    const usersService = {
+      getUserById: jest.fn().mockResolvedValue({
+        _id: { toString: () => userId },
+        email: 'user@example.com',
+        role: GLOBAL_ROLES.USER,
+        fullName: 'User',
+        avatar: 'avatar.png',
+      }),
+    } as unknown as UsersService;
+    const auditLogService = { log: jest.fn() } as unknown as AuditLogService;
+    tokenIssuer = new TokenIssuerService(
       tokenModel as unknown as never,
       jwtService,
       authTokenConfigService,
-      {
-        getUserById: jest.fn().mockResolvedValue({
-          _id: { toString: () => userId },
-          email: 'user@example.com',
-          role: GLOBAL_ROLES.USER,
-          fullName: 'User',
-          avatar: 'avatar.png',
-        }),
-      } as unknown as UsersService,
-      { log: jest.fn() } as unknown as AuditLogService,
+    );
+    tokenRefresh = new TokenRefreshService(
+      tokenModel as unknown as never,
+      jwtService,
+      authTokenConfigService,
+      usersService,
+      auditLogService,
+      tokenIssuer,
+    );
+    passwordResetGrant = new PasswordResetGrantService(
+      tokenModel as unknown as never,
     );
   });
 
   it('rotates refresh tokens and revokes the family on reused old refresh token', async () => {
-    const initial = await tokenService.createAndSaveTokens(
+    const initial = await tokenIssuer.createAndSaveTokens(
       userId,
       'user@example.com',
       GLOBAL_ROLES.USER,
     );
-    const rotated = await tokenService.refreshAccessToken(initial.refreshToken);
+    const rotated = await tokenRefresh.refreshAccessToken(initial.refreshToken);
 
     expect(rotated.refreshToken).not.toBe(initial.refreshToken);
     expect(
       tokenModel.records.find(
-        record => record.token === tokenService.hashToken(initial.refreshToken),
+        record => record.token === hashToken(initial.refreshToken),
       )?.status,
     ).toBe(false);
 
     const oldRefresh = tokenModel.records.find(
-      record => record.token === tokenService.hashToken(initial.refreshToken),
+      record => record.token === hashToken(initial.refreshToken),
     );
     if (!oldRefresh) {
       throw new Error('Expected old refresh token record');
@@ -277,7 +295,7 @@ describe('Auth security flows (integration)', () => {
     oldRefresh.updatedAt = new Date(Date.now() - 20_000);
 
     await expect(
-      tokenService.refreshAccessToken(initial.refreshToken),
+      tokenRefresh.refreshAccessToken(initial.refreshToken),
     ).rejects.toThrow();
     const familyRecords = tokenModel.records.filter(
       record => record.familyId === oldRefresh.familyId,
@@ -317,9 +335,16 @@ describe('Auth security flows (integration)', () => {
       }),
       updatePassword: jest.fn().mockResolvedValue({ success: true }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       {} as VerifyService,
@@ -355,22 +380,24 @@ describe('Auth security flows (integration)', () => {
 
   it('rejects invalid and expired reset grants', async () => {
     await expect(
-      tokenService.consumeResetGrant('invalid-grant'),
+      passwordResetGrant.consumeResetGrant('invalid-grant'),
     ).rejects.toThrow();
 
-    const { resetGrant } = await tokenService.createResetGrant(
+    const { resetGrant } = await passwordResetGrant.createResetGrant(
       userId,
       'user@example.com',
     );
     const record = tokenModel.records.find(
-      item => item.token === tokenService.hashToken(resetGrant),
+      item => item.token === hashToken(resetGrant),
     );
     if (!record) {
       throw new Error('Expected reset grant record');
     }
     record.expiresAt = new Date(Date.now() - 1000);
 
-    await expect(tokenService.consumeResetGrant(resetGrant)).rejects.toThrow();
+    await expect(
+      passwordResetGrant.consumeResetGrant(resetGrant),
+    ).rejects.toThrow();
   });
 
   it('invalidates existing sessions after successful grant reset', async () => {
@@ -387,20 +414,27 @@ describe('Auth security flows (integration)', () => {
       }),
       updatePassword: jest.fn().mockResolvedValue({ success: true }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       {} as VerifyService,
     );
 
-    await tokenService.createAndSaveTokens(
+    await tokenIssuer.createAndSaveTokens(
       userId,
       'user@example.com',
       GLOBAL_ROLES.USER,
     );
-    const { resetGrant } = await tokenService.createResetGrant(
+    const { resetGrant } = await passwordResetGrant.createResetGrant(
       userId,
       'user@example.com',
     );
@@ -429,15 +463,22 @@ describe('Auth security flows (integration)', () => {
       }),
       updatePassword: jest.fn().mockResolvedValue({ success: true }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       {} as VerifyService,
     );
 
-    const { resetGrant } = await tokenService.createResetGrant(
+    const { resetGrant } = await passwordResetGrant.createResetGrant(
       userId,
       'user@example.com',
     );
@@ -450,7 +491,7 @@ describe('Auth security flows (integration)', () => {
     ).rejects.toThrow();
 
     const grantRecord = tokenModel.records.find(
-      record => record.token === tokenService.hashToken(resetGrant),
+      record => record.token === hashToken(resetGrant),
     );
     expect(grantRecord?.status).toBe(true);
     expect(usersService.updatePassword).not.toHaveBeenCalled();
@@ -479,9 +520,16 @@ describe('Auth security flows (integration)', () => {
           email: 'user@example.com',
         }),
     } as unknown as UsersService;
+    const passwordResetGrantService = new PasswordResetGrantService(
+      tokenModel as unknown as never,
+    );
+    const tokenRevocationService = new TokenRevocationService(
+      tokenModel as unknown as never,
+    );
     const passwordResetService = new PasswordResetService(
       usersService,
-      tokenService,
+      passwordResetGrantService,
+      tokenRevocationService,
       otpService,
       new PasswordService(),
       verifyService,
@@ -557,7 +605,7 @@ describe('Auth security flows (integration)', () => {
 describe('Auth logout revoke path (e2e)', () => {
   let app: INestApplication;
   let tokenModel: InMemoryTokenModel;
-  let tokenService: TokenService;
+  let tokenIssuer: TokenIssuerService;
   const userId = new Types.ObjectId().toString();
 
   beforeEach(async () => {
@@ -611,7 +659,11 @@ describe('Auth logout revoke path (e2e)', () => {
           },
         },
         AuthTokenConfigService,
-        TokenService,
+        PasswordResetGrantService,
+        TokenIssuerService,
+        TokenRefreshService,
+        TokenRevocationService,
+        TokenLookupService,
         {
           provide: LoginSessionTrackingService,
           useValue: { trackLoginSession: jest.fn() },
@@ -633,7 +685,7 @@ describe('Auth logout revoke path (e2e)', () => {
       new ValidationPipe({ whitelist: true, transform: true }),
     );
     await app.init();
-    tokenService = moduleRef.get(TokenService);
+    tokenIssuer = moduleRef.get(TokenIssuerService);
   });
 
   afterEach(async () => {
@@ -641,7 +693,7 @@ describe('Auth logout revoke path (e2e)', () => {
   });
 
   it('revokes access and refresh tokens supplied via cookies on logout', async () => {
-    const tokens = await tokenService.createAndSaveTokens(
+    const tokens = await tokenIssuer.createAndSaveTokens(
       userId,
       'user@example.com',
       GLOBAL_ROLES.USER,
@@ -659,8 +711,8 @@ describe('Auth logout revoke path (e2e)', () => {
       tokenModel.records
         .filter(record =>
           [
-            tokenService.hashToken(tokens.accessToken),
-            tokenService.hashToken(tokens.refreshToken),
+            hashToken(tokens.accessToken),
+            hashToken(tokens.refreshToken),
           ].includes(record.token),
         )
         .every(record => record.status === false),

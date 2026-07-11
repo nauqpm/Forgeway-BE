@@ -17,7 +17,6 @@ import {
 } from '../security/login-attempt-throttle.service';
 import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
 
 @Injectable()
 export class CredentialLoginService implements OnModuleInit {
@@ -27,7 +26,6 @@ export class CredentialLoginService implements OnModuleInit {
   constructor(
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
-    private readonly tokenService: TokenService,
     private readonly loginAttemptThrottleService: LoginAttemptThrottleService,
   ) {}
 
@@ -138,16 +136,6 @@ export class CredentialLoginService implements OnModuleInit {
 
       await this.loginAttemptThrottleService.clear(attemptContext);
 
-      // === Issue tokens ===
-      const { accessToken, refreshToken } =
-        await this.tokenService.createAndSaveTokens(
-          user._id.toString(),
-          user.email,
-          user.role,
-          user.fullName,
-          user.avatar,
-        );
-
       this.logger.log(
         `Login successful: ${user.email} (ID: ${String(user._id)})`,
       );
@@ -155,7 +143,6 @@ export class CredentialLoginService implements OnModuleInit {
       return {
         success: true,
         message: 'Sign-in successful.',
-        tokens: { accessToken, refreshToken },
         user: {
           id: user._id.toString(),
           email: user.email,
