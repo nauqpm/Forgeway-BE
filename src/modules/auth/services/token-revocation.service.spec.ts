@@ -27,7 +27,7 @@ describe('TokenRevocationService', () => {
       'refresh-token',
     );
 
-    expect(result.message).toContain('thành công');
+    expect(result.message).toBe('Signed out successfully');
     expect(tokenModel.updateMany).toHaveBeenCalledWith(
       {
         token: {

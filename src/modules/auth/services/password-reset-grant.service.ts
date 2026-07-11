@@ -49,7 +49,7 @@ export class PasswordResetGrantService {
 
     if (!resetGrant?.trim()) {
       this.logger.warn('Password reset grant consume rejected: empty grant');
-      throw new BadRequestException('Reset grant không hợp lệ');
+      throw new BadRequestException('Reset grant is invalid');
     }
 
     const consumed = await this.tokenModel.findOneAndUpdate(
@@ -68,7 +68,7 @@ export class PasswordResetGrantService {
         'Password reset grant consume rejected: invalid, expired, or reused grant',
       );
       throw new UnauthorizedException(
-        'Reset grant khong hop le, da het han hoac da duoc su dung',
+        'Reset grant is invalid, expired, or already used',
       );
     }
 
@@ -83,7 +83,7 @@ export class PasswordResetGrantService {
 
     if (!resetGrant?.trim()) {
       this.logger.warn('Password reset grant validation rejected: empty grant');
-      throw new BadRequestException('Reset grant khong hop le');
+      throw new BadRequestException('Reset grant is invalid');
     }
 
     const activeGrant = await this.tokenModel
@@ -100,7 +100,7 @@ export class PasswordResetGrantService {
         'Password reset grant validation rejected: invalid, expired, or reused grant',
       );
       throw new UnauthorizedException(
-        'Reset grant khong hop le, da het han hoac da duoc su dung',
+        'Reset grant is invalid, expired, or already used',
       );
     }
 

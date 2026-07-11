@@ -24,7 +24,7 @@ export class TokenRevocationService {
     refreshToken?: string,
   ): Promise<{ message: string }> {
     if (!accessToken && !refreshToken) {
-      throw new UnauthorizedException('Token không hợp lệ hoặc thiếu');
+      throw new UnauthorizedException('Token is invalid or missing');
     }
 
     try {
@@ -36,7 +36,7 @@ export class TokenRevocationService {
         { token: { $in: hashedTokens } },
         { status: false },
       );
-      return { message: 'Đăng xuất thành công' };
+      return { message: 'Signed out successfully' };
     } catch (error: unknown) {
       const err = error as Error;
       this.logger.error(
@@ -48,7 +48,7 @@ export class TokenRevocationService {
           'Database temporarily unavailable',
         );
       }
-      throw new InternalServerErrorException('Lỗi khi đăng xuất người dùng.');
+      throw new InternalServerErrorException('Failed to sign out user.');
     }
   }
 
@@ -63,7 +63,7 @@ export class TokenRevocationService {
     } catch (error) {
       const err = error as Error;
       this.logger.error('Token invalidation failed: ' + err.message, err.stack);
-      throw new InternalServerErrorException('Không thể hủy token.');
+      throw new InternalServerErrorException('Cannot invalidate token.');
     }
   }
 
@@ -82,7 +82,7 @@ export class TokenRevocationService {
         err.stack,
       );
       throw new InternalServerErrorException(
-        'Không thể hủy tất cả token của người dùng.',
+        'Cannot invalidate all user tokens.',
       );
     }
   }

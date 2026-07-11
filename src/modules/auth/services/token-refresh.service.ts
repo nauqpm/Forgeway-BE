@@ -41,7 +41,7 @@ export class TokenRefreshService {
       });
 
       if (decoded.type !== TOKEN_TYPES.REFRESH) {
-        throw new UnauthorizedException('Token kh?ng ph?i l? refresh token');
+        throw new UnauthorizedException('Token is not a refresh token');
       }
 
       const consumed = await this.tokenModel.findOneAndUpdate(
@@ -86,7 +86,7 @@ export class TokenRefreshService {
               statusCode: 401,
               error: SECURITY_EVENT_TYPES.TOKEN_FAMILY_REVOKED,
               message:
-                'Phi?n ??ng nh?p b? thu h?i do ph?t hi?n d?u hi?u b?t th??ng. Vui l?ng ??ng nh?p l?i.',
+                'Session was revoked due to suspicious activity. Please sign in again.',
             });
           }
 
@@ -102,14 +102,12 @@ export class TokenRefreshService {
           });
         }
 
-        throw new UnauthorizedException(
-          'Refresh token kh?ng h?p l? ho?c ?? h?t h?n',
-        );
+        throw new UnauthorizedException('Refresh token is invalid or expired');
       }
 
       const user = await this.usersService.getUserById(decoded.userId);
       if (!user) {
-        throw new UnauthorizedException('User kh?ng t?n t?i');
+        throw new UnauthorizedException('User does not exist');
       }
 
       await this.tokenModel.updateMany(
@@ -164,11 +162,11 @@ export class TokenRefreshService {
 
       const err = error as Error;
       if (err.name === 'JsonWebTokenError') {
-        throw new UnauthorizedException('Refresh token kh?ng h?p l?');
+        throw new UnauthorizedException('Refresh token is invalid');
       }
       if (err.name === 'TokenExpiredError') {
         throw new UnauthorizedException(
-          'Refresh token ?? h?t h?n, vui l?ng ??ng nh?p l?i',
+          'Refresh token has expired. Please sign in again',
         );
       }
       if (isMongoUnavailable(error)) {
