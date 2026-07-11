@@ -5,7 +5,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthTokenConfigModule } from './config/auth-token-config.module';
 import { AuthTokenConfigService } from './config/auth-token-config.service';
 
-import { TokenService } from './services/token.service';
 import { PasswordResetGrantService } from './services/password-reset-grant.service';
 import { TokenIssuerService } from './services/token-issuer.service';
 import { TokenRefreshService } from './services/token-refresh.service';
@@ -19,10 +18,10 @@ import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
-    // Needed by sub-services (TokenIssuerService, TokenRefreshService, PasswordResetGrantService, TokenLookupService)
+    // Token persistence for issuer, refresh, reset grant, revocation, and lookup services.
     MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
 
-    // Needed by TokenService(peekUserIdFromAccessToken) and TokenIssuerService/TokenRefreshService
+    // JWT signing and verification for token issuer and refresh services.
     JwtModule.registerAsync({
       imports: [AuthTokenConfigModule],
       inject: [AuthTokenConfigService],
@@ -35,14 +34,13 @@ import { AuditModule } from '../audit/audit.module';
     }),
     AuthTokenConfigModule,
 
-    // Needed by sub-services (TokenRefreshService)
+    // TokenRefreshService validates the user before rotating tokens.
     forwardRef(() => UsersModule),
 
-    // Needed by sub-services (TokenRefreshService) — circular: TokenModule ↔ AuditModule
+    // TokenRefreshService logs token-family reuse events.
     forwardRef(() => AuditModule),
   ],
   providers: [
-    TokenService,
     PasswordResetGrantService,
     TokenIssuerService,
     TokenRefreshService,
@@ -50,7 +48,6 @@ import { AuditModule } from '../audit/audit.module';
     TokenLookupService,
   ],
   exports: [
-    TokenService,
     PasswordResetGrantService,
     TokenIssuerService,
     TokenRefreshService,
