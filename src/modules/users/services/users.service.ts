@@ -87,8 +87,11 @@ export class UsersService {
   ): Promise<User> {
     this.logger.log(`Updating user info for User ID: ${userId}`);
 
-    if (this.isPasswordUpdate(updateData) && !isPasswordHashed) {
-      await this.handlePasswordUpdate(userId, updateData);
+    if (this.isPasswordUpdate(updateData)) {
+      if (!isPasswordHashed) {
+        await this.handlePasswordUpdate(userId, updateData);
+      }
+      (updateData as any).mustChangePassword = false;
     }
 
     const updatedUser = await this.usersRepository.update(userId, updateData);
@@ -275,4 +278,111 @@ export class UsersService {
       message: 'Password updated successfully',
     };
   }
+
+  async importUsersFromCsv(buffer: Buffer): Promise<{
+    success: boolean;
+    insertedCount: number;
+    skippedCount: number;
+    errors: string[];
+  }> {
+    const csvContent = buffer.toString('utf8');
+    const lines = csvContent.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+
+    if (lines.length <= 1) {
+      throw new BadRequestException('File CSV không có dữ liệu');
+    }
+
+    const headerLine = lines[0];
+    const headers = parseCsvLine(headerLine);
+
+    const emailIdx = headers.indexOf('email');
+    const fullNameIdx = headers.indexOf('fullName');
+    const passwordIdx = headers.indexOf('defaultPassword');
+
+    if (emailIdx === -1 || passwordIdx === -1) {
+      throw new BadRequestException('File CSV thiếu cột email hoặc defaultPassword');
+    }
+
+    let insertedCount = 0;
+    let skippedCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const columns = parseCsvLine(lines[i]);
+        if (columns.length < headers.length) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Thiếu cột dữ liệu`);
+          continue;
+        }
+
+        const email = columns[emailIdx]?.trim();
+        const fullName = fullNameIdx !== -1 ? columns[fullNameIdx]?.trim() : '';
+        const defaultPassword = columns[passwordIdx]?.trim();
+
+        if (!email) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Email trống`);
+          continue;
+        }
+
+        if (!defaultPassword) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Mật khẩu mặc định trống`);
+          continue;
+        }
+
+        const existingUser = await this.findByEmail(email);
+        if (existingUser) {
+          skippedCount++;
+          continue;
+        }
+
+        await this.createUser({
+          email,
+          fullName,
+          password: defaultPassword,
+          role: 'user',
+          status: 'active',
+          mustChangePassword: true,
+        });
+
+        insertedCount++;
+      } catch (err: any) {
+        skippedCount++;
+        errors.push(`Dòng ${i + 1}: ${err.message || 'Lỗi không xác định'}`);
+      }
+    }
+
+    return {
+      success: true,
+      insertedCount,
+      skippedCount,
+      errors,
+    };
+  }
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
 }

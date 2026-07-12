@@ -9,6 +9,7 @@ import {
   IsDateString,
   Length,
   MaxLength,
+  IsBoolean,
 } from 'class-validator';
 
 import { Types } from 'mongoose';
@@ -109,6 +110,10 @@ export class UpdateUsersDto {
   @IsOptional()
   @IsString()
   currentPassword?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  mustChangePassword?: boolean;
 }
 
 export class UpdateUserProfileDto extends OmitType(UpdateUsersDto, [

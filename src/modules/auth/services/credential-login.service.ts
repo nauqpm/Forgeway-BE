@@ -153,6 +153,7 @@ export class CredentialLoginService implements OnModuleInit {
           avatar: user.avatar,
           googleId: user.googleId,
           ssoProvider: user.googleId ? 'google' : undefined,
+          mustChangePassword: user.mustChangePassword,
         },
       };
     } catch (error: unknown) {

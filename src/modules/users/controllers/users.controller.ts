@@ -11,7 +11,11 @@ import {
   BadRequestException,
   Logger,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateUsersDto } from '../dtos/create-users.dto';
@@ -103,6 +107,18 @@ export class UsersController {
     }
 
     return await this.usersService.createUser(createUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
+  @RequirePermission('users', 'create')
+  @Roles(GLOBAL_ROLES.SUPER_ADMIN)
+  @Post('import-csv')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async importUsersCsv(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    return await this.usersService.importUsersFromCsv(file.buffer);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)

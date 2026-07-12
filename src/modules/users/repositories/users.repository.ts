@@ -73,7 +73,7 @@ export class UsersRepository extends BaseRepository<UserDocument> {
     return this.userModel
       .findByIdAndUpdate(
         userId,
-        { $set: { password: hashedPassword } },
+        { $set: { password: hashedPassword, mustChangePassword: false } },
         { new: true },
       )
       .exec();
