@@ -138,11 +138,18 @@ describe('TaskControllers - Route Registration (smoke)', () => {
         TaskAuditService,
         {
           provide: TaskCsvExportService,
-          useValue: { exportTasks: jest.fn(), generateImportTemplate: jest.fn() },
+          useValue: {
+            exportTasks: jest.fn(),
+            generateImportTemplate: jest.fn(),
+          },
         },
         {
           provide: TaskCsvImportService,
-          useValue: { parseAndValidateCsv: jest.fn(), createSessionToken: jest.fn(), importBulk: jest.fn() },
+          useValue: {
+            parseAndValidateCsv: jest.fn(),
+            createSessionToken: jest.fn(),
+            importBulk: jest.fn(),
+          },
         },
         {
           provide: JwtService,
