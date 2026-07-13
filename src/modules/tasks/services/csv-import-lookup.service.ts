@@ -1,0 +1,83 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { UsersService } from '../../users/services/users.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
+import { LabelService } from '../../labels/services/label.service';
+
+export interface ImportLookupMaps {
+  userEmailMap: Map<string, string>;
+  sprintMap: Map<string, string>;
+  labelMap: Map<string, string>;
+}
+
+@Injectable()
+export class CsvImportLookupService {
+  constructor(
+    private readonly workspacesService: WorkspacesService,
+    private readonly usersService: UsersService,
+    private readonly scrumService: ScrumService,
+    private readonly labelService: LabelService,
+  ) {}
+
+  async buildLookupMaps(
+    workspaceId: string,
+    userId: string,
+  ): Promise<ImportLookupMaps> {
+    const workspace = await this.workspacesService.findById(workspaceId);
+    if (!workspace) {
+      throw new BadRequestException('Workspace không tồn tại');
+    }
+
+    const [userEmailMap, sprintMap, labelMap] = await Promise.all([
+      this.buildUserEmailMap(workspace),
+      this.buildSprintMap(workspaceId),
+      this.buildLabelMap(workspaceId, userId),
+    ]);
+
+    return { userEmailMap, sprintMap, labelMap };
+  }
+
+  private async buildUserEmailMap(
+    workspace: Awaited<ReturnType<WorkspacesService['findById']>>,
+  ): Promise<Map<string, string>> {
+    const memberIds = workspace!.members.map(m => m.userId.toString());
+
+    const settled = await Promise.allSettled(
+      memberIds.map(id => this.usersService.getUserById(id)),
+    );
+
+    const map = new Map<string, string>();
+    for (const result of settled) {
+      if (result.status !== 'fulfilled') continue;
+      const user = result.value as { _id: { toString(): string } | string; email: string } | null;
+      if (user?.email) {
+        map.set(user.email.toLowerCase(), (user._id as any).toString());
+      }
+    }
+
+    return map;
+  }
+
+  private async buildSprintMap(
+    workspaceId: string,
+  ): Promise<Map<string, string>> {
+    const sprints = await this.scrumService.findByWorkspace(workspaceId);
+    const map = new Map<string, string>();
+    for (const s of sprints) {
+      map.set(s.name.trim().toLowerCase(), s._id.toString());
+    }
+    return map;
+  }
+
+  private async buildLabelMap(
+    workspaceId: string,
+    userId: string,
+  ): Promise<Map<string, string>> {
+    const labels = await this.labelService.findByWorkspace(workspaceId, userId);
+    const map = new Map<string, string>();
+    for (const l of labels) {
+      map.set(l.name.trim().toLowerCase(), l.id);
+    }
+    return map;
+  }
+}

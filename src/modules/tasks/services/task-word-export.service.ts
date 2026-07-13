@@ -12,7 +12,7 @@ import {
   ShadingType,
 } from 'docx';
 import { TaskDocument } from '../schemas/task.schema';
-import { ResolvedMaps } from './task-csv-export.service';
+import { ResolvedMaps } from './task-export-lookup.service';
 
 @Injectable()
 export class TaskWordExportService {

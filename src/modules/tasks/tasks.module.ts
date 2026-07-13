@@ -52,6 +52,11 @@ import { TaskLifecycleService } from './services/task-lifecycle.service';
 import { TaskCsvImportService } from './services/task-csv-import.service';
 import { TaskCsvExportService } from './services/task-csv-export.service';
 import { TaskWordExportService } from './services/task-word-export.service';
+import { TaskExportLookupService } from './services/task-export-lookup.service';
+import { TaskExportRowMapperService } from './services/task-export-row-mapper.service';
+import { CsvFileParserService } from './services/csv-file-parser.service';
+import { CsvImportLookupService } from './services/csv-import-lookup.service';
+import { CsvRowValidatorService } from './services/csv-row-validator.service';
 import { TaskAuditService } from './shared/task-audit.service';
 
 @Module({
@@ -113,6 +118,11 @@ import { TaskAuditService } from './shared/task-audit.service';
     TaskCsvImportService,
     TaskCsvExportService,
     TaskWordExportService,
+    TaskExportLookupService,
+    TaskExportRowMapperService,
+    CsvFileParserService,
+    CsvImportLookupService,
+    CsvRowValidatorService,
     TaskAuditService,
     WorkspaceRoleGuard,
   ],

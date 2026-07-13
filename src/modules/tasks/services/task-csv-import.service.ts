@@ -1,29 +1,20 @@
 import {
   Injectable,
-  BadRequestException,
   UnauthorizedException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { parse } from 'csv-parse/sync';
-import * as iconv from 'iconv-lite';
-import * as jschardet from 'jschardet';
-import * as xlsx from 'xlsx';
-import { TaskCreateService } from './task-create.service';
-import { WorkspacesService } from '../../workspaces/services/workspaces.service';
-import { UsersService } from '../../users/services/users.service';
-import { ScrumService } from '../../scrum/services/scrum.service';
-import { LabelService } from '../../labels/services/label.service';
-import {
-  TASK_PRIORITIES,
-  TASK_TYPES,
-} from '../constants/task-status.constants';
 import { CsvRowResultDto } from '../dtos/requests/import-csv-preview.dto';
 import {
   ImportBulkResultDto,
   ImportBulkTaskResultDto,
 } from '../dtos/requests/import-csv-preview.dto';
 import { CreateTaskDto } from '../dtos/requests/create-task.dto';
+import { TaskCreateService } from './task-create.service';
+import { CsvFileParserService } from './csv-file-parser.service';
+import { CsvImportLookupService } from './csv-import-lookup.service';
+import { CsvRowValidatorService } from './csv-row-validator.service';
 
 const MAX_CSV_ROWS = 200;
 
@@ -33,11 +24,10 @@ export class TaskCsvImportService {
 
   constructor(
     private readonly taskCreateService: TaskCreateService,
-    private readonly workspacesService: WorkspacesService,
-    private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly scrumService: ScrumService,
-    private readonly labelService: LabelService,
+    private readonly csvFileParserService: CsvFileParserService,
+    private readonly csvImportLookupService: CsvImportLookupService,
+    private readonly csvRowValidatorService: CsvRowValidatorService,
   ) {}
 
   async parseAndValidateCsv(
@@ -51,294 +41,39 @@ export class TaskCsvImportService {
     errorCount: number;
     warningCount: number;
   }> {
-    const detected = jschardet.detect(buffer);
-    let encoding = detected.encoding
-      ? detected.encoding.toLowerCase()
-      : 'utf-8';
+    const records = this.csvFileParserService.parse(buffer, originalname);
 
-    if (encoding === 'windows-1252' || encoding === 'iso-8859-1') {
-      encoding = 'windows-1258';
-    }
-
-    let content = '';
-
-    try {
-      if (iconv.encodingExists(encoding)) {
-        content = iconv.decode(buffer, encoding);
-      } else {
-        content = iconv.decode(buffer, 'utf-8');
-      }
-    } catch (_e) {
-      content = iconv.decode(buffer, 'utf-8');
-    }
-
-    if (content.includes('\uFFFD')) {
-      content = iconv.decode(buffer, 'windows-1258');
-    }
-
-    let records: Record<string, string>[];
-    const isExcel = originalname && originalname.match(/\.(xlsx|xls)$/i);
-
-    try {
-      if (isExcel) {
-        const workbook = xlsx.read(buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        records = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
-      } else {
-        records = parse(content, {
-          columns: true,
-          skip_empty_lines: true,
-          relax_quotes: true,
-          relax_column_count: true,
-        });
-      }
-    } catch (err) {
-      const error = err as Error;
-      throw new BadRequestException(
-        `Lỗi parse ${isExcel ? 'Excel' : 'CSV'}: ` + error.message,
-      );
-    }
-
-    if (records.length === 0) {
-      throw new BadRequestException('File không có dữ liệu (0 dòng).');
-    }
-
-    if (records.length > MAX_CSV_ROWS) {
-      throw new BadRequestException(
-        `File quá lớn. Tối đa cho phép ${MAX_CSV_ROWS} dòng.`,
-      );
-    }
-
-    const workspace = await this.workspacesService.findById(workspaceId);
-    if (!workspace) {
-      throw new BadRequestException('Workspace không tồn tại');
-    }
-
-    const workspaceMemberIds = workspace.members.map(m => m.userId.toString());
-    const userResults = await Promise.allSettled(
-      workspaceMemberIds.map(id => this.usersService.getUserById(id)),
+    const maps = await this.csvImportLookupService.buildLookupMaps(
+      workspaceId,
+      userId,
     );
-    const users = userResults
-      .filter(
-        (
-          res,
-        ): res is PromiseFulfilledResult<{
-          _id: string | { toString(): string };
-          email: string;
-        }> => res.status === 'fulfilled',
-      )
-      .map(res => res.value);
 
-    const userEmailMap = new Map<string, string>();
-    for (const u of users) {
-      if (u && u.email) {
-        userEmailMap.set(u.email.toLowerCase(), u._id.toString());
-      }
-    }
-
-    const sprints = await this.scrumService.findByWorkspace(workspaceId);
-    const sprintMap = new Map<string, string>();
-    for (const s of sprints) {
-      sprintMap.set(s.name.trim().toLowerCase(), s._id.toString());
-    }
-
-    const labels = await this.labelService.findByWorkspace(workspaceId, userId);
-    const labelMap = new Map<string, string>();
-    for (const l of labels) {
-      labelMap.set(l.name.trim().toLowerCase(), l.id);
-    }
-
-    const rowResults: CsvRowResultDto[] = [];
     let validCount = 0;
     let errorCount = 0;
     let warningCount = 0;
 
-    for (const [index, record] of records.entries()) {
-      for (const key of Object.keys(record)) {
-        if (typeof record[key] === 'string') {
-          record[key] = record[key].trim();
-        }
+    const rows = records.map((rawRecord, index) => {
+      const record: Record<string, string> = {};
+      for (const [key, val] of Object.entries(rawRecord)) {
+        record[key] = typeof val === 'string' ? val.trim() : String(val ?? '');
       }
 
-      const rowIndex = index + 2;
-      const errors: string[] = [];
-      const warnings: string[] = [];
+      const result = this.csvRowValidatorService.validateRow(
+        record,
+        index + 2,
+        maps,
+      );
 
-      const title = record['Title'] || record['title'] || '';
-      if (!title) {
-        errors.push('Tiêu đề (title) không được để trống.');
-      } else if (title.length > 255) {
-        errors.push('Tiêu đề (title) vượt quá 255 ký tự.');
-      }
-
-      const type = (record['Type'] || record['type'] || 'task').toLowerCase();
-      if (!TASK_TYPES.includes(type as any)) {
-        errors.push(
-          `Loại task (type) không hợp lệ. Phải là: ${TASK_TYPES.join(', ')}.`,
-        );
-      }
-
-      const priority = (record['Priority'] || record['priority'] || 'medium').toLowerCase();
-      if (!TASK_PRIORITIES.includes(priority as any)) {
-        errors.push(
-          `Độ ưu tiên (priority) không hợp lệ. Phải là: ${TASK_PRIORITIES.join(', ')}.`,
-        );
-      }
-
-      const assigneeEmailRaw = record['Assignee Email'] || record['assigneeEmail'];
-      const assigneeEmail = assigneeEmailRaw
-        ? assigneeEmailRaw.trim().toLowerCase()
-        : '';
-      let assigneeId: string | undefined;
-
-      if (assigneeEmail) {
-        assigneeId = userEmailMap.get(assigneeEmail);
-        if (!assigneeId) {
-          warnings.push(
-            `Email '${assigneeEmail}' không thuộc workspace. Assignee sẽ được để trống.`,
-          );
-        }
-      }
-
-      const storyPointsStr = record['Story Points'] || record['storyPoints'];
-      let storyPoints: number | undefined;
-      if (storyPointsStr) {
-        storyPoints = parseFloat(storyPointsStr);
-        if (isNaN(storyPoints) || storyPoints < 0 || storyPoints > 100) {
-          errors.push('Story points phải là số hợp lệ từ 0 đến 100.');
-        }
-      }
-
-      let parsedStartDate: string | undefined;
-      const startDateRaw = record['Start Date'] || record['startDate'];
-      if (startDateRaw) {
-        const d = new Date(startDateRaw);
-        if (isNaN(d.getTime())) {
-          errors.push('Ngày bắt đầu (startDate) không đúng định dạng hợp lệ.');
-        } else {
-          parsedStartDate = d.toISOString();
-        }
-      }
-
-      let parsedDueDate: string | undefined;
-      const dueDateRaw = record['Due Date'] || record['dueDate'];
-      if (dueDateRaw) {
-        const d = new Date(dueDateRaw);
-        if (isNaN(d.getTime())) {
-          errors.push('Ngày đến hạn (dueDate) không đúng định dạng hợp lệ.');
-        } else {
-          parsedDueDate = d.toISOString();
-        }
-      }
-
-      const sprintRaw = record['Sprint'] || record['sprint'];
-      let sprintId: string | undefined;
-      if (sprintRaw) {
-        sprintId = sprintMap.get(sprintRaw.trim().toLowerCase());
-        if (!sprintId) {
-          warnings.push(`Sprint '${sprintRaw}' không tồn tại. Sprint sẽ được để trống.`);
-        }
-      }
-
-      const labelsRaw = record['Labels'] || record['labels'];
-      const labelIds: string[] = [];
-      if (labelsRaw) {
-        const labelNames = labelsRaw.split(',').map(l => l.trim()).filter(l => l.length > 0);
-        for (const name of labelNames) {
-          const id = labelMap.get(name.toLowerCase());
-          if (id) {
-            labelIds.push(id);
-          } else {
-            warnings.push(`Label '${name}' không tồn tại và sẽ bị bỏ qua.`);
-          }
-        }
-      }
-
-      const timeEstimatedRaw = record['Time Estimated (h)'] || record['timeEstimated'];
-      let timeEstimated: number | undefined;
-      if (timeEstimatedRaw) {
-        timeEstimated = parseFloat(timeEstimatedRaw);
-        if (isNaN(timeEstimated) || timeEstimated < 0) {
-          errors.push('Thời gian ước lượng (Time Estimated) phải là số dương.');
-        }
-      }
-
-      const timeLoggedRaw = record['Time Logged (h)'] || record['timeLogged'];
-      let timeLogged: number | undefined;
-      if (timeLoggedRaw) {
-        timeLogged = parseFloat(timeLoggedRaw);
-        if (isNaN(timeLogged) || timeLogged < 0) {
-          errors.push('Thời gian đã log (Time Logged) phải là số dương.');
-        }
-      }
-
-      let status = 'valid';
-      if (errors.length > 0) {
-        status = 'error';
-        errorCount++;
-      } else if (warnings.length > 0) {
-        status = 'warning';
-        warningCount++;
+      if (result.status === 'error') errorCount++;
+      else {
         validCount++;
-      } else {
-        validCount++;
+        if (result.status === 'warning') warningCount++;
       }
 
-      const description = record['Description'] || record['description'] || '';
-      if (description.length > 5000) {
-        errors.push('Mô tả (description) vượt quá 5000 ký tự.');
-      }
+      return result;
+    });
 
-      const data: Partial<CreateTaskDto> = {
-        title,
-        description,
-        type,
-        priority,
-        status: record['Status'] || record['status'] ? (record['Status'] || record['status']).trim() : 'todo',
-      };
-
-      if (assigneeId) {
-        data.assigneeId = assigneeId;
-      }
-      if (storyPoints !== undefined) {
-        data.storyPoints = storyPoints;
-      }
-      if (parsedStartDate) {
-        data.startDate = parsedStartDate;
-      }
-      if (parsedDueDate) {
-        data.dueDate = parsedDueDate;
-      }
-      if (sprintId) {
-        data.sprintId = sprintId;
-      }
-      if (labelIds.length > 0) {
-        data.labelIds = labelIds;
-      }
-      if (timeEstimated !== undefined) {
-        data.timeEstimated = timeEstimated;
-      }
-      if (timeLogged !== undefined) {
-        data.timeLogged = timeLogged;
-      }
-
-      rowResults.push({
-        rowIndex,
-        title,
-        status: status as 'valid' | 'error' | 'warning',
-        errors,
-        warnings,
-        data,
-      });
-    }
-
-    return {
-      rows: rowResults,
-      validCount,
-      errorCount,
-      warningCount,
-    };
+    return { rows, validCount, errorCount, warningCount };
   }
 
   createSessionToken(
@@ -367,9 +102,10 @@ export class TaskCsvImportService {
       purpose?: string;
       rows?: CreateTaskDto[];
     };
+
     try {
       payload = this.jwtService.verify(sessionToken);
-    } catch (_e) {
+    } catch {
       throw new UnauthorizedException(
         'Phiên import đã hết hạn hoặc không hợp lệ. Vui lòng upload lại file.',
       );
@@ -396,7 +132,11 @@ export class TaskCsvImportService {
     for (let i = 0; i < rowsToCreate.length; i++) {
       const row = rowsToCreate[i];
       try {
-        const result = await this.taskCreateService.createInWorkspaceId(workspaceId, row, userId);
+        const result = await this.taskCreateService.createInWorkspaceId(
+          workspaceId,
+          row,
+          userId,
+        );
         createdCount++;
         results.push({
           rowIndex: i,
@@ -415,10 +155,6 @@ export class TaskCsvImportService {
       }
     }
 
-    return {
-      created: createdCount,
-      failed: failedCount,
-      results,
-    };
+    return { created: createdCount, failed: failedCount, results };
   }
 }
