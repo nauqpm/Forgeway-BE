@@ -8,10 +8,7 @@ const MAX_CSV_ROWS = 200;
 
 @Injectable()
 export class CsvFileParserService {
-  parse(
-    buffer: Buffer,
-    originalname?: string,
-  ): Record<string, string>[] {
+  parse(buffer: Buffer, originalname?: string): Record<string, string>[] {
     const isExcel = !!originalname?.match(/\.(xlsx|xls)$/i);
 
     if (isExcel) {
@@ -58,9 +55,7 @@ export class CsvFileParserService {
         relax_column_count: true,
       });
     } catch (err) {
-      throw new BadRequestException(
-        `Lỗi parse CSV: ${(err as Error).message}`,
-      );
+      throw new BadRequestException(`Lỗi parse CSV: ${(err as Error).message}`);
     }
 
     this.assertRowLimits(records.length, 'CSV');

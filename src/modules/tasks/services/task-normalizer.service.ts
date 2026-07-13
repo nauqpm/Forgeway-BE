@@ -154,7 +154,9 @@ export class TaskNormalizerService {
         item =>
           item.id.toLowerCase() === normalizedStatus ||
           item.name.toLowerCase() === normalizedStatus ||
-          (item.mappedStatuses || []).some(s => s.toLowerCase() === normalizedStatus),
+          (item.mappedStatuses || []).some(
+            s => s.toLowerCase() === normalizedStatus,
+          ),
       );
 
       // Fallback alias for common Excel templates
@@ -165,7 +167,9 @@ export class TaskNormalizerService {
             item.id.toLowerCase() === fallbackStatus ||
             item.id.toLowerCase() === 'in-progress' ||
             item.name.toLowerCase() === fallbackStatus ||
-            (item.mappedStatuses || []).some(s => s.toLowerCase() === fallbackStatus),
+            (item.mappedStatuses || []).some(
+              s => s.toLowerCase() === fallbackStatus,
+            ),
         );
       }
       if (!column) {
@@ -192,7 +196,9 @@ export class TaskNormalizerService {
   ): string {
     if (requestedStatus) {
       const normalizedReq = requestedStatus.toLowerCase();
-      const exactMatch = (column.mappedStatuses || []).find(s => s.toLowerCase() === normalizedReq);
+      const exactMatch = (column.mappedStatuses || []).find(
+        s => s.toLowerCase() === normalizedReq,
+      );
       if (exactMatch) {
         return exactMatch;
       }
@@ -202,9 +208,13 @@ export class TaskNormalizerService {
       if (column.name.toLowerCase() === normalizedReq) {
         return (column.mappedStatuses || [])[0] || column.id;
       }
-      
+
       // Fallback alias
-      if (normalizedReq === 'in process' && (column.id.toLowerCase() === 'in-progress' || column.name.toLowerCase() === 'in progress')) {
+      if (
+        normalizedReq === 'in process' &&
+        (column.id.toLowerCase() === 'in-progress' ||
+          column.name.toLowerCase() === 'in progress')
+      ) {
         return (column.mappedStatuses || [])[0] || column.id;
       }
       return requestedStatus;

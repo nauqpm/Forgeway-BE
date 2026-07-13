@@ -41,8 +41,12 @@ export class TaskDataTransformerService {
       labelIds: dto.labelIds
         ? dto.labelIds.map(id => new Types.ObjectId(id))
         : [],
-      timeEstimated: dto.timeEstimated !== undefined ? Math.max(0, dto.timeEstimated) : undefined,
-      timeLogged: dto.timeLogged !== undefined ? Math.max(0, dto.timeLogged) : 0,
+      timeEstimated:
+        dto.timeEstimated !== undefined
+          ? Math.max(0, dto.timeEstimated)
+          : undefined,
+      timeLogged:
+        dto.timeLogged !== undefined ? Math.max(0, dto.timeLogged) : 0,
     };
   }
 

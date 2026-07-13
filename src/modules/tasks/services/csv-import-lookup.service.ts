@@ -49,7 +49,10 @@ export class CsvImportLookupService {
     const map = new Map<string, string>();
     for (const result of settled) {
       if (result.status !== 'fulfilled') continue;
-      const user = result.value as { _id: { toString(): string } | string; email: string } | null;
+      const user = result.value as {
+        _id: { toString(): string } | string;
+        email: string;
+      } | null;
       if (user?.email) {
         map.set(user.email.toLowerCase(), (user._id as any).toString());
       }

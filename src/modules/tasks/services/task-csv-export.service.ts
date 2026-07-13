@@ -74,7 +74,12 @@ export class TaskCsvExportService {
     );
 
     const rows = tasks.map(task =>
-      this.taskExportRowMapperService.toRow(task, resolved, baseUrl, workspaceId),
+      this.taskExportRowMapperService.toRow(
+        task,
+        resolved,
+        baseUrl,
+        workspaceId,
+      ),
     );
 
     const format = dto.format ?? ExportFormat.CSV;
@@ -171,32 +176,137 @@ export class TaskCsvExportService {
     worksheet.addConditionalFormatting({
       ref: 'C2:C1000',
       rules: [
-        { type: 'cellIs', operator: 'equal', formulae: ['"Task"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Bug"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Story"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Epic"'], style: { font: { color: { argb: 'FF9333EA' }, bold: true } } },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Task"'],
+          style: { font: { color: { argb: 'FF2563EB' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Bug"'],
+          style: { font: { color: { argb: 'FFDC2626' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Story"'],
+          style: { font: { color: { argb: 'FF16A34A' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Epic"'],
+          style: { font: { color: { argb: 'FF9333EA' }, bold: true } },
+        },
       ] as any,
     });
 
     worksheet.addConditionalFormatting({
       ref: 'D2:D1000',
       rules: [
-        { type: 'cellIs', operator: 'equal', formulae: ['"Highest"'], style: { font: { color: { argb: 'FF8B0000' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"High"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Medium"'], style: { font: { color: { argb: 'FFD97706' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Low"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Lowest"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Highest"'],
+          style: { font: { color: { argb: 'FF8B0000' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"High"'],
+          style: { font: { color: { argb: 'FFDC2626' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Medium"'],
+          style: { font: { color: { argb: 'FFD97706' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Low"'],
+          style: { font: { color: { argb: 'FF2563EB' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Lowest"'],
+          style: { font: { color: { argb: 'FF16A34A' }, bold: true } },
+        },
       ] as any,
     });
 
     worksheet.addConditionalFormatting({
       ref: 'E2:E1000',
       rules: [
-        { type: 'cellIs', operator: 'equal', formulae: ['"To do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"To Do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"In Process"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"In Progress"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Done"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFC6EFCE' } }, font: { color: { argb: 'FF006100' }, bold: true } } },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"To do"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFC7CE' },
+            },
+            font: { color: { argb: 'FF9C0006' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"To Do"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFC7CE' },
+            },
+            font: { color: { argb: 'FF9C0006' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"In Process"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFEB9C' },
+            },
+            font: { color: { argb: 'FF9C6500' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"In Progress"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFEB9C' },
+            },
+            font: { color: { argb: 'FF9C6500' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Done"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFC6EFCE' },
+            },
+            font: { color: { argb: 'FF006100' }, bold: true },
+          },
+        },
       ] as any,
     });
 
@@ -308,32 +418,137 @@ export class TaskCsvExportService {
     worksheet.addConditionalFormatting({
       ref: 'D2:D1000',
       rules: [
-        { type: 'cellIs', operator: 'equal', formulae: ['"Task"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Bug"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Story"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Epic"'], style: { font: { color: { argb: 'FF9333EA' }, bold: true } } },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Task"'],
+          style: { font: { color: { argb: 'FF2563EB' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Bug"'],
+          style: { font: { color: { argb: 'FFDC2626' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Story"'],
+          style: { font: { color: { argb: 'FF16A34A' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Epic"'],
+          style: { font: { color: { argb: 'FF9333EA' }, bold: true } },
+        },
       ] as any,
     });
 
     worksheet.addConditionalFormatting({
       ref: 'F2:F1000',
       rules: [
-        { type: 'cellIs', operator: 'equal', formulae: ['"Highest"'], style: { font: { color: { argb: 'FF8B0000' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"High"'], style: { font: { color: { argb: 'FFDC2626' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Medium"'], style: { font: { color: { argb: 'FFD97706' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Low"'], style: { font: { color: { argb: 'FF2563EB' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Lowest"'], style: { font: { color: { argb: 'FF16A34A' }, bold: true } } },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Highest"'],
+          style: { font: { color: { argb: 'FF8B0000' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"High"'],
+          style: { font: { color: { argb: 'FFDC2626' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Medium"'],
+          style: { font: { color: { argb: 'FFD97706' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Low"'],
+          style: { font: { color: { argb: 'FF2563EB' }, bold: true } },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Lowest"'],
+          style: { font: { color: { argb: 'FF16A34A' }, bold: true } },
+        },
       ] as any,
     });
 
     worksheet.addConditionalFormatting({
       ref: 'E2:E1000',
       rules: [
-        { type: 'cellIs', operator: 'equal', formulae: ['"To do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"To Do"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFC7CE' } }, font: { color: { argb: 'FF9C0006' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"In Process"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"In Progress"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFEB9C' } }, font: { color: { argb: 'FF9C6500' }, bold: true } } },
-        { type: 'cellIs', operator: 'equal', formulae: ['"Done"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFC6EFCE' } }, font: { color: { argb: 'FF006100' }, bold: true } } },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"To do"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFC7CE' },
+            },
+            font: { color: { argb: 'FF9C0006' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"To Do"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFC7CE' },
+            },
+            font: { color: { argb: 'FF9C0006' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"In Process"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFEB9C' },
+            },
+            font: { color: { argb: 'FF9C6500' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"In Progress"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFFFEB9C' },
+            },
+            font: { color: { argb: 'FF9C6500' }, bold: true },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Done"'],
+          style: {
+            fill: {
+              type: 'pattern',
+              pattern: 'solid',
+              bgColor: { argb: 'FFC6EFCE' },
+            },
+            font: { color: { argb: 'FF006100' }, bold: true },
+          },
+        },
       ] as any,
     });
 

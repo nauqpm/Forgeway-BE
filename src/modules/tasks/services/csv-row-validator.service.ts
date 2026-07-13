@@ -51,7 +51,11 @@ export class CsvRowValidatorService {
 
     const status = getField(record, 'Status', 'status') || 'todo';
 
-    const assigneeEmailRaw = getField(record, 'Assignee Email', 'assigneeEmail');
+    const assigneeEmailRaw = getField(
+      record,
+      'Assignee Email',
+      'assigneeEmail',
+    );
     const assigneeLookup = lookupWithWarning(
       assigneeEmailRaw,
       maps.userEmailMap,

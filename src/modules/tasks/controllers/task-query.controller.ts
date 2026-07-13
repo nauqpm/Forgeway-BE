@@ -105,7 +105,10 @@ export class TaskQueryController {
     @Query('format') format: 'csv' | 'xlsx',
     @Res({ passthrough: true }) res: ExpressResponse,
   ) {
-    const result = await this.taskCsvExportService.generateImportTemplate(workspaceId, format);
+    const result = await this.taskCsvExportService.generateImportTemplate(
+      workspaceId,
+      format,
+    );
     res.set({
       'Content-Type': result.contentType,
       'Content-Disposition': `attachment; filename="${result.filename}"`,
