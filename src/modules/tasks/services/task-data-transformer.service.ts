@@ -38,6 +38,11 @@ export class TaskDataTransformerService {
       epicId: (dto as any).epicId
         ? new Types.ObjectId((dto as any).epicId)
         : undefined,
+      labelIds: dto.labelIds
+        ? dto.labelIds.map(id => new Types.ObjectId(id))
+        : [],
+      timeEstimated: dto.timeEstimated !== undefined ? Math.max(0, dto.timeEstimated) : undefined,
+      timeLogged: dto.timeLogged !== undefined ? Math.max(0, dto.timeLogged) : 0,
     };
   }
 

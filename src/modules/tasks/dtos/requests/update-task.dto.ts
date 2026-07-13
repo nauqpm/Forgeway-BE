@@ -90,14 +90,7 @@ export class UpdateTaskDto {
   @IsString()
   columnId?: string;
 
-  /**
-   * Tổng số giờ đã làm việc được log lần này.
-   * FE gửi dạng số thực (ví dụ: 1.5, 2, 4.5).
-   */
-  @ApiPropertyOptional({
-    description: 'Hours logged this session (e.g. 1.5, 4.5)',
-    example: 4.5,
-  })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -105,14 +98,7 @@ export class UpdateTaskDto {
   @Max(99999)
   timeLogged?: number;
 
-  /**
-   * Thời gian ước lượng còn lại, tính bằng GIỜ (FE gửi dạng số thực).
-   * Ví dụ: 6 hoặc 1.5.
-   */
-  @ApiPropertyOptional({
-    description: 'Estimated time remaining in HOURS (e.g. 6 or 1.5)',
-    example: 6.5,
-  })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
