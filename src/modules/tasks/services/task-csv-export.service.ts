@@ -30,8 +30,8 @@ const EXPORT_COLUMNS = [
   'Type',
   'Status',
   'Priority',
-  'Assignee Email',
-  'Reporter Email',
+  'Assignee Name',
+  'Reporter Name',
   'Story Points',
   'Labels',
   'Sprint',
@@ -326,7 +326,7 @@ export class TaskCsvExportService {
       const doc = u as any;
       const id = (doc._id || doc.id)?.toString();
       if (id) {
-        usersMap.set(id, doc.email || id);
+        usersMap.set(id, doc.fullName || doc.email || id);
       }
     }
 
@@ -381,18 +381,22 @@ export class TaskCsvExportService {
     };
 
     const aId = extractId(plain.assigneeId);
-    let assigneeEmail = aId ? resolved.users.get(aId) : '';
-    if (!assigneeEmail && plain.assigneeId?.email) {
-      assigneeEmail = plain.assigneeId.email;
+    let assigneeName = aId ? resolved.users.get(aId) : '';
+    if (!assigneeName && plain.assigneeId?.fullName) {
+      assigneeName = plain.assigneeId.fullName;
+    } else if (!assigneeName && plain.assigneeId?.email) {
+      assigneeName = plain.assigneeId.email;
     }
-    assigneeEmail = assigneeEmail || '';
+    assigneeName = assigneeName || '';
 
     const rId = extractId(plain.reporterId);
-    let reporterEmail = rId ? resolved.users.get(rId) : '';
-    if (!reporterEmail && plain.reporterId?.email) {
-      reporterEmail = plain.reporterId.email;
+    let reporterName = rId ? resolved.users.get(rId) : '';
+    if (!reporterName && plain.reporterId?.fullName) {
+      reporterName = plain.reporterId.fullName;
+    } else if (!reporterName && plain.reporterId?.email) {
+      reporterName = plain.reporterId.email;
     }
-    reporterEmail = reporterEmail || '';
+    reporterName = reporterName || '';
 
     const cId = extractId(plain.columnId);
     const statusName = cId
@@ -430,8 +434,8 @@ export class TaskCsvExportService {
       typeName,
       statusName,
       priorityName,
-      assigneeEmail,
-      reporterEmail,
+      assigneeName,
+      reporterName,
       plain.storyPoints != null ? String(plain.storyPoints) : '',
       labelNames,
       sprintName,
