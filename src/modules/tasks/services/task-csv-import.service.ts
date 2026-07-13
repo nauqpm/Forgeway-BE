@@ -12,6 +12,8 @@ import * as xlsx from 'xlsx';
 import { TaskCreateService } from './task-create.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { UsersService } from '../../users/services/users.service';
+import { ScrumService } from '../../scrum/services/scrum.service';
+import { LabelService } from '../../labels/services/label.service';
 import {
   TASK_PRIORITIES,
   TASK_TYPES,
@@ -34,6 +36,8 @@ export class TaskCsvImportService {
     private readonly workspacesService: WorkspacesService,
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly scrumService: ScrumService,
+    private readonly labelService: LabelService,
   ) {}
 
   async parseAndValidateCsv(
@@ -133,6 +137,18 @@ export class TaskCsvImportService {
       }
     }
 
+    const sprints = await this.scrumService.findByWorkspace(workspaceId);
+    const sprintMap = new Map<string, string>();
+    for (const s of sprints) {
+      sprintMap.set(s.name.trim().toLowerCase(), s._id.toString());
+    }
+
+    const labels = await this.labelService.findByWorkspace(workspaceId, userId);
+    const labelMap = new Map<string, string>();
+    for (const l of labels) {
+      labelMap.set(l.name.trim().toLowerCase(), l.id);
+    }
+
     const rowResults: CsvRowResultDto[] = [];
     let validCount = 0;
     let errorCount = 0;
@@ -216,6 +232,47 @@ export class TaskCsvImportService {
         }
       }
 
+      const sprintRaw = record['Sprint'] || record['sprint'];
+      let sprintId: string | undefined;
+      if (sprintRaw) {
+        sprintId = sprintMap.get(sprintRaw.trim().toLowerCase());
+        if (!sprintId) {
+          warnings.push(`Sprint '${sprintRaw}' không tồn tại. Sprint sẽ được để trống.`);
+        }
+      }
+
+      const labelsRaw = record['Labels'] || record['labels'];
+      const labelIds: string[] = [];
+      if (labelsRaw) {
+        const labelNames = labelsRaw.split(',').map(l => l.trim()).filter(l => l.length > 0);
+        for (const name of labelNames) {
+          const id = labelMap.get(name.toLowerCase());
+          if (id) {
+            labelIds.push(id);
+          } else {
+            warnings.push(`Label '${name}' không tồn tại và sẽ bị bỏ qua.`);
+          }
+        }
+      }
+
+      const timeEstimatedRaw = record['Time Estimated (h)'] || record['timeEstimated'];
+      let timeEstimated: number | undefined;
+      if (timeEstimatedRaw) {
+        timeEstimated = parseFloat(timeEstimatedRaw);
+        if (isNaN(timeEstimated) || timeEstimated < 0) {
+          errors.push('Thời gian ước lượng (Time Estimated) phải là số dương.');
+        }
+      }
+
+      const timeLoggedRaw = record['Time Logged (h)'] || record['timeLogged'];
+      let timeLogged: number | undefined;
+      if (timeLoggedRaw) {
+        timeLogged = parseFloat(timeLoggedRaw);
+        if (isNaN(timeLogged) || timeLogged < 0) {
+          errors.push('Thời gian đã log (Time Logged) phải là số dương.');
+        }
+      }
+
       let status = 'valid';
       if (errors.length > 0) {
         status = 'error';
@@ -252,6 +309,18 @@ export class TaskCsvImportService {
       }
       if (parsedDueDate) {
         data.dueDate = parsedDueDate;
+      }
+      if (sprintId) {
+        data.sprintId = sprintId;
+      }
+      if (labelIds.length > 0) {
+        data.labelIds = labelIds;
+      }
+      if (timeEstimated !== undefined) {
+        data.timeEstimated = timeEstimated;
+      }
+      if (timeLogged !== undefined) {
+        data.timeLogged = timeLogged;
       }
 
       rowResults.push({

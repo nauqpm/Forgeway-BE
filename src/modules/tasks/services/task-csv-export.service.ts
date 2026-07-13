@@ -121,6 +121,10 @@ export class TaskCsvExportService {
       'Story Points',
       'Start Date',
       'Due Date',
+      'Labels',
+      'Sprint',
+      'Time Estimated (h)',
+      'Time Logged (h)',
     ];
 
     const sampleRow = [
@@ -133,6 +137,10 @@ export class TaskCsvExportService {
       '5',
       '2026-01-01',
       '2026-01-15',
+      'Frontend, Backend',
+      'Sprint 1',
+      '4.5',
+      '2.5',
     ];
 
     const workbook = new ExcelJS.Workbook();
