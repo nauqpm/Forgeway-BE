@@ -8,6 +8,7 @@ export const AUTH_ERROR_CODES = {
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
   TOKEN_INVALID: 'TOKEN_INVALID',
   TOKEN_REVOKED: 'TOKEN_REVOKED',
+  PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED',
 } as const;
 
 // ─── Tasks ──────────────────────────────────────────────────────────────────

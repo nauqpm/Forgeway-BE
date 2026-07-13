@@ -121,12 +121,14 @@ export class TokenService {
     fullName?: string,
     avatar?: string,
     rootUserId?: string,
+    mustChangePassword = false,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const accessToken = this.createAccessToken(
         userId,
         email,
         role,
+        mustChangePassword,
         fullName,
         avatar,
         rootUserId,
@@ -181,6 +183,7 @@ export class TokenService {
     userId: string,
     email: string,
     role: string,
+    mustChangePassword: boolean,
     fullName?: string,
     avatar?: string,
     rootUserId?: string,
@@ -189,6 +192,7 @@ export class TokenService {
       userId,
       email,
       role,
+      mustChangePassword,
       fullName,
       avatar,
       type: TOKEN_TYPES.ACCESS,
@@ -422,6 +426,7 @@ export class TokenService {
         user._id.toString(),
         user.email,
         user.role,
+        user.mustChangePassword ?? false,
         user.fullName,
         user.avatar,
         decoded.rootUserId,

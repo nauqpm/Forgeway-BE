@@ -18,6 +18,7 @@ import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { ErrorFactory } from '../../../common/factories/error.factory';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
 
 export interface UserSearchResult {
   id: string;
@@ -37,7 +38,7 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Fetching user by ID: ${id}`);
@@ -243,8 +244,8 @@ export class UsersService {
   private toUserSearchResult(user: UserSearchRecord): UserSearchResult {
     const id =
       typeof user._id === 'object' &&
-      user._id !== null &&
-      'toString' in user._id
+        user._id !== null &&
+        'toString' in user._id
         ? user._id.toString()
         : String(user._id);
 
@@ -285,19 +286,20 @@ export class UsersService {
     skippedCount: number;
     errors: string[];
   }> {
-    const csvContent = buffer.toString('utf8');
-    const lines = csvContent.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const csvContent = stripUtf8Bom(buffer.toString('utf8'));
+    const lines = csvContent.split(/\r?\n/).filter(line => line.trim().length > 0);
 
     if (lines.length <= 1) {
       throw new BadRequestException('File CSV không có dữ liệu');
     }
 
     const headerLine = lines[0];
-    const headers = parseCsvLine(headerLine);
+    const headers = parseCsvLine(headerLine).map(normalizeCsvHeader);
 
     const emailIdx = headers.indexOf('email');
     const fullNameIdx = headers.indexOf('fullName');
     const passwordIdx = headers.indexOf('defaultPassword');
+    const mustChangePasswordIdx = headers.indexOf('mustChangePassword');
 
     if (emailIdx === -1 || passwordIdx === -1) {
       throw new BadRequestException('File CSV thiếu cột email hoặc defaultPassword');
@@ -306,25 +308,48 @@ export class UsersService {
     let insertedCount = 0;
     let skippedCount = 0;
     const errors: string[] = [];
+    const seenEmails = new Set<string>();
 
     for (let i = 1; i < lines.length; i++) {
       try {
         const columns = parseCsvLine(lines[i]);
-        if (columns.length < headers.length) {
+        const requiredColumnCount =
+          Math.max(emailIdx, passwordIdx, fullNameIdx, mustChangePasswordIdx) + 1;
+        if (columns.length < requiredColumnCount) {
           skippedCount++;
           errors.push(`Dòng ${i + 1}: Thiếu cột dữ liệu`);
           continue;
         }
 
-        const email = columns[emailIdx]?.trim();
+        const email = columns[emailIdx]?.trim().toLowerCase();
         const fullName = fullNameIdx !== -1 ? columns[fullNameIdx]?.trim() : '';
         const defaultPassword = columns[passwordIdx]?.trim();
+        const mustChangePassword = parseCsvBoolean(
+          mustChangePasswordIdx !== -1
+            ? columns[mustChangePasswordIdx]
+            : undefined,
+          true,
+        );
 
         if (!email) {
           skippedCount++;
           errors.push(`Dòng ${i + 1}: Email trống`);
           continue;
         }
+
+        if (!EMAIL_POLICY.pattern.test(email)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Email không hợp lệ`);
+          continue;
+        }
+
+        if (seenEmails.has(email)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Email bị trùng trong file CSV`);
+          continue;
+        }
+
+        seenEmails.add(email);
 
         if (!defaultPassword) {
           skippedCount++;
@@ -344,7 +369,7 @@ export class UsersService {
           password: defaultPassword,
           role: 'user',
           status: 'active',
-          mustChangePassword: true,
+          mustChangePassword,
         });
 
         insertedCount++;
@@ -385,4 +410,28 @@ function parseCsvLine(line: string): string[] {
   }
   result.push(current.trim());
   return result;
+}
+
+function stripUtf8Bom(value: string): string {
+  return value.replace(/^\uFEFF/, '');
+}
+
+function normalizeCsvHeader(value: string): string {
+  return stripUtf8Bom(value).trim();
+}
+
+function parseCsvBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (value == null || value.trim() === '') {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'y'].includes(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'n'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
 }
