@@ -105,7 +105,10 @@ export class JwtAuthGuard implements CanActivate {
 
     if (
       decoded.mustChangePassword &&
-      !this.isPasswordChangeAllowed(request.method, request.originalUrl || request.url)
+      !this.isPasswordChangeAllowed(
+        request.method,
+        request.originalUrl || request.url,
+      )
     ) {
       this.logger.warn(
         `Blocked access for userId ${decoded.userId} until password is changed`,
@@ -129,16 +132,16 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 
-  private isPasswordChangeAllowed(method: string, requestPath: string): boolean {
+  private isPasswordChangeAllowed(
+    method: string,
+    requestPath: string,
+  ): boolean {
     const normalizedPath = requestPath
       .split('?')[0]
       .replace(/\/+$/, '')
       .toLowerCase();
 
-    if (
-      method.toUpperCase() === 'POST' &&
-      normalizedPath === '/auth/refresh'
-    ) {
+    if (method.toUpperCase() === 'POST' && normalizedPath === '/auth/refresh') {
       return true;
     }
 

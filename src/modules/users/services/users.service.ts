@@ -38,7 +38,7 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   async getUserById(id: string): Promise<User> {
     this.logger.debug(`Fetching user by ID: ${id}`);
@@ -244,8 +244,8 @@ export class UsersService {
   private toUserSearchResult(user: UserSearchRecord): UserSearchResult {
     const id =
       typeof user._id === 'object' &&
-        user._id !== null &&
-        'toString' in user._id
+      user._id !== null &&
+      'toString' in user._id
         ? user._id.toString()
         : String(user._id);
 
@@ -287,7 +287,9 @@ export class UsersService {
     errors: string[];
   }> {
     const csvContent = stripUtf8Bom(buffer.toString('utf8'));
-    const lines = csvContent.split(/\r?\n/).filter(line => line.trim().length > 0);
+    const lines = csvContent
+      .split(/\r?\n/)
+      .filter(line => line.trim().length > 0);
 
     if (lines.length <= 1) {
       throw new BadRequestException('File CSV không có dữ liệu');
@@ -302,7 +304,9 @@ export class UsersService {
     const mustChangePasswordIdx = headers.indexOf('mustChangePassword');
 
     if (emailIdx === -1 || passwordIdx === -1) {
-      throw new BadRequestException('File CSV thiếu cột email hoặc defaultPassword');
+      throw new BadRequestException(
+        'File CSV thiếu cột email hoặc defaultPassword',
+      );
     }
 
     let insertedCount = 0;
@@ -314,7 +318,8 @@ export class UsersService {
       try {
         const columns = parseCsvLine(lines[i]);
         const requiredColumnCount =
-          Math.max(emailIdx, passwordIdx, fullNameIdx, mustChangePasswordIdx) + 1;
+          Math.max(emailIdx, passwordIdx, fullNameIdx, mustChangePasswordIdx) +
+          1;
         if (columns.length < requiredColumnCount) {
           skippedCount++;
           errors.push(`Dòng ${i + 1}: Thiếu cột dữ liệu`);
@@ -420,7 +425,10 @@ function normalizeCsvHeader(value: string): string {
   return stripUtf8Bom(value).trim();
 }
 
-function parseCsvBoolean(value: string | undefined, fallback: boolean): boolean {
+function parseCsvBoolean(
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
   if (value == null || value.trim() === '') {
     return fallback;
   }

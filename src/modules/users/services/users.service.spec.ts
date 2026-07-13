@@ -62,7 +62,7 @@ describe('UsersService', () => {
 
     expect(result.insertedCount).toBe(1);
     expect(result.skippedCount).toBe(1);
-    expect(result.errors).toContain('D?ng 3: Email b? tr?ng trong file CSV');
+    expect(result.errors).toContain('Dòng 3: Email bị trùng trong file CSV');
   });
 
   it('rejects CSV files missing the required import columns', async () => {
