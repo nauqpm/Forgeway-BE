@@ -12,12 +12,14 @@ jobs:
     name: Build & Push Image
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     permissions:
       contents: read
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -57,34 +59,123 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          VPS_GHCR_PAT: ${{ secrets.VPS_GHCR_PAT }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GHCR_USERNAME,VPS_GHCR_PAT,IMAGE_NAME
           script: |
-            echo "${{ secrets.VPS_GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            set -Eeuo pipefail
+
+            trap 'echo "DEPLOY FAILED at line $LINENO"' ERR
+
+            echo "Starting backend deployment..."
+
+            # Fail clearly when a GitHub secret was not provided.
+            : "${GHCR_USERNAME:?GHCR_USERNAME secret is missing}"
+            : "${VPS_GHCR_PAT:?VPS_GHCR_PAT secret is missing}"
+            : "${IMAGE_NAME:?IMAGE_NAME is missing}"
+
+            echo "Authenticating with GHCR..."
+
+            printf '%s' "$VPS_GHCR_PAT" |
+              docker login ghcr.io \
+                --username "$GHCR_USERNAME" \
+                --password-stdin
+
             cd /opt/sdlc
-            docker pull ghcr.io/automationland-dev/sdlc-platform-backend:latest
-            docker compose up -d --no-build --no-deps backend
-            docker image ls "ghcr.io/automationland-dev/sdlc-platform-backend" \
-              --format "{{.Repository}}:{{.Tag}}" | grep "sha-" | sort -r | \
-              tail -n +3 | xargs docker rmi 2>/dev/null || true
+
+            echo "Validating Docker Compose configuration..."
+            docker compose config --quiet
+
+            echo "Pulling backend image..."
+
+            # Pull the image configured specifically for the backend service.
+            docker compose pull backend
+
+            EXPECTED_IMAGE_ID="$(
+              docker image inspect "$IMAGE_NAME:latest" \
+                --format '{{.Id}}'
+            )"
+
+            echo "Pulled image ID: $EXPECTED_IMAGE_ID"
+
+            echo "Starting backend container..."
+
+            docker compose up \
+              -d \
+              --no-build \
+              --no-deps \
+              backend
+
+            echo "Waiting for backend container..."
+
             for i in $(seq 1 18); do
-              CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1)
-              STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null)
-              RESTARTS=$(docker inspect --format='{{.RestartCount}}' "$CONTAINER" 2>/dev/null)
+              CONTAINER="$(
+                docker compose ps -q backend 2>/dev/null |
+                  head -1
+              )"
+
+              if [ -z "$CONTAINER" ]; then
+                echo "Waiting... attempt $i/18 (container not created)"
+                sleep 5
+                continue
+              fi
+
+              STATUS="$(
+                docker inspect \
+                  --format='{{.State.Status}}' \
+                  "$CONTAINER"
+              )"
+
+              RESTARTS="$(
+                docker inspect \
+                  --format='{{.RestartCount}}' \
+                  "$CONTAINER"
+              )"
+
+              ACTUAL_IMAGE_ID="$(
+                docker inspect \
+                  --format='{{.Image}}' \
+                  "$CONTAINER"
+              )"
+
               if [ "${RESTARTS:-0}" -gt 0 ]; then
-                echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s) — crash loop detected"
-                docker compose logs --tail=50 backend
+                echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s)"
+                docker compose logs --tail=100 backend
                 exit 1
               fi
+
               if [ "$STATUS" = "running" ]; then
-                echo "Backend deployed OK (restarts=0, attempt=$i): $(date)"
+                if [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ]; then
+                  echo "DEPLOY FAILED: backend is running an old image"
+                  echo "Expected image: $EXPECTED_IMAGE_ID"
+                  echo "Actual image:   $ACTUAL_IMAGE_ID"
+                  exit 1
+                fi
+
+                echo "Backend deployed successfully"
+                echo "Image ID: $ACTUAL_IMAGE_ID"
+                echo "Attempt: $i"
+                echo "Time: $(date)"
                 exit 0
               fi
-              echo "Waiting... attempt $i/18 (status=${STATUS:-unknown})"
+
+              if [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
+                echo "DEPLOY FAILED: container status is $STATUS"
+                docker compose logs --tail=100 backend
+                exit 1
+              fi
+
+              echo "Waiting... attempt $i/18 (status=$STATUS)"
               sleep 5
             done
-            echo "DEPLOY FAILED: backend did not reach running state after 90s"
-            docker compose logs --tail=50 backend
+
+            echo "DEPLOY FAILED: backend did not become healthy after 90s"
+            docker compose ps backend
+            docker compose logs --tail=100 backend
             exit 1
