@@ -9,7 +9,10 @@ import {
   Post,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -19,6 +22,8 @@ import {
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { WORKSPACE_PERMISSIONS } from '../../../common/constants/workspace-permissions.constants';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -30,8 +35,11 @@ import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { CreateTaskDto } from '../dtos/requests/create-task.dto';
 import { DeleteTaskDto } from '../dtos/requests/delete-task.dto';
 import { UpdateTaskDto } from '../dtos/requests/update-task.dto';
+import { ImportCsvPreviewResponseDto } from '../dtos/requests/import-csv-preview.dto';
+import { ImportCsvConfirmDto } from '../dtos/requests/import-csv-confirm.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TasksService } from '../services/tasks.service';
+import { TaskCsvImportService } from '../services/task-csv-import.service';
 import { TaskAuditService } from '../shared/task-audit.service';
 import { RealtimeService } from '@/modules/realtime/realtime.service';
 import { Request as ExpressRequest } from 'express';
@@ -43,9 +51,80 @@ import { Request as ExpressRequest } from 'express';
 export class TaskCommandController {
   constructor(
     private readonly tasksService: TasksService,
+    private readonly taskCsvImportService: TaskCsvImportService,
     private readonly taskAuditService: TaskAuditService,
     private readonly realtimeService: RealtimeService,
   ) {}
+
+  @Post('tasks/import/preview')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_BULK_IMPORT)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Preview CSV import' })
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async importPreview(
+    @Param('workspaceId') workspaceId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<ImportCsvPreviewResponseDto> {
+    const { rows, validCount, errorCount, warningCount } =
+      await this.taskCsvImportService.parseAndValidateCsv(
+        file.buffer,
+        workspaceId,
+        user.userId,
+        file.originalname,
+      );
+
+    const sessionToken = await this.taskCsvImportService.createSessionToken(
+      rows,
+      workspaceId,
+      user.userId,
+    );
+
+    return {
+      sessionToken,
+      totalRows: rows.length,
+      validCount,
+      errorCount,
+      warningCount,
+      rows,
+    };
+  }
+
+  @Post('tasks/import/confirm')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_BULK_IMPORT)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Confirm and execute CSV import' })
+  async importConfirm(
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: ImportCsvConfirmDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const result = await this.taskCsvImportService.importBulk(
+      dto.sessionToken,
+      workspaceId,
+      user.userId,
+    );
+
+    if (result.created > 0) {
+      this.realtimeService.emitBoardDelta(workspaceId, 'board:refresh', {});
+    }
+
+    return result;
+  }
 
   @Post('tasks')
   @UseGuards(WorkspaceRoleGuard)

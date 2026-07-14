@@ -7,6 +7,7 @@ import {
   IsNumber,
   MaxLength,
   Min,
+  Max,
   IsMongoId,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -70,6 +71,7 @@ export class CreateTaskDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @Max(100)
   storyPoints?: number;
 
   @ApiPropertyOptional()
@@ -91,6 +93,27 @@ export class CreateTaskDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsMongoId({ each: true })
+  labelIds?: string[];
+
+  @ApiPropertyOptional({})
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(9999)
+  timeEstimated?: number;
+
+  @ApiPropertyOptional({})
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(99999)
+  timeLogged?: number;
 }
 
 export { UpdateTaskDto } from './update-task.dto';
