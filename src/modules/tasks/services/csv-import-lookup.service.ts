@@ -3,11 +3,14 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 import { UsersService } from '../../users/services/users.service';
 import { ScrumService } from '../../scrum/services/scrum.service';
 import { LabelService } from '../../labels/services/label.service';
+import { KanbanService } from '../../kanban/services/kanban.service';
+import { BoardColumn } from '../../kanban/schemas/kanban-board.schema';
 
 export interface ImportLookupMaps {
   userEmailMap: Map<string, string>;
   sprintMap: Map<string, string>;
   labelMap: Map<string, string>;
+  kanbanColumns?: BoardColumn[];
 }
 
 @Injectable()
@@ -17,6 +20,7 @@ export class CsvImportLookupService {
     private readonly usersService: UsersService,
     private readonly scrumService: ScrumService,
     private readonly labelService: LabelService,
+    private readonly kanbanService: KanbanService,
   ) {}
 
   async buildLookupMaps(
@@ -34,7 +38,13 @@ export class CsvImportLookupService {
       this.buildLabelMap(workspaceId, userId),
     ]);
 
-    return { userEmailMap, sprintMap, labelMap };
+    let kanbanColumns: BoardColumn[] | undefined;
+    if (workspace.type === 'kanban') {
+      const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+      kanbanColumns = board?.columns;
+    }
+
+    return { userEmailMap, sprintMap, labelMap, kanbanColumns };
   }
 
   private async buildUserEmailMap(

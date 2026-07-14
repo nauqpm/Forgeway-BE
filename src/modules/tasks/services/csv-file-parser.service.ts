@@ -55,7 +55,7 @@ export class CsvFileParserService {
         relax_column_count: true,
       });
     } catch (err) {
-      throw new BadRequestException(`Lỗi parse CSV: ${(err as Error).message}`);
+      throw new BadRequestException(`CSV parsing error: ${(err as Error).message}`);
     }
 
     this.assertRowLimits(records.length, 'CSV');
@@ -71,7 +71,7 @@ export class CsvFileParserService {
       records = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
     } catch (err) {
       throw new BadRequestException(
-        `Lỗi parse Excel: ${(err as Error).message}`,
+        `Excel parsing error: ${(err as Error).message}`,
       );
     }
 
@@ -82,12 +82,12 @@ export class CsvFileParserService {
   private assertRowLimits(count: number, fileType: string): void {
     if (count === 0) {
       throw new BadRequestException(
-        `File ${fileType} không có dữ liệu (0 dòng).`,
+        `The ${fileType} file contains no data (0 rows).`,
       );
     }
     if (count > MAX_CSV_ROWS) {
       throw new BadRequestException(
-        `File quá lớn. Tối đa cho phép ${MAX_CSV_ROWS} dòng.`,
+        `File is too large. Maximum allowed is ${MAX_CSV_ROWS} rows.`,
       );
     }
   }

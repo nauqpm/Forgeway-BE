@@ -87,7 +87,7 @@ export class TaskCommandController {
         file.originalname,
       );
 
-    const sessionToken = this.taskCsvImportService.createSessionToken(
+    const sessionToken = await this.taskCsvImportService.createSessionToken(
       rows,
       workspaceId,
       user.userId,

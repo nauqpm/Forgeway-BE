@@ -337,9 +337,9 @@ export class TaskCsvExportService {
     const result = await this.tasksRepository.findAll({
       workspaceId,
       status: dto.status ? dto.status.split(',') : undefined,
-      assigneeId: dto.assigneeId,
-      type: dto.type,
-      priority: dto.priority,
+      assigneeId: dto.assigneeId ? dto.assigneeId.split(',') : undefined,
+      type: dto.type ? dto.type.split(',') : undefined,
+      priority: dto.priority ? dto.priority.split(',') : undefined,
       search: dto.search,
       sprintId: dto.sprintId,
       limit: MAX_EXPORT_ROWS,

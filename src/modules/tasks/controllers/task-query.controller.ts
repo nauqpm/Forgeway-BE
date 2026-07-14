@@ -94,7 +94,7 @@ export class TaskQueryController {
     }
   }
 
-  @Get('import/template')
+  @Get('tasks/import/template')
   @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Download XLSX import template' })
   @ApiResponse({ status: HttpStatus.OK, description: 'File download' })

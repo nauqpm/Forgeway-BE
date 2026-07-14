@@ -11,6 +11,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LabelsModule } from '../labels/labels.module';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TaskQueryController } from './controllers/task-query.controller';
 import { TaskDetailController } from './controllers/task-detail.controller';
@@ -76,9 +77,19 @@ import { TaskAuditService } from './shared/task-audit.service';
     forwardRef(() => LabelsModule),
     TaskActivitiesModule,
     AuditModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secretKey',
-      signOptions: { expiresIn: '10m' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable is required.');
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: '10m' },
+        };
+      },
     }),
   ],
   controllers: [

@@ -19,14 +19,14 @@ import {
 } from '../../constants/task-status.constants';
 import { normalizeTaskKey } from '../../utils/task-key.util';
 
-const normalizeStatusFilter = (value: unknown): string[] | undefined => {
+const normalizeStringListFilter = (value: unknown): string[] | undefined => {
   const values = Array.isArray(value) ? value : [value];
-  const statuses = values
+  const items = values
     .flatMap(item => String(item ?? '').split(','))
     .map(item => item.trim())
     .filter(Boolean);
 
-  return statuses.length > 0 ? statuses : undefined;
+  return items.length > 0 ? items : undefined;
 };
 
 const normalizeIdListFilter = (value: unknown): string[] | undefined => {
@@ -62,13 +62,15 @@ export class FilterTaskDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsMongoId()
-  assigneeId?: string;
+  @Transform(({ value }) => normalizeIdListFilter(value))
+  @IsMongoId({ each: true })
+  assigneeId?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsMongoId()
-  reporterId?: string;
+  @Transform(({ value }) => normalizeIdListFilter(value))
+  @IsMongoId({ each: true })
+  reporterId?: string[];
 
   @ApiPropertyOptional({
     description:
@@ -95,8 +97,9 @@ export class FilterTaskDto {
 
   @ApiPropertyOptional({ enum: TASK_TYPES })
   @IsOptional()
-  @IsEnum(TASK_TYPES)
-  type?: string;
+  @Transform(({ value }) => normalizeStringListFilter(value))
+  @IsEnum(TASK_TYPES, { each: true })
+  type?: string[];
 
   @ApiPropertyOptional({
     description:
@@ -111,14 +114,15 @@ export class FilterTaskDto {
     ],
   })
   @IsOptional()
-  @Transform(({ value }) => normalizeStatusFilter(value))
+  @Transform(({ value }) => normalizeStringListFilter(value))
   @IsString({ each: true })
   status?: string[];
 
   @ApiPropertyOptional({ enum: TASK_PRIORITIES })
   @IsOptional()
-  @IsEnum(TASK_PRIORITIES)
-  priority?: string;
+  @Transform(({ value }) => normalizeStringListFilter(value))
+  @IsEnum(TASK_PRIORITIES, { each: true })
+  priority?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

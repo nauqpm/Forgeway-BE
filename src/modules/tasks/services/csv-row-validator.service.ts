@@ -25,31 +25,63 @@ export class CsvRowValidatorService {
 
     const title = getField(record, 'Title', 'title');
     if (!title) {
-      errors.push('Tiêu đề (title) không được để trống.');
+      errors.push('Title cannot be empty.');
     } else if (title.length > 255) {
-      errors.push('Tiêu đề (title) vượt quá 255 ký tự.');
+      errors.push('Title exceeds 255 characters.');
     }
 
     const description = getField(record, 'Description', 'description');
     if (description.length > 5000) {
-      errors.push('Mô tả (description) vượt quá 5000 ký tự.');
+      errors.push('Description exceeds 5000 characters.');
     }
 
     const type = getField(record, 'Type', 'type') || 'task';
     if (!TASK_TYPES.includes(type.toLowerCase() as any)) {
       errors.push(
-        `Loại task (type) không hợp lệ. Phải là: ${TASK_TYPES.join(', ')}.`,
+        `Invalid task type. Must be one of: ${TASK_TYPES.join(', ')}.`,
       );
     }
 
     const priority = getField(record, 'Priority', 'priority') || 'medium';
     if (!TASK_PRIORITIES.includes(priority.toLowerCase() as any)) {
       errors.push(
-        `Độ ưu tiên (priority) không hợp lệ. Phải là: ${TASK_PRIORITIES.join(', ')}.`,
+        `Invalid priority. Must be one of: ${TASK_PRIORITIES.join(', ')}.`,
       );
     }
 
-    const status = getField(record, 'Status', 'status') || 'todo';
+    const statusRaw = getField(record, 'Status', 'status');
+    const status = statusRaw || 'todo';
+
+    if (statusRaw && maps.kanbanColumns) {
+      const normalizedStatus = statusRaw.toLowerCase();
+      let column = maps.kanbanColumns.find(
+        item =>
+          item.id.toLowerCase() === normalizedStatus ||
+          item.name.toLowerCase() === normalizedStatus ||
+          (item.mappedStatuses || []).some(
+            s => s.toLowerCase() === normalizedStatus,
+          ),
+      );
+
+      if (!column && normalizedStatus === 'in process') {
+        const fallbackStatus = 'in progress';
+        column = maps.kanbanColumns.find(
+          item =>
+            item.id.toLowerCase() === fallbackStatus ||
+            item.id.toLowerCase() === 'in-progress' ||
+            item.name.toLowerCase() === fallbackStatus ||
+            (item.mappedStatuses || []).some(
+              s => s.toLowerCase() === fallbackStatus,
+            ),
+        );
+      }
+      if (!column) {
+        const available = maps.kanbanColumns.map(c => `'${c.name}'`).join(', ');
+        errors.push(
+          `Status "${statusRaw}" does not map to any column in this board. Available: ${available}`,
+        );
+      }
+    }
 
     const assigneeEmailRaw = getField(
       record,
@@ -59,7 +91,7 @@ export class CsvRowValidatorService {
     const assigneeLookup = lookupWithWarning(
       assigneeEmailRaw,
       maps.userEmailMap,
-      `Email '${assigneeEmailRaw}' không thuộc workspace. Assignee sẽ được để trống.`,
+      `Email '${assigneeEmailRaw}' does not belong to the workspace. Assignee will be left blank.`,
     );
     if (assigneeLookup.warning) warnings.push(assigneeLookup.warning);
 
@@ -67,21 +99,21 @@ export class CsvRowValidatorService {
     const spResult = parseNumericField(
       spRaw,
       { min: 0, max: 100 },
-      'Story points phải là số hợp lệ từ 0 đến 100.',
+      'Story points must be a valid number between 0 and 100.',
     );
     if (spResult.error) errors.push(spResult.error);
 
     const startRaw = getField(record, 'Start Date', 'startDate');
     const startResult = parseDateField(
       startRaw,
-      'Ngày bắt đầu (startDate) không đúng định dạng hợp lệ.',
+      'Start date is in an invalid format.',
     );
     if (startResult.error) errors.push(startResult.error);
 
     const dueRaw = getField(record, 'Due Date', 'dueDate');
     const dueResult = parseDateField(
       dueRaw,
-      'Ngày đến hạn (dueDate) không đúng định dạng hợp lệ.',
+      'Due date is in an invalid format.',
     );
     if (dueResult.error) errors.push(dueResult.error);
 
@@ -89,7 +121,7 @@ export class CsvRowValidatorService {
     const sprintLookup = lookupWithWarning(
       sprintRaw,
       maps.sprintMap,
-      `Sprint '${sprintRaw}' không tồn tại. Sprint sẽ được để trống.`,
+      `Sprint '${sprintRaw}' does not exist. Sprint will be left blank.`,
     );
     if (sprintLookup.warning) warnings.push(sprintLookup.warning);
 
@@ -105,7 +137,7 @@ export class CsvRowValidatorService {
         const lLookup = lookupWithWarning(
           name,
           maps.labelMap,
-          `Label '${name}' không tồn tại và sẽ bị bỏ qua.`,
+          `Label '${name}' does not exist and will be skipped.`,
         );
         if (lLookup.id) labelIds.push(lLookup.id);
         else if (lLookup.warning) warnings.push(lLookup.warning);
@@ -116,7 +148,7 @@ export class CsvRowValidatorService {
     const teResult = parseNumericField(
       teRaw,
       { min: 0 },
-      'Thời gian ước lượng (Time Estimated) phải là số dương.',
+      'Time Estimated must be a positive number.',
     );
     if (teResult.error) errors.push(teResult.error);
 
@@ -124,7 +156,7 @@ export class CsvRowValidatorService {
     const tlResult = parseNumericField(
       tlRaw,
       { min: 0 },
-      'Thời gian đã log (Time Logged) phải là số dương.',
+      'Time Logged must be a positive number.',
     );
     if (tlResult.error) errors.push(tlResult.error);
 

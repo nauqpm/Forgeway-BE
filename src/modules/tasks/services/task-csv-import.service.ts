@@ -3,8 +3,12 @@ import {
   UnauthorizedException,
   BadRequestException,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { randomUUID } from 'crypto';
 import { CsvRowResultDto } from '../dtos/requests/import-csv-preview.dto';
 import {
   ImportBulkResultDto,
@@ -28,6 +32,7 @@ export class TaskCsvImportService {
     private readonly csvFileParserService: CsvFileParserService,
     private readonly csvImportLookupService: CsvImportLookupService,
     private readonly csvRowValidatorService: CsvRowValidatorService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async parseAndValidateCsv(
@@ -76,17 +81,24 @@ export class TaskCsvImportService {
     return { rows, validCount, errorCount, warningCount };
   }
 
-  createSessionToken(
+  async createSessionToken(
     rows: CsvRowResultDto[],
     workspaceId: string,
     userId: string,
-  ): string {
-    const validRows = rows.filter(r => r.status !== 'error').map(r => r.data);
+  ): Promise<string> {
+    const validRows = rows
+      .filter(r => r.status !== 'error')
+      .map(r => ({ rowIndex: r.rowIndex, data: r.data }));
+    const nonce = randomUUID();
+
+    // Store nonce in cache for 15 minutes (900,000 ms)
+    await this.cacheManager.set(`import_session:${nonce}`, 1, 900_000);
 
     return this.jwtService.sign({
       workspaceId,
       userId,
       purpose: 'csv_import',
+      nonce,
       rows: validRows,
     });
   }
@@ -100,29 +112,40 @@ export class TaskCsvImportService {
       workspaceId?: string;
       userId?: string;
       purpose?: string;
-      rows?: CreateTaskDto[];
+      nonce?: string;
+      rows?: { rowIndex: number; data: CreateTaskDto }[];
     };
 
     try {
       payload = this.jwtService.verify(sessionToken);
     } catch {
       throw new UnauthorizedException(
-        'Phiên import đã hết hạn hoặc không hợp lệ. Vui lòng upload lại file.',
+        'Import session expired or invalid. Please re-upload the file.',
       );
     }
 
     if (
       payload.workspaceId !== workspaceId ||
       payload.userId !== userId ||
-      payload.purpose !== 'csv_import'
+      payload.purpose !== 'csv_import' ||
+      !payload.nonce
     ) {
-      throw new UnauthorizedException('Token import không hợp lệ.');
+      throw new UnauthorizedException('Invalid import token.');
     }
 
-    const rowsToCreate: CreateTaskDto[] = payload.rows || [];
+    const nonceKey = `import_session:${payload.nonce}`;
+    const nonceExists = await this.cacheManager.get(nonceKey);
+    if (!nonceExists) {
+      throw new UnauthorizedException(
+        'Import session has already been consumed or expired.',
+      );
+    }
+    await this.cacheManager.del(nonceKey);
+
+    const rowsToCreate = payload.rows || [];
 
     if (!Array.isArray(rowsToCreate) || rowsToCreate.length > MAX_CSV_ROWS) {
-      throw new BadRequestException('Dữ liệu token không hợp lệ hoặc quá lớn.');
+      throw new BadRequestException('Token data is invalid or too large.');
     }
 
     const results: ImportBulkTaskResultDto[] = [];
@@ -130,7 +153,7 @@ export class TaskCsvImportService {
     let failedCount = 0;
 
     for (let i = 0; i < rowsToCreate.length; i++) {
-      const row = rowsToCreate[i];
+      const { rowIndex, data: row } = rowsToCreate[i];
       try {
         const result = await this.taskCreateService.createInWorkspaceId(
           workspaceId,
@@ -139,7 +162,7 @@ export class TaskCsvImportService {
         );
         createdCount++;
         results.push({
-          rowIndex: i,
+          rowIndex,
           title: row.title,
           status: 'created',
           taskKey: result.key,
@@ -147,10 +170,10 @@ export class TaskCsvImportService {
       } catch (error) {
         failedCount++;
         results.push({
-          rowIndex: i,
+          rowIndex,
           title: row.title,
           status: 'failed',
-          error: (error as Error)?.message || 'Lỗi không xác định',
+          error: (error as Error)?.message || 'Unknown error',
         });
       }
     }

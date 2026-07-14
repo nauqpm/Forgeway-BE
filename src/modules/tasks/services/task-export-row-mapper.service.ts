@@ -52,7 +52,7 @@ export class TaskExportRowMapperService {
         return name || '';
       })
       .filter(Boolean)
-      .join('; ');
+      .join(', ');
 
     const description = this.stripMarkdown(plain.description || '');
     const taskUrl = `${baseUrl}/workspaces/${workspaceId}?tab=list&task=${plain.key}`;
