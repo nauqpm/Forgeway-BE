@@ -6,6 +6,7 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/automationland-dev/sdlc-platform-backend
+  DEPLOY_PATH: /opt/sdlc
 
 # Serialize backend deploys; do not cancel in progress so it can finish or roll back safely.
 concurrency:
@@ -27,21 +28,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -50,7 +51,7 @@ jobs:
 
       - name: Build & Push
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           push: true
@@ -61,21 +62,23 @@ jobs:
 
       # Trivy is report-only; change exit-code to 1 after reviewing real scan results.
       - name: Scan pushed image with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: table
+          severity: CRITICAL
+          ignore-unfixed: true
           exit-code: '0'
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9 # v3
 
       - name: Sign image with Cosign keyless
         env:
           IMAGE_REF: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
         run: |
-          set -o pipefail
+          set -Eeuo pipefail
           echo "Signing image digest: $IMAGE_REF"
           cosign sign --yes "$IMAGE_REF" 2>&1 | tee cosign-sign.log
           REKOR_URL="$(grep -Eo 'https://[^[:space:]]*(rekor|search.sigstore.dev)[^[:space:]]*' cosign-sign.log | tail -1 || true)"
@@ -86,20 +89,52 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build-and-push
+    permissions:
+      contents: read
+      packages: read
 
     steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9 # v3
+
+      - name: Verify image signature
+        env:
+          IMAGE_REF: ${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}
+        run: |
+          set -Eeuo pipefail
+          for attempt in $(seq 1 3); do
+            if cosign verify \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              --certificate-identity "https://github.com/automationland-dev/sdlc-platform-backend/.github/workflows/cd.yml@refs/heads/production" \
+              "$IMAGE_REF"; then
+              echo "Verified image signature: $IMAGE_REF"
+              exit 0
+            fi
+            echo "Cosign verification failed; retrying in 5s ($attempt/3)"
+            sleep 5
+          done
+          exit 1
+
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           VPS_GHCR_PAT: ${{ secrets.VPS_GHCR_PAT }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           DIGEST: ${{ needs.build-and-push.outputs.digest }}
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GHCR_USERNAME,VPS_GHCR_PAT,IMAGE_NAME,DIGEST
+          envs: GHCR_USERNAME,VPS_GHCR_PAT,IMAGE_NAME,DIGEST,DEPLOY_PATH
           script: |
             set -Eeuo pipefail
 
@@ -112,22 +147,46 @@ jobs:
             : "${VPS_GHCR_PAT:?VPS_GHCR_PAT secret is missing}"
             : "${IMAGE_NAME:?IMAGE_NAME is missing}"
             : "${DIGEST:?DIGEST is missing}"
+            : "${DEPLOY_PATH:?DEPLOY_PATH is missing}"
+
+            retry() {
+              local attempts="$1" delay="$2" attempt=1
+              shift 2
+
+              until "$@"; do
+                if [ "$attempt" -ge "$attempts" ]; then
+                  return 1
+                fi
+                echo "Command failed, retrying in ${delay}s ($attempt/$attempts)"
+                sleep "$delay"
+                attempt=$((attempt + 1))
+              done
+            }
+
+            login_ghcr() {
+              printf '%s' "$VPS_GHCR_PAT" |
+                docker login ghcr.io \
+                  --username "$GHCR_USERNAME" \
+                  --password-stdin
+            }
 
             echo "Authenticating with GHCR..."
 
-            printf '%s' "$VPS_GHCR_PAT" |
-              docker login ghcr.io \
-                --username "$GHCR_USERNAME" \
-                --password-stdin
+            retry 3 5 login_ghcr
 
-            cd /opt/sdlc
+            cd "$DEPLOY_PATH"
 
             # ponytail: global VPS deploy lock; split per service only if parallel deploys are required.
-            exec 9>/opt/sdlc/.deploy.lock
+            exec 9>"$DEPLOY_PATH/.deploy.lock"
             flock 9
 
-            LAST_GOOD_DIGEST_FILE=/opt/sdlc/.last-good-digest-backend
-            COMPOSE_ENV_FILE=/opt/sdlc/.env
+            LAST_GOOD_DIGEST_FILE="$DEPLOY_PATH/.last-good-digest-backend"
+            COMPOSE_ENV_FILE="$DEPLOY_PATH/.env"
+            CONTAINER_WAIT_ATTEMPTS=18
+            CONTAINER_WAIT_INTERVAL_SECONDS=5
+            HTTP_CHECK_ATTEMPTS=5
+            HTTP_CHECK_INTERVAL_SECONDS=4
+            HTTP_TIMEOUT_SECONDS=5
 
             update_compose_image() {
               if grep -q '^BACKEND_IMAGE=' "$COMPOSE_ENV_FILE"; then
@@ -149,15 +208,15 @@ jobs:
 
               echo "Waiting for backend container..."
 
-              for i in $(seq 1 18); do
+              for i in $(seq 1 "$CONTAINER_WAIT_ATTEMPTS"); do
               CONTAINER="$(
                 docker compose ps -q backend 2>/dev/null |
                   head -1
               )"
 
               if [ -z "$CONTAINER" ]; then
-                echo "Waiting... attempt $i/18 (container not created)"
-                sleep 5
+                echo "Waiting... attempt $i/$CONTAINER_WAIT_ATTEMPTS (container not created)"
+                sleep "$CONTAINER_WAIT_INTERVAL_SECONDS"
                 continue
               fi
 
@@ -199,8 +258,8 @@ jobs:
                 fi
 
                 if [ "$HEALTH_STATUS" != "healthy" ]; then
-                  echo "Waiting... attempt $i/18 (health=$HEALTH_STATUS)"
-                  sleep 5
+                  echo "Waiting... attempt $i/$CONTAINER_WAIT_ATTEMPTS (health=$HEALTH_STATUS)"
+                  sleep "$CONTAINER_WAIT_INTERVAL_SECONDS"
                   continue
                 fi
 
@@ -213,8 +272,8 @@ jobs:
                 return 1
               fi
 
-              echo "Waiting... attempt $i/18 (status=$STATUS)"
-              sleep 5
+              echo "Waiting... attempt $i/$CONTAINER_WAIT_ATTEMPTS (status=$STATUS)"
+              sleep "$CONTAINER_WAIT_INTERVAL_SECONDS"
               done
 
               echo "DEPLOY FAILED: backend did not become healthy after 90s"
@@ -222,14 +281,14 @@ jobs:
             }
 
             check_health() {
-              for i in $(seq 1 5); do
-                if curl -fsS --max-time 5 http://127.0.0.1:5512/health; then
+              for i in $(seq 1 "$HTTP_CHECK_ATTEMPTS"); do
+                if curl -fsS --max-time "$HTTP_TIMEOUT_SECONDS" http://127.0.0.1:7071/health; then
                   echo "Backend health endpoint passed on attempt $i"
                   return 0
                 fi
 
-                echo "Waiting for backend health endpoint... attempt $i/5"
-                sleep 4
+                echo "Waiting for backend health endpoint... attempt $i/$HTTP_CHECK_ATTEMPTS"
+                sleep "$HTTP_CHECK_INTERVAL_SECONDS"
               done
 
               return 1
@@ -259,7 +318,7 @@ jobs:
 
             TARGET_IMAGE="$IMAGE_NAME@$DIGEST"
             echo "Pulling backend image by digest..."
-            docker pull "$TARGET_IMAGE"
+            retry 3 5 docker pull "$TARGET_IMAGE"
             EXPECTED_IMAGE_ID="$(docker image inspect "$TARGET_IMAGE" --format '{{.Id}}')"
 
             echo "Validating Docker Compose configuration..."
@@ -289,10 +348,13 @@ jobs:
               exit 1
             fi
 
+            # Application rollback does not rollback database state.
+            # Schema changes must remain backward-compatible and follow
+            # an expand-and-contract migration strategy.
             ROLLBACK_IMAGE="$IMAGE_NAME@$ROLLBACK_DIGEST"
             echo "Rolling back backend to $ROLLBACK_DIGEST..."
             if update_compose_image "$ROLLBACK_IMAGE" && \
-               docker pull "$ROLLBACK_IMAGE" && \
+               { docker image inspect "$ROLLBACK_IMAGE" >/dev/null 2>&1 || retry 3 5 docker pull "$ROLLBACK_IMAGE"; } && \
                ROLLBACK_IMAGE_ID="$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')" && \
                docker compose up -d --no-build --no-deps backend && \
                verify_deployment "$ROLLBACK_IMAGE_ID"; then
