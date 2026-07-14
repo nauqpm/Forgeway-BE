@@ -7,11 +7,18 @@ on:
 env:
   IMAGE_NAME: ghcr.io/automationland-dev/sdlc-platform-backend
 
+# Serialize backend deploys; do not cancel in progress so it can finish or roll back safely.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     name: Build & Push Image
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
 
     permissions:
       contents: read
@@ -41,6 +48,7 @@ jobs:
             type=sha,prefix=sha-
 
       - name: Build & Push
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -63,11 +71,12 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           VPS_GHCR_PAT: ${{ secrets.VPS_GHCR_PAT }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          DIGEST: ${{ needs.build-and-push.outputs.digest }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GHCR_USERNAME,VPS_GHCR_PAT,IMAGE_NAME
+          envs: GHCR_USERNAME,VPS_GHCR_PAT,IMAGE_NAME,DIGEST
           script: |
             set -Eeuo pipefail
 
@@ -79,6 +88,7 @@ jobs:
             : "${GHCR_USERNAME:?GHCR_USERNAME secret is missing}"
             : "${VPS_GHCR_PAT:?VPS_GHCR_PAT secret is missing}"
             : "${IMAGE_NAME:?IMAGE_NAME is missing}"
+            : "${DIGEST:?DIGEST is missing}"
 
             echo "Authenticating with GHCR..."
 
@@ -89,32 +99,34 @@ jobs:
 
             cd /opt/sdlc
 
-            echo "Validating Docker Compose configuration..."
-            docker compose config --quiet
+            # ponytail: global VPS deploy lock; split per service only if parallel deploys are required.
+            exec 9>/opt/sdlc/.deploy.lock
+            flock 9
 
-            echo "Pulling backend image..."
+            LAST_GOOD_DIGEST_FILE=/opt/sdlc/.last-good-digest-backend
+            COMPOSE_ENV_FILE=/opt/sdlc/.env
 
-            # Pull the image configured specifically for the backend service.
-            docker compose pull backend
+            update_compose_image() {
+              if grep -q '^BACKEND_IMAGE=' "$COMPOSE_ENV_FILE"; then
+                sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=$1|" "$COMPOSE_ENV_FILE"
+              else
+                printf 'BACKEND_IMAGE=%s\n' "$1" >> "$COMPOSE_ENV_FILE"
+              fi
+            }
 
-            EXPECTED_IMAGE_ID="$(
-              docker image inspect "$IMAGE_NAME:latest" \
-                --format '{{.Id}}'
-            )"
+            # Compose parses every service, so both digest-pinned image variables must exist.
+            if ! grep -Eq '^BACKEND_IMAGE=.+@sha256:[0-9a-f]{64}$' "$COMPOSE_ENV_FILE" || \
+               ! grep -Eq '^FRONTEND_IMAGE=.+@sha256:[0-9a-f]{64}$' "$COMPOSE_ENV_FILE"; then
+              echo "DEPLOY FAILED: $COMPOSE_ENV_FILE must contain valid BACKEND_IMAGE and FRONTEND_IMAGE digests"
+              exit 1
+            fi
 
-            echo "Pulled image ID: $EXPECTED_IMAGE_ID"
+            wait_for_container() {
+              local expected_image_id="$1"
 
-            echo "Starting backend container..."
+              echo "Waiting for backend container..."
 
-            docker compose up \
-              -d \
-              --no-build \
-              --no-deps \
-              backend
-
-            echo "Waiting for backend container..."
-
-            for i in $(seq 1 18); do
+              for i in $(seq 1 18); do
               CONTAINER="$(
                 docker compose ps -q backend 2>/dev/null |
                   head -1
@@ -144,38 +156,129 @@ jobs:
                   "$CONTAINER"
               )"
 
+              HEALTH_STATUS="$(
+                docker inspect \
+                  --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+                  "$CONTAINER"
+              )"
+
               if [ "${RESTARTS:-0}" -gt 0 ]; then
                 echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s)"
-                docker compose logs --tail=100 backend
-                exit 1
+                return 1
               fi
 
               if [ "$STATUS" = "running" ]; then
-                if [ "$ACTUAL_IMAGE_ID" != "$EXPECTED_IMAGE_ID" ]; then
+                if [ "$ACTUAL_IMAGE_ID" != "$expected_image_id" ]; then
                   echo "DEPLOY FAILED: backend is running an old image"
-                  echo "Expected image: $EXPECTED_IMAGE_ID"
+                  echo "Expected image: $expected_image_id"
                   echo "Actual image:   $ACTUAL_IMAGE_ID"
-                  exit 1
+                  return 1
                 fi
 
-                echo "Backend deployed successfully"
-                echo "Image ID: $ACTUAL_IMAGE_ID"
-                echo "Attempt: $i"
-                echo "Time: $(date)"
-                exit 0
+                if [ "$HEALTH_STATUS" != "healthy" ]; then
+                  echo "Waiting... attempt $i/18 (health=$HEALTH_STATUS)"
+                  sleep 5
+                  continue
+                fi
+
+                echo "Backend container matches expected image on attempt $i"
+                return 0
               fi
 
               if [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
                 echo "DEPLOY FAILED: container status is $STATUS"
-                docker compose logs --tail=100 backend
-                exit 1
+                return 1
               fi
 
               echo "Waiting... attempt $i/18 (status=$STATUS)"
               sleep 5
-            done
+              done
 
-            echo "DEPLOY FAILED: backend did not become healthy after 90s"
+              echo "DEPLOY FAILED: backend did not become healthy after 90s"
+              return 1
+            }
+
+            check_health() {
+              for i in $(seq 1 5); do
+                if curl -fsS --max-time 5 http://127.0.0.1:5512/health; then
+                  echo "Backend health endpoint passed on attempt $i"
+                  return 0
+                fi
+
+                echo "Waiting for backend health endpoint... attempt $i/5"
+                sleep 4
+              done
+
+              return 1
+            }
+
+            verify_deployment() {
+              wait_for_container "$1" && check_health
+            }
+
+            CURRENT_CONTAINER="$(docker compose ps -q backend 2>/dev/null | head -1 || true)"
+            if [ -n "$CURRENT_CONTAINER" ]; then
+              if CURRENT_IMAGE_ID="$(docker inspect --format='{{.Image}}' "$CURRENT_CONTAINER" 2>/dev/null)" && \
+                 verify_deployment "$CURRENT_IMAGE_ID"; then
+                CURRENT_IMAGE_REF="$(docker image inspect "$CURRENT_IMAGE_ID" --format '{{range .RepoDigests}}{{println .}}{{end}}' | grep -F -m1 "$IMAGE_NAME@" || true)"
+                CURRENT_DIGEST="${CURRENT_IMAGE_REF#"$IMAGE_NAME@"}"
+
+                if [ "$CURRENT_DIGEST" != "$CURRENT_IMAGE_REF" ] && [[ "$CURRENT_DIGEST" = sha256:* ]]; then
+                  printf '%s\n' "$CURRENT_DIGEST" > "$LAST_GOOD_DIGEST_FILE"
+                  echo "Saved current backend digest for rollback: $CURRENT_DIGEST"
+                else
+                  echo "Current backend digest is unavailable; preserving any existing rollback target"
+                fi
+              else
+                echo "Current backend is not healthy; preserving any existing rollback target"
+              fi
+            fi
+
+            TARGET_IMAGE="$IMAGE_NAME@$DIGEST"
+            echo "Pulling backend image by digest..."
+            docker pull "$TARGET_IMAGE"
+            EXPECTED_IMAGE_ID="$(docker image inspect "$TARGET_IMAGE" --format '{{.Id}}')"
+
+            echo "Validating Docker Compose configuration..."
+            if update_compose_image "$TARGET_IMAGE" && \
+               docker compose config --quiet && \
+               { echo "Starting backend container..."; docker compose up -d --no-build --no-deps backend; } && \
+               verify_deployment "$EXPECTED_IMAGE_ID"; then
+              printf '%s\n' "$DIGEST" > "$LAST_GOOD_DIGEST_FILE"
+              echo "Backend deployed successfully"
+              echo "Image ID: $EXPECTED_IMAGE_ID"
+              echo "Digest: $DIGEST"
+              echo "Time: $(date)"
+              exit 0
+            fi
+
+            echo "DEPLOY FAILED: new backend image did not become healthy"
+            docker compose logs --tail=100 backend || true
+
+            if [ ! -s "$LAST_GOOD_DIGEST_FILE" ]; then
+              echo "ROLLBACK FAILED: no last known-good backend digest is available"
+              exit 1
+            fi
+
+            ROLLBACK_DIGEST="$(tr -d '\r\n' < "$LAST_GOOD_DIGEST_FILE")"
+            if [[ "$ROLLBACK_DIGEST" != sha256:* ]]; then
+              echo "ROLLBACK FAILED: invalid digest in $LAST_GOOD_DIGEST_FILE"
+              exit 1
+            fi
+
+            ROLLBACK_IMAGE="$IMAGE_NAME@$ROLLBACK_DIGEST"
+            echo "Rolling back backend to $ROLLBACK_DIGEST..."
+            if update_compose_image "$ROLLBACK_IMAGE" && \
+               docker pull "$ROLLBACK_IMAGE" && \
+               ROLLBACK_IMAGE_ID="$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')" && \
+               docker compose up -d --no-build --no-deps backend && \
+               verify_deployment "$ROLLBACK_IMAGE_ID"; then
+              echo "Rollback completed successfully"
+              echo "::warning::Deploy failed but rollback succeeded; backend is running the previous digest"
+              exit 1
+            fi
+
+            echo "ROLLBACK FAILED: backend did not become healthy"
             docker compose ps backend
             docker compose logs --tail=100 backend
             exit 1
