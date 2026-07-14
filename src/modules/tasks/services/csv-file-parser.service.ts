@@ -55,7 +55,9 @@ export class CsvFileParserService {
         relax_column_count: true,
       });
     } catch (err) {
-      throw new BadRequestException(`CSV parsing error: ${(err as Error).message}`);
+      throw new BadRequestException(
+        `CSV parsing error: ${(err as Error).message}`,
+      );
     }
 
     this.assertRowLimits(records.length, 'CSV');

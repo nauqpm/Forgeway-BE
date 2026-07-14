@@ -40,7 +40,8 @@ export class CsvImportLookupService {
 
     let kanbanColumns: BoardColumn[] | undefined;
     if (workspace.type === 'kanban') {
-      const board = await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
+      const board =
+        await this.kanbanService.findOrCreateByWorkspaceId(workspaceId);
       kanbanColumns = board?.columns;
     }
 

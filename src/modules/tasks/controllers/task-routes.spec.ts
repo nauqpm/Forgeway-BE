@@ -309,13 +309,11 @@ describe('TaskControllers - Route Registration (smoke)', () => {
     });
 
     it('GET /tasks/import/template resolves', () => {
-      jest
-        .spyOn(csvExportService, 'generateImportTemplate')
-        .mockResolvedValue({
-          file: Buffer.from('template') as any,
-          filename: 'task_import_template.csv',
-          contentType: 'text/csv',
-        });
+      jest.spyOn(csvExportService, 'generateImportTemplate').mockResolvedValue({
+        file: Buffer.from('template') as any,
+        filename: 'task_import_template.csv',
+        contentType: 'text/csv',
+      });
       return request(app.getHttpServer())
         .get(basePath('/tasks/import/template'))
         .expect(200)

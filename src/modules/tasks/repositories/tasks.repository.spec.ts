@@ -102,7 +102,7 @@ describe('TaskQueryBuilder', () => {
     });
 
     expect(filter.workspaceId.toString()).toBe(workspaceId);
-    expect((filter.assigneeId as any).$in[0].toString()).toBe(assigneeId);
+    expect(filter.assigneeId.$in[0].toString()).toBe(assigneeId);
     expect(filter.status).toEqual({ $in: ['todo'] });
     expect(filter.$or).toEqual([
       { key: { $regex: 'Re', $options: 'i' } },
