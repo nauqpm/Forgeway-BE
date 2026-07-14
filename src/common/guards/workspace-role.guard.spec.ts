@@ -35,12 +35,15 @@ describe('workspace permissions', () => {
         WORKSPACE_PERMISSIONS.TASK_DELETE,
         WORKSPACE_PERMISSIONS.TASK_MOVE,
         WORKSPACE_PERMISSIONS.SPRINT_MANAGE,
+        WORKSPACE_PERMISSIONS.PAGE_VIEW,
         WORKSPACE_PERMISSIONS.PAGE_CREATE,
         WORKSPACE_PERMISSIONS.PAGE_EDIT,
         WORKSPACE_PERMISSIONS.PAGE_DELETE,
       ]),
     );
-    expect(getPermissionsForWorkspaceRole(SPACE_ROLES.VIEWER)).toEqual([]);
+    expect(getPermissionsForWorkspaceRole(SPACE_ROLES.VIEWER)).toEqual([
+      WORKSPACE_PERMISSIONS.PAGE_VIEW,
+    ]);
   });
 });
 
@@ -142,5 +145,39 @@ describe('WorkspaceRoleGuard', () => {
 
     await expect(guard.canActivate(makeContext(request))).resolves.toBe(true);
     expect(pagesService.findById).toHaveBeenCalledWith(request.params.id);
+  });
+
+  it('resolves workspaceId from query for list routes', async () => {
+    reflector.getAllAndOverride.mockReturnValue([
+      WORKSPACE_PERMISSIONS.PAGE_VIEW,
+    ]);
+
+    const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);
+    const request = {
+      query: { workspaceId: workspaceId.toString() },
+      user: { userId: viewerId.toString(), role: 'user' },
+    };
+
+    await expect(guard.canActivate(makeContext(request))).resolves.toBe(true);
+    expect((request as any).workspaceAuth.workspaceId).toBe(
+      workspaceId.toString(),
+    );
+  });
+
+  it('resolves workspaceId from query for import routes', async () => {
+    reflector.getAllAndOverride.mockReturnValue([
+      WORKSPACE_PERMISSIONS.PAGE_EDIT,
+    ]);
+
+    const guard = new WorkspaceRoleGuard(reflector, moduleRef as any);
+    const request = {
+      query: { workspaceId: workspaceId.toString() },
+      user: { userId: memberId.toString(), role: 'user' },
+    };
+
+    await expect(guard.canActivate(makeContext(request))).resolves.toBe(true);
+    expect((request as any).workspaceAuth.workspaceId).toBe(
+      workspaceId.toString(),
+    );
   });
 });

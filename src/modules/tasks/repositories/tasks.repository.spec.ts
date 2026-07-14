@@ -96,13 +96,13 @@ describe('TaskQueryBuilder', () => {
     const assigneeId = new Types.ObjectId().toString();
     const filter = queryBuilder.buildFilter({
       workspaceId,
-      assigneeId,
+      assigneeId: [assigneeId],
       status: ['todo'],
       search: 'Re',
     });
 
     expect(filter.workspaceId.toString()).toBe(workspaceId);
-    expect(filter.assigneeId.toString()).toBe(assigneeId);
+    expect(filter.assigneeId.$in[0].toString()).toBe(assigneeId);
     expect(filter.status).toEqual({ $in: ['todo'] });
     expect(filter.$or).toEqual([
       { key: { $regex: 'Re', $options: 'i' } },

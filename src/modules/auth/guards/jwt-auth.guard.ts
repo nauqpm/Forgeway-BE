@@ -12,7 +12,7 @@ import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { COOKIE_NAMES } from '../constants/cookie.constants';
 import { RequestWithUser } from '../interfaces/request-with-user.interface';
-import { TokenService } from '../services/token.service';
+import { TokenLookupService } from '../services/token-lookup.service';
 import { JwtPayload } from '../types/jwt-payload.type';
 import { AUTH_ERROR_CODES } from '@/common/constants/error-codes.constants';
 
@@ -29,7 +29,7 @@ export class JwtAuthGuard implements CanActivate {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly tokenService: TokenService,
+    private readonly tokenLookupService: TokenLookupService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
@@ -80,7 +80,8 @@ export class JwtAuthGuard implements CanActivate {
       );
     }
 
-    const activeToken = await this.tokenService.findActiveAccessToken(token);
+    const activeToken =
+      await this.tokenLookupService.findActiveAccessToken(token);
     if (!activeToken) {
       this.logger.warn(
         `Access token revoked or not found: userId ${decoded.userId}`,

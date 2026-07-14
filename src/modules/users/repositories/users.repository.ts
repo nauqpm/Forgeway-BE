@@ -87,20 +87,34 @@ export class UsersRepository extends BaseRepository<UserDocument> {
   async findAllPaginated(
     page: number,
     limit: number,
+    filters: { search?: string; role?: string; status?: string } = {},
   ): Promise<PaginatedUsersResult> {
     const projection =
       '_id email role status fullName avatar createdAt updatedAt';
 
-    const result = await this.paginate(
-      {},
-      {
-        page,
-        limit,
-        projection,
-        sort: { createdAt: -1 },
-        lean: true,
-      },
-    );
+    const query: any = {};
+    if (filters.role && filters.role !== 'all') {
+      query.role = filters.role;
+    }
+    if (filters.status && filters.status !== 'all') {
+      query.status = filters.status;
+    }
+    if (filters.search) {
+      const escapedQuery = filters.search.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&',
+      );
+      const regex = new RegExp(escapedQuery, 'i');
+      query.$or = [{ fullName: regex }, { email: regex }];
+    }
+
+    const result = await this.paginate(query, {
+      page,
+      limit,
+      projection,
+      sort: { createdAt: -1 },
+      lean: true,
+    });
 
     return {
       users: result.items as unknown as SanitizedUserRecord[],

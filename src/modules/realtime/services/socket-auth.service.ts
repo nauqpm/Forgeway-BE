@@ -6,7 +6,7 @@ import { parse } from 'cookie';
 
 import { COOKIE_NAMES } from '../../auth/constants/cookie.constants';
 import { TOKEN_TYPES } from '../../auth/constants/token.constants';
-import { TokenService } from '../../auth/services/token.service';
+import { TokenLookupService } from '../../auth/services/token-lookup.service';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { AuthenticatedSocket, SocketUser } from '../contracts';
 
@@ -17,7 +17,7 @@ export class SocketAuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly tokenService: TokenService,
+    private readonly tokenLookupService: TokenLookupService,
   ) {}
 
   async authenticate(client: AuthenticatedSocket): Promise<SocketUser> {
@@ -93,7 +93,8 @@ export class SocketAuthService {
     token: string,
     payload: JwtPayload,
   ): Promise<void> {
-    const activeToken = await this.tokenService.findActiveAccessToken(token);
+    const activeToken =
+      await this.tokenLookupService.findActiveAccessToken(token);
     if (!activeToken || activeToken.userId.toString() !== payload.userId) {
       throw new WsException('Access token revoked or not found');
     }

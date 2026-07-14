@@ -13,10 +13,11 @@ import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TaskReorderService } from '../services/task-reorder.service';
 import { TaskDependencyService } from '../services/task-dependency.service';
+import { TaskCsvExportService } from '../services/task-csv-export.service';
+import { TaskCsvImportService } from '../services/task-csv-import.service';
 import { TaskAuditService } from '../shared/task-audit.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { RealtimeService } from '../../realtime/realtime.service';
-import { TokenService } from '../../auth/services/token.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 
@@ -136,12 +137,23 @@ describe('TaskControllers - Route Registration (smoke)', () => {
         },
         TaskAuditService,
         {
-          provide: JwtService,
-          useValue: { verify: jest.fn(), sign: jest.fn() },
+          provide: TaskCsvExportService,
+          useValue: {
+            exportTasks: jest.fn(),
+            generateImportTemplate: jest.fn(),
+          },
         },
         {
-          provide: TokenService,
-          useValue: { findActiveAccessToken: jest.fn(), hashToken: jest.fn() },
+          provide: TaskCsvImportService,
+          useValue: {
+            parseAndValidateCsv: jest.fn(),
+            createSessionToken: jest.fn(),
+            importBulk: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: { verify: jest.fn(), sign: jest.fn() },
         },
       ],
     })
@@ -283,5 +295,98 @@ describe('TaskControllers - Route Registration (smoke)', () => {
     return request(app.getHttpServer())
       .delete(basePath(`/${objectId}/dependencies/dep-1`))
       .expect(204);
+  });
+
+  // ─── Import/Export routes ────────────────────────────────────────────────
+
+  describe('Import/Export', () => {
+    let csvImportService: TaskCsvImportService;
+    let csvExportService: TaskCsvExportService;
+
+    beforeEach(() => {
+      csvImportService = app.get(TaskCsvImportService);
+      csvExportService = app.get(TaskCsvExportService);
+    });
+
+    it('GET /tasks/import/template resolves', () => {
+      jest.spyOn(csvExportService, 'generateImportTemplate').mockResolvedValue({
+        file: Buffer.from('template') as any,
+        filename: 'task_import_template.csv',
+        contentType: 'text/csv',
+      });
+      return request(app.getHttpServer())
+        .get(basePath('/tasks/import/template'))
+        .expect(200)
+        .expect(
+          'Content-Disposition',
+          'attachment; filename="task_import_template.csv"',
+        );
+    });
+
+    it('GET /export resolves', () => {
+      jest.spyOn(csvExportService, 'exportTasks').mockResolvedValue({
+        file: Buffer.from('export data') as any,
+        filename: 'tasks_export.csv',
+        contentType: 'text/csv',
+      });
+      return request(app.getHttpServer())
+        .get(basePath('/export'))
+        .expect(200)
+        .expect(
+          'Content-Disposition',
+          'attachment; filename="tasks_export.csv"',
+        );
+    });
+
+    it('POST /tasks/import/preview resolves', () => {
+      jest.spyOn(csvImportService, 'parseAndValidateCsv').mockResolvedValue({
+        rows: [],
+        validCount: 0,
+        errorCount: 0,
+        warningCount: 0,
+      });
+      jest
+        .spyOn(csvImportService, 'createSessionToken')
+        .mockResolvedValue('fake-token');
+
+      return request(app.getHttpServer())
+        .post(basePath('/tasks/import/preview'))
+        .attach('file', Buffer.from('test,csv'), 'test.csv')
+        .expect(200)
+        .expect(res => {
+          expect(res.body.sessionToken).toBe('fake-token');
+        });
+    });
+
+    it('POST /tasks/import/confirm resolves with replay/partial failure', () => {
+      jest.spyOn(csvImportService, 'importBulk').mockResolvedValue({
+        created: 1,
+        failed: 1,
+        results: [
+          {
+            rowIndex: 0,
+            title: 'Task 1',
+            status: 'created',
+            taskKey: 'PROJ-1',
+          },
+          {
+            rowIndex: 1,
+            title: 'Task 2',
+            status: 'failed',
+            error: 'Duplicate',
+          },
+        ],
+      });
+
+      return request(app.getHttpServer())
+        .post(basePath('/tasks/import/confirm'))
+        .send({ sessionToken: 'fake-token' })
+        .expect(201)
+        .expect(res => {
+          expect(res.body.created).toBe(1);
+          expect(res.body.failed).toBe(1);
+          expect(res.body.results).toHaveLength(2);
+        });
+    });
   });
 });

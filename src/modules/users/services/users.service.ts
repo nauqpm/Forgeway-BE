@@ -161,6 +161,7 @@ export class UsersService {
   async getUsersPage(
     page: number,
     limit: number,
+    filters?: { search?: string; role?: string; status?: string },
   ): Promise<{
     data: SanitizedUserRecord[];
     pagination: {
@@ -177,6 +178,7 @@ export class UsersService {
     const { users, total } = await this.usersRepository.findAllPaginated(
       safePage,
       safeLimit,
+      filters,
     );
 
     return {

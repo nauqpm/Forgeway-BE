@@ -7,7 +7,7 @@ import { App } from 'supertest/types';
 
 import { AuthProfileController } from './auth-profile.controller';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { TokenService } from '../services/token.service';
+import { TokenLookupService } from '../services/token-lookup.service';
 import { UsersService } from '../../users/services/users.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
@@ -15,7 +15,7 @@ import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 describe('AuthProfileController', () => {
   let app: INestApplication<App>;
 
-  const tokenServiceMock = {
+  const tokenLookupServiceMock = {
     findActiveAccessToken: jest.fn(),
   };
 
@@ -39,7 +39,7 @@ describe('AuthProfileController', () => {
       controllers: [AuthProfileController],
       providers: [
         JwtAuthGuard,
-        { provide: TokenService, useValue: tokenServiceMock },
+        { provide: TokenLookupService, useValue: tokenLookupServiceMock },
         { provide: UsersService, useValue: usersServiceMock },
         { provide: AuditLogService, useValue: auditLogServiceMock },
         { provide: JwtService, useValue: jwtServiceMock },
@@ -73,6 +73,34 @@ describe('AuthProfileController', () => {
       avatar: 'avatar.png',
     };
 
+    it('uses the user JSON contract so switched sessions receive id, not _id', async () => {
+      jwtServiceMock.verify.mockReturnValue({
+        userId: 'user-1',
+        rootUserId: 'root-user-1',
+        email: 'user@example.com',
+        role: GLOBAL_ROLES.USER,
+        type: 'access',
+      });
+      tokenLookupServiceMock.findActiveAccessToken.mockResolvedValue({
+        userId: { toString: () => 'user-1' },
+      });
+      usersServiceMock.getUserById.mockResolvedValue({
+        toObject: () => userProfile,
+        toJSON: () => ({ ...userProfile, id: 'user-1', _id: undefined }),
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Cookie', 'access_token=valid-token')
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        id: 'user-1',
+        rootUser: { id: 'root-user-1' },
+      });
+      expect(response.body).not.toHaveProperty('_id');
+    });
+
     it('returns user profile with rootUser when authenticated through a switched session', async () => {
       jwtServiceMock.verify.mockReturnValue({
         userId: 'user-1',
@@ -81,7 +109,7 @@ describe('AuthProfileController', () => {
         role: GLOBAL_ROLES.USER,
         type: 'access',
       });
-      tokenServiceMock.findActiveAccessToken.mockResolvedValue({
+      tokenLookupServiceMock.findActiveAccessToken.mockResolvedValue({
         userId: { toString: () => 'user-1' },
       });
       usersServiceMock.getUserById.mockResolvedValue(userProfile);
@@ -104,7 +132,7 @@ describe('AuthProfileController', () => {
         role: GLOBAL_ROLES.USER,
         type: 'access',
       });
-      tokenServiceMock.findActiveAccessToken.mockResolvedValue({
+      tokenLookupServiceMock.findActiveAccessToken.mockResolvedValue({
         userId: { toString: () => 'user-1' },
       });
       usersServiceMock.getUserById.mockResolvedValue(userProfile);

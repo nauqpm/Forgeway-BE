@@ -9,7 +9,6 @@ import { WorkspaceTypeGuard } from '../../../common/guards/workspace-type.guard'
 import { ScopedRoleGuard } from '../../../common/guards/scoped-role.guard';
 import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 import { Workspace } from '../../workspaces/schemas/workspace.schema';
-import { TokenService } from '../../auth/services/token.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -55,12 +54,6 @@ describe('ScrumController', () => {
               lean: jest.fn().mockReturnThis(),
               exec: jest.fn().mockResolvedValue({ type: 'scrum' }),
             }),
-          },
-        },
-        {
-          provide: TokenService,
-          useValue: {
-            verifyAccessToken: jest.fn(),
           },
         },
         {

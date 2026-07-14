@@ -9,6 +9,9 @@ import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LabelsModule } from '../labels/labels.module';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { TaskQueryController } from './controllers/task-query.controller';
 import { TaskDetailController } from './controllers/task-detail.controller';
@@ -47,6 +50,14 @@ import { TaskCreateService } from './services/task-create.service';
 import { TaskQueryService } from './services/task-query.service';
 import { TaskUpdateService } from './services/task-update.service';
 import { TaskLifecycleService } from './services/task-lifecycle.service';
+import { TaskCsvImportService } from './services/task-csv-import.service';
+import { TaskCsvExportService } from './services/task-csv-export.service';
+import { TaskWordExportService } from './services/task-word-export.service';
+import { TaskExportLookupService } from './services/task-export-lookup.service';
+import { TaskExportRowMapperService } from './services/task-export-row-mapper.service';
+import { CsvFileParserService } from './services/csv-file-parser.service';
+import { CsvImportLookupService } from './services/csv-import-lookup.service';
+import { CsvRowValidatorService } from './services/csv-row-validator.service';
 import { TaskAuditService } from './shared/task-audit.service';
 
 @Module({
@@ -63,8 +74,23 @@ import { TaskAuditService } from './shared/task-audit.service';
     forwardRef(() => AuthModule),
     RealtimeModule,
     forwardRef(() => NotificationsModule),
+    forwardRef(() => LabelsModule),
     TaskActivitiesModule,
     AuditModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable is required.');
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: '10m' },
+        };
+      },
+    }),
   ],
   controllers: [
     TaskQueryController,
@@ -100,6 +126,14 @@ import { TaskAuditService } from './shared/task-audit.service';
     TaskQueryService,
     TaskUpdateService,
     TaskLifecycleService,
+    TaskCsvImportService,
+    TaskCsvExportService,
+    TaskWordExportService,
+    TaskExportLookupService,
+    TaskExportRowMapperService,
+    CsvFileParserService,
+    CsvImportLookupService,
+    CsvRowValidatorService,
     TaskAuditService,
     WorkspaceRoleGuard,
   ],

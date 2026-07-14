@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -31,6 +32,8 @@ import { escapeRegex } from '../utils/document-html.util';
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     @InjectModel(DocumentEntity.name)
     private readonly documentModel: Model<DocumentDoc>,
@@ -180,10 +183,16 @@ export class DocumentsService {
       { $set: { deletedAt: new Date() } },
     );
 
-    await this.storageService.deleteFile(
-      doc.cloudinaryPublicId,
-      doc.storagePath,
-    );
+    try {
+      await this.storageService.deleteFile(
+        doc.cloudinaryPublicId,
+        doc.storagePath,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Document ${doc._id} was deleted but storage cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
     return { success: true };
   }

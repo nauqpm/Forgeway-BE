@@ -11,8 +11,10 @@ describe('DeviceSwitchAccountsService', () => {
   const usersService = {
     getUserById: jest.fn(),
   };
-  const tokenService = {
+  const tokenIssuerService = {
     createAndSaveTokens: jest.fn(),
+  };
+  const tokenRevocationService = {
     revokeSessionTokens: jest.fn(),
   };
 
@@ -23,7 +25,8 @@ describe('DeviceSwitchAccountsService', () => {
     service = new DeviceSwitchAccountsService(
       model as any,
       usersService as any,
-      tokenService as any,
+      tokenIssuerService as any,
+      tokenRevocationService as any,
     );
   });
 

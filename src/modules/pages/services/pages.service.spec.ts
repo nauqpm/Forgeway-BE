@@ -109,4 +109,46 @@ describe('PagesService', () => {
       ),
     );
   });
+
+  it('finds a slug only inside the requested workspace', async () => {
+    const workspaceId = new Types.ObjectId().toString();
+    const page = { _id: new Types.ObjectId(), slug: 'roadmap', workspaceId };
+    const exec = jest.fn().mockResolvedValue(page);
+    const populate = jest.fn().mockReturnValue({ exec });
+
+    pageModel.findOne.mockReturnValue({ populate });
+
+    await expect(
+      service.findBySlugInWorkspace('roadmap', workspaceId),
+    ).resolves.toBe(page);
+
+    expect(pageModel.findOne).toHaveBeenCalledWith({
+      slug: 'roadmap',
+      workspaceId: expect.any(Types.ObjectId),
+    });
+  });
+
+  it('looks up versions by ObjectId pageId and versionId', async () => {
+    const pageVersionModel = {
+      findOne: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }),
+        }),
+      }),
+    };
+    const localService = new PagesService(
+      pageModel as any,
+      {} as any,
+      pageVersionModel as any,
+    );
+    const pageId = new Types.ObjectId().toString();
+    const versionId = new Types.ObjectId().toString();
+
+    await localService.getVersionById(pageId, versionId);
+
+    expect(pageVersionModel.findOne).toHaveBeenCalledWith({
+      _id: new Types.ObjectId(versionId),
+      pageId: new Types.ObjectId(pageId),
+    });
+  });
 });

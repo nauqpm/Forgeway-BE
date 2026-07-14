@@ -8,7 +8,8 @@ import {
   DeviceSwitchAccountProvider,
 } from '../schemas/device-switch-account.schema';
 import { UsersService } from '../../users/services/users.service';
-import { TokenService } from './token.service';
+import { TokenIssuerService } from './token-issuer.service';
+import { TokenRevocationService } from './token-revocation.service';
 
 const DEVICE_SWITCH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -46,7 +47,8 @@ export class DeviceSwitchAccountsService {
     @InjectModel(DeviceSwitchAccount.name)
     private readonly deviceSwitchAccountModel: Model<DeviceSwitchAccountDocument>,
     private readonly usersService: UsersService,
-    private readonly tokenService: TokenService,
+    private readonly tokenIssuerService: TokenIssuerService,
+    private readonly tokenRevocationService: TokenRevocationService,
   ) {}
 
   async rememberSuccessfulLogin(
@@ -175,10 +177,13 @@ export class DeviceSwitchAccountsService {
     const user = await this.usersService.getUserById(targetUserId);
 
     if (meta.refreshToken) {
-      await this.tokenService.revokeSessionTokens(undefined, meta.refreshToken);
+      await this.tokenRevocationService.revokeSessionTokens(
+        undefined,
+        meta.refreshToken,
+      );
     }
 
-    const tokens = await this.tokenService.createAndSaveTokens(
+    const tokens = await this.tokenIssuerService.createAndSaveTokens(
       user._id.toString(),
       user.email,
       user.role,

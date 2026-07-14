@@ -137,13 +137,16 @@ export class PagesController {
   // GET /pages
   // -------------------------------------------------------------------------
   @Get()
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'List pages with filters & pagination',
     description:
-      'Returns a paginated list of pages. All filter params are optional. ' +
+      'Returns a paginated list of pages for one workspace. `workspaceId` is required. ' +
       '`search` performs a case-insensitive regex match on title and content ' +
       '(note: content is stored as raw HTML, so the match runs on HTML source).',
   })
+  @ApiQuery({ name: 'workspaceId', required: true })
   @ApiOkResponse({
     description: 'Paginated list of pages',
     type: PaginatedPagesResponseDto,
@@ -169,7 +172,8 @@ export class PagesController {
   // GET /pages/:id
   // -------------------------------------------------------------------------
   @Get(':id')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get page by ID',
     description:
@@ -187,19 +191,28 @@ export class PagesController {
   // GET /pages/slug/:slug
   // -------------------------------------------------------------------------
   @Get('slug/:slug')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get page by slug',
     description:
-      'Fetches a single page by its URL-friendly slug and increments the view counter.',
+      'Fetches a single page by workspace and URL-friendly slug, then increments the view counter.',
   })
   @ApiParam({
     name: 'slug',
     description: 'URL-friendly slug, e.g. "getting-started-guide"',
   })
+  @ApiQuery({ name: 'workspaceId', required: true })
   @ApiOkResponse({ description: 'Page found', type: PageResponseDto })
   @ApiNotFoundResponse({ description: 'No page with the given slug exists' })
-  async findBySlug(@Param('slug') slug: string) {
-    const page = await this.pagesService.findBySlug(slug);
+  async findBySlug(
+    @Param('slug') slug: string,
+    @Query('workspaceId') workspaceId: string,
+  ) {
+    const page = await this.pagesService.findBySlugInWorkspace(
+      slug,
+      workspaceId,
+    );
     await this.pagesService.incrementViewCount(page._id.toString());
     return page;
   }
@@ -359,7 +372,8 @@ export class PagesController {
   // GET /pages/workspace/:workspaceId
   // -------------------------------------------------------------------------
   @Get('workspace/:workspaceId')
-  // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get all pages in a workspace',
     description:
@@ -376,7 +390,8 @@ export class PagesController {
   // GET /pages/workspace/:workspaceId/root
   // -------------------------------------------------------------------------
   @Get('workspace/:workspaceId/root')
-  // @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get root-level pages for a workspace',
     description:
@@ -394,7 +409,8 @@ export class PagesController {
   // GET /pages/:id/children
   // -------------------------------------------------------------------------
   @Get(':id/children')
-  // @UseGuards(ScopedRoleGuard('page', SPACE_ROLES.VIEWER))
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get direct children of a page',
     description:
@@ -486,6 +502,8 @@ export class PagesController {
   // GET /pages/:id/versions
   // -------------------------------------------------------------------------
   @Get(':id/versions')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get document version list',
     description:
@@ -501,6 +519,8 @@ export class PagesController {
   // GET /pages/:id/versions/:versionId
   // -------------------------------------------------------------------------
   @Get(':id/versions/:versionId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Get details of a document version',
     description: 'Returns details and snapshot content of the version.',
@@ -555,6 +575,7 @@ export class PagesController {
   // -------------------------------------------------------------------------
   @Get(':id/export/docx')
   @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @ApiOperation({
     summary: 'Export document as Word file (.docx)',
     description:
@@ -578,6 +599,8 @@ export class PagesController {
   // POST /pages/import/docx
   // -------------------------------------------------------------------------
   @Post('import/docx')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -595,7 +618,17 @@ export class PagesController {
   @ApiOperation({
     summary: 'Import content from Word file (.docx)',
     description:
-      'Converts uploaded Word file (.docx) to clean HTML to insert into editor.',
+      'Converts uploaded Word file (.docx) to clean HTML to insert into an editable workspace page.',
+  })
+  @ApiQuery({ name: 'workspaceId', required: true })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
   })
   async importDocx(@UploadedFile() file: Express.Multer.File) {
     if (!file) {

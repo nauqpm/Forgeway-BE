@@ -3,8 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 
 import { AUTH_ERROR_CODES } from '../../../common/constants/error-codes.constants';
 import { AuditLogService } from '../../audit/services/audit-log.service';
-import { TokenService } from '../services/token.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { TokenLookupService } from '../services/token-lookup.service';
 
 describe('JwtAuthGuard', () => {
   const jwtService = {
@@ -25,7 +25,7 @@ describe('JwtAuthGuard', () => {
     jest.clearAllMocks();
     guard = new JwtAuthGuard(
       jwtService as unknown as JwtService,
-      tokenService as unknown as TokenService,
+      tokenService as unknown as TokenLookupService,
       auditLogService as unknown as AuditLogService,
     );
     jwtService.verify.mockReturnValue({

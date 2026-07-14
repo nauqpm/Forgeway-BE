@@ -13,14 +13,14 @@ jest.mock('../utils/cookie.utils', () => ({
 import * as cookieUtils from '../utils/cookie.utils';
 import { AccountSwitcherController } from './account-switcher.controller';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { TokenService } from '../services/token.service';
+import { TokenLookupService } from '../services/token-lookup.service';
 import { AccountSwitcherService } from '../services/account-switcher.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 
 describe('AccountSwitcherController', () => {
   let app: INestApplication<App>;
 
-  const tokenServiceMock = {
+  const tokenLookupServiceMock = {
     findActiveAccessToken: jest.fn(),
   };
 
@@ -53,7 +53,7 @@ describe('AccountSwitcherController', () => {
       controllers: [AccountSwitcherController],
       providers: [
         JwtAuthGuard,
-        { provide: TokenService, useValue: tokenServiceMock },
+        { provide: TokenLookupService, useValue: tokenLookupServiceMock },
         {
           provide: AccountSwitcherService,
           useValue: accountSwitcherServiceMock,
@@ -90,7 +90,7 @@ describe('AccountSwitcherController', () => {
       role: 'user',
       type: 'access',
     });
-    tokenServiceMock.findActiveAccessToken.mockResolvedValue({
+    tokenLookupServiceMock.findActiveAccessToken.mockResolvedValue({
       userId: { toString: () => 'bbbbbbbbbbbbbbbbbbbbbbbb' },
     });
   };
