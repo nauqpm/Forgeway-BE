@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # Required for keyless Cosign signing with GitHub OIDC.
 
     steps:
       - name: Checkout repository
@@ -57,6 +58,28 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Trivy is report-only; change exit-code to 1 after reviewing real scan results.
+      - name: Scan pushed image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: table
+          exit-code: '0'
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image with Cosign keyless
+        env:
+          IMAGE_REF: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -o pipefail
+          echo "Signing image digest: $IMAGE_REF"
+          cosign sign --yes "$IMAGE_REF" 2>&1 | tee cosign-sign.log
+          REKOR_URL="$(grep -Eo 'https://[^[:space:]]*(rekor|search.sigstore.dev)[^[:space:]]*' cosign-sign.log | tail -1 || true)"
+          echo "Rekor transparency log: ${REKOR_URL:-https://rekor.sigstore.dev}"
 
   deploy:
     name: Deploy to VPS
