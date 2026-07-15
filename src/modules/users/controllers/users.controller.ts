@@ -26,6 +26,8 @@ import { PermissionGuard } from '../../permissions/guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 
+const MAX_CSV_FILE_SIZE = 5 * 1024 * 1024;
+
 @Controller('users')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
@@ -113,7 +115,21 @@ export class UsersController {
   @RequirePermission('users', 'create')
   @Roles(GLOBAL_ROLES.SUPER_ADMIN)
   @Post('import-csv')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_CSV_FILE_SIZE },
+      fileFilter: (_req, file, callback) => {
+        if (!file.originalname.toLowerCase().endsWith('.csv')) {
+          return callback(
+            new BadRequestException('Only .csv files are allowed'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+    }),
+  )
   async importUsersCsv(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('File is required');

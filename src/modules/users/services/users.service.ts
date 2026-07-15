@@ -19,6 +19,7 @@ import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { ErrorFactory } from '../../../common/factories/error.factory';
 import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
+import { parse } from 'csv-parse/sync';
 
 export interface UserSearchResult {
   id: string;
@@ -288,17 +289,22 @@ export class UsersService {
     skippedCount: number;
     errors: string[];
   }> {
-    const csvContent = stripUtf8Bom(buffer.toString('utf8'));
-    const lines = csvContent
-      .split(/\r?\n/)
-      .filter(line => line.trim().length > 0);
+    let rows: string[][];
+    try {
+      rows = parse(buffer.toString('utf8'), {
+        bom: true,
+        skip_empty_lines: true,
+        relax_column_count: true,
+      });
+    } catch {
+      throw new BadRequestException('File CSV không hợp lệ');
+    }
 
-    if (lines.length <= 1) {
+    if (rows.length <= 1) {
       throw new BadRequestException('File CSV không có dữ liệu');
     }
 
-    const headerLine = lines[0];
-    const headers = parseCsvLine(headerLine).map(normalizeCsvHeader);
+    const headers = rows[0].map(value => value.trim());
 
     const emailIdx = headers.indexOf('email');
     const fullNameIdx = headers.indexOf('fullName');
@@ -316,9 +322,9 @@ export class UsersService {
     const errors: string[] = [];
     const seenEmails = new Set<string>();
 
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 1; i < rows.length; i++) {
       try {
-        const columns = parseCsvLine(lines[i]);
+        const columns = rows[i];
         const requiredColumnCount =
           Math.max(emailIdx, passwordIdx, fullNameIdx, mustChangePasswordIdx) +
           1;
@@ -330,7 +336,7 @@ export class UsersService {
 
         const email = columns[emailIdx]?.trim().toLowerCase();
         const fullName = fullNameIdx !== -1 ? columns[fullNameIdx]?.trim() : '';
-        const defaultPassword = columns[passwordIdx]?.trim();
+        const defaultPassword = columns[passwordIdx];
         const mustChangePassword = parseCsvBoolean(
           mustChangePasswordIdx !== -1
             ? columns[mustChangePasswordIdx]
@@ -364,6 +370,18 @@ export class UsersService {
           continue;
         }
 
+        if (!PASSWORD_POLICY.noWhitespacePattern.test(defaultPassword)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: ${PASSWORD_POLICY.noWhitespaceMessage}`);
+          continue;
+        }
+
+        if (!PASSWORD_POLICY.pattern.test(defaultPassword)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: ${PASSWORD_POLICY.message}`);
+          continue;
+        }
+
         const existingUser = await this.findByEmail(email);
         if (existingUser) {
           skippedCount++;
@@ -393,38 +411,6 @@ export class UsersService {
       errors,
     };
   }
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
-
-function stripUtf8Bom(value: string): string {
-  return value.replace(/^\uFEFF/, '');
-}
-
-function normalizeCsvHeader(value: string): string {
-  return stripUtf8Bom(value).trim();
 }
 
 function parseCsvBoolean(

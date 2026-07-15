@@ -121,4 +121,5 @@ export class UpdateUserProfileDto extends OmitType(UpdateUsersDto, [
   'role',
   'roleId',
   'status',
+  'mustChangePassword',
 ] as const) {}

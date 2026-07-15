@@ -72,4 +72,57 @@ describe('UsersService', () => {
       service.importUsersFromCsv(Buffer.from(csv, 'utf8')),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('skips rows whose default password violates the password policy', async () => {
+    const createUserSpy = jest.spyOn(service, 'createUser');
+    const csv = [
+      'fullName,email,defaultPassword',
+      'Jane Doe,jane@example.com,weak',
+    ].join('\n');
+
+    const result = await service.importUsersFromCsv(Buffer.from(csv, 'utf8'));
+
+    expect(result).toEqual({
+      success: true,
+      insertedCount: 0,
+      skippedCount: 1,
+      errors: [
+        'Dòng 2: Passwords must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.',
+      ],
+    });
+    expect(createUserSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips rows whose default password contains whitespace', async () => {
+    const createUserSpy = jest.spyOn(service, 'createUser');
+    const csv = [
+      'fullName,email,defaultPassword',
+      'Jane Doe,jane@example.com,Default@123 ',
+    ].join('\n');
+
+    const result = await service.importUsersFromCsv(Buffer.from(csv, 'utf8'));
+
+    expect(result.errors).toEqual([
+      'Dòng 2: Passwords must not contain spaces.',
+    ]);
+    expect(createUserSpy).not.toHaveBeenCalled();
+  });
+
+  it('imports quoted CSV fields containing newlines', async () => {
+    jest.spyOn(service, 'findByEmail').mockResolvedValue(null);
+    const createUserSpy = jest
+      .spyOn(service, 'createUser')
+      .mockResolvedValue({} as never);
+    const csv = [
+      'fullName,email,defaultPassword',
+      '"Jane\nDoe",jane@example.com,Default@123',
+    ].join('\n');
+
+    const result = await service.importUsersFromCsv(Buffer.from(csv, 'utf8'));
+
+    expect(result.insertedCount).toBe(1);
+    expect(createUserSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ fullName: 'Jane\nDoe' }),
+    );
+  });
 });
