@@ -38,6 +38,15 @@ function requireStrongSecret(
   }
 }
 
+export function parseOrganizationSchemaEnabled(
+  value: string | undefined,
+): boolean {
+  if (value === undefined || value === '') return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error('ORGANIZATION_SCHEMA_ENABLED must be true or false');
+}
+
 export function validateEnv(config: Env): Env {
   for (const key of REQUIRED_ENV_VARS) {
     requireValue(config, key);
@@ -57,6 +66,7 @@ export function validateEnv(config: Env): Env {
     DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   );
   parseAuthorizationMode(config.AUTHORIZATION_MODE);
+  parseOrganizationSchemaEnabled(config.ORGANIZATION_SCHEMA_ENABLED);
 
   return config;
 }
