@@ -88,19 +88,25 @@ async function main() {
         report.createdOrganizations++;
       }
       const organizationId = organization._id as Types.ObjectId;
-      const users = new Set<string>([ownerId]);
+      const users = new Map<string, { role: 'owner' | 'member' | 'guest'; membershipType: 'employee' | 'guest' }>([
+        [ownerId, { role: 'owner', membershipType: 'employee' }],
+      ]);
       for (const workspace of candidates) {
-        users.add(workspace.ownerId.toString());
-        for (const member of workspace.members || []) if (member.userId) users.add(member.userId.toString());
+        users.set(workspace.ownerId.toString(), { role: 'member', membershipType: 'employee' });
+        for (const member of workspace.members || []) {
+          if (!member.userId) continue;
+          const userId = member.userId.toString();
+          if (!users.has(userId) || member.role !== 'viewer') {
+            users.set(userId, member.role === 'viewer' ? { role: 'guest', membershipType: 'guest' } : { role: 'member', membershipType: 'employee' });
+          }
+        }
       }
-      const activeUsers = new Set((await db.collection('users').find({ _id: { $in: [...users].map(id => new Types.ObjectId(id)) }, status: 'active' }, { session, projection: { _id: 1 } }).toArray()).map(user => user._id.toString()));
-      for (const userId of users) {
+      const activeUsers = new Set((await db.collection('users').find({ _id: { $in: [...users.keys()].map(id => new Types.ObjectId(id)) }, status: 'active' }, { session, projection: { _id: 1 } }).toArray()).map(user => user._id.toString()));
+      for (const [userId, membership] of users) {
         if (!activeUsers.has(userId)) { conflict(report, 'MISSING_USER', { userId }); throw new Error('Migration blocked by missing user'); }
-        const role = userId === ownerId ? 'owner' : 'member';
-        const membershipType = 'employee';
         const result = await db.collection('organizationmemberships').updateOne(
           { organizationId, userId: new Types.ObjectId(userId) },
-          { $setOnInsert: { organizationId, userId: new Types.ObjectId(userId), role, membershipType, status: 'active', joinedAt: new Date(), createdAt: new Date(), updatedAt: new Date() } },
+          { $setOnInsert: { organizationId, userId: new Types.ObjectId(userId), role: membership.role, membershipType: membership.membershipType, status: 'active', joinedAt: new Date(), createdAt: new Date(), updatedAt: new Date() } },
           { upsert: true, session },
         );
         if (result.upsertedCount) report.createdMemberships++; else report.reusedMemberships++;
