@@ -1,19 +1,20 @@
 import { SPACE_ROLES, SpaceRole } from './space-role.constants';
+import { PERMISSIONS } from '../../modules/authorization/authorization.constants';
 
 export const WORKSPACE_PERMISSIONS = {
-  WORKSPACE_UPDATE: 'workspace:update',
-  WORKSPACE_DELETE: 'workspace:delete',
-  TASK_VIEW: 'task:view',
-  TASK_CREATE: 'task:create',
-  TASK_EDIT: 'task:edit',
-  TASK_DELETE: 'task:delete',
-  TASK_MOVE: 'task:move',
-  TASK_BULK_IMPORT: 'task:bulk_import',
-  SPRINT_MANAGE: 'sprint:manage',
-  PAGE_VIEW: 'page:view',
-  PAGE_CREATE: 'page:create',
-  PAGE_EDIT: 'page:edit',
-  PAGE_DELETE: 'page:delete',
+  WORKSPACE_UPDATE: PERMISSIONS.WORKSPACE_UPDATE,
+  WORKSPACE_DELETE: PERMISSIONS.WORKSPACE_DELETE,
+  TASK_VIEW: PERMISSIONS.TASK_VIEW,
+  TASK_CREATE: PERMISSIONS.TASK_CREATE,
+  TASK_EDIT: PERMISSIONS.TASK_EDIT,
+  TASK_DELETE: PERMISSIONS.TASK_DELETE,
+  TASK_MOVE: PERMISSIONS.TASK_MOVE,
+  TASK_BULK_IMPORT: PERMISSIONS.TASK_BULK_IMPORT,
+  SPRINT_MANAGE: PERMISSIONS.SPRINT_MANAGE,
+  PAGE_VIEW: PERMISSIONS.PAGE_VIEW,
+  PAGE_CREATE: PERMISSIONS.PAGE_CREATE,
+  PAGE_EDIT: PERMISSIONS.PAGE_EDIT,
+  PAGE_DELETE: PERMISSIONS.PAGE_DELETE,
 } as const;
 
 export type WorkspacePermission =

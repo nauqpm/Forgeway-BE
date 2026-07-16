@@ -3,6 +3,7 @@ import {
   DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   parsePositiveTtlSeconds,
 } from '../modules/auth/config/auth-token-config.util';
+import { parseAuthorizationMode } from '../modules/authorization/authorization.constants';
 
 type Env = Record<string, string | undefined>;
 
@@ -55,6 +56,7 @@ export function validateEnv(config: Env): Env {
     'REFRESH_TOKEN_TTL_SECONDS',
     DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   );
+  parseAuthorizationMode(config.AUTHORIZATION_MODE);
 
   return config;
 }

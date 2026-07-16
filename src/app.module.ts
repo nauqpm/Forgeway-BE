@@ -45,6 +45,7 @@ import { CacheModule } from './modules/cache/cache.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { AuthorizationModule } from './modules/authorization/authorization.module';
 
 const mailPort = Number.parseInt(process.env.MAIL_PORT ?? '587', 10);
 const mailSecure = mailPort === 465;
@@ -104,6 +105,7 @@ function parseNonNegativeInteger(value: unknown, fallback: number): number {
     DatabaseModule,
     RealtimeModule,
     ChatModule,
+    AuthorizationModule,
 
     // Core Auth
     AuthModule,
