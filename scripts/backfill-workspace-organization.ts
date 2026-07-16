@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import mongoose, { Types } from 'mongoose';
+import { buildWorkspaceOrganizationPreflight } from '../src/modules/workspaces/services/workspace-organization-backfill-preflight';
 
 type Mode = 'dry-run' | 'apply' | 'verify';
 type ConflictCode =
@@ -71,8 +72,18 @@ async function main() {
     if (!workspace.ownerId) conflict(report, 'MISSING_WORKSPACE_OWNER', { workspaceId: workspace._id.toString() });
     else candidates.push(workspace);
   }
-  report.candidateWorkspaces = candidates.length;
-  if (report.conflicts.length) report.blocked = true;
+  const userIds = new Set<string>();
+  for (const workspace of candidates) {
+    if (workspace.ownerId) userIds.add(workspace.ownerId.toString());
+    for (const member of workspace.members || []) if (member.userId) userIds.add(member.userId.toString());
+  }
+  const activeUserIds = new Set((await db.collection('users').find({ _id: { $in: [...userIds].map(id => new Types.ObjectId(id)) }, status: 'active' }, { projection: { _id: 1 } }).toArray()).map(user => user._id.toString()));
+  const preflight = buildWorkspaceOrganizationPreflight({ configuredOwnerValid: true, transactionAvailable: true, legacyOrganizationValid: !existingLegacy || (existingLegacy.status === 'active' && !existingLegacy.deletedAt), workspaces: candidates.map(workspace => ({ id: workspace._id.toString(), ownerId: workspace.ownerId?.toString(), memberIds: (workspace.members || []).filter((member: any) => member.userId).map((member: any) => member.userId.toString()) })), activeUserIds });
+  report.conflicts.push(...preflight.conflicts);
+  const eligibleIds = new Set(preflight.candidateWorkspaceIds);
+  const eligibleCandidates = candidates.filter(workspace => eligibleIds.has(workspace._id.toString()));
+  report.candidateWorkspaces = eligibleCandidates.length;
+  report.blocked ||= preflight.blocked;
   if (mode !== 'apply' || report.blocked) {
     console.log(JSON.stringify(report));
     return;
@@ -91,7 +102,7 @@ async function main() {
       const users = new Map<string, { role: 'owner' | 'member' | 'guest'; membershipType: 'employee' | 'guest' }>([
         [ownerId, { role: 'owner', membershipType: 'employee' }],
       ]);
-      for (const workspace of candidates) {
+      for (const workspace of eligibleCandidates) {
         users.set(workspace.ownerId.toString(), { role: 'member', membershipType: 'employee' });
         for (const member of workspace.members || []) {
           if (!member.userId) continue;
@@ -111,7 +122,7 @@ async function main() {
         );
         if (result.upsertedCount) report.createdMemberships++; else report.reusedMemberships++;
       }
-      const writes = candidates.map(workspace => ({ updateOne: { filter: { _id: workspace._id, organizationId: null }, update: { $set: { organizationId } } } }));
+      const writes = eligibleCandidates.map(workspace => ({ updateOne: { filter: { _id: workspace._id, organizationId: null }, update: { $set: { organizationId } } } }));
       if (writes.length) report.updatedWorkspaces = (await db.collection('workspaces').bulkWrite(writes, { ordered: true, session })).modifiedCount;
     });
   } catch (error) {
