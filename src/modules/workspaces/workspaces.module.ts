@@ -27,6 +27,9 @@ import {
   DocumentSchema,
 } from '../documents/schemas/document.schema';
 import { Page, PageSchema } from '../pages/schemas/page.schema';
+import { Organization, OrganizationSchema } from '../organizations/schemas/organization.schema';
+import { AuditModule } from '../audit/audit.module';
+import { WorkspaceTenantBindingService } from './services/workspace-tenant-binding.service';
 
 @Module({
   imports: [
@@ -36,6 +39,7 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
       { name: Task.name, schema: TaskSchema },
       { name: Page.name, schema: PageSchema },
       { name: DocumentEntity.name, schema: DocumentSchema },
+      { name: Organization.name, schema: OrganizationSchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => ChatModule),
@@ -44,6 +48,7 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
     forwardRef(() => KanbanModule),
     forwardRef(() => ScrumModule),
     forwardRef(() => NotificationsModule),
+    AuditModule,
   ],
   controllers: [WorkspacesController, ForYouController, InviteController],
   providers: [
@@ -52,6 +57,7 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
     WorkspaceKeyService,
     WorkspaceMemberService,
     WorkspaceDomainEventPublisher,
+    WorkspaceTenantBindingService,
     ForYouService,
     InviteRepository,
     InviteService,

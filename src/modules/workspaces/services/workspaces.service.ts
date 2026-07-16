@@ -35,6 +35,7 @@ import {
   WORKSPACE_SAMPLE_AVATARS,
   isWorkspaceSampleAvatar,
 } from '../constants/workspace-sample-avatars.constant';
+import { WorkspaceTenantBindingService } from './workspace-tenant-binding.service';
 
 @Injectable()
 export class WorkspacesService {
@@ -58,9 +59,10 @@ export class WorkspacesService {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
+    private readonly tenantBinding: WorkspaceTenantBindingService,
   ) {}
 
-  async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
+  async create(userId: string, dto: CreateWorkspaceDto, organizationId?: string): Promise<any> {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);
     const slug =
       dto.slug || (await this.workspaceKeyService.generateUniqueSlug(dto.name));
@@ -68,6 +70,13 @@ export class WorkspacesService {
       dto.key || dto.name,
     );
     const avatar = this.resolveWorkspaceAvatar(dto.avatar);
+    const bindingMode = this.tenantBinding.mode();
+    if (bindingMode === 'required' && !organizationId) {
+      throw new BadRequestException('Organization binding is required');
+    }
+    const trustedOrganizationId = organizationId
+      ? await this.tenantBinding.validateWorkspaceOrganizationBinding(organizationId)
+      : null;
 
     const existingSlug = await this.workspacesRepository.findAnyBySlug(slug);
     if (existingSlug) {
@@ -86,6 +95,7 @@ export class WorkspacesService {
         type: dto.type || 'kanban',
         access: dto.access || 'public',
         ownerId: new Types.ObjectId(userId),
+        organizationId: trustedOrganizationId,
         members: [
           {
             userId: new Types.ObjectId(userId),

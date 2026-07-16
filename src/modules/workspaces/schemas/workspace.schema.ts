@@ -1,11 +1,21 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import { Organization } from '../../organizations/schemas/organization.schema';
 
 export type WorkspaceDocument = Workspace & Document;
 
 @Schema({ timestamps: true })
 export class Workspace {
+  @Prop({
+    type: Types.ObjectId,
+    ref: Organization.name,
+    required: false,
+    default: null,
+    index: true,
+  })
+  organizationId?: Types.ObjectId | null;
+
   @Prop({ required: true })
   name!: string;
 

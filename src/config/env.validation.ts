@@ -47,6 +47,12 @@ export function parseOrganizationSchemaEnabled(
   throw new Error('ORGANIZATION_SCHEMA_ENABLED must be true or false');
 }
 
+export function parseWorkspaceOrganizationBindingMode(value: string | undefined): 'legacy' | 'optional' | 'required' {
+  const mode = value || 'legacy';
+  if (mode === 'legacy' || mode === 'optional' || mode === 'required') return mode;
+  throw new Error('WORKSPACE_ORGANIZATION_BINDING_MODE must be legacy, optional, or required');
+}
+
 export function validateEnv(config: Env): Env {
   for (const key of REQUIRED_ENV_VARS) {
     requireValue(config, key);
@@ -67,6 +73,7 @@ export function validateEnv(config: Env): Env {
   );
   parseAuthorizationMode(config.AUTHORIZATION_MODE);
   parseOrganizationSchemaEnabled(config.ORGANIZATION_SCHEMA_ENABLED);
+  parseWorkspaceOrganizationBindingMode(config.WORKSPACE_ORGANIZATION_BINDING_MODE);
 
   return config;
 }
