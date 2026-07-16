@@ -229,14 +229,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
       payload.content,
     );
+    const channelId = message.channelId.toString();
 
     // Update last message preview in channel if this was the last message
     await this.messagesService.updateChannelLastMessageIfNeeded(
-      payload.channelId,
+      channelId,
       message,
     );
 
-    const room = RoomBuilder.channel(payload.channelId);
+    const room = RoomBuilder.channel(channelId);
 
     const envelope: RealtimeEnvelope<any> = {
       eventId: new Types.ObjectId().toString(),
@@ -260,18 +261,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId) return { ok: false };
 
-    const { updatedLastMessage } = await this.messagesService.softDelete(
-      payload.messageId,
-      userId,
-    );
-    const room = RoomBuilder.channel(payload.channelId);
+    const { updatedLastMessage, channelId } =
+      await this.messagesService.softDelete(payload.messageId, userId);
+    const room = RoomBuilder.channel(channelId);
 
     const envelope: RealtimeEnvelope<any> = {
       eventId: new Types.ObjectId().toString(),
       type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED,
       data: {
         messageId: payload.messageId,
-        channelId: payload.channelId,
+        channelId,
         lastMessage: updatedLastMessage || undefined,
       },
       occurredAt: new Date().toISOString(),
@@ -294,7 +293,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!userId || !payload.messageId || !payload.emoji) return { ok: false };
 
     // Persist reaction into the database
-    await this.messagesService.toggleReaction(
+    const reaction = await this.messagesService.toggleReaction(
       payload.messageId,
       userId,
       payload.emoji,
@@ -302,12 +301,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Get updated reactions map for the message
     const updatedReactions = await this.messagesService.getReactions(
       payload.messageId,
+      userId,
     );
 
-    const room = RoomBuilder.channel(payload.channelId);
+    const room = RoomBuilder.channel(reaction.channelId);
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_REACTION_UPDATED, {
       messageId: payload.messageId,
-      channelId: payload.channelId,
+      channelId: reaction.channelId,
       reactions: updatedReactions,
     });
 
@@ -338,12 +338,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @Throttle(CHAT_THROTTLE_CONFIG.TYPING)
   @SubscribeMessage('chat.typing')
-  handleTyping(
+  async handleTyping(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() body: { channelId: string },
   ) {
     const user = client.data.user;
-    if (!user || !body.channelId) return;
+    if (!user || !body?.channelId) return { ok: false };
+
+    const hasAccess = await this.channelsService.validateUserAccess(
+      body.channelId,
+      user.userId,
+    );
+    if (!hasAccess) return { ok: false };
 
     const room = RoomBuilder.channel(body.channelId);
     client.to(room).emit(REALTIME_EVENT_TYPES.CHAT_USER_TYPING, {
@@ -351,5 +357,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       channelId: body.channelId,
       timestamp: new Date().toISOString(),
     });
+
+    return { ok: true };
   }
 }

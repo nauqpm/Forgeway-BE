@@ -194,9 +194,11 @@ export class MessagesService {
     });
   }
 
-  async getReactions(messageId: string): Promise<Record<string, string[]>> {
-    const message = await this.messagesRepository.findById(messageId);
-    if (!message) return {};
+  async getReactions(
+    messageId: string,
+    userId: string,
+  ): Promise<Record<string, string[]>> {
+    const message = await this.findMessageWithAccess(messageId, userId);
 
     const result: Record<string, string[]> = {};
     if (message.reactions) {
@@ -301,10 +303,7 @@ export class MessagesService {
       throw new NotFoundException('Invalid Message ID');
     }
 
-    const message = await this.messagesRepository.findById(messageId);
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const message = await this.findMessageWithAccess(messageId, userId);
 
     if (!message.reactions) {
       message.reactions = new Map<string, Types.ObjectId[]>();
@@ -325,14 +324,22 @@ export class MessagesService {
       }
       message.markModified('reactions');
       await message.save();
-      return { action: 'removed', emoji };
+      return {
+        action: 'removed',
+        emoji,
+        channelId: message.channelId.toString(),
+      };
     } else {
       // Add reaction
       existingList.push(userObjectId);
       message.reactions.set(emoji, existingList);
       message.markModified('reactions');
       await message.save();
-      return { action: 'added', emoji };
+      return {
+        action: 'added',
+        emoji,
+        channelId: message.channelId.toString(),
+      };
     }
   }
 
@@ -777,10 +784,7 @@ export class MessagesService {
       throw new NotFoundException('Invalid Message ID');
     }
 
-    const message = await this.messagesRepository.findById(messageId);
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const message = await this.findMessageWithAccess(messageId, userId);
 
     if (message.senderId.toString() !== userId) {
       throw new ForbiddenException('Only the sender can edit this message');
@@ -808,15 +812,12 @@ export class MessagesService {
   async softDelete(
     messageId: string,
     userId: string,
-  ): Promise<{ updatedLastMessage: any | null }> {
+  ): Promise<{ updatedLastMessage: any | null; channelId: string }> {
     if (!Types.ObjectId.isValid(messageId)) {
       throw new NotFoundException('Invalid Message ID');
     }
 
-    const message = await this.messagesRepository.findById(messageId);
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const message = await this.findMessageWithAccess(messageId, userId);
 
     const user = await this.usersService.getUserById(userId);
     const channel = await this.channelsService.findById(
@@ -914,7 +915,7 @@ export class MessagesService {
       updatedLastMessage = null;
     }
 
-    return { updatedLastMessage };
+    return { updatedLastMessage, channelId };
   }
 
   async findById(id: string): Promise<any> {
@@ -940,6 +941,30 @@ export class MessagesService {
     }
     const [withReactions] = await this.populateReactions([message]);
     return withReactions;
+  }
+
+  private async findMessageWithAccess(
+    messageId: string,
+    userId: string,
+  ): Promise<MessageDocument> {
+    if (!Types.ObjectId.isValid(messageId)) {
+      throw new NotFoundException('Invalid Message ID');
+    }
+
+    const message = await this.messagesRepository.findById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const hasAccess = await this.channelsService.validateUserAccess(
+      message.channelId.toString(),
+      userId,
+    );
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    return message;
   }
 
   async updateChannelLastMessageIfNeeded(

@@ -35,7 +35,11 @@ import {
   Workspace,
   WorkspaceDocument,
 } from '../workspaces/schemas/workspace.schema';
-import { getPermissionsForWorkspaceRole } from '../../common/constants/workspace-permissions.constants';
+import {
+  getPermissionsForWorkspaceRole,
+  WORKSPACE_PERMISSIONS,
+} from '../../common/constants/workspace-permissions.constants';
+import { SPACE_ROLES } from '../../common/constants/space-role.constants';
 import { LeavePageRoomDto } from './dto/leave-page-room.dto';
 import { getAllowedCorsOrigins } from '../../config/cors-origins.config';
 
@@ -344,12 +348,14 @@ export class RealtimeGateway
         m => m.userId.toString() === userId,
       );
       const role =
-        workspace.ownerId.toString() === userId ? 'admin' : member?.role;
+        workspace.ownerId.toString() === userId
+          ? SPACE_ROLES.WORKSPACE_ADMIN
+          : member?.role;
 
       if (!role) return false;
 
       const permissions = getPermissionsForWorkspaceRole(role);
-      return permissions.includes('page:edit');
+      return permissions.includes(WORKSPACE_PERMISSIONS.PAGE_EDIT);
     } catch {
       return false;
     }
@@ -368,14 +374,20 @@ export class RealtimeGateway
         .exec();
       if (!workspace) return false;
 
-      if (workspace.ownerId.toString() === userId) {
-        return true;
-      }
-
       const member = workspace.members.find(
         m => m.userId.toString() === userId,
       );
-      return !!member;
+      const role =
+        workspace.ownerId.toString() === userId
+          ? SPACE_ROLES.WORKSPACE_ADMIN
+          : member?.role;
+
+      return (
+        !!role &&
+        getPermissionsForWorkspaceRole(role).includes(
+          WORKSPACE_PERMISSIONS.PAGE_VIEW,
+        )
+      );
     } catch {
       return false;
     }

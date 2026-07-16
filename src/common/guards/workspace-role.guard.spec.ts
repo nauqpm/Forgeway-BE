@@ -31,6 +31,7 @@ describe('workspace permissions', () => {
     expect(getPermissionsForWorkspaceRole(SPACE_ROLES.MEMBER)).toEqual(
       expect.arrayContaining([
         WORKSPACE_PERMISSIONS.TASK_CREATE,
+        WORKSPACE_PERMISSIONS.TASK_VIEW,
         WORKSPACE_PERMISSIONS.TASK_EDIT,
         WORKSPACE_PERMISSIONS.TASK_DELETE,
         WORKSPACE_PERMISSIONS.TASK_MOVE,
@@ -42,6 +43,7 @@ describe('workspace permissions', () => {
       ]),
     );
     expect(getPermissionsForWorkspaceRole(SPACE_ROLES.VIEWER)).toEqual([
+      WORKSPACE_PERMISSIONS.TASK_VIEW,
       WORKSPACE_PERMISSIONS.PAGE_VIEW,
     ]);
   });
