@@ -15,7 +15,9 @@ describe('buildWorkspaceOrganizationPreflight', () => {
 
     expect(report.blocked).toBe(false);
     expect(report.candidateWorkspaceIds).toEqual(['good']);
-    expect(report.conflicts).toEqual([{ code: 'MISSING_USER', workspaceId: 'bad', userId: 'missing' }]);
+    expect(report.conflicts).toEqual([
+      { code: 'MISSING_USER', workspaceId: 'bad', userId: 'missing' },
+    ]);
   });
 
   it('blocks globally before mutation when the transaction is unavailable', () => {

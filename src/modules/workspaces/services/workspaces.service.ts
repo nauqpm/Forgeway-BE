@@ -62,7 +62,11 @@ export class WorkspacesService {
     private readonly tenantBinding: WorkspaceTenantBindingService,
   ) {}
 
-  async create(userId: string, dto: CreateWorkspaceDto, organizationId?: string): Promise<any> {
+  async create(
+    userId: string,
+    dto: CreateWorkspaceDto,
+    organizationId?: string,
+  ): Promise<any> {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);
     const slug =
       dto.slug || (await this.workspaceKeyService.generateUniqueSlug(dto.name));
@@ -75,7 +79,9 @@ export class WorkspacesService {
       throw new BadRequestException('Organization binding is required');
     }
     const trustedOrganizationId = organizationId
-      ? await this.tenantBinding.validateWorkspaceOrganizationBinding(organizationId)
+      ? await this.tenantBinding.validateWorkspaceOrganizationBinding(
+          organizationId,
+        )
       : null;
 
     const existingSlug = await this.workspacesRepository.findAnyBySlug(slug);

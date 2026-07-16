@@ -27,7 +27,10 @@ import {
   DocumentSchema,
 } from '../documents/schemas/document.schema';
 import { Page, PageSchema } from '../pages/schemas/page.schema';
-import { Organization, OrganizationSchema } from '../organizations/schemas/organization.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../organizations/schemas/organization.schema';
 import { AuditModule } from '../audit/audit.module';
 import { WorkspaceTenantBindingService } from './services/workspace-tenant-binding.service';
 

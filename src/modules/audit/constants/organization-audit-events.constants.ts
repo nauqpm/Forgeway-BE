@@ -11,12 +11,18 @@ export const ORGANIZATION_AUDIT_EVENTS = {
   OWNERSHIP_TRANSFERRED: 'organization.ownership_transferred',
   INVARIANT_REJECTED: 'organization.owner_invariant_rejected',
   ELEVATED_GUEST_ROLE_ASSIGNED: 'organization.elevated_guest_role_assigned',
-  WORKSPACE_ORGANIZATION_BINDING_CREATED: 'workspace.organization_binding.created',
-  WORKSPACE_ORGANIZATION_BINDING_SKIPPED: 'workspace.organization_binding.skipped',
-  WORKSPACE_ORGANIZATION_BINDING_CONFLICT: 'workspace.organization_binding.conflict',
-  WORKSPACE_ORGANIZATION_BACKFILL_STARTED: 'workspace.organization_backfill.started',
-  WORKSPACE_ORGANIZATION_BACKFILL_COMPLETED: 'workspace.organization_backfill.completed',
-  WORKSPACE_ORGANIZATION_BACKFILL_FAILED: 'workspace.organization_backfill.failed',
+  WORKSPACE_ORGANIZATION_BINDING_CREATED:
+    'workspace.organization_binding.created',
+  WORKSPACE_ORGANIZATION_BINDING_SKIPPED:
+    'workspace.organization_binding.skipped',
+  WORKSPACE_ORGANIZATION_BINDING_CONFLICT:
+    'workspace.organization_binding.conflict',
+  WORKSPACE_ORGANIZATION_BACKFILL_STARTED:
+    'workspace.organization_backfill.started',
+  WORKSPACE_ORGANIZATION_BACKFILL_COMPLETED:
+    'workspace.organization_backfill.completed',
+  WORKSPACE_ORGANIZATION_BACKFILL_FAILED:
+    'workspace.organization_backfill.failed',
   LEGACY_ORGANIZATION_CREATED: 'organization.legacy_created',
   MEMBERSHIP_BACKFILLED: 'organization.membership_backfilled',
 } as const;
