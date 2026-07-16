@@ -30,6 +30,14 @@ export interface WorkspaceOrganizationBackfillStore {
   ): Promise<'bound' | 'already_bound' | 'bound_elsewhere' | 'missing'>;
 }
 
+class WorkspaceBindConflict extends Error {
+  constructor(
+    readonly code: 'WORKSPACE_NOT_FOUND' | 'WORKSPACE_ALREADY_BOUND_ELSEWHERE',
+  ) {
+    super(code);
+  }
+}
+
 export class WorkspaceOrganizationBackfillApplyService {
   constructor(private readonly store: WorkspaceOrganizationBackfillStore) {}
 
@@ -103,13 +111,21 @@ export class WorkspaceOrganizationBackfillApplyService {
             workspaceId: workspace.id,
             organizationId,
           });
-          if (
-            local.outcome === 'bound_elsewhere' ||
-            local.outcome === 'missing'
-          )
-            throw new Error(local.outcome);
+          if (local.outcome === 'bound_elsewhere')
+            throw new WorkspaceBindConflict(
+              'WORKSPACE_ALREADY_BOUND_ELSEWHERE',
+            );
+          if (local.outcome === 'missing')
+            throw new WorkspaceBindConflict('WORKSPACE_NOT_FOUND');
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof WorkspaceBindConflict) {
+          report.conflicts.push({
+            code: error.code,
+            workspaceId: workspace.id,
+          });
+          continue;
+        }
         report.status = 'failed';
         report.failedWorkspaceId = workspace.id;
         return report;

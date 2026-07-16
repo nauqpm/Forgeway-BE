@@ -100,4 +100,29 @@ describe('WorkspaceOrganizationBackfillApplyService', () => {
       alreadyBoundWorkspaces: 1,
     });
   });
+
+  it('reports a conditional-bind race without committing memberships', async () => {
+    const store = {
+      transaction: jest.fn(async operation => operation({})),
+      bootstrapLegacyOrganization: jest.fn(async () => ({
+        organizationId: 'legacy',
+        created: false,
+      })),
+      ensureMembership: jest.fn(async () => 'created'),
+      bindWorkspace: jest.fn(async () => 'bound_elsewhere'),
+    } as any as WorkspaceOrganizationBackfillStore;
+
+    const report = await new WorkspaceOrganizationBackfillApplyService(
+      store,
+    ).apply({ confirm: true, workspaces: [workspace] });
+
+    expect(report).toMatchObject({
+      status: 'completed_with_conflicts',
+      createdMemberships: 0,
+      updatedWorkspaces: 0,
+    });
+    expect(report.conflicts).toEqual([
+      { code: 'WORKSPACE_ALREADY_BOUND_ELSEWHERE', workspaceId: 'workspace-a' },
+    ]);
+  });
 });

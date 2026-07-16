@@ -2,6 +2,7 @@ import 'dotenv/config';
 import mongoose, { Types } from 'mongoose';
 import { buildWorkspaceOrganizationPreflight } from '../src/modules/workspaces/services/workspace-organization-backfill-preflight';
 import { reconcileWorkspaceOrganizationBindings } from '../src/modules/workspaces/services/workspace-organization-reconciliation.service';
+import { WorkspaceOrganizationBackfillApplyService } from '../src/modules/workspaces/services/workspace-organization-backfill-apply.service';
 
 type Mode = 'dry-run' | 'apply' | 'verify';
 type ConflictCode =
@@ -14,6 +15,7 @@ type ConflictCode =
   | 'TRANSACTION_UNAVAILABLE';
 
 type Report = {
+  status: 'success' | 'completed_with_conflicts' | 'blocked' | 'failed';
   mode: Mode;
   scannedWorkspaces: number;
   alreadyBoundWorkspaces: number;
@@ -69,6 +71,7 @@ async function main() {
   await mongoose.connect(uri);
   const db = mongoose.connection.db!;
   const report: Report = {
+    status: 'success',
     mode,
     scannedWorkspaces: 0,
     alreadyBoundWorkspaces: 0,
@@ -148,9 +151,22 @@ async function main() {
         .toArray()
     ).map(user => user._id.toString()),
   );
+  let transactionAvailable = true;
+  if (mode === 'apply') {
+    const probe = await mongoose.startSession();
+    try {
+      await probe.withTransaction(() =>
+        db.collection('users').findOne({}, { session: probe }),
+      );
+    } catch {
+      transactionAvailable = false;
+    } finally {
+      await probe.endSession();
+    }
+  }
   const preflight = buildWorkspaceOrganizationPreflight({
     configuredOwnerValid: true,
-    transactionAvailable: true,
+    transactionAvailable,
     legacyOrganizationValid:
       !existingLegacy ||
       (existingLegacy.status === 'active' && !existingLegacy.deletedAt),
@@ -259,22 +275,40 @@ async function main() {
     report.scannedWorkspaces = reconciliation.scannedWorkspaces;
     report.conflicts.push(...(reconciliation.conflicts as any));
     report.blocked = report.conflicts.length > 0;
+    report.status = report.blocked ? 'completed_with_conflicts' : 'success';
     console.log(JSON.stringify(report));
+    if (report.blocked) process.exitCode = 2;
     return;
   }
   if (mode !== 'apply' || report.blocked) {
+    report.status = report.blocked
+      ? 'blocked'
+      : report.conflicts.length
+        ? 'completed_with_conflicts'
+        : 'success';
     console.log(JSON.stringify(report));
+    if (report.status === 'blocked') process.exitCode = 3;
+    else if (report.status === 'completed_with_conflicts') process.exitCode = 2;
     return;
   }
 
-  let organization = existingLegacy;
-  const bootstrap = await mongoose.startSession();
-  try {
-    await bootstrap.withTransaction(async () => {
+  const apply = new WorkspaceOrganizationBackfillApplyService({
+    transaction: operation =>
+      mongoose.startSession().then(async session => {
+        try {
+          return await session.withTransaction(() => operation(session));
+        } finally {
+          await session.endSession();
+        }
+      }),
+    bootstrapLegacyOrganization: async session => {
+      let organization = await db
+        .collection('organizations')
+        .findOne({ slug }, { session: session as any });
+      let created = false;
       if (!organization) {
-        const result = await db
-          .collection('organizations')
-          .insertOne(
+        try {
+          const result = await db.collection('organizations').insertOne(
             {
               name,
               slug,
@@ -287,31 +321,149 @@ async function main() {
               createdAt: new Date(),
               updatedAt: new Date(),
             },
-            { session: bootstrap },
+            { session: session as any },
           );
+          organization = {
+            _id: result.insertedId,
+            status: 'active',
+            deletedAt: null,
+          };
+          created = true;
+        } catch (error: any) {
+          if (error?.code !== 11000) throw error;
+          organization = await db
+            .collection('organizations')
+            .findOne({ slug }, { session: session as any });
+        }
+      }
+      if (
+        !organization ||
+        organization.status !== 'active' ||
+        organization.deletedAt
+      )
+        throw new Error('LEGACY_ORGANIZATION_SLUG_CONFLICT');
+      await db.collection('organizationmemberships').updateOne(
+        {
+          organizationId: organization._id,
+          userId: new Types.ObjectId(ownerId),
+        },
+        {
+          $setOnInsert: {
+            organizationId: organization._id,
+            userId: new Types.ObjectId(ownerId),
+            role: 'owner',
+            membershipType: 'employee',
+            status: 'active',
+            joinedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true, session: session as any },
+      );
+      return { organizationId: organization._id.toString(), created };
+    },
+    ensureMembership: async (session, input) => {
+      const result = await db.collection('organizationmemberships').updateOne(
+        {
+          organizationId: new Types.ObjectId(input.organizationId),
+          userId: new Types.ObjectId(input.userId),
+        },
+        {
+          $setOnInsert: {
+            ...input,
+            organizationId: new Types.ObjectId(input.organizationId),
+            userId: new Types.ObjectId(input.userId),
+            status: 'active',
+            joinedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true, session: session as any },
+      );
+      return result.upsertedCount ? 'created' : 'reused';
+    },
+    bindWorkspace: async (session, input) => {
+      const organizationId = new Types.ObjectId(input.organizationId);
+      const result = await db
+        .collection('workspaces')
+        .updateOne(
+          { _id: new Types.ObjectId(input.workspaceId), organizationId: null },
+          { $set: { organizationId } },
+          { session: session as any },
+        );
+      if (result.modifiedCount) return 'bound';
+      const current = await db
+        .collection('workspaces')
+        .findOne(
+          { _id: new Types.ObjectId(input.workspaceId) },
+          { session: session as any, projection: { organizationId: 1 } },
+        );
+      if (!current) return 'missing';
+      return current.organizationId?.equals(organizationId)
+        ? 'already_bound'
+        : 'bound_elsewhere';
+    },
+  });
+  const applyReport = await apply.apply({
+    confirm,
+    workspaces: eligibleCandidates.map(workspace => ({
+      id: workspace._id.toString(),
+      ownerId: workspace.ownerId.toString(),
+      members: (workspace.members || [])
+        .filter((member: any) => member.userId)
+        .map((member: any) => ({
+          userId: member.userId.toString(),
+          role: member.role,
+        })),
+    })),
+  });
+  console.log(JSON.stringify({ ...report, ...applyReport }));
+  if (applyReport.status !== 'success') process.exitCode = 1;
+  return;
+
+  let organization = existingLegacy;
+  const bootstrap = await mongoose.startSession();
+  try {
+    await bootstrap.withTransaction(async () => {
+      if (!organization) {
+        const result = await db.collection('organizations').insertOne(
+          {
+            name,
+            slug,
+            status: 'active',
+            createdBy: new Types.ObjectId(ownerId),
+            settings: {},
+            deletedAt: null,
+            deactivatedAt: null,
+            lifecycleVersion: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          { session: bootstrap },
+        );
         organization = { _id: result.insertedId };
       }
-      await db
-        .collection('organizationmemberships')
-        .updateOne(
-          {
+      await db.collection('organizationmemberships').updateOne(
+        {
+          organizationId: organization!._id,
+          userId: new Types.ObjectId(ownerId),
+        },
+        {
+          $setOnInsert: {
             organizationId: organization!._id,
             userId: new Types.ObjectId(ownerId),
+            role: 'owner',
+            membershipType: 'employee',
+            status: 'active',
+            joinedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
-          {
-            $setOnInsert: {
-              organizationId: organization!._id,
-              userId: new Types.ObjectId(ownerId),
-              role: 'owner',
-              membershipType: 'employee',
-              status: 'active',
-              joinedAt: new Date(),
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-          },
-          { upsert: true, session: bootstrap },
-        );
+        },
+        { upsert: true, session: bootstrap },
+      );
     });
     if (!existingLegacy) report.createdOrganizations++;
   } catch (error) {
