@@ -33,6 +33,15 @@ import {
 } from '../organizations/schemas/organization.schema';
 import { AuditModule } from '../audit/audit.module';
 import { WorkspaceTenantBindingService } from './services/workspace-tenant-binding.service';
+import {
+  WorkspaceMembership,
+  WorkspaceMembershipSchema,
+} from './schemas/workspace-membership.schema';
+import {
+  OrganizationMembership,
+  OrganizationMembershipSchema,
+} from '../organizations/schemas/organization-membership.schema';
+import { WorkspaceMembershipDualWriteService } from './services/workspace-membership-dual-write.service';
 
 @Module({
   imports: [
@@ -43,6 +52,11 @@ import { WorkspaceTenantBindingService } from './services/workspace-tenant-bindi
       { name: Page.name, schema: PageSchema },
       { name: DocumentEntity.name, schema: DocumentSchema },
       { name: Organization.name, schema: OrganizationSchema },
+      {
+        name: OrganizationMembership.name,
+        schema: OrganizationMembershipSchema,
+      },
+      { name: WorkspaceMembership.name, schema: WorkspaceMembershipSchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => ChatModule),
@@ -61,9 +75,11 @@ import { WorkspaceTenantBindingService } from './services/workspace-tenant-bindi
     WorkspaceMemberService,
     WorkspaceDomainEventPublisher,
     WorkspaceTenantBindingService,
+    WorkspaceMembershipDualWriteService,
     ForYouService,
     InviteRepository,
     InviteService,
+    WorkspaceMembershipDualWriteService,
     WorkspaceRoleGuard,
   ],
   exports: [

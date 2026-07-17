@@ -58,6 +58,17 @@ export function parseWorkspaceOrganizationBindingMode(
   );
 }
 
+export function parseWorkspaceMembershipMode(
+  value: string | undefined,
+): 'legacy' | 'dual_write' | 'shadow_read' {
+  const mode = value || 'legacy';
+  if (mode === 'legacy' || mode === 'dual_write' || mode === 'shadow_read')
+    return mode;
+  throw new Error(
+    'WORKSPACE_MEMBERSHIP_MODE must be legacy, dual_write, or shadow_read',
+  );
+}
+
 export function validateEnv(config: Env): Env {
   for (const key of REQUIRED_ENV_VARS) {
     requireValue(config, key);
@@ -81,6 +92,7 @@ export function validateEnv(config: Env): Env {
   parseWorkspaceOrganizationBindingMode(
     config.WORKSPACE_ORGANIZATION_BINDING_MODE,
   );
+  parseWorkspaceMembershipMode(config.WORKSPACE_MEMBERSHIP_MODE);
 
   return config;
 }

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { InviteService } from './invite.service';
+import { WorkspaceMembershipDualWriteService } from './workspace-membership-dual-write.service';
 import { InviteRepository } from '../repositories/invite.repository';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { UsersService } from '@/modules/users/services/users.service';
@@ -43,11 +44,19 @@ describe('InviteService', () => {
   let workspacesRepo: jest.Mocked<WorkspacesRepository>;
   let usersService: jest.Mocked<UsersService>;
   let mailerService: jest.Mocked<MailerService>;
+  let membershipDualWrite: {
+    inviteMember: jest.Mock;
+    activateInvite: jest.Mock;
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InviteService,
+        {
+          provide: WorkspaceMembershipDualWriteService,
+          useValue: { inviteMember: jest.fn(), activateInvite: jest.fn() },
+        },
         {
           provide: InviteRepository,
           useValue: {
@@ -103,6 +112,7 @@ describe('InviteService', () => {
     workspacesRepo = module.get(WorkspacesRepository);
     usersService = module.get(UsersService);
     mailerService = module.get(MailerService);
+    membershipDualWrite = module.get(WorkspaceMembershipDualWriteService);
   });
 
   describe('createInvite', () => {
@@ -393,10 +403,12 @@ describe('InviteService', () => {
 
       await service.acceptInvite(mockToken, userId, userEmail);
 
-      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
-        mockInvite.workspaceId.toString(),
-        userId,
-        mockInvite.role,
+      expect(membershipDualWrite.activateInvite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: mockInvite.workspaceId.toString(),
+          userId,
+          role: mockInvite.role,
+        }),
       );
       expect(inviteRepo.updateStatus).toHaveBeenCalledWith(
         'inviteObjectId',
@@ -421,10 +433,12 @@ describe('InviteService', () => {
 
       await service.acceptInvite(mockToken, userId, 'anyone@example.com');
 
-      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
-        linkInvite.workspaceId.toString(),
-        userId,
-        linkInvite.role,
+      expect(membershipDualWrite.activateInvite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: linkInvite.workspaceId.toString(),
+          userId,
+          role: linkInvite.role,
+        }),
       );
       expect(inviteRepo.addAcceptedBy).toHaveBeenCalledWith(
         'inviteObjectId',
@@ -565,10 +579,12 @@ describe('InviteService', () => {
 
       await service.acceptInviteByIdForUser(inviteId, userId, userEmail);
 
-      expect(workspacesRepo.addMember).toHaveBeenCalledWith(
-        mockWorkspace._id.toString(),
-        userId,
-        SPACE_ROLES.MEMBER,
+      expect(membershipDualWrite.activateInvite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: mockWorkspace._id.toString(),
+          userId,
+          role: SPACE_ROLES.MEMBER,
+        }),
       );
       expect(inviteRepo.updateStatus).toHaveBeenCalledWith(
         inviteId,
@@ -639,7 +655,7 @@ describe('InviteService', () => {
 
       await service.processPostRegisterInvites(email, newUserId);
 
-      expect(workspacesRepo.addMember).toHaveBeenCalledTimes(2);
+      expect(membershipDualWrite.activateInvite).toHaveBeenCalledTimes(2);
       expect(inviteRepo.updateStatus).toHaveBeenCalledWith(
         'inv1',
         INVITE_STATUS.ACCEPTED,

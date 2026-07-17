@@ -36,6 +36,7 @@ import {
   isWorkspaceSampleAvatar,
 } from '../constants/workspace-sample-avatars.constant';
 import { WorkspaceTenantBindingService } from './workspace-tenant-binding.service';
+import { WorkspaceMembershipDualWriteService } from './workspace-membership-dual-write.service';
 
 @Injectable()
 export class WorkspacesService {
@@ -60,6 +61,7 @@ export class WorkspacesService {
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
     private readonly tenantBinding: WorkspaceTenantBindingService,
+    private readonly membershipDualWrite: WorkspaceMembershipDualWriteService,
   ) {}
 
   async create(
@@ -92,7 +94,7 @@ export class WorkspacesService {
     }
 
     try {
-      const workspace = await this.workspacesRepository.create({
+      const workspace = await this.membershipDualWrite.createWorkspace({
         name: dto.name,
         description: dto.description,
         avatar,

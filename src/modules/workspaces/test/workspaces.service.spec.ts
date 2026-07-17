@@ -16,6 +16,8 @@ import { WorkflowsService } from '@/modules/workflows/services/workflows.service
 import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspaces.repository';
 import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
 import { WorkspaceKeyService } from '@/modules/workspaces/services/workspace-key.service';
+import { WorkspaceMembershipDualWriteService } from '@/modules/workspaces/services/workspace-membership-dual-write.service';
+import { WorkspaceTenantBindingService } from '@/modules/workspaces/services/workspace-tenant-binding.service';
 import { WorkspacesService } from '@/modules/workspaces/services/workspaces.service';
 import { Task } from '@/modules/tasks/schemas/task.schema';
 import { Page } from '@/modules/pages/schemas/page.schema';
@@ -135,6 +137,20 @@ describe('WorkspacesService', () => {
         {
           provide: ChannelsService,
           useValue: { createWorkspaceChannel: jest.fn().mockResolvedValue({}) },
+        },
+        {
+          provide: WorkspaceTenantBindingService,
+          useValue: {
+            mode: jest.fn().mockReturnValue('legacy'),
+            validateWorkspaceOrganizationBinding: jest.fn(),
+          },
+        },
+        {
+          provide: WorkspaceMembershipDualWriteService,
+          useFactory: (repository: WorkspacesRepository) => ({
+            createWorkspace: repository.create,
+          }),
+          inject: [WorkspacesRepository],
         },
       ],
     }).compile();

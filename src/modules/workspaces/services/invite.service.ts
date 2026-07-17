@@ -17,7 +17,10 @@ import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { CreateInviteDto } from '../dtos/create-invite.dto';
 import { CreateInviteLinkDto } from '../dtos/create-invite-link.dto';
 import { Invite, INVITE_STATUS, INVITE_TYPES } from '../schemas/invite.schema';
-import { SPACE_ROLES } from '@/common/constants/space-role.constants';
+import {
+  SPACE_ROLES,
+  SpaceRole,
+} from '@/common/constants/space-role.constants';
 import { ErrorFactory } from '../../../common/factories/error.factory';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { UsersService } from '@/modules/users/services/users.service';
@@ -27,6 +30,7 @@ import {
   WorkspaceMemberJoinedEvent,
   WorkspaceSummaryPayload,
 } from '@/shared/events/domain-events/workspace';
+import { WorkspaceMembershipDualWriteService } from './workspace-membership-dual-write.service';
 
 @Injectable()
 export class InviteService {
@@ -41,6 +45,7 @@ export class InviteService {
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly membershipDualWrite: WorkspaceMembershipDualWriteService,
   ) {}
 
   async createInvite(
@@ -83,6 +88,14 @@ export class InviteService {
       type: INVITE_TYPES.EMAIL,
       status: INVITE_STATUS.PENDING,
     });
+    if (existingUser)
+      await this.membershipDualWrite.inviteMember({
+        workspaceId,
+        userId: existingUser._id.toString(),
+        role: role as SpaceRole,
+        actorId: invitedByUserId,
+        expiresAt: invite.expiresAt ?? null,
+      });
 
     this.publishWorkspaceInviteCreatedEvent(
       workspace,
@@ -320,11 +333,12 @@ export class InviteService {
         const workspace = await this.workspacesRepository.findById(
           invite.workspaceId.toString(),
         );
-        await this.workspacesRepository.addMember(
-          invite.workspaceId.toString(),
+        await this.membershipDualWrite.activateInvite({
+          workspaceId: invite.workspaceId.toString(),
           userId,
-          invite.role,
-        );
+          role: invite.role as import('@/common/constants/space-role.constants').SpaceRole,
+          actorId: userId,
+        });
         await this.inviteRepository.updateStatus(
           (invite as any)._id.toString(),
           INVITE_STATUS.ACCEPTED,
@@ -425,11 +439,12 @@ export class InviteService {
     if (alreadyMember)
       throw new ConflictException(ErrorFactory.memberAlreadyExists());
 
-    await this.workspacesRepository.addMember(
-      invite.workspaceId.toString(),
+    await this.membershipDualWrite.activateInvite({
+      workspaceId: invite.workspaceId.toString(),
       userId,
-      invite.role,
-    );
+      role: invite.role as import('@/common/constants/space-role.constants').SpaceRole,
+      actorId: userId,
+    });
     if (inviteType === INVITE_TYPES.LINK) {
       await this.inviteRepository.addAcceptedBy(
         (invite as any)._id.toString(),

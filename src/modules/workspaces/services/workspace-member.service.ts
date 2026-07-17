@@ -23,6 +23,7 @@ import {
   WorkspaceMemberRoleUpdatedEvent,
   WorkspaceSummaryPayload,
 } from '../../../shared/events/domain-events/workspace';
+import { WorkspaceMembershipDualWriteService } from './workspace-membership-dual-write.service';
 
 @Injectable()
 export class WorkspaceMemberService {
@@ -33,6 +34,7 @@ export class WorkspaceMemberService {
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly membershipDualWrite: WorkspaceMembershipDualWriteService,
   ) {}
 
   async addMember(
@@ -62,11 +64,12 @@ export class WorkspaceMemberService {
       );
     }
 
-    const updated = await this.workspacesRepository.addMember(
+    const updated = await this.membershipDualWrite.addMember({
       workspaceId,
       userId,
       role,
-    );
+      actorId,
+    });
     this.publishMemberJoinedEvent(workspace, userId, role, actorId);
     this.logger.log(
       `Added member ${email} to workspace ${workspaceId} as ${role}`,
@@ -97,9 +100,10 @@ export class WorkspaceMemberService {
 
     this.ensureNotLastAdmin(workspace, userId);
 
-    const updated = await this.workspacesRepository.removeMember(
+    const updated = await this.membershipDualWrite.removeMember(
       workspaceId,
       userId,
+      actorId === userId ? 'left' : 'removed',
     );
     this.publishMemberRemovedEvent(workspace, userId, member.role, actorId);
     this.logger.log(`Member ${userId} removed from workspace ${workspaceId}`);
@@ -136,7 +140,7 @@ export class WorkspaceMemberService {
     }
 
     const previousRole = member.role;
-    const updated = await this.workspacesRepository.updateMemberRole(
+    const updated = await this.membershipDualWrite.changeRole(
       workspaceId,
       userId,
       role,
@@ -178,7 +182,9 @@ export class WorkspaceMemberService {
     const workspace = await this.workspacesRepository.findById(workspaceId);
     if (!workspace) return null;
     const member = workspace.members.find(m => m.userId.toString() === userId);
-    return member ? member.role : null;
+    const role = member ? member.role : null;
+    await this.membershipDualWrite.shadowCompare(workspace, userId, role);
+    return role;
   }
 
   /**
