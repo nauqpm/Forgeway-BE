@@ -14,6 +14,8 @@ import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspac
 import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
 import { WorkspaceKeyService } from '@/modules/workspaces/services/workspace-key.service';
 import { WorkspacesService } from '@/modules/workspaces/services/workspaces.service';
+import { WorkspaceMembershipDualWriteService } from '@/modules/workspaces/services/workspace-membership-dual-write.service';
+import { WorkspaceTenantBindingService } from '@/modules/workspaces/services/workspace-tenant-binding.service';
 
 const mockWorkspacesRepository = () => ({
   findByUserId: jest.fn(),
@@ -66,6 +68,14 @@ describe('WorkspacesService workspace counts', () => {
         {
           provide: ChannelsService,
           useValue: { createWorkspaceChannel: jest.fn().mockResolvedValue({}) },
+        },
+        {
+          provide: WorkspaceTenantBindingService,
+          useValue: { mode: jest.fn().mockReturnValue('legacy') },
+        },
+        {
+          provide: WorkspaceMembershipDualWriteService,
+          useValue: { createWorkspace: jest.fn() },
         },
       ],
     }).compile();

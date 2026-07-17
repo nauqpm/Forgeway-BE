@@ -64,6 +64,8 @@ const createService = () => {
     countModel as any,
     {} as any,
     { createWorkspaceChannel: jest.fn().mockResolvedValue({}) } as any,
+    { mode: jest.fn().mockReturnValue('legacy') } as any,
+    { createWorkspace: repository.create } as any,
   );
 
   return {
