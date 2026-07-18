@@ -14,6 +14,7 @@ describe('WORKSPACE_MEMBERSHIP_AUDIT_EVENTS', () => {
         'workspace.membership.removed',
         'workspace.membership.owner_synced',
         'workspace.membership.dual_write_failed',
+        'workspace.membership.shadow_error',
         'workspace.membership.divergence',
       ]),
     );

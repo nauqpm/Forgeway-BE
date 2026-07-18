@@ -9,5 +9,6 @@ export const WORKSPACE_MEMBERSHIP_AUDIT_EVENTS = {
   REMOVED: 'workspace.membership.removed',
   OWNER_SYNCED: 'workspace.membership.owner_synced',
   DUAL_WRITE_FAILED: 'workspace.membership.dual_write_failed',
+  SHADOW_ERROR: 'workspace.membership.shadow_error',
   DIVERGENCE: 'workspace.membership.divergence',
 } as const;

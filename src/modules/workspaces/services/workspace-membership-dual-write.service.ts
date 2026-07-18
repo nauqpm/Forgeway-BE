@@ -21,6 +21,7 @@ import {
 } from '../schemas/workspace-membership.schema';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { AuditLogService } from '@/modules/audit/services/audit-log.service';
+import { WORKSPACE_MEMBERSHIP_AUDIT_EVENTS } from '@/modules/audit/constants/workspace-membership-audit-events.constants';
 
 export type WorkspaceMembershipMode = 'legacy' | 'dual_write' | 'shadow_read';
 type ActiveInput = {
@@ -187,7 +188,7 @@ export class WorkspaceMembershipDualWriteService {
         });
     } catch {
       this.audit.log({
-        type: 'workspace.membership.dual_write_failed',
+        type: WORKSPACE_MEMBERSHIP_AUDIT_EVENTS.SHADOW_ERROR,
         severity: 'WARN',
         metadata: {
           workspaceId: workspace._id.toString(),
