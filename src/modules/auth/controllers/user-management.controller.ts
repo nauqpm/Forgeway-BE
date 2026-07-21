@@ -76,11 +76,18 @@ export class UserManagementController {
       },
     },
   })
-  async getAllUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
+  async getAllUsers(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+  ) {
     try {
       const result = await this.userService.getUsersPage(
         Number(page),
         Number(limit),
+        { search, role, status },
       );
       return {
         data: result.data.map(user => ({

@@ -11,6 +11,8 @@ import { TaskDetailService } from '../services/task-detail.service';
 import { TaskMoveService } from '../services/task-move.service';
 import { TaskReorderService } from '../services/task-reorder.service';
 import { TaskDependencyService } from '../services/task-dependency.service';
+import { TaskCsvExportService } from '../services/task-csv-export.service';
+import { TaskCsvImportService } from '../services/task-csv-import.service';
 import { TaskAuditService } from '../shared/task-audit.service';
 import { AuditLogService } from '../../audit/services/audit-log.service';
 import { RealtimeService } from '../../realtime/realtime.service';
@@ -125,6 +127,21 @@ describe('TaskControllers', () => {
         { provide: RealtimeService, useValue: realtimeService },
         { provide: AuditLogService, useValue: auditLogService },
         TaskAuditService,
+        {
+          provide: TaskCsvExportService,
+          useValue: {
+            exportTasks: jest.fn(),
+            generateImportTemplate: jest.fn(),
+          },
+        },
+        {
+          provide: TaskCsvImportService,
+          useValue: {
+            parseAndValidateCsv: jest.fn(),
+            createSessionToken: jest.fn(),
+            importBulk: jest.fn(),
+          },
+        },
         // Guard dependencies
         {
           provide: JwtService,

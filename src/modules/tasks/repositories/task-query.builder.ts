@@ -92,11 +92,15 @@ export class TaskQueryBuilder {
     if (filterDto.columnId) {
       filter.columnId = filterDto.columnId;
     }
-    if (filterDto.assigneeId) {
-      filter.assigneeId = new Types.ObjectId(filterDto.assigneeId);
+    if (filterDto.assigneeId?.length) {
+      filter.assigneeId = {
+        $in: filterDto.assigneeId.map(id => new Types.ObjectId(id)),
+      };
     }
-    if (filterDto.reporterId) {
-      filter.reporterId = new Types.ObjectId(filterDto.reporterId);
+    if (filterDto.reporterId?.length) {
+      filter.reporterId = {
+        $in: filterDto.reporterId.map(id => new Types.ObjectId(id)),
+      };
     }
     if (filterDto.labelIds?.length) {
       filter.labelIds = {
@@ -107,11 +111,11 @@ export class TaskQueryBuilder {
       filter.key = normalizeTaskKey(filterDto.taskKey);
       return filter;
     }
-    if (filterDto.type) {
-      filter.type = filterDto.type;
+    if (filterDto.type?.length) {
+      filter.type = { $in: filterDto.type };
     }
-    if (filterDto.priority) {
-      filter.priority = filterDto.priority;
+    if (filterDto.priority?.length) {
+      filter.priority = { $in: filterDto.priority };
     }
     if (filterDto.status?.length) {
       filter.status = { $in: filterDto.status };

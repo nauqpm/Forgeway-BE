@@ -23,14 +23,11 @@ export class AuthRegistrationService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    this.logger.log(
-      `Starting registration flow for email: ${registerDto.email}`,
-    );
+    const normalizedEmail = registerDto.email.trim().toLowerCase();
+    this.logger.log(`Starting registration flow for email: ${normalizedEmail}`);
 
     try {
-      const existingUser = await this.usersService.findByEmail(
-        registerDto.email,
-      );
+      const existingUser = await this.usersService.findByEmail(normalizedEmail);
       if (
         existingUser &&
         existingUser.status === USER_STATUSES.PENDING_VERIFICATION
@@ -42,13 +39,13 @@ export class AuthRegistrationService {
         });
       } else if (existingUser) {
         this.logger.warn(
-          `Registration failed: Email ${registerDto.email} already exists.`,
+          `Registration failed: Email ${normalizedEmail} already exists.`,
         );
         throw new ConflictException('Email is already in use.');
       }
 
       const newUser = await this.usersService.createUser({
-        email: registerDto.email,
+        email: normalizedEmail,
         password: registerDto.password,
         role: GLOBAL_ROLES.USER,
         status: USER_STATUSES.PENDING_VERIFICATION,
@@ -57,11 +54,11 @@ export class AuthRegistrationService {
         `User created successfully: ${newUser.email} (ID: ${String(newUser._id)})`,
       );
 
-      await this.verifyService.sendVerificationEmail(registerDto.email);
-      this.logger.log(`Verification email sent to: ${registerDto.email}`);
+      await this.verifyService.sendVerificationEmail(normalizedEmail);
+      this.logger.log(`Verification email sent to: ${normalizedEmail}`);
 
       this.inviteService
-        .processPostRegisterInvites(registerDto.email, newUser._id.toString())
+        .processPostRegisterInvites(normalizedEmail, newUser._id.toString())
         .catch((err: Error) =>
           this.logger.error('processPostRegisterInvites failed', err.stack),
         );

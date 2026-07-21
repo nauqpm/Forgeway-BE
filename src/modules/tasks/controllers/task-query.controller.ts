@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -28,8 +29,11 @@ import { SECURITY_EVENT_TYPES } from '../../audit/constants/audit.constants';
 import { FilterTaskDto } from '../dtos/requests/filter-task.dto';
 import { TaskDto, TaskListDto } from '../dtos/responses/task.dto';
 import { TasksService } from '../services/tasks.service';
+import { TaskCsvExportService } from '../services/task-csv-export.service';
+import { ExportTasksDto } from '../dtos/requests/export-tasks.dto';
 import { TaskAuditService } from '../shared/task-audit.service';
 import { Request as ExpressRequest } from 'express';
+import { Response as ExpressResponse } from 'express';
 
 @ApiTags('Workspace Board Tasks')
 @ApiBearerAuth()
@@ -38,6 +42,7 @@ import { Request as ExpressRequest } from 'express';
 export class TaskQueryController {
   constructor(
     private readonly tasksService: TasksService,
+    private readonly taskCsvExportService: TaskCsvExportService,
     private readonly taskAuditService: TaskAuditService,
   ) {}
 
@@ -87,6 +92,60 @@ export class TaskQueryController {
       );
       throw error;
     }
+  }
+
+  @Get('tasks/import/template')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Download XLSX import template' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'File download' })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async downloadImportTemplate(
+    @Param('workspaceId') workspaceId: string,
+    @Query('format') format: 'csv' | 'xlsx',
+    @Res({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const result = await this.taskCsvExportService.generateImportTemplate(
+      workspaceId,
+      format,
+    );
+    res.set({
+      'Content-Type': result.contentType,
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
+    });
+    return result.file;
+  }
+
+  @Get('export')
+  @UseGuards(JwtAuthGuard, ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
+  @ApiOperation({ summary: 'Export tasks as CSV or Excel' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'File download' })
+  @ApiBadRequestResponse({
+    description: 'No tasks to export or limit exceeded',
+  })
+  @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @ApiForbiddenResponse({ description: 'Workspace access denied' })
+  async exportTasks(
+    @Param('workspaceId') workspaceId: string,
+    @Query() exportDto: ExportTasksDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: ExpressRequest,
+    @Res({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const baseUrl = `${req.protocol}://${req.get('host') || 'localhost'}`;
+    const result = await this.taskCsvExportService.exportTasks(
+      workspaceId,
+      user.userId,
+      exportDto,
+      baseUrl,
+    );
+
+    res.set({
+      'Content-Type': result.contentType,
+      'Content-Disposition': `attachment; filename="${result.filename}"`,
+    });
+
+    return result.file;
   }
 
   @Get('archives')
