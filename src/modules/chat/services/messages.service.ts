@@ -350,6 +350,7 @@ export class MessagesService {
     const hasAccess = await this.channelsService.validateUserAccess(
       channelId,
       senderId,
+      true,
     );
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
@@ -998,6 +999,7 @@ export class MessagesService {
     const hasAccess = await this.channelsService.validateUserAccess(
       channelId,
       userId,
+      true,
     );
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');

@@ -41,6 +41,9 @@ export class ChannelMemberEmbedded {
 
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   invitedBy?: Types.ObjectId;
+
+  @Prop({ type: Boolean, default: true })
+  joined?: boolean;
 }
 
 export const ChannelMemberSchema = SchemaFactory.createForClass(

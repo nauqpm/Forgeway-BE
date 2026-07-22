@@ -59,8 +59,13 @@ export class ChannelMembersService {
         (m: any) => m.userId.toString() === userId,
       );
 
+
       if (!channelMember) {
         return channel.isPrivate ? null : 'not_joined';
+      }
+
+      if (channelMember.joined === false) {
+        return 'not_joined';
       }
 
       return channelMember.role;
@@ -138,10 +143,45 @@ export class ChannelMembersService {
     const isAlreadyMember = channel.channelMembers?.some(
       m => m.userId.toString() === userId,
     );
-    if (isAlreadyMember) {
+    const memberIndex = channel.channelMembers?.findIndex(
+      m => m.userId.toString() === userId,
+    );
+    if (memberIndex !== -1) {
+      const member = channel.channelMembers[memberIndex];
+      if (member.joined === false) {
+        const updated = await this.channelsRepository.model
+          .findOneAndUpdate(
+            { _id: new Types.ObjectId(channelId), 'channelMembers.userId': new Types.ObjectId(userId) },
+            { $set: { 'channelMembers.$.joined': true } },
+            { new: true },
+          )
+          .exec();
+        
+        if (!updated) {
+          throw new NotFoundException('Channel not found');
+        }
+
+        const envelope = {
+          eventId: new Types.ObjectId().toString(),
+          type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_ADDED,
+          data: {
+            channelId,
+            userId,
+            role: member.role || 'channel_member',
+            joinedAt: new Date(),
+          },
+          occurredAt: new Date().toISOString(),
+        };
+        this.realtimePublisher.emit(
+          RoomBuilder.channel(channelId),
+          envelope,
+          'chat',
+        );
+
+        return updated;
+      }
       return channel;
     }
-
     const updated = await this.channelsRepository.model
       .findByIdAndUpdate(
         channelId,
@@ -323,15 +363,14 @@ export class ChannelMembersService {
       if (isAlreadyMember) {
         continue;
       }
-
       const joinedAt = new Date();
       membersToAdd.push({
         userId: new Types.ObjectId(uId),
         role: 'channel_member',
         joinedAt,
         invitedBy: new Types.ObjectId(requesterId),
+        joined: false,
       });
-
       addedMembersDetail.push({
         userId: uId,
         role: 'channel_member',

@@ -225,7 +225,7 @@ export class ChannelsService {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid Channel ID');
     }
-    const hasAccess = await this.validateUserAccess(id, userId);
+    const hasAccess = await this.validateUserAccess(id, userId, true);
     if (!hasAccess) {
       throw new ForbiddenException(
         'You do not have access to update this channel',
@@ -301,7 +301,7 @@ export class ChannelsService {
   }
 
   async markAsRead(channelId: string, userId: string): Promise<void> {
-    const hasAccess = await this.validateUserAccess(channelId, userId);
+    const hasAccess = await this.validateUserAccess(channelId, userId, true);
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
     }
@@ -532,11 +532,10 @@ export class ChannelsService {
       `Found ${channels.length} channels for workspace: ${workspaceId}`,
     );
     return channels;
-  }
-
-  async validateUserAccess(
+  }  async validateUserAccess(
     channelId: string,
     userId: string,
+    isWrite: boolean = false,
   ): Promise<boolean> {
     if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
       return false;
@@ -549,9 +548,12 @@ export class ChannelsService {
       userId,
       channel,
     );
-    return role !== null && role !== 'not_joined';
+    if (role === null) return false;
+    if (role === 'not_joined') {
+      return !isWrite;
+    }
+    return true;
   }
-
   async getChannelMemberIds(channelId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(channelId)) return [];
 
