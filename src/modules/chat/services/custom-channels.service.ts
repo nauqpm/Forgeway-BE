@@ -261,17 +261,15 @@ export class CustomChannelsService {
     if (channel.type !== 'custom') {
       throw new BadRequestException('Can only delete custom channels');
     }
+    const requester = await this.usersService.getUserById(requesterId);
+    const isSuperAdmin = requester?.role === 'super_admin';
+    const isCreator = channel.createdBy && String(channel.createdBy) === String(requesterId);
 
-    const role = await this.channelMembersService.resolveChannelRole(
-      requesterId,
-      channel,
-    );
-    if (role !== 'channel_admin') {
+    if (!isSuperAdmin && !isCreator) {
       throw new ForbiddenException(
-        'Only channel admins can delete this channel',
+        'Only the channel creator or a super admin can delete this channel',
       );
     }
-
     const deleted = await this.channelsRepository.model
       .findByIdAndDelete(channelId)
       .exec();
