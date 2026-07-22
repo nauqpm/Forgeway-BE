@@ -107,20 +107,14 @@ jobs:
       - name: Verify image signature
         env:
           IMAGE_REF: ${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}
+          CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/cd.yml@${{ github.ref }}
         run: |
           set -Eeuo pipefail
-          for attempt in $(seq 1 3); do
-            if cosign verify \
-              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-              --certificate-identity "https://github.com/automationland-dev/sdlc-platform-backend/.github/workflows/cd.yml@refs/heads/production" \
-              "$IMAGE_REF"; then
-              echo "Verified image signature: $IMAGE_REF"
-              exit 0
-            fi
-            echo "Cosign verification failed; retrying in 5s ($attempt/3)"
-            sleep 5
-          done
-          exit 1
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity "$CERTIFICATE_IDENTITY" \
+            "$IMAGE_REF"
+          echo "Verified image signature: $IMAGE_REF"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
