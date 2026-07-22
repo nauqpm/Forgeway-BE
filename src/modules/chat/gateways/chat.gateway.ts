@@ -168,6 +168,43 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     if (payload.threadParentId) {
+      // Emit thread reply event directly from gateway (this.server = /chat namespace)
+      // This ensures all clients in the channel room receive it reliably.
+      const room = RoomBuilder.channel(payload.channelId);
+      const threadEnvelope: RealtimeEnvelope<any> = {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.CHAT_THREAD_REPLY_CREATED,
+        data: message,
+        occurredAt: new Date().toISOString(),
+      };
+      this.server
+        .to(room)
+        .emit(REALTIME_EVENT_TYPES.CHAT_THREAD_REPLY_CREATED, threadEnvelope);
+
+      // Also send CHAT_UNREAD_UPDATE to all other channel members
+      // so the notification badge (unread count) updates in the sidebar.
+      try {
+        const memberIds = await this.channelsService.getChannelMemberIds(
+          payload.channelId,
+        );
+        for (const memberId of memberIds) {
+          if (memberId === userId) continue;
+
+          this.server
+            .to(RoomBuilder.user(memberId))
+            .emit(REALTIME_EVENT_TYPES.CHAT_UNREAD_UPDATE, {
+              channelId: payload.channelId,
+              increment: 1,
+              lastMessage: message,
+            });
+        }
+      } catch (err) {
+        this.logger.error(
+          `Failed to broadcast unread updates for thread reply: ${err.message}`,
+          err.stack,
+        );
+      }
+
       return { ok: true };
     }
 
@@ -219,7 +256,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleEdit(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
-    payload: { messageId: string; channelId: string; content: string },
+    payload: {
+      messageId: string;
+      channelId: string;
+      content: string;
+      threadParentId?: string;
+    },
   ) {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId) return { ok: false };
@@ -241,7 +283,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const envelope: RealtimeEnvelope<any> = {
       eventId: new Types.ObjectId().toString(),
       type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_EDITED,
-      data: message,
+      data: {
+        ...message,
+        threadParentId:
+          message.threadParentId?.toString() ||
+          payload.threadParentId ||
+          undefined,
+      },
       occurredAt: new Date().toISOString(),
     };
 
@@ -255,7 +303,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('chat.delete')
   async handleDelete(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: { messageId: string; channelId: string },
+    @MessageBody()
+    payload: { messageId: string; channelId: string; threadParentId?: string },
   ) {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId) return { ok: false };
@@ -272,6 +321,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data: {
         messageId: payload.messageId,
         channelId: payload.channelId,
+        threadParentId: payload.threadParentId || undefined,
         lastMessage: updatedLastMessage || undefined,
       },
       occurredAt: new Date().toISOString(),
@@ -288,7 +338,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleReaction(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody()
-    payload: { messageId: string; emoji: string; channelId: string },
+    payload: {
+      messageId: string;
+      emoji: string;
+      channelId: string;
+      threadParentId?: string;
+    },
   ) {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId || !payload.emoji) return { ok: false };
@@ -308,6 +363,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(room).emit(REALTIME_EVENT_TYPES.CHAT_REACTION_UPDATED, {
       messageId: payload.messageId,
       channelId: payload.channelId,
+      threadParentId: payload.threadParentId,
       reactions: updatedReactions,
     });
 
@@ -351,5 +407,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       channelId: body.channelId,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  emitMessageDeletedForMe(
+    userId: string,
+    payload: { messageId: string; channelId: string; threadParentId?: string },
+  ) {
+    try {
+      this.server
+        .to(RoomBuilder.user(userId))
+        .emit(REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED_FOR_ME, {
+          messageId: payload.messageId,
+          channelId: payload.channelId,
+          threadParentId: payload.threadParentId,
+        });
+    } catch (err) {
+      this.logger.error(
+        `Failed to emit CHAT_MESSAGE_DELETED_FOR_ME to user ${userId}: ${(err as Error).message}`,
+      );
+    }
   }
 }

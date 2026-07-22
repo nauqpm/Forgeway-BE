@@ -21,6 +21,7 @@ import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { DOMAIN_EVENT_TYPES } from '../../../shared/events/domain-events/domain-event-types';
 import { ChannelMembersService } from './channel-members.service';
 import { CustomChannelsService } from './custom-channels.service';
+import { UpdateChannelDto } from '../dtos/update-channel.dto';
 
 @Injectable()
 export class ChannelsService {
@@ -216,6 +217,31 @@ export class ChannelsService {
     return channel;
   }
 
+  async updateChannel(
+    id: string,
+    userId: string,
+    updateData: UpdateChannelDto,
+  ): Promise<ChannelDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid Channel ID');
+    }
+    const hasAccess = await this.validateUserAccess(id, userId);
+    if (!hasAccess) {
+      throw new ForbiddenException(
+        'You do not have access to update this channel',
+      );
+    }
+    const channel = await this.channelsRepository.model
+      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .exec();
+
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return channel;
+  }
+
   async findByUser(userId: string): Promise<any[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
@@ -282,23 +308,31 @@ export class ChannelsService {
     await this.messagesService.markAsRead(channelId, userId);
   }
 
-  async getOrCreateDM(userAId: string, userBId: string): Promise<any> {
-    if (!Types.ObjectId.isValid(userBId)) {
-      throw new BadRequestException('Invalid target user ID');
+  async getOrCreateDM(userId: string, targetUserIds: string[]): Promise<any> {
+    if (!targetUserIds || targetUserIds.length === 0) {
+      throw new BadRequestException('Must provide at least one target user ID');
     }
 
-    if (userAId === userBId) {
-      throw new BadRequestException('Cannot create a DM with yourself');
+    const uniqueMembers = Array.from(new Set([userId, ...targetUserIds]));
+
+    if (uniqueMembers.length < 2) {
+      throw new BadRequestException('Cannot create a DM with only yourself');
     }
 
-    const members = [userAId, userBId].sort();
+    uniqueMembers.forEach(id => {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException(`Invalid user ID: ${id}`);
+      }
+    });
+
+    const members = uniqueMembers.sort();
     const memberObjectIds = members.map(id => new Types.ObjectId(id));
 
     // 1. Tìm kênh cũ bằng .lean()
     let channel: any = await this.channelsRepository.model
       .findOne({
         type: 'dm',
-        members: { $all: memberObjectIds, $size: 2 },
+        members: { $all: memberObjectIds, $size: memberObjectIds.length },
       })
       .lean()
       .exec();
@@ -311,7 +345,7 @@ export class ChannelsService {
           name: 'Direct Message',
           members: memberObjectIds,
           isPrivate: true,
-          createdBy: new Types.ObjectId(userAId),
+          createdBy: new Types.ObjectId(userId),
           workspaceId: null,
         });
         channel = created.toObject();
@@ -332,7 +366,7 @@ export class ChannelsService {
     const userInfos = await this.usersService.getUsersByIds(members);
     const unreadCount = await this.messagesService.countUnread(
       channel._id.toString(),
-      userAId,
+      userId,
     );
 
     return {

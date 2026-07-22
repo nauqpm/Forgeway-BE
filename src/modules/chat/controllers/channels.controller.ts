@@ -20,6 +20,8 @@ import { ChannelMembersService } from '../services/channel-members.service';
 import { CustomChannelsService } from '../services/custom-channels.service';
 import { MessagesService } from '../services/messages.service';
 import { SendMessageDto } from '../dtos/send-message.dto';
+import { UpdateChannelDto } from '../dtos/update-channel.dto';
+import { OpenDmDto } from '../dtos/open-dm.dto';
 import { EditMessageDto } from '../dtos/edit-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
 import { CHAT_THROTTLE_CONFIG } from '../constants/chat-throttler.constants';
@@ -62,11 +64,8 @@ export class ChannelsController {
   @Post('dm')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
-  async openDM(
-    @CurrentUser('userId') userId: string,
-    @Body() body: { targetUserId: string },
-  ) {
-    return this.channelsService.getOrCreateDM(userId, body.targetUserId);
+  async openDM(@CurrentUser('userId') userId: string, @Body() body: OpenDmDto) {
+    return this.channelsService.getOrCreateDM(userId, body.targetUserIds);
   }
 
   @Get('users/search')
@@ -108,6 +107,17 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
   ) {
     return this.channelsService.getChannelMembers(id, userId);
+  }
+
+  @Patch('channels/:id')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async updateChannel(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: UpdateChannelDto,
+  ) {
+    return this.channelsService.updateChannel(id, userId, body);
   }
 
   @Post('channels/:id/read')
@@ -196,6 +206,16 @@ export class ChannelsController {
     @CurrentUser('userId') userId: string,
   ) {
     return this.messagesService.softDelete(id, userId);
+  }
+
+  @Delete('messages/:id/me')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_ACTION)
+  async deleteMessageForMe(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.messagesService.deleteForMe(id, userId);
   }
 
   @Post('messages/:id/reactions')

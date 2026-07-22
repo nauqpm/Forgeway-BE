@@ -11,6 +11,9 @@ import { MessageDocument } from '../schemas/message.schema';
 import { MessagesRepository } from '../repositories/messages.repository';
 import { ChannelReadMarkersRepository } from '../repositories/channel-read-markers.repository';
 import { ChannelsService } from './channels.service';
+import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
+import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
+import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
 import { SendMessageDto } from '../dtos/send-message.dto';
 import { CursorPaginationDto } from '../dtos/cursor-pagination.dto';
 import { UsersService } from '../../users/services/users.service';
@@ -18,10 +21,6 @@ import { WorkspaceMemberService } from '../../workspaces/services/workspace-memb
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
 import { NotificationsService } from '../../notifications/services/notifications.service';
-import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
-import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
-import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-types';
-import { RealtimeEnvelope } from '../../realtime/contracts';
 import { AttachmentService } from '../../attachments/services/attachment.service';
 import { ImagesService } from '../../images/services/images.service';
 
@@ -34,13 +33,13 @@ export class MessagesService {
     private readonly readMarkersRepository: ChannelReadMarkersRepository,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
+    private readonly realtimePublisher: RealtimePublisher,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => WorkspaceMemberService))
     private readonly workspaceMemberService: WorkspaceMemberService,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
-    private readonly realtimePublisher: RealtimePublisher,
     @Inject(forwardRef(() => AttachmentService))
     private readonly attachmentService: AttachmentService,
     @Inject(forwardRef(() => ImagesService))
@@ -191,6 +190,7 @@ export class MessagesService {
       senderId: { $ne: new Types.ObjectId(userId) },
       createdAt: { $gt: lastReadAt },
       deletedAt: null,
+      deletedForUsers: { $ne: new Types.ObjectId(userId) },
     });
   }
 
@@ -457,15 +457,9 @@ export class MessagesService {
         },
       );
 
-      // 2. Emit CHAT_THREAD_REPLY_CREATED realtime socket event
-      const room = RoomBuilder.channel(channelId);
-      const envelope: RealtimeEnvelope<any> = {
-        eventId: new Types.ObjectId().toString(),
-        type: REALTIME_EVENT_TYPES.CHAT_THREAD_REPLY_CREATED,
-        data: withReactions,
-        occurredAt: new Date().toISOString(),
-      };
-      this.realtimePublisher.emit(room, envelope, 'chat');
+      // 2. CHAT_THREAD_REPLY_CREATED is now emitted by ChatGateway.handleSend()
+      //    directly via this.server to guarantee delivery on the /chat namespace.
+      //    Do NOT emit here to avoid duplicate events on the frontend.
 
       // 3. Send notifications (Only for mentioned users) - Async Fire-and-forget
       if (dto.content) {
@@ -583,11 +577,19 @@ export class MessagesService {
         channelId: new Types.ObjectId(channelId),
         threadParentId: new Types.ObjectId(parentMessageId),
         deletedAt: null,
+        deletedForUsers: { $ne: new Types.ObjectId(userId) },
       })
       .sort({ createdAt: 1 })
       .populate([
         { path: 'senderId', select: 'fullName avatar email' },
         { path: 'stickerId' },
+        {
+          path: 'replyToId',
+          populate: [
+            { path: 'senderId', select: 'fullName avatar email' },
+            { path: 'stickerId' },
+          ],
+        },
       ])
       .exec();
 
@@ -617,6 +619,7 @@ export class MessagesService {
       threadParentId: null,
       replyCount: { $gt: 0 },
       deletedAt: null,
+      deletedForUsers: { $ne: new Types.ObjectId(userId) },
     };
 
     if (dto.cursor) {
@@ -679,6 +682,7 @@ export class MessagesService {
     const query: any = {
       channelId: new Types.ObjectId(channelId),
       threadParentId: null,
+      deletedForUsers: { $ne: new Types.ObjectId(userId) },
     };
 
     if (dto.cursor) {
@@ -736,6 +740,7 @@ export class MessagesService {
     const query: any = {
       channelId: new Types.ObjectId(channelId),
       $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+      deletedForUsers: { $ne: new Types.ObjectId(userId) },
     };
 
     if (filters.q && filters.q.trim()) {
@@ -974,5 +979,77 @@ export class MessagesService {
         type: message.type,
       });
     }
+  }
+
+  async deleteForMe(
+    messageId: string,
+    userId: string,
+  ): Promise<{ ok: boolean }> {
+    if (!Types.ObjectId.isValid(messageId)) {
+      throw new NotFoundException('Invalid Message ID');
+    }
+
+    const message = await this.messagesRepository.findById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const channelId = message.channelId.toString();
+    const hasAccess = await this.channelsService.validateUserAccess(
+      channelId,
+      userId,
+    );
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this channel');
+    }
+
+    await this.messagesRepository.model.updateOne(
+      { _id: new Types.ObjectId(messageId) },
+      { $addToSet: { deletedForUsers: new Types.ObjectId(userId) } },
+    );
+
+    this.realtimePublisher.emit(
+      RoomBuilder.user(userId),
+      {
+        eventId: new Types.ObjectId().toString(),
+        type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED_FOR_ME,
+        data: {
+          messageId,
+          channelId,
+          threadParentId: message.threadParentId?.toString(),
+        },
+        occurredAt: new Date().toISOString(),
+      },
+      'chat',
+    );
+
+    return { ok: true };
+  }
+
+  async getLatestMessageForUser(
+    channelId: string,
+    userId: string,
+  ): Promise<any | null> {
+    const msg = await this.messagesRepository.model
+      .findOne({
+        channelId: new Types.ObjectId(channelId),
+        deletedAt: null,
+        deletedForUsers: { $ne: new Types.ObjectId(userId) },
+      })
+      .sort({ createdAt: -1 })
+      .populate('senderId', 'fullName avatar email')
+      .exec();
+
+    if (!msg) return null;
+    const senderName = (msg.senderId as any)?.fullName || 'User';
+    return {
+      _id: msg._id,
+      content: msg.content,
+      senderId: msg.senderId,
+      senderName,
+      sentAt: (msg as any).createdAt || (msg as any).updatedAt || new Date(),
+      type: msg.type,
+      attachments: msg.attachments,
+    };
   }
 }

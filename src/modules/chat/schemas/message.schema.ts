@@ -54,6 +54,9 @@ export class Message {
   @Prop({ type: Date, default: null })
   deletedAt?: Date;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  deletedForUsers!: Types.ObjectId[];
+
   @Prop({ type: Types.ObjectId, ref: 'Message', default: null, index: true })
   threadParentId?: Types.ObjectId;
 
@@ -85,5 +88,6 @@ export class Message {
 export const MessageSchema = SchemaFactory.createForClass(Message);
 
 MessageSchema.index({ channelId: 1, createdAt: -1 });
+MessageSchema.index({ channelId: 1, deletedForUsers: 1, createdAt: -1 });
 MessageSchema.index({ channelId: 1, _id: -1 });
 MessageSchema.index({ threadParentId: 1, createdAt: 1 });
