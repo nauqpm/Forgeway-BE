@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 
 export type BoardDocument = Board & Document;
 
@@ -8,7 +9,7 @@ export class BoardColumn {
   @Prop({ required: true })
   id!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, maxlength: MAX_COLUMN_NAME_LENGTH })
   name!: string;
 
   @Prop({ required: true })

@@ -31,6 +31,7 @@ export const SPRINT_ERROR_CODES = {
 export const KANBAN_ERROR_CODES = {
   INVALID_COLUMN_NAME: 'INVALID_COLUMN_NAME',
   DUPLICATE_COLUMN_NAME: 'DUPLICATE_COLUMN_NAME',
+  COLUMN_NAME_TOO_LONG: 'COLUMN_NAME_TOO_LONG',
 } as const;
 
 // ─── Workspace ──────────────────────────────────────────────────────────────

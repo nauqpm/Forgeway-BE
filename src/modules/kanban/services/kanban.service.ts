@@ -35,6 +35,7 @@ import {
   isColumnNameEmpty,
   normalizeColumnDisplayName,
 } from '../utils/column-name.util';
+import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 
 type VersionedBoardDocument = BoardDocument & { __v?: number };
 
@@ -563,9 +564,17 @@ export class KanbanService {
     return normalizedColumns;
   }
 
+  private readonly maxColumnNameLength = MAX_COLUMN_NAME_LENGTH;
+
   private validateColumnName(name: string): void {
     if (isColumnNameEmpty(name)) {
       throw new BadRequestException(ErrorFactory.invalidColumnName());
+    }
+
+    if (name.length > this.maxColumnNameLength) {
+      throw new BadRequestException(
+        ErrorFactory.columnNameTooLong(this.maxColumnNameLength),
+      );
     }
   }
 
