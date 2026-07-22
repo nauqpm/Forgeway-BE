@@ -265,11 +265,27 @@ export class CustomChannelsService {
     const isSuperAdmin = requester?.role === 'super_admin';
     const isCreator = channel.createdBy && String(channel.createdBy) === String(requesterId);
 
-    if (!isSuperAdmin && !isCreator) {
+    const channelRole = await this.channelMembersService.resolveChannelRole(
+      requesterId,
+      channel,
+    );
+    const isChannelAdmin = channelRole === 'channel_admin';
+
+    let isWorkspaceAdmin = false;
+    if (channel.workspaceId) {
+      const wsRole = await this.workspaceMemberService.getMemberRole(
+        channel.workspaceId.toString(),
+        requesterId,
+      );
+      isWorkspaceAdmin = wsRole === 'workspace_admin';
+    }
+
+    if (!isSuperAdmin && !isCreator && !isChannelAdmin && !isWorkspaceAdmin) {
       throw new ForbiddenException(
-        'Only the channel creator or a super admin can delete this channel',
+        'You are not authorized to delete this channel',
       );
     }
+
     const deleted = await this.channelsRepository.model
       .findByIdAndDelete(channelId)
       .exec();
