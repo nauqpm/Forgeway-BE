@@ -548,12 +548,10 @@ export class ChannelsService {
       userId,
       channel,
     );
-    if (role === null) return false;
-    if (role === 'not_joined') {
-      return !isWrite;
-    }
+    if (role === null || role === 'not_joined') return false;
     return true;
   }
+
   async getChannelMemberIds(channelId: string): Promise<string[]> {
     if (!Types.ObjectId.isValid(channelId)) return [];
 
