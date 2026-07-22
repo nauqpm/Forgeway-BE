@@ -264,7 +264,8 @@ export class CustomChannelsService {
     }
     const requester = await this.usersService.getUserById(requesterId);
     const isSuperAdmin = requester?.role === 'super_admin';
-    const isCreator = channel.createdBy && String(channel.createdBy) === String(requesterId);
+    const isCreator =
+      channel.createdBy && String(channel.createdBy) === String(requesterId);
 
     const channelRole = await this.channelMembersService.resolveChannelRole(
       requesterId,

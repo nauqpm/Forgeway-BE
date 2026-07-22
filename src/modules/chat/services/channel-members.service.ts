@@ -155,9 +155,6 @@ export class ChannelMembersService {
       );
     }
 
-    const isAlreadyMember = channel.channelMembers?.some(
-      m => m.userId.toString() === userId,
-    );
     const memberIndex = channel.channelMembers?.findIndex(
       m => m.userId.toString() === userId,
     );
@@ -166,12 +163,15 @@ export class ChannelMembersService {
       if (member.joined === false) {
         const updated = await this.channelsRepository.model
           .findOneAndUpdate(
-            { _id: new Types.ObjectId(channelId), 'channelMembers.userId': new Types.ObjectId(userId) },
+            {
+              _id: new Types.ObjectId(channelId),
+              'channelMembers.userId': new Types.ObjectId(userId),
+            },
             { $set: { 'channelMembers.$.joined': true } },
             { new: true },
           )
           .exec();
-        
+
         if (!updated) {
           throw new NotFoundException('Channel not found');
         }

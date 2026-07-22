@@ -532,10 +532,11 @@ export class ChannelsService {
       `Found ${channels.length} channels for workspace: ${workspaceId}`,
     );
     return channels;
-  }  async validateUserAccess(
+  }
+  async validateUserAccess(
     channelId: string,
     userId: string,
-    isWrite: boolean = false,
+    _isWrite: boolean = false,
   ): Promise<boolean> {
     if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
       return false;
