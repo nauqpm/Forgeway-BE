@@ -1,4 +1,5 @@
 import { extname } from 'path';
+import { removeVietnameseTones } from '../../common/utils/slug.utils';
 
 /**
  * Decodes filename from latin1 (default Multer parsing) to utf8.
@@ -17,15 +18,7 @@ export function decodeFilename(filename: string): string {
  */
 export function slugify(text: string): string {
   if (!text) return '';
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[đĐ]/g, 'd')
-    .toLowerCase()
-    .replace(/[^a-z0-9\-_]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^-+|-+$/g, '')
-    .replace(/^_+|_+$/g, '');
+  return removeVietnameseTones(text).replace(/-/g, '_');
 }
 
 /**
