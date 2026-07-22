@@ -146,7 +146,7 @@ export class CustomChannelsService {
 
     let query: any;
 
-    if (isSuperAdmin) {
+    if (isAdmin) {
       query = {
         workspaceId: new Types.ObjectId(workspaceId),
         type: 'custom',
