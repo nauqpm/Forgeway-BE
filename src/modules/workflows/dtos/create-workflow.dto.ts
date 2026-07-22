@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 
 export class WorkflowStatusDto {
   @ApiProperty()
@@ -16,7 +17,7 @@ export class WorkflowStatusDto {
 
   @ApiProperty()
   @IsString()
-  @MaxLength(50)
+  @MaxLength(MAX_COLUMN_NAME_LENGTH)
   name!: string;
 
   @ApiPropertyOptional()

@@ -149,6 +149,12 @@ export class TaskUpdateService {
     );
     this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
+    const columnChanged = existing.columnId !== task.columnId;
+    const statusChanged = existing.status !== task.status;
+    if (columnChanged || statusChanged) {
+      this.taskDomainEventPublisher.publishMoved(existing, task, userId);
+    }
+
     return this.taskMapper.mapToDto(task);
   }
 
@@ -223,6 +229,12 @@ export class TaskUpdateService {
     }
 
     this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
+
+    const columnChanged = existing.columnId !== task.columnId;
+    const statusChanged = existing.status !== task.status;
+    if (columnChanged || statusChanged) {
+      this.taskDomainEventPublisher.publishMoved(existing, task, userId);
+    }
 
     return this.taskMapper.mapToDto(task);
   }
