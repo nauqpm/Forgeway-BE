@@ -145,7 +145,8 @@ export class CustomChannelsService {
     const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
 
     let query: any;
-    if (isAdmin) {
+
+    if (isSuperAdmin) {
       query = {
         workspaceId: new Types.ObjectId(workspaceId),
         type: 'custom',
