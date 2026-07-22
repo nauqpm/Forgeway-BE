@@ -129,7 +129,11 @@ export class ChannelMembersService {
       const isSuperAdmin = user?.role === 'super_admin';
       const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
 
-      if (!isAdmin) {
+      const isInvited = channel.channelMembers?.some(
+        (m: any) => m.userId.toString() === userId,
+      );
+
+      if (!isAdmin && !isInvited) {
         throw new ForbiddenException(
           'Cannot join a private channel directly. You must be invited',
         );
