@@ -26,15 +26,12 @@ export class ChannelMembersService {
     private readonly usersService: UsersService,
     private readonly realtimePublisher: RealtimePublisher,
   ) {}
-
   async resolveChannelRole(
     userId: string,
     channel: any,
   ): Promise<'channel_admin' | 'channel_member' | 'not_joined' | null> {
     const user = await this.usersService.getUserById(userId);
-    if (user?.role === 'super_admin') {
-      return 'channel_admin';
-    }
+    const isSuperAdmin = user?.role === 'super_admin';
 
     let wsRole: string | null = null;
     if (channel.workspaceId) {
@@ -43,32 +40,46 @@ export class ChannelMembersService {
         userId,
       );
     }
+    const isWsAdmin = wsRole === 'workspace_admin';
 
-    if (wsRole === 'workspace_admin') {
-      return 'channel_admin';
-    }
-
-    if (wsRole === 'viewer') {
-      return null;
-    }
-
+    // 1. If it's a custom channel:
     if (channel.type === 'custom') {
-      if (!wsRole) return null;
+      if (!wsRole && !isSuperAdmin) return null;
+      if (wsRole === 'viewer') return null;
 
       const channelMember = channel.channelMembers?.find(
         (m: any) => m.userId.toString() === userId,
       );
 
-
       if (!channelMember) {
-        return channel.isPrivate ? null : 'not_joined';
+        // If not in the list:
+        // - Public: anyone can join (returns 'not_joined')
+        // - Private: only super admin and workspace admin can see/join directly
+        const canJoinPrivate = isSuperAdmin || isWsAdmin;
+        if (channel.isPrivate && !canJoinPrivate) {
+          return null;
+        }
+        return 'not_joined';
       }
 
       if (channelMember.joined === false) {
         return 'not_joined';
       }
 
+      // If joined, they have a role. Super admin and ws admin are channel admins.
+      if (isSuperAdmin || isWsAdmin) {
+        return 'channel_admin';
+      }
       return channelMember.role;
+    }
+
+    // 2. For non-custom channels:
+    if (isSuperAdmin || isWsAdmin) {
+      return 'channel_admin';
+    }
+
+    if (wsRole === 'viewer') {
+      return null;
     }
 
     if (channel.type === 'general' || channel.type === 'announcement') {
