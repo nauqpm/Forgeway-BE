@@ -628,6 +628,25 @@ export class ChannelsService {
           (user as any).phone && regex.test((user as any).phone);
         return nameMatch || emailMatch || phoneMatch;
       })
+      .sort((a, b) => {
+        const q = cleanQuery.toLowerCase();
+        const aEmail = (a.email || '').toLowerCase();
+        const bEmail = (b.email || '').toLowerCase();
+        const aName = (a.fullName || '').toLowerCase();
+        const bName = (b.fullName || '').toLowerCase();
+
+        const aExact = aEmail === q || aName === q;
+        const bExact = bEmail === q || bName === q;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        const aStarts = aEmail.startsWith(q) || aName.startsWith(q);
+        const bStarts = bEmail.startsWith(q) || bName.startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        return 0;
+      })
       .slice(0, 10);
   }
 
