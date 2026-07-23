@@ -45,6 +45,7 @@ export const REALTIME_EVENT_TYPES = {
 
   WORKSPACE_CREATED: 'workspace.created',
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
+  WORKSPACE_INVITE_CANCELLED: 'workspace.invite.cancelled',
   WORKSPACE_UPDATED: 'workspace.updated',
   WORKSPACE_ARCHIVED: 'workspace.archived',
   WORKSPACE_RESTORED: 'workspace.restored',

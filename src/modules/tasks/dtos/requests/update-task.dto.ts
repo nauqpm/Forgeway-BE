@@ -11,6 +11,7 @@ import {
   IsMongoId,
   ValidateIf,
 } from 'class-validator';
+import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   TASK_PRIORITIES,
@@ -38,6 +39,7 @@ export class UpdateTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_COLUMN_NAME_LENGTH)
   status?: string;
 
   @ApiPropertyOptional({ enum: TASK_PRIORITIES })

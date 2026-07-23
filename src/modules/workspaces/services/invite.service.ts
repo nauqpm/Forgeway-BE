@@ -27,6 +27,7 @@ import {
   WorkspaceMemberJoinedEvent,
   WorkspaceSummaryPayload,
 } from '@/shared/events/domain-events/workspace';
+import { DOMAIN_EVENT_TYPES } from '@/shared/events/domain-events/domain-event-types';
 
 @Injectable()
 export class InviteService {
@@ -175,6 +176,12 @@ export class InviteService {
     }
 
     await this.inviteRepository.updateStatus(inviteId, INVITE_STATUS.EXPIRED);
+
+    this.eventEmitter.emit(DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED, {
+      type: DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+      workspaceId,
+      data: { inviteId },
+    });
   }
 
   async acceptInvite(

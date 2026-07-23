@@ -608,14 +608,17 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
+    const cleanQuery = (query || '').replace(/^@+/, '').trim();
+    const escapedQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     if (channel.type === 'general' || channel.type === 'announcement') {
-      return this.usersService.searchUsers(query, userId);
+      return this.usersService.searchUsers(cleanQuery, userId);
     }
 
     const memberIds = await this.getChannelMemberIds(channelId);
     if (memberIds.length === 0) return [];
 
-    const regex = new RegExp(query, 'i');
+    const regex = new RegExp(escapedQuery, 'i');
     const users = await this.usersService.getUsersByIds(memberIds);
     return users
       .filter(user => {

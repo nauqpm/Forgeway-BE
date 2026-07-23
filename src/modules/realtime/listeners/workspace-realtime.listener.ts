@@ -56,6 +56,14 @@ export class WorkspaceRealtimeListener {
     );
   }
 
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED, { async: true })
+  handleWorkspaceInviteCancelled(event: WorkspaceRealtimeDomainEvent): void {
+    this.publishWorkspaceEvent(
+      REALTIME_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+      event,
+    );
+  }
+
   @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_CREATED, { async: true })
   handleWorkspaceCreated(event: WorkspaceRealtimeDomainEvent): void {
     const actorId = event.data.actorId;
