@@ -238,20 +238,28 @@ export class MessagesService {
           }
         });
       }
+      if (m.replyToSenderId) {
+        allUserIds.add(m.replyToSenderId.toString());
+      }
     });
 
-    if (allUserIds.size === 0) {
-      return messages.map(m => {
-        const obj = m.toObject();
-        obj.reactions = {};
-        return obj;
+    const validUserIdsSet = new Set<string>();
+    const validUsersMap = new Map<string, any>();
+    if (allUserIds.size > 0) {
+      const validUsers = await this.usersService.getUsersByIds(
+        Array.from(allUserIds),
+      );
+      validUsers.forEach(u => {
+        const uId = u._id.toString();
+        validUserIdsSet.add(uId);
+        validUsersMap.set(uId, {
+          _id: u._id,
+          fullName: u.fullName,
+          avatar: u.avatar,
+          email: u.email,
+        });
       });
     }
-
-    const validUsers = await this.usersService.getUsersByIds(
-      Array.from(allUserIds),
-    );
-    const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
 
     return messages.map(m => {
       const obj = m.toObject();
@@ -272,6 +280,36 @@ export class MessagesService {
         obj.lastReplyParticipants = m.lastReplyParticipants.filter(
           p => p && p.userId && validUserIdsSet.has(p.userId.toString()),
         );
+      }
+
+      // Preserve reply layout for messages whose replied-to target was deleted
+      const populatedTarget = m.populated ? m.populated('replyToId') : null;
+      const rawReplyToId = populatedTarget
+        ? populatedTarget.toString()
+        : (m as any)._doc?.replyToId
+          ? (m as any)._doc.replyToId.toString()
+          : null;
+
+      if (
+        rawReplyToId &&
+        (!obj.replyToId ||
+          (typeof obj.replyToId === 'object' &&
+            !obj.replyToId.content &&
+            !obj.replyToId.type))
+      ) {
+        const replySenderIdStr = m.replyToSenderId
+          ? m.replyToSenderId.toString()
+          : null;
+        const replySender = replySenderIdStr
+          ? validUsersMap.get(replySenderIdStr) || null
+          : null;
+
+        obj.replyToId = {
+          _id: rawReplyToId,
+          content: '[Message deleted]',
+          senderId: replySender,
+          isDeleted: true,
+        };
       }
 
       return obj;
@@ -365,17 +403,21 @@ export class MessagesService {
       }
     }
 
+    let replyToSenderId: Types.ObjectId | null = null;
     if (dto.replyToId) {
       if (!Types.ObjectId.isValid(dto.replyToId)) {
         throw new NotFoundException('Invalid replyToId');
       }
-      const parentMessage = await this.messagesRepository.findById(
+      const repliedTarget = await this.messagesRepository.findById(
         dto.replyToId,
       );
-      if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
+      if (!repliedTarget || repliedTarget.channelId.toString() !== channelId) {
         throw new ForbiddenException(
           'Cannot reply to message in a different channel',
         );
+      }
+      if (repliedTarget.senderId) {
+        replyToSenderId = new Types.ObjectId(repliedTarget.senderId.toString());
       }
     }
 
@@ -404,6 +446,7 @@ export class MessagesService {
       ...dto,
       channelId: new Types.ObjectId(channelId),
       senderId: new Types.ObjectId(senderId),
+      replyToSenderId: replyToSenderId || undefined,
       threadParentId: dto.threadParentId
         ? new Types.ObjectId(dto.threadParentId)
         : null,

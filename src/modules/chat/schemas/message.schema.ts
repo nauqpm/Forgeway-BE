@@ -41,6 +41,9 @@ export class Message {
   @Prop({ type: Types.ObjectId, ref: 'Message', default: null })
   replyToId?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  replyToSenderId?: Types.ObjectId;
+
   @Prop({
     type: Map,
     of: [{ type: Types.ObjectId, ref: 'User' }],
