@@ -205,7 +205,7 @@ export class ChannelsController {
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
   ) {
-    return this.messagesService.softDelete(id, userId);
+    return this.messagesService.deleteMessage(id, userId);
   }
 
   @Delete('messages/:id/me')

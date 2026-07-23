@@ -51,9 +51,6 @@ export class Message {
   @Prop({ type: Date, default: null })
   editedAt?: Date;
 
-  @Prop({ type: Date, default: null })
-  deletedAt?: Date;
-
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   deletedForUsers!: Types.ObjectId[];
 
