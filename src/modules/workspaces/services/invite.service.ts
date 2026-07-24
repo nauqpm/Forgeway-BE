@@ -23,11 +23,11 @@ import { NotificationsService } from '@/modules/notifications/services/notificat
 import { UsersService } from '@/modules/users/services/users.service';
 import {
   WorkspaceInviteCreatedEvent,
+  WorkspaceInviteCancelledEvent,
   WorkspaceInviteSummaryPayload,
   WorkspaceMemberJoinedEvent,
   WorkspaceSummaryPayload,
 } from '@/shared/events/domain-events/workspace';
-import { DOMAIN_EVENT_TYPES } from '@/shared/events/domain-events/domain-event-types';
 
 @Injectable()
 export class InviteService {
@@ -167,7 +167,11 @@ export class InviteService {
     return this.inviteRepository.findPendingByWorkspace(workspaceId);
   }
 
-  async cancelInvite(workspaceId: string, inviteId: string): Promise<void> {
+  async cancelInvite(
+    workspaceId: string,
+    inviteId: string,
+    actorId?: string,
+  ): Promise<void> {
     const invite = await this.inviteRepository.findById(inviteId);
     if (!invite) throw new NotFoundException(ErrorFactory.inviteNotFound());
 
@@ -177,11 +181,13 @@ export class InviteService {
 
     await this.inviteRepository.updateStatus(inviteId, INVITE_STATUS.EXPIRED);
 
-    this.eventEmitter.emit(DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED, {
-      type: DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+    const event = new WorkspaceInviteCancelledEvent({
       workspaceId,
-      data: { inviteId },
+      actorId,
+      inviteId,
     });
+
+    this.eventEmitter.emit(event.type, event);
   }
 
   async acceptInvite(

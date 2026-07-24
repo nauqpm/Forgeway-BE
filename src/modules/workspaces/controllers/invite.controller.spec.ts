@@ -89,14 +89,17 @@ describe('InviteController', () => {
     expect(service.getInvites).toHaveBeenCalledWith('workspaceId');
   });
 
-  it('cancelInvite calls service with workspaceId and inviteId', async () => {
+  it('cancelInvite calls service with workspaceId, inviteId, and userId', async () => {
     service.cancelInvite.mockResolvedValue(undefined);
 
-    await controller.cancelInvite('workspaceId', 'inviteId');
+    await controller.cancelInvite('workspaceId', 'inviteId', {
+      userId: 'user123',
+    });
 
     expect(service.cancelInvite).toHaveBeenCalledWith(
       'workspaceId',
       'inviteId',
+      'user123',
     );
   });
 

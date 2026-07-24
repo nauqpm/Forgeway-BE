@@ -16,6 +16,8 @@ import { ConfigService } from '@nestjs/config';
 import { INVITE_STATUS } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { WorkspaceInviteCancelledEvent } from '@/shared/events/domain-events/workspace';
+import { DOMAIN_EVENT_TYPES } from '@/shared/events/domain-events/domain-event-types';
 
 const mockWorkspace = {
   _id: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
@@ -43,6 +45,7 @@ describe('InviteService', () => {
   let workspacesRepo: jest.Mocked<WorkspacesRepository>;
   let usersService: jest.Mocked<UsersService>;
   let mailerService: jest.Mocked<MailerService>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -91,10 +94,6 @@ describe('InviteService', () => {
           provide: EventEmitter2,
           useValue: { emit: jest.fn() },
         },
-        {
-          provide: EventEmitter2,
-          useValue: { emit: jest.fn() },
-        },
       ],
     }).compile();
 
@@ -103,6 +102,7 @@ describe('InviteService', () => {
     workspacesRepo = module.get(WorkspacesRepository);
     usersService = module.get(UsersService);
     mailerService = module.get(MailerService);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   describe('createInvite', () => {
@@ -288,7 +288,7 @@ describe('InviteService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('marks invite as expired', async () => {
+    it('marks invite as expired and emits WorkspaceInviteCancelledEvent', async () => {
       inviteRepo.findById.mockResolvedValue({
         _id: 'inviteId',
         workspaceId: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
@@ -298,12 +298,29 @@ describe('InviteService', () => {
         status: INVITE_STATUS.EXPIRED,
       } as any);
 
-      await service.cancelInvite('aaaaaaaaaaaaaaaaaaaaaaaa', 'inviteId');
+      await service.cancelInvite(
+        'aaaaaaaaaaaaaaaaaaaaaaaa',
+        'inviteId',
+        'user123',
+      );
 
       expect(inviteRepo.updateStatus).toHaveBeenCalledWith(
         'inviteId',
         INVITE_STATUS.EXPIRED,
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+        expect.any(WorkspaceInviteCancelledEvent),
+      );
+      const emittedEvent = eventEmitter.emit.mock.calls.find(
+        call => call[0] === DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+      )?.[1];
+      expect(emittedEvent.data).toEqual({
+        workspaceId: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+        actorId: 'user123',
+        inviteId: 'inviteId',
+      });
+      expect(emittedEvent.occurredAt).toBeInstanceOf(Date);
     });
   });
 

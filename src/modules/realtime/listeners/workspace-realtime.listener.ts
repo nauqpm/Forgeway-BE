@@ -12,6 +12,7 @@ import {
   WorkspaceDeletedEventData,
   WorkspaceEventContext,
   WorkspaceInviteCreatedEventData,
+  WorkspaceInviteCancelledEventData,
   WorkspaceMemberJoinedEventData,
   WorkspaceMemberRemovedEventData,
   WorkspaceMemberRoleUpdatedEventData,
@@ -29,6 +30,7 @@ import { RealtimePublisher } from '../publishers/realtime.publisher';
 export type WorkspaceRealtimeEventData =
   | WorkspaceCreatedEventData
   | WorkspaceInviteCreatedEventData
+  | WorkspaceInviteCancelledEventData
   | WorkspaceUpdatedEventData
   | WorkspaceArchivedEventData
   | WorkspaceRestoredEventData

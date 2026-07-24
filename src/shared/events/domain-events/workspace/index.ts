@@ -4,6 +4,7 @@ export * from './workspace-archived.event';
 export * from './workspace-created.event';
 export * from './workspace-deleted.event';
 export * from './workspace-invite-created.event';
+export * from './workspace-invite-cancelled.event';
 export * from './workspace-member-joined.event';
 export * from './workspace-member-removed.event';
 export * from './workspace-member-role-updated.event';
