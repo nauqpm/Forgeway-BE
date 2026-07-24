@@ -1158,6 +1158,7 @@ export class MessagesService {
     const msg = await this.messagesRepository.model
       .findOne({
         channelId: new Types.ObjectId(channelId),
+        threadParentId: null,
         deletedForUsers: { $ne: new Types.ObjectId(userId) },
       })
       .sort({ createdAt: -1 })
