@@ -132,9 +132,18 @@ export class DeleteColumnDto {
   @ApiPropertyOptional({
     example: 'col-xyz',
     description:
-      'Column nhận task khi xóa. Bắt buộc nếu column hiện tại còn task.',
+      'Column nhận task đang active khi xóa. Bắt buộc nếu column hiện tại còn task active.',
   })
   @IsOptional()
   @IsString()
   targetColumnId?: string;
+
+  @ApiPropertyOptional({
+    example: 'col-abc',
+    description:
+      'Column nhận task đang archived khi xóa. Nếu không cung cấp sẽ dùng targetColumnId hoặc column đầu tiên.',
+  })
+  @IsOptional()
+  @IsString()
+  archivedTargetColumnId?: string;
 }

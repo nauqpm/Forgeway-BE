@@ -152,6 +152,7 @@ export class KanbanController {
       board._id.toString(),
       columnId,
       dto.targetColumnId,
+      dto.archivedTargetColumnId,
     );
   }
 }

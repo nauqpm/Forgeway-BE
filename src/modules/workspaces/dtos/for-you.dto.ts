@@ -38,6 +38,12 @@ export class ForYouWorkspaceDto {
   })
   status!: string;
 
+  @ApiPropertyOptional({
+    example: 'https://example.com/avatar.png',
+    description: 'Workspace avatar URL',
+  })
+  avatar?: string;
+
   @ApiProperty({
     example: SPACE_ROLES.WORKSPACE_ADMIN,
     enum: Object.values(SPACE_ROLES),

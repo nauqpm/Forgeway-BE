@@ -318,6 +318,7 @@ export class KanbanService {
     boardId: string,
     columnId: string,
     targetColumnId?: string,
+    archivedTargetColumnId?: string,
   ): Promise<BoardDocument> {
     const board = await this.findById(boardId);
     const columns = this.toPlainColumns(board.columns);
@@ -340,54 +341,101 @@ export class KanbanService {
       }
     }
 
+    if (archivedTargetColumnId) {
+      const archivedTargetExists = columns.some(
+        c => c.id === archivedTargetColumnId && c.id !== columnId,
+      );
+      if (!archivedTargetExists) {
+        throw new BadRequestException(
+          `Archived target column "${archivedTargetColumnId}" not found in board ${boardId}`,
+        );
+      }
+    }
+
     const workspaceId = this.toId(board.workspaceId);
+
+    const nextColumns = this.reindexColumns(
+      columns.filter(col => col.id !== columnId),
+    );
+
+    if (nextColumns.length === 0) {
+      throw new BadRequestException(
+        'Cannot delete the only column on the board.',
+      );
+    }
+
+    const fallbackColumnId = nextColumns[0]?.id;
+
+    const activeTaskCount = await this.taskModel
+      .countDocuments({
+        workspaceId: new Types.ObjectId(workspaceId),
+        columnId,
+        isArchived: { $ne: true },
+        isDeleted: { $ne: true },
+      })
+      .exec();
+
+    if (activeTaskCount > 0 && !targetColumnId) {
+      throw new BadRequestException(
+        `Column "${columnId}" has ${activeTaskCount} task(s). Provide targetColumnId to migrate them before deleting.`,
+      );
+    }
 
     const archivedTaskCount = await this.taskModel
       .countDocuments({
         workspaceId: new Types.ObjectId(workspaceId),
         columnId,
         isArchived: true,
+        isDeleted: { $ne: true },
       })
       .exec();
 
-    if (archivedTaskCount > 0) {
-      throw new BadRequestException(
-        `Cannot delete this column because it still contains ${archivedTaskCount} archived task(s). Please permanently delete those tasks first.`,
-      );
-    }
+    // Effective targets: for archived tasks, prefer archivedTargetColumnId, then targetColumnId, then fallback
+    const effectiveActiveTargetId = targetColumnId || fallbackColumnId;
+    const effectiveArchivedTargetId =
+      archivedTargetColumnId || targetColumnId || fallbackColumnId;
 
-    const taskCount = await this.taskModel
-      .countDocuments({
-        workspaceId: new Types.ObjectId(workspaceId),
-        columnId,
-      })
-      .exec();
+    const doMigrate = async (session?: ClientSession) => {
+      // Migrate active tasks
+      if (activeTaskCount > 0 && effectiveActiveTargetId) {
+        await this.taskModel
+          .updateMany(
+            {
+              workspaceId: new Types.ObjectId(workspaceId),
+              columnId,
+              isArchived: { $ne: true },
+              isDeleted: { $ne: true },
+            },
+            { $set: { columnId: effectiveActiveTargetId } },
+            session ? { session } : {},
+          )
+          .exec();
+      }
 
-    if (taskCount > 0 && !targetColumnId) {
-      throw new BadRequestException(
-        `Column "${columnId}" has ${taskCount} task(s). Provide targetColumnId to migrate them before deleting.`,
-      );
-    }
+      // Migrate archived/deleted tasks (preserving isArchived = true)
+      if (archivedTaskCount > 0 && effectiveArchivedTargetId) {
+        await this.taskModel
+          .updateMany(
+            {
+              workspaceId: new Types.ObjectId(workspaceId),
+              columnId,
+              isArchived: true,
+              isDeleted: { $ne: true },
+            },
+            { $set: { columnId: effectiveArchivedTargetId } },
+            session ? { session } : {},
+          )
+          .exec();
+      }
 
-    const nextColumns = this.reindexColumns(
-      columns.filter(col => col.id !== columnId),
-    );
+      await this.saveColumnsWithVersion(board, nextColumns, session);
+    };
 
     try {
       const session = await this.connection.startSession();
       try {
         await session.withTransaction(async () => {
-          if (taskCount > 0 && targetColumnId) {
-            await this.taskModel
-              .updateMany(
-                { workspaceId: new Types.ObjectId(workspaceId), columnId },
-                { $set: { columnId: targetColumnId } },
-                { session },
-              )
-              .exec();
-          }
-
-          await this.saveColumnsWithVersion(board, nextColumns, session);
+          await doMigrate(session);
         });
       } finally {
         await session.endSession();
@@ -402,16 +450,7 @@ export class KanbanService {
         this.logger.warn(
           'MongoDB transaction not supported, falling back to sequential Kanban column delete',
         );
-
-        if (taskCount > 0 && targetColumnId) {
-          await this.taskModel
-            .updateMany(
-              { workspaceId: new Types.ObjectId(workspaceId), columnId },
-              { $set: { columnId: targetColumnId } },
-            )
-            .exec();
-        }
-        await this.saveColumnsWithVersion(board, nextColumns);
+        await doMigrate();
       } else {
         throw error;
       }
@@ -423,7 +462,14 @@ export class KanbanService {
     this.realtimeService.emitBoardDelta(
       workspaceId,
       'column:deleted',
-      { boardId, columnId, targetColumnId, migratedTaskCount: taskCount },
+      {
+        boardId,
+        columnId,
+        targetColumnId: effectiveActiveTargetId,
+        archivedTargetColumnId: effectiveArchivedTargetId,
+        migratedTaskCount: activeTaskCount,
+        migratedArchivedTaskCount: archivedTaskCount,
+      },
       this.getVersion(updated),
     );
 
