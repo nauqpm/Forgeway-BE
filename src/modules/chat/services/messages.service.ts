@@ -189,7 +189,6 @@ export class MessagesService {
       channelId: new Types.ObjectId(channelId),
       senderId: { $ne: new Types.ObjectId(userId) },
       createdAt: { $gt: lastReadAt },
-      deletedAt: null,
       deletedForUsers: { $ne: new Types.ObjectId(userId) },
     });
   }
@@ -239,20 +238,28 @@ export class MessagesService {
           }
         });
       }
+      if (m.replyToSenderId) {
+        allUserIds.add(m.replyToSenderId.toString());
+      }
     });
 
-    if (allUserIds.size === 0) {
-      return messages.map(m => {
-        const obj = m.toObject();
-        obj.reactions = {};
-        return obj;
+    const validUserIdsSet = new Set<string>();
+    const validUsersMap = new Map<string, any>();
+    if (allUserIds.size > 0) {
+      const validUsers = await this.usersService.getUsersByIds(
+        Array.from(allUserIds),
+      );
+      validUsers.forEach(u => {
+        const uId = u._id.toString();
+        validUserIdsSet.add(uId);
+        validUsersMap.set(uId, {
+          _id: u._id,
+          fullName: u.fullName,
+          avatar: u.avatar,
+          email: u.email,
+        });
       });
     }
-
-    const validUsers = await this.usersService.getUsersByIds(
-      Array.from(allUserIds),
-    );
-    const validUserIdsSet = new Set(validUsers.map(u => u._id.toString()));
 
     return messages.map(m => {
       const obj = m.toObject();
@@ -273,6 +280,36 @@ export class MessagesService {
         obj.lastReplyParticipants = m.lastReplyParticipants.filter(
           p => p && p.userId && validUserIdsSet.has(p.userId.toString()),
         );
+      }
+
+      // Preserve reply layout for messages whose replied-to target was deleted
+      const populatedTarget = m.populated ? m.populated('replyToId') : null;
+      const rawReplyToId = populatedTarget
+        ? populatedTarget.toString()
+        : (m as any)._doc?.replyToId
+          ? (m as any)._doc.replyToId.toString()
+          : null;
+
+      if (
+        rawReplyToId &&
+        (!obj.replyToId ||
+          (typeof obj.replyToId === 'object' &&
+            !obj.replyToId.content &&
+            !obj.replyToId.type))
+      ) {
+        const replySenderIdStr = m.replyToSenderId
+          ? m.replyToSenderId.toString()
+          : null;
+        const replySender = replySenderIdStr
+          ? validUsersMap.get(replySenderIdStr) || null
+          : null;
+
+        obj.replyToId = {
+          _id: rawReplyToId,
+          content: '[Message deleted]',
+          senderId: replySender,
+          isDeleted: true,
+        };
       }
 
       return obj;
@@ -366,17 +403,21 @@ export class MessagesService {
       }
     }
 
+    let replyToSenderId: Types.ObjectId | null = null;
     if (dto.replyToId) {
       if (!Types.ObjectId.isValid(dto.replyToId)) {
         throw new NotFoundException('Invalid replyToId');
       }
-      const parentMessage = await this.messagesRepository.findById(
+      const repliedTarget = await this.messagesRepository.findById(
         dto.replyToId,
       );
-      if (!parentMessage || parentMessage.channelId.toString() !== channelId) {
+      if (!repliedTarget || repliedTarget.channelId.toString() !== channelId) {
         throw new ForbiddenException(
           'Cannot reply to message in a different channel',
         );
+      }
+      if (repliedTarget.senderId) {
+        replyToSenderId = new Types.ObjectId(repliedTarget.senderId.toString());
       }
     }
 
@@ -405,6 +446,7 @@ export class MessagesService {
       ...dto,
       channelId: new Types.ObjectId(channelId),
       senderId: new Types.ObjectId(senderId),
+      replyToSenderId: replyToSenderId || undefined,
       threadParentId: dto.threadParentId
         ? new Types.ObjectId(dto.threadParentId)
         : null,
@@ -577,7 +619,6 @@ export class MessagesService {
       .find({
         channelId: new Types.ObjectId(channelId),
         threadParentId: new Types.ObjectId(parentMessageId),
-        deletedAt: null,
         deletedForUsers: { $ne: new Types.ObjectId(userId) },
       })
       .sort({ createdAt: 1 })
@@ -619,7 +660,6 @@ export class MessagesService {
       channelId: new Types.ObjectId(channelId),
       threadParentId: null,
       replyCount: { $gt: 0 },
-      deletedAt: null,
       deletedForUsers: { $ne: new Types.ObjectId(userId) },
     };
 
@@ -740,7 +780,6 @@ export class MessagesService {
 
     const query: any = {
       channelId: new Types.ObjectId(channelId),
-      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
       deletedForUsers: { $ne: new Types.ObjectId(userId) },
     };
 
@@ -811,7 +850,7 @@ export class MessagesService {
     return withReactions;
   }
 
-  async softDelete(
+  async deleteMessage(
     messageId: string,
     userId: string,
   ): Promise<{ updatedLastMessage: any | null }> {
@@ -856,10 +895,6 @@ export class MessagesService {
       );
     }
 
-    // Do not overwrite message.content with English text so that FE can localize correctly
-    message.deletedAt = new Date();
-    await message.save();
-
     // Cloudinary and DB attachment cleanup
     if (message.attachments && message.attachments.length > 0) {
       for (const attachment of message.attachments) {
@@ -877,15 +912,103 @@ export class MessagesService {
       }
     }
 
+    const channelId = message.channelId.toString();
+    const threadParentId = message.threadParentId?.toString();
+
+    // Hard Delete message document from Database
+    if (threadParentId) {
+      // It's a thread reply message
+      await this.messagesRepository.model.deleteOne({
+        _id: new Types.ObjectId(messageId),
+      });
+
+      // Recalculate parent message thread stats
+      const remainingReplies = await this.messagesRepository.model
+        .find({
+          channelId: new Types.ObjectId(channelId),
+          threadParentId: new Types.ObjectId(threadParentId),
+        })
+        .sort({ createdAt: -1 })
+        .populate('senderId', 'fullName avatar email')
+        .exec();
+
+      const replyCount = remainingReplies.length;
+      const lastReplyAt =
+        remainingReplies.length > 0
+          ? (remainingReplies[0] as any).createdAt
+          : null;
+
+      const participantMap = new Map<
+        string,
+        { userId: any; fullName: string; avatar?: string }
+      >();
+      for (const r of [...remainingReplies].reverse()) {
+        const s = r.senderId as any;
+        if (s) {
+          const sId = (s._id || s.id || s).toString();
+          participantMap.set(sId, {
+            userId: s._id || s.id,
+            fullName: s.fullName || 'User',
+            avatar: s.avatar,
+          });
+        }
+      }
+      const lastReplyParticipants = Array.from(participantMap.values()).slice(
+        -3,
+      );
+
+      await this.messagesRepository.model.updateOne(
+        { _id: new Types.ObjectId(threadParentId) },
+        {
+          $set: {
+            replyCount,
+            lastReplyAt,
+            lastReplyParticipants,
+          },
+        },
+      );
+    } else {
+      // It's a top-level message. Clean up attachments for child thread replies if any, then delete child replies
+      const childReplies = await this.messagesRepository.model.find({
+        threadParentId: new Types.ObjectId(messageId),
+      });
+
+      for (const reply of childReplies) {
+        if (reply.attachments && reply.attachments.length > 0) {
+          for (const attachment of reply.attachments) {
+            if (attachment.url) {
+              try {
+                await this.attachmentService.deleteByUrl(
+                  attachment.url,
+                  userId,
+                );
+                await this.imagesService.deleteByUrl(attachment.url);
+              } catch (_err) {
+                // ignore
+              }
+            }
+          }
+        }
+      }
+
+      await this.messagesRepository.model.deleteMany({
+        threadParentId: new Types.ObjectId(messageId),
+      });
+
+      // Permanently delete the parent message from DB
+      await this.messagesRepository.model.deleteOne({
+        _id: new Types.ObjectId(messageId),
+      });
+    }
+
     // Check if this was the channel's last message and update it
     let updatedLastMessage: any = null;
-    const channelId = message.channelId.toString();
 
-    // Find the latest non-deleted message in this channel
+    // Find the latest top-level message remaining in this channel
     const previousMessage = await this.messagesRepository.model
       .findOne({
         channelId: new Types.ObjectId(channelId),
-        deletedAt: null,
+        threadParentId: null,
       })
       .sort({ createdAt: -1 })
       .populate('senderId', 'fullName avatar email')
@@ -1035,7 +1158,6 @@ export class MessagesService {
     const msg = await this.messagesRepository.model
       .findOne({
         channelId: new Types.ObjectId(channelId),
-        deletedAt: null,
         deletedForUsers: { $ne: new Types.ObjectId(userId) },
       })
       .sort({ createdAt: -1 })

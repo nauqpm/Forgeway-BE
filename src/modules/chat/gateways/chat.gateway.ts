@@ -309,7 +309,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.user?.userId;
     if (!userId || !payload.messageId) return { ok: false };
 
-    const { updatedLastMessage } = await this.messagesService.softDelete(
+    const { updatedLastMessage } = await this.messagesService.deleteMessage(
       payload.messageId,
       userId,
     );
