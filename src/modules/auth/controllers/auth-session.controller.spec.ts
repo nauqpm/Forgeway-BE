@@ -22,6 +22,7 @@ import { TokenIssuerService } from '../services/token-issuer.service';
 import { TokenRefreshService } from '../services/token-refresh.service';
 import { TokenRevocationService } from '../services/token-revocation.service';
 import { TokenLookupService } from '../services/token-lookup.service';
+import { SsoLoginService } from '../services/sso-login.service';
 
 jest.mock('../utils/cookie.utils', () => ({
   setAuthCookies: jest.fn(),
@@ -81,6 +82,10 @@ describe('AuthSessionController', () => {
     sign: jest.fn(),
   };
 
+  const ssoLoginServiceMock = {
+    generateAuthorizationCode: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -111,6 +116,7 @@ describe('AuthSessionController', () => {
           useValue: loginSessionTrackingServiceMock,
         },
         { provide: JwtService, useValue: jwtServiceMock },
+        { provide: SsoLoginService, useValue: ssoLoginServiceMock },
       ],
     }).compile();
 
