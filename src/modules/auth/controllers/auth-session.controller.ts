@@ -35,6 +35,7 @@ import { CredentialLoginService } from '../services/credential-login.service';
 import { TokenIssuerService } from '../services/token-issuer.service';
 import { TokenRefreshService } from '../services/token-refresh.service';
 import { TokenRevocationService } from '../services/token-revocation.service';
+import { SsoLoginService } from '../services/sso-login.service';
 import {
   clearAuthCookies,
   getDeviceIdFromRequest,
@@ -64,6 +65,7 @@ export class AuthSessionController {
     private readonly configService: ConfigService,
     private readonly auditLogService: AuditLogService,
     private readonly loginSessionTrackingService: LoginSessionTrackingService,
+    private readonly ssoLoginService: SsoLoginService,
   ) {}
 
   @ApiOperation({
@@ -175,6 +177,27 @@ export class AuthSessionController {
         email: loginDto.email,
         metadata: { role: result.user.role },
       });
+
+      if (loginDto.redirect) {
+        const code = await this.ssoLoginService.generateAuthorizationCode(
+          {
+            id: result.user.id,
+            email: result.user.email,
+            role: result.user.role,
+            fullName: result.user.fullName,
+            avatar: result.user.avatar,
+          },
+          loginDto.redirect,
+        );
+
+        const redirectUrl = new URL(loginDto.redirect);
+        redirectUrl.searchParams.set('code', code);
+
+        return {
+          success: true,
+          redirectUrl: redirectUrl.toString(),
+        };
+      }
 
       return {
         success: result.success,
