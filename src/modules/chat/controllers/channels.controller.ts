@@ -165,6 +165,16 @@ export class ChannelsController {
     return this.messagesService.send(id, userId, dto);
   }
 
+  @Get('channels/:channelId/messages/:messageId')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getMessageById(
+    @Param('channelId') _channelId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagesService.findById(messageId);
+  }
+
   @Get('channels/:channelId/messages/:messageId/replies')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
