@@ -44,7 +44,6 @@ describe('CredentialLoginService', () => {
       usersService as never,
       passwordService,
       loginAttemptThrottleService as never,
-      { get: jest.fn() } as never,
     );
   });
 

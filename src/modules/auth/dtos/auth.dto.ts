@@ -53,14 +53,6 @@ export class LoginDto {
   })
   @IsNotEmpty({ message: 'Password cannot be empty.' })
   password!: string;
-
-  @ApiPropertyOptional({
-    description: 'Redirect URL',
-    example: 'http://localhost:3000/dashboard',
-  })
-  @IsOptional()
-  @IsString({ message: 'Redirect URL must be a string.' })
-  redirect?: string;
 }
 
 export class UpdateProfileDto {

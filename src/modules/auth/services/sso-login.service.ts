@@ -8,9 +8,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { RedisService } from '../../../infra/redis/redis.service';
 import type { RedisClientType } from 'redis';
+import { TOKEN_TYPES } from '../constants/token.constants';
+import { AuthTokenConfigService } from '../config/auth-token-config.service';
 
 export interface SsoUserPayload {
   id: string;
@@ -31,6 +33,7 @@ export class SsoLoginService implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
     private readonly jwtService: JwtService,
+    private readonly authTokenConfigService: AuthTokenConfigService,
   ) {}
 
   async onModuleInit() {
@@ -58,11 +61,14 @@ export class SsoLoginService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    this.redisClient = null;
+    if (this.redisClient) {
+      await this.redisClient.quit().catch(() => {});
+      this.redisClient = null;
+    }
   }
 
   isValidRedirectUrl(url: string): boolean {
-    if (!url) return true;
+    if (!url) return false;
     try {
       const parsedUrl = new URL(url);
       return this.redirectRules.some(({ regex, isHostnameOnly }) => {
@@ -109,7 +115,7 @@ export class SsoLoginService implements OnModuleInit, OnModuleDestroy {
     }
 
     const redisKey = `sso_code:${code}`;
-    const storedData = await this.redisClient.get(redisKey);
+    const storedData = await this.redisClient.getDel(redisKey);
 
     if (!storedData) {
       throw new UnauthorizedException(
@@ -117,21 +123,24 @@ export class SsoLoginService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    await this.redisClient.del(redisKey);
-
     const { user } = JSON.parse(storedData) as {
       user: SsoUserPayload;
       redirectUri: string;
     };
 
     const tokenPayload = {
-      sub: user.id,
+      sub: user.id, // sub đại diện cho user theo chuẩn JWT
+      userId: user.id,
       email: user.email,
       role: user.role,
       fullName: user.fullName,
       avatar: user.avatar,
+      type: TOKEN_TYPES.ACCESS,
+      jti: randomBytes(8).toString('hex'),
     };
 
-    return this.jwtService.sign(tokenPayload, { expiresIn: '1h' });
+    return this.jwtService.sign(tokenPayload, {
+      expiresIn: this.authTokenConfigService.accessTokenTtlSeconds,
+    });
   }
 }

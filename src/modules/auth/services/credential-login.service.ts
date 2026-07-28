@@ -17,7 +17,6 @@ import {
 } from '../security/login-attempt-throttle.service';
 import { LoginRetryLaterException } from '../security/login-retry-later.exception';
 import { PasswordService } from './password.service';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class CredentialLoginService implements OnModuleInit {
@@ -27,7 +26,6 @@ export class CredentialLoginService implements OnModuleInit {
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
     private readonly loginAttemptThrottleService: LoginAttemptThrottleService,
-    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {

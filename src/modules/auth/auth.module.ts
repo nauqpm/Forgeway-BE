@@ -41,6 +41,7 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { AuditModule } from '../audit/audit.module';
 import { GuardsModule } from './guards/guards.module';
 import { RedisModule } from '@/infra/redis/redis.module';
+import { AuthTokenConfigModule } from './config/auth-token-config.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     forwardRef(() => GuardsModule),
     RedisModule,
     TokenModule,
+    AuthTokenConfigModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Otp.name, schema: OtpSchema },
