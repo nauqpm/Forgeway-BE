@@ -419,8 +419,13 @@ async function main() {
         })),
     })),
   });
-  console.log(JSON.stringify({ ...report, ...applyReport }));
-  if (applyReport.status !== 'success') process.exitCode = 1;
+  const conflicts = [...report.conflicts, ...applyReport.conflicts];
+  const status =
+    applyReport.status === 'success' && conflicts.length
+      ? 'completed_with_conflicts'
+      : applyReport.status;
+  console.log(JSON.stringify({ ...report, ...applyReport, status, conflicts }));
+  if (status !== 'success') process.exitCode = 1;
   return;
 
   let organization = existingLegacy;
