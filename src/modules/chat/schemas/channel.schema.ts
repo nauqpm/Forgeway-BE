@@ -66,6 +66,17 @@ export class Channel {
   workspaceId?: Types.ObjectId;
 
   @Prop({
+    type: Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+    index: true,
+  })
+  organizationId?: Types.ObjectId | null;
+
+  @Prop({ type: String, default: null })
+  dmParticipantKey?: string | null;
+
+  @Prop({
     type: [{ type: Types.ObjectId, ref: 'User' }],
     default: [],
     index: true,
@@ -97,4 +108,6 @@ export const ChannelSchema = SchemaFactory.createForClass(Channel);
 
 ChannelSchema.index({ type: 1 });
 ChannelSchema.index({ workspaceId: 1, type: 1, isPrivate: 1 });
+ChannelSchema.index({ organizationId: 1, type: 1 });
+ChannelSchema.index({ dmParticipantKey: 1 });
 ChannelSchema.index({ 'channelMembers.userId': 1, type: 1 });

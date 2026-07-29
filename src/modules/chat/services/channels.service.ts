@@ -7,7 +7,9 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection, Types } from 'mongoose';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ChannelDocument } from '../schemas/channel.schema';
 import { ChannelsRepository } from '../repositories/channels.repository';
@@ -21,6 +23,9 @@ import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { DOMAIN_EVENT_TYPES } from '../../../shared/events/domain-events/domain-event-types';
 import { ChannelMembersService } from './channel-members.service';
 import { CustomChannelsService } from './custom-channels.service';
+import { DmOrganizationAmbiguousException } from '../errors/dm-organization-ambiguous.exception';
+import { DmOrganizationMismatchException } from '../errors/dm-organization-mismatch.exception';
+import { computeDmParticipantKey } from '../utils/dm-participant-key.util';
 
 @Injectable()
 export class ChannelsService {
@@ -42,6 +47,8 @@ export class ChannelsService {
     private readonly channelMembersService: ChannelMembersService,
     @Inject(forwardRef(() => CustomChannelsService))
     private readonly customChannelsService: CustomChannelsService,
+    private readonly config: ConfigService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async onModuleInit() {
@@ -287,19 +294,43 @@ export class ChannelsService {
       throw new BadRequestException('Invalid target user ID');
     }
 
-    if (userAId === userBId) {
+    const organizationScopeEnabled =
+      this.config.get<string>('CHANNEL_ORGANIZATION_SCOPE_ENABLED') === 'true';
+
+    if (!organizationScopeEnabled && userAId === userBId) {
       throw new BadRequestException('Cannot create a DM with yourself');
     }
 
     const members = [userAId, userBId].sort();
     const memberObjectIds = members.map(id => new Types.ObjectId(id));
+    let organizationId: Types.ObjectId | null = null;
+    let dmParticipantKey: string | null = null;
+
+    if (organizationScopeEnabled) {
+      try {
+        dmParticipantKey = computeDmParticipantKey(
+          new Types.ObjectId(userAId),
+          new Types.ObjectId(userBId),
+        );
+      } catch (error) {
+        throw new BadRequestException((error as Error).message);
+      }
+      organizationId = await this.findSharedActiveOrganization(
+        memberObjectIds[0],
+        memberObjectIds[1],
+      );
+    }
 
     // 1. Tìm kênh cũ bằng .lean()
     let channel: any = await this.channelsRepository.model
-      .findOne({
-        type: 'dm',
-        members: { $all: memberObjectIds, $size: 2 },
-      })
+      .findOne(
+        organizationScopeEnabled
+          ? { type: 'dm', organizationId, dmParticipantKey }
+          : {
+              type: 'dm',
+              members: { $all: memberObjectIds, $size: 2 },
+            },
+      )
       .lean()
       .exec();
 
@@ -313,6 +344,9 @@ export class ChannelsService {
           isPrivate: true,
           createdBy: new Types.ObjectId(userAId),
           workspaceId: null,
+          ...(organizationScopeEnabled
+            ? { organizationId, dmParticipantKey }
+            : {}),
         });
         channel = created.toObject();
       } catch (error: any) {
@@ -340,6 +374,55 @@ export class ChannelsService {
       members: userInfos, // Ghi đè mảng ID bằng mảng Object
       unreadCount,
     };
+  }
+
+  private async findSharedActiveOrganization(
+    firstUserId: Types.ObjectId,
+    secondUserId: Types.ObjectId,
+  ): Promise<Types.ObjectId> {
+    const memberships = this.connection.collection('organizationmemberships');
+    const activeMembership = {
+      status: 'active',
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+    };
+    const firstMemberships = await memberships
+      .find(
+        { ...activeMembership, userId: firstUserId },
+        { projection: { organizationId: 1 } },
+      )
+      .toArray();
+    const organizationIds = firstMemberships
+      .map(membership => membership.organizationId)
+      .filter(Boolean);
+    if (organizationIds.length === 0) {
+      throw new DmOrganizationMismatchException();
+    }
+
+    const sharedMemberships = await memberships
+      .find(
+        {
+          ...activeMembership,
+          userId: secondUserId,
+          organizationId: { $in: organizationIds },
+        },
+        { projection: { organizationId: 1 } },
+      )
+      .toArray();
+    const sharedOrganizationIds = [
+      ...new Set(
+        sharedMemberships
+          .map(membership => membership.organizationId?.toString())
+          .filter(Boolean),
+      ),
+    ];
+    if (sharedOrganizationIds.length === 0) {
+      throw new DmOrganizationMismatchException();
+    }
+    if (sharedOrganizationIds.length > 1) {
+      throw new DmOrganizationAmbiguousException();
+    }
+
+    return new Types.ObjectId(sharedOrganizationIds[0]);
   }
 
   async getRecentDMs(userId: string): Promise<any[]> {

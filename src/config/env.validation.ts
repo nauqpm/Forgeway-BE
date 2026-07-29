@@ -47,6 +47,15 @@ export function parseOrganizationSchemaEnabled(
   throw new Error('ORGANIZATION_SCHEMA_ENABLED must be true or false');
 }
 
+export function parseChannelOrganizationScopeEnabled(
+  value: string | undefined,
+): boolean {
+  if (value === undefined || value === '') return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error('CHANNEL_ORGANIZATION_SCOPE_ENABLED must be true or false');
+}
+
 export function parseWorkspaceOrganizationBindingMode(
   value: string | undefined,
 ): 'legacy' | 'optional' | 'required' {
@@ -89,6 +98,9 @@ export function validateEnv(config: Env): Env {
   );
   parseAuthorizationMode(config.AUTHORIZATION_MODE);
   parseOrganizationSchemaEnabled(config.ORGANIZATION_SCHEMA_ENABLED);
+  parseChannelOrganizationScopeEnabled(
+    config.CHANNEL_ORGANIZATION_SCOPE_ENABLED,
+  );
   parseWorkspaceOrganizationBindingMode(
     config.WORKSPACE_ORGANIZATION_BINDING_MODE,
   );
