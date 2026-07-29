@@ -107,20 +107,14 @@ jobs:
       - name: Verify image signature
         env:
           IMAGE_REF: ${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}
+          CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/cd.yml@${{ github.ref }}
         run: |
           set -Eeuo pipefail
-          for attempt in $(seq 1 3); do
-            if cosign verify \
-              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-              --certificate-identity "https://github.com/automationland-dev/sdlc-platform-backend/.github/workflows/cd.yml@refs/heads/production" \
-              "$IMAGE_REF"; then
-              echo "Verified image signature: $IMAGE_REF"
-              exit 0
-            fi
-            echo "Cosign verification failed; retrying in 5s ($attempt/3)"
-            sleep 5
-          done
-          exit 1
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity "$CERTIFICATE_IDENTITY" \
+            "$IMAGE_REF"
+          echo "Verified image signature: $IMAGE_REF"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
@@ -182,6 +176,8 @@ jobs:
 
             LAST_GOOD_DIGEST_FILE="$DEPLOY_PATH/.last-good-digest-backend"
             COMPOSE_ENV_FILE="$DEPLOY_PATH/.env"
+            CURRENT_IMAGE_ID=""
+            PREVIOUS_IMAGE_ID=""
             CONTAINER_WAIT_ATTEMPTS=18
             CONTAINER_WAIT_INTERVAL_SECONDS=5
             HTTP_CHECK_ATTEMPTS=5
@@ -194,6 +190,39 @@ jobs:
               else
                 printf 'BACKEND_IMAGE=%s\n' "$1" >> "$COMPOSE_ENV_FILE"
               fi
+            }
+
+            cleanup_old_images() {
+              local image_name="$1" current_image_id="$2" previous_image_id="$3"
+              local image_ref="" image_id="" running_image_ids=""
+
+              echo "Docker image cleanup for $image_name"
+              echo "Keeping current image ID: ${current_image_id:-none}"
+              echo "Keeping previous image ID: ${previous_image_id:-none}"
+
+              running_image_ids="$(docker ps -q 2>/dev/null | while read -r container_id; do
+                docker inspect --format '{{.Image}}' "$container_id" 2>/dev/null || true
+              done || true)"
+              while read -r image_ref image_id; do
+                [ -n "$image_id" ] || continue
+                if [ "$image_id" = "$current_image_id" ] || { [ -n "$previous_image_id" ] && [ "$image_id" = "$previous_image_id" ]; }; then
+                  echo "Keeping: $image_ref ($image_id)"
+                  continue
+                fi
+
+                if printf '%s\n' "$running_image_ids" | grep -Fxq "$image_id"; then
+                  echo "::warning::Skipping image in use by a running container: $image_ref ($image_id)"
+                  continue
+                fi
+
+                echo "Removing: $image_ref ($image_id)"
+                if docker rmi "$image_id" >/dev/null 2>&1; then
+                  echo "OK: removed $image_ref ($image_id)"
+                else
+                  echo "::warning::FAILED: could not remove $image_ref ($image_id)"
+                fi
+              done < <(docker images --no-trunc --format '{{.Repository}}@{{.Digest}} {{.ID}}' | awk -v prefix="$image_name@" 'index($0, prefix) == 1 && !seen[$2]++')
+              echo "Skipping dangling-image prune: no repository-specific label is configured"
             }
 
             # Compose parses every service, so both digest-pinned image variables must exist.
@@ -315,6 +344,7 @@ jobs:
                 echo "Current backend is not healthy; preserving any existing rollback target"
               fi
             fi
+            PREVIOUS_IMAGE_ID="$CURRENT_IMAGE_ID"
 
             TARGET_IMAGE="$IMAGE_NAME@$DIGEST"
             echo "Pulling backend image by digest..."
@@ -331,6 +361,8 @@ jobs:
               echo "Image ID: $EXPECTED_IMAGE_ID"
               echo "Digest: $DIGEST"
               echo "Time: $(date)"
+              cleanup_old_images "$IMAGE_NAME" "$EXPECTED_IMAGE_ID" "$PREVIOUS_IMAGE_ID" || \
+                echo "::warning::Docker image cleanup failed unexpectedly"
               exit 0
             fi
 
@@ -359,6 +391,8 @@ jobs:
                docker compose up -d --no-build --no-deps backend && \
                verify_deployment "$ROLLBACK_IMAGE_ID"; then
               echo "Rollback completed successfully"
+              cleanup_old_images "$IMAGE_NAME" "$ROLLBACK_IMAGE_ID" "$PREVIOUS_IMAGE_ID" || \
+                echo "::warning::Docker image cleanup failed unexpectedly"
               echo "::warning::Deploy failed but rollback succeeded; backend is running the previous digest"
               exit 1
             fi

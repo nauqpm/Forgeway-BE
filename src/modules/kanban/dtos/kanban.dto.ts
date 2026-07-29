@@ -8,9 +8,11 @@ import {
   ValidateIf,
   IsInt,
   Min,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 
 export class KanbanBoardColumnDto {
   @ApiProperty({ example: 'todo' })
@@ -21,6 +23,7 @@ export class KanbanBoardColumnDto {
   @ApiProperty({ example: 'To Do' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(MAX_COLUMN_NAME_LENGTH)
   name!: string;
 
   @ApiProperty({ example: 0 })
@@ -68,6 +71,7 @@ export class CreateColumnDto {
   @ApiProperty({ example: 'In Review', description: 'Tên column mới' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(MAX_COLUMN_NAME_LENGTH)
   name!: string;
 }
 
@@ -79,6 +83,7 @@ export class UpdateColumnDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @MaxLength(MAX_COLUMN_NAME_LENGTH)
   name?: string;
 
   @ApiPropertyOptional({
@@ -127,9 +132,18 @@ export class DeleteColumnDto {
   @ApiPropertyOptional({
     example: 'col-xyz',
     description:
-      'Column nhận task khi xóa. Bắt buộc nếu column hiện tại còn task.',
+      'Column nhận task đang active khi xóa. Bắt buộc nếu column hiện tại còn task active.',
   })
   @IsOptional()
   @IsString()
   targetColumnId?: string;
+
+  @ApiPropertyOptional({
+    example: 'col-abc',
+    description:
+      'Column nhận task đang archived khi xóa. Nếu không cung cấp sẽ dùng targetColumnId hoặc column đầu tiên.',
+  })
+  @IsOptional()
+  @IsString()
+  archivedTargetColumnId?: string;
 }

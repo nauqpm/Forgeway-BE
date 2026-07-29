@@ -49,6 +49,7 @@ export class ForYouService {
       key: workspace.key,
       type: workspace.type,
       status: workspace.status,
+      avatar: workspace.avatar ?? undefined,
       role: isOwner
         ? SPACE_ROLES.WORKSPACE_ADMIN
         : (member?.role ?? SPACE_ROLES.VIEWER),

@@ -26,6 +26,7 @@ import { CustomChannelsService } from './custom-channels.service';
 import { DmOrganizationAmbiguousException } from '../errors/dm-organization-ambiguous.exception';
 import { DmOrganizationMismatchException } from '../errors/dm-organization-mismatch.exception';
 import { computeDmParticipantKey } from '../utils/dm-participant-key.util';
+import { UpdateChannelDto } from '../dtos/update-channel.dto';
 
 @Injectable()
 export class ChannelsService {
@@ -223,6 +224,31 @@ export class ChannelsService {
     return channel;
   }
 
+  async updateChannel(
+    id: string,
+    userId: string,
+    updateData: UpdateChannelDto,
+  ): Promise<ChannelDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid Channel ID');
+    }
+    const hasAccess = await this.validateUserAccess(id, userId, true);
+    if (!hasAccess) {
+      throw new ForbiddenException(
+        'You do not have access to update this channel',
+      );
+    }
+    const channel = await this.channelsRepository.model
+      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .exec();
+
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return channel;
+  }
+
   async findByUser(userId: string): Promise<any[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
@@ -282,35 +308,43 @@ export class ChannelsService {
   }
 
   async markAsRead(channelId: string, userId: string): Promise<void> {
-    const hasAccess = await this.validateUserAccess(channelId, userId);
+    const hasAccess = await this.validateUserAccess(channelId, userId, true);
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this channel');
     }
     await this.messagesService.markAsRead(channelId, userId);
   }
 
-  async getOrCreateDM(userAId: string, userBId: string): Promise<any> {
-    if (!Types.ObjectId.isValid(userBId)) {
-      throw new BadRequestException('Invalid target user ID');
+  async getOrCreateDM(userId: string, targetUserIds: string[]): Promise<any> {
+    if (!targetUserIds || targetUserIds.length === 0) {
+      throw new BadRequestException('Must provide at least one target user ID');
     }
 
-    const organizationScopeEnabled =
-      this.config.get<string>('CHANNEL_ORGANIZATION_SCOPE_ENABLED') === 'true';
+    const uniqueMembers = Array.from(new Set([userId, ...targetUserIds]));
 
-    if (!organizationScopeEnabled && userAId === userBId) {
-      throw new BadRequestException('Cannot create a DM with yourself');
+    if (uniqueMembers.length < 2) {
+      throw new BadRequestException('Cannot create a DM with only yourself');
     }
 
-    const members = [userAId, userBId].sort();
+    uniqueMembers.forEach(id => {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException(`Invalid user ID: ${id}`);
+      }
+    });
+
+    const members = uniqueMembers.sort();
     const memberObjectIds = members.map(id => new Types.ObjectId(id));
+    const organizationScopedTwoPartyDm =
+      targetUserIds.length === 1 &&
+      this.config.get<string>('CHANNEL_ORGANIZATION_SCOPE_ENABLED') === 'true';
     let organizationId: Types.ObjectId | null = null;
     let dmParticipantKey: string | null = null;
 
-    if (organizationScopeEnabled) {
+    if (organizationScopedTwoPartyDm) {
       try {
         dmParticipantKey = computeDmParticipantKey(
-          new Types.ObjectId(userAId),
-          new Types.ObjectId(userBId),
+          memberObjectIds[0],
+          memberObjectIds[1],
         );
       } catch (error) {
         throw new BadRequestException((error as Error).message);
@@ -324,11 +358,14 @@ export class ChannelsService {
     // 1. Tìm kênh cũ bằng .lean()
     let channel: any = await this.channelsRepository.model
       .findOne(
-        organizationScopeEnabled
+        organizationScopedTwoPartyDm
           ? { type: 'dm', organizationId, dmParticipantKey }
           : {
               type: 'dm',
-              members: { $all: memberObjectIds, $size: 2 },
+              members: {
+                $all: memberObjectIds,
+                $size: memberObjectIds.length,
+              },
             },
       )
       .lean()
@@ -342,9 +379,9 @@ export class ChannelsService {
           name: 'Direct Message',
           members: memberObjectIds,
           isPrivate: true,
-          createdBy: new Types.ObjectId(userAId),
+          createdBy: new Types.ObjectId(userId),
           workspaceId: null,
-          ...(organizationScopeEnabled
+          ...(organizationScopedTwoPartyDm
             ? { organizationId, dmParticipantKey }
             : {}),
         });
@@ -366,7 +403,7 @@ export class ChannelsService {
     const userInfos = await this.usersService.getUsersByIds(members);
     const unreadCount = await this.messagesService.countUnread(
       channel._id.toString(),
-      userAId,
+      userId,
     );
 
     return {
@@ -582,10 +619,10 @@ export class ChannelsService {
     );
     return channels;
   }
-
   async validateUserAccess(
     channelId: string,
     userId: string,
+    _isWrite: boolean = false,
   ): Promise<boolean> {
     if (!Types.ObjectId.isValid(channelId) || !Types.ObjectId.isValid(userId)) {
       return false;
@@ -598,7 +635,8 @@ export class ChannelsService {
       userId,
       channel,
     );
-    return role !== null && role !== 'not_joined';
+    if (role === null || role === 'not_joined') return false;
+    return true;
   }
 
   async getChannelMemberIds(channelId: string): Promise<string[]> {
@@ -656,14 +694,17 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
+    const cleanQuery = (query || '').replace(/^@+/, '').trim();
+    const escapedQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     if (channel.type === 'general' || channel.type === 'announcement') {
-      return this.usersService.searchUsers(query, userId);
+      return this.usersService.searchUsers(cleanQuery, userId);
     }
 
     const memberIds = await this.getChannelMemberIds(channelId);
     if (memberIds.length === 0) return [];
 
-    const regex = new RegExp(query, 'i');
+    const regex = new RegExp(escapedQuery, 'i');
     const users = await this.usersService.getUsersByIds(memberIds);
     return users
       .filter(user => {
@@ -672,6 +713,25 @@ export class ChannelsService {
         const phoneMatch =
           (user as any).phone && regex.test((user as any).phone);
         return nameMatch || emailMatch || phoneMatch;
+      })
+      .sort((a, b) => {
+        const q = cleanQuery.toLowerCase();
+        const aEmail = (a.email || '').toLowerCase();
+        const bEmail = (b.email || '').toLowerCase();
+        const aName = (a.fullName || '').toLowerCase();
+        const bName = (b.fullName || '').toLowerCase();
+
+        const aExact = aEmail === q || aName === q;
+        const bExact = bEmail === q || bName === q;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        const aStarts = aEmail.startsWith(q) || aName.startsWith(q);
+        const bStarts = bEmail.startsWith(q) || bName.startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        return 0;
       })
       .slice(0, 10);
   }

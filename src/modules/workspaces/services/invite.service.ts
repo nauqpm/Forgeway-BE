@@ -26,6 +26,7 @@ import { NotificationsService } from '@/modules/notifications/services/notificat
 import { UsersService } from '@/modules/users/services/users.service';
 import {
   WorkspaceInviteCreatedEvent,
+  WorkspaceInviteCancelledEvent,
   WorkspaceInviteSummaryPayload,
   WorkspaceMemberJoinedEvent,
   WorkspaceSummaryPayload,
@@ -179,7 +180,11 @@ export class InviteService {
     return this.inviteRepository.findPendingByWorkspace(workspaceId);
   }
 
-  async cancelInvite(workspaceId: string, inviteId: string): Promise<void> {
+  async cancelInvite(
+    workspaceId: string,
+    inviteId: string,
+    actorId?: string,
+  ): Promise<void> {
     const invite = await this.inviteRepository.findById(inviteId);
     if (!invite) throw new NotFoundException(ErrorFactory.inviteNotFound());
 
@@ -188,6 +193,14 @@ export class InviteService {
     }
 
     await this.inviteRepository.updateStatus(inviteId, INVITE_STATUS.EXPIRED);
+
+    const event = new WorkspaceInviteCancelledEvent({
+      workspaceId,
+      actorId,
+      inviteId,
+    });
+
+    this.eventEmitter.emit(event.type, event);
   }
 
   async acceptInvite(

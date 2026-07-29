@@ -3,6 +3,7 @@ export const REALTIME_EVENT_TYPES = {
   CHAT_MESSAGE_SENT: 'chat.message.sent',
   CHAT_MESSAGE_EDITED: 'chat.message.edited',
   CHAT_MESSAGE_DELETED: 'chat.message.deleted',
+  CHAT_MESSAGE_DELETED_FOR_ME: 'chat.message.deleted_for_me',
   CHAT_USER_TYPING: 'chat.user.typing',
   CHAT_REACTION_UPDATED: 'chat.reaction.updated',
   CHAT_UNREAD_UPDATE: 'chat.unread_update',
@@ -44,6 +45,7 @@ export const REALTIME_EVENT_TYPES = {
 
   WORKSPACE_CREATED: 'workspace.created',
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
+  WORKSPACE_INVITE_CANCELLED: 'workspace.invite.cancelled',
   WORKSPACE_UPDATED: 'workspace.updated',
   WORKSPACE_ARCHIVED: 'workspace.archived',
   WORKSPACE_RESTORED: 'workspace.restored',

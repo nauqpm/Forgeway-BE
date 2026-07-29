@@ -141,6 +141,13 @@ export class ErrorFactory {
     };
   }
 
+  static columnNameTooLong(maxLength: number): ErrorPayload {
+    return {
+      message: `Column name must not exceed ${maxLength} characters.`,
+      code: KANBAN_ERROR_CODES.COLUMN_NAME_TOO_LONG,
+    };
+  }
+
   // ─── Workspace ──────────────────────────────────────────────────────────
   static workspaceNotFound(id?: string): ErrorPayload {
     return {

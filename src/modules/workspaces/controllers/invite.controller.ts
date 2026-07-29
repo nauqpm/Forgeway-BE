@@ -91,8 +91,9 @@ export class InviteController {
   cancelInvite(
     @Param('id') workspaceId: string,
     @Param('inviteId') inviteId: string,
+    @CurrentUser() user: any,
   ) {
-    return this.inviteService.cancelInvite(workspaceId, inviteId);
+    return this.inviteService.cancelInvite(workspaceId, inviteId, user?.userId);
   }
 
   @ApiOperation({ summary: 'Get authenticated invite detail by invite id' })

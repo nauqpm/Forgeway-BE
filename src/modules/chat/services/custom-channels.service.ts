@@ -145,6 +145,7 @@ export class CustomChannelsService {
     const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
 
     let query: any;
+
     if (isAdmin) {
       query = {
         workspaceId: new Types.ObjectId(workspaceId),
@@ -261,14 +262,29 @@ export class CustomChannelsService {
     if (channel.type !== 'custom') {
       throw new BadRequestException('Can only delete custom channels');
     }
+    const requester = await this.usersService.getUserById(requesterId);
+    const isSuperAdmin = requester?.role === 'super_admin';
+    const isCreator =
+      channel.createdBy && String(channel.createdBy) === String(requesterId);
 
-    const role = await this.channelMembersService.resolveChannelRole(
+    const channelRole = await this.channelMembersService.resolveChannelRole(
       requesterId,
       channel,
     );
-    if (role !== 'channel_admin') {
+    const isChannelAdmin = channelRole === 'channel_admin';
+
+    let isWorkspaceAdmin = false;
+    if (channel.workspaceId) {
+      const wsRole = await this.workspaceMemberService.getMemberRole(
+        channel.workspaceId.toString(),
+        requesterId,
+      );
+      isWorkspaceAdmin = wsRole === 'workspace_admin';
+    }
+
+    if (!isSuperAdmin && !isCreator && !isChannelAdmin && !isWorkspaceAdmin) {
       throw new ForbiddenException(
-        'Only channel admins can delete this channel',
+        'You are not authorized to delete this channel',
       );
     }
 

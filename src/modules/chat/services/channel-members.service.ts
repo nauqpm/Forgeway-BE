@@ -26,15 +26,12 @@ export class ChannelMembersService {
     private readonly usersService: UsersService,
     private readonly realtimePublisher: RealtimePublisher,
   ) {}
-
   async resolveChannelRole(
     userId: string,
     channel: any,
   ): Promise<'channel_admin' | 'channel_member' | 'not_joined' | null> {
     const user = await this.usersService.getUserById(userId);
-    if (user?.role === 'super_admin') {
-      return 'channel_admin';
-    }
+    const isSuperAdmin = user?.role === 'super_admin';
 
     let wsRole: string | null = null;
     if (channel.workspaceId) {
@@ -43,27 +40,46 @@ export class ChannelMembersService {
         userId,
       );
     }
+    const isWsAdmin = wsRole === 'workspace_admin';
 
-    if (wsRole === 'workspace_admin') {
-      return 'channel_admin';
-    }
-
-    if (wsRole === 'viewer') {
-      return null;
-    }
-
+    // 1. If it's a custom channel:
     if (channel.type === 'custom') {
-      if (!wsRole) return null;
+      if (!wsRole && !isSuperAdmin) return null;
+      if (wsRole === 'viewer') return null;
 
       const channelMember = channel.channelMembers?.find(
         (m: any) => m.userId.toString() === userId,
       );
 
       if (!channelMember) {
-        return channel.isPrivate ? null : 'not_joined';
+        // If not in the list:
+        // - Public: anyone can join (returns 'not_joined')
+        // - Private: only super admin and workspace admin can see/join directly
+        const canJoinPrivate = isSuperAdmin || isWsAdmin;
+        if (channel.isPrivate && !canJoinPrivate) {
+          return null;
+        }
+        return 'not_joined';
       }
 
+      if (channelMember.joined === false) {
+        return 'not_joined';
+      }
+
+      // If joined, they have a role. Super admin and ws admin are channel admins.
+      if (isSuperAdmin || isWsAdmin) {
+        return 'channel_admin';
+      }
       return channelMember.role;
+    }
+
+    // 2. For non-custom channels:
+    if (isSuperAdmin || isWsAdmin) {
+      return 'channel_admin';
+    }
+
+    if (wsRole === 'viewer') {
+      return null;
     }
 
     if (channel.type === 'general' || channel.type === 'announcement') {
@@ -113,7 +129,11 @@ export class ChannelMembersService {
       const isSuperAdmin = user?.role === 'super_admin';
       const isAdmin = isSuperAdmin || wsRole === 'workspace_admin';
 
-      if (!isAdmin) {
+      const isInvited = channel.channelMembers?.some(
+        (m: any) => m.userId.toString() === userId,
+      );
+
+      if (!isAdmin && !isInvited) {
         throw new ForbiddenException(
           'Cannot join a private channel directly. You must be invited',
         );
@@ -135,13 +155,48 @@ export class ChannelMembersService {
       );
     }
 
-    const isAlreadyMember = channel.channelMembers?.some(
+    const memberIndex = channel.channelMembers?.findIndex(
       m => m.userId.toString() === userId,
     );
-    if (isAlreadyMember) {
+    if (memberIndex !== -1) {
+      const member = channel.channelMembers[memberIndex];
+      if (member.joined === false) {
+        const updated = await this.channelsRepository.model
+          .findOneAndUpdate(
+            {
+              _id: new Types.ObjectId(channelId),
+              'channelMembers.userId': new Types.ObjectId(userId),
+            },
+            { $set: { 'channelMembers.$.joined': true } },
+            { new: true },
+          )
+          .exec();
+
+        if (!updated) {
+          throw new NotFoundException('Channel not found');
+        }
+
+        const envelope = {
+          eventId: new Types.ObjectId().toString(),
+          type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_MEMBER_ADDED,
+          data: {
+            channelId,
+            userId,
+            role: member.role || 'channel_member',
+            joinedAt: new Date(),
+          },
+          occurredAt: new Date().toISOString(),
+        };
+        this.realtimePublisher.emit(
+          RoomBuilder.channel(channelId),
+          envelope,
+          'chat',
+        );
+
+        return updated;
+      }
       return channel;
     }
-
     const updated = await this.channelsRepository.model
       .findByIdAndUpdate(
         channelId,
@@ -323,15 +378,14 @@ export class ChannelMembersService {
       if (isAlreadyMember) {
         continue;
       }
-
       const joinedAt = new Date();
       membersToAdd.push({
         userId: new Types.ObjectId(uId),
         role: 'channel_member',
         joinedAt,
         invitedBy: new Types.ObjectId(requesterId),
+        joined: false,
       });
-
       addedMembersDetail.push({
         userId: uId,
         role: 'channel_member',
