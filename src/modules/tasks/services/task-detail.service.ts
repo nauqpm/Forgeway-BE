@@ -4,6 +4,7 @@ import { TaskMapper } from '../mappers/task.mapper';
 import { TaskReadRepository } from '../repositories/task-read.repository';
 import { normalizeTaskKey } from '../utils/task-key.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
+import { TaskDocument } from '../schemas/task.schema';
 
 @Injectable()
 export class TaskDetailService {
@@ -30,7 +31,8 @@ export class TaskDetailService {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    return this.taskMapper.mapToDetailDto(task);
+    const dto = this.taskMapper.mapToDetailDto(task);
+    return this.enrichWithSubtasks(task, dto, workspaceId);
   }
 
   async getDetailByKeyInWorkspaceKey(
@@ -55,7 +57,8 @@ export class TaskDetailService {
       throw new NotFoundException(`Task with key ${taskKey} not found`);
     }
 
-    return this.taskMapper.mapToDetailDto(task);
+    const dto = this.taskMapper.mapToDetailDto(task);
+    return this.enrichWithSubtasks(task, dto, workspaceId);
   }
 
   private async resolveWorkspaceId(
@@ -68,5 +71,29 @@ export class TaskDetailService {
     await this.validationService.validateWorkspaceMember(workspaceId, userId);
 
     return workspaceId;
+  }
+
+  private async enrichWithSubtasks(
+    task: TaskDocument,
+    dto: TaskDetailDto,
+    workspaceId: string,
+  ): Promise<TaskDetailDto> {
+    // Chỉ load subtasks cho task cha (không phải subtask type)
+    if (task.type === 'subtask') {
+      return dto;
+    }
+
+    const taskId = task._id.toString();
+    const [subtasks, total, done] = await Promise.all([
+      this.tasksRepository.findSubtasksByParentId(taskId, workspaceId),
+      this.tasksRepository.countSubtasksByParentId(taskId),
+      this.tasksRepository.countDoneSubtasksByParentId(taskId),
+    ]);
+
+    return {
+      ...dto,
+      subtasks: this.taskMapper.mapSubtaskSummaries(subtasks),
+      subtaskProgress: { done, total },
+    };
   }
 }

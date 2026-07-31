@@ -7,6 +7,7 @@ import { ErrorFactory } from '../../../common/factories/error.factory';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
+import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskWriteRepository } from '../repositories/task-write.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
@@ -15,6 +16,7 @@ import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 export class TaskLifecycleService {
   constructor(
     private readonly tasksRepository: TaskWriteRepository,
+    private readonly taskReadRepository: TaskReadRepository,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
@@ -284,6 +286,15 @@ export class TaskLifecycleService {
     await this.taskAccessService.getTaskForWorkspace(taskId, workspaceId, {
       includeArchived: true,
     });
+
+    // Chặn xoá task đang có subtask con (spec mục 3)
+    const subtaskCount =
+      await this.taskReadRepository.countSubtasksByParentId(taskId);
+    if (subtaskCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete task: it has ${subtaskCount} subtask(s). Delete or move subtasks first.`,
+      );
+    }
 
     const deleted = await this.tasksRepository.softDeleteInWorkspace(
       taskId,

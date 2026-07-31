@@ -3,7 +3,9 @@ import { TaskDocument } from '../schemas/task.schema';
 import { TaskDto, TaskUserSummaryDto } from '../dtos/responses/task.dto';
 import {
   BoardSummaryDto,
+  ParentTaskSummaryDto,
   SprintSummaryDto,
+  SubtaskSummaryDto,
   TaskDetailDto,
 } from '../dtos/responses/task-detail.dto';
 
@@ -39,6 +41,7 @@ export class TaskMapper {
       startDate: plainTask.startDate,
       dueDate: plainTask.dueDate,
       epicId: this.toOptionalId(plainTask.epicId),
+      parentId: this.toOptionalId(plainTask.parentId),
       isArchived: plainTask.isArchived || false,
       archivedAt: plainTask.archivedAt,
       archivedBy: this.toOptionalId(plainTask.archivedBy),
@@ -54,6 +57,7 @@ export class TaskMapper {
         typeof plainTask.timeEstimated === 'number'
           ? plainTask.timeEstimated
           : undefined,
+      subtaskProgress: plainTask.subtaskProgress,
     };
   }
 
@@ -89,9 +93,14 @@ export class TaskMapper {
       reporter: this.mapUserSummary(plainTask.reporterId),
       archivedBy: this.toOptionalId(plainTask.archivedBy),
       archivedByUser: this.mapUserSummary(plainTask.archivedBy),
+      epicId: this.toOptionalId(plainTask.epicId),
       storyPoints: plainTask.storyPoints,
       startDate: plainTask.startDate,
       dueDate: plainTask.dueDate,
+      parentId: this.toOptionalId(plainTask.parentId),
+      parent: this.mapParentSummary(plainTask.parentId),
+      subtasks: this.mapSubtaskSummaries(plainTask.subtasks || []),
+      subtaskProgress: plainTask.subtaskProgress,
       isArchived: plainTask.isArchived || false,
       archivedAt: plainTask.archivedAt,
       isDeleted: plainTask.isDeleted || false,
@@ -191,5 +200,36 @@ export class TaskMapper {
       id: this.toId(value),
       name: value.name,
     };
+  }
+
+  private mapParentSummary(value: any): ParentTaskSummaryDto | undefined {
+    if (!value || !value._id) {
+      return undefined;
+    }
+
+    return {
+      id: this.toId(value),
+      key: value.key,
+      title: value.title,
+      type: value.type,
+    };
+  }
+
+  mapSubtaskSummaries(
+    subtasks: Array<TaskDocument | any>,
+  ): SubtaskSummaryDto[] {
+    return subtasks.map(subtask => {
+      const plain =
+        typeof subtask?.toObject === 'function' ? subtask.toObject() : subtask;
+      return {
+        id: this.toId(plain._id || plain.id),
+        key: plain.key,
+        title: plain.title,
+        status: plain.status || 'todo',
+        priority: plain.priority,
+        assigneeId: this.toOptionalId(plain.assigneeId),
+        assignee: this.mapUserSummary(plain.assigneeId),
+      };
+    });
   }
 }

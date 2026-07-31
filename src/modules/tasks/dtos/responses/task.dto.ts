@@ -87,6 +87,17 @@ export class TaskDto {
   @ApiPropertyOptional()
   epicId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Parent task ID (set when type=subtask)',
+  })
+  parentId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Subtask completion progress for parent tasks',
+    example: { done: 2, total: 5 },
+  })
+  subtaskProgress?: { done: number; total: number };
+
   @ApiProperty()
   isArchived!: boolean;
 

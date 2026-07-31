@@ -38,6 +38,9 @@ export class TaskDataTransformerService {
       epicId: (dto as any).epicId
         ? new Types.ObjectId((dto as any).epicId)
         : undefined,
+      parentId: (dto as any).parentId
+        ? new Types.ObjectId((dto as any).parentId)
+        : undefined,
       labelIds: dto.labelIds
         ? dto.labelIds.map(id => new Types.ObjectId(id))
         : [],
@@ -96,6 +99,15 @@ export class TaskDataTransformerService {
     // timeEstimated: FE gửi dạng giờ (số thực), ghi thẳng vào DB
     if (dto.timeEstimated !== undefined) {
       updateData.timeEstimated = Math.max(0, dto.timeEstimated);
+    }
+
+    // parentId: null = unlink (convert subtask → task), string = set parent
+    if ('parentId' in dto) {
+      if ((dto as any).parentId === null) {
+        updateData.parentId = null;
+      } else if ((dto as any).parentId) {
+        updateData.parentId = new Types.ObjectId((dto as any).parentId);
+      }
     }
 
     return updateData;

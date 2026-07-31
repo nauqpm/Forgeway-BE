@@ -237,4 +237,26 @@ export class TaskWriteRepository extends BaseRepository<TaskDocument> {
   private withRelations(query: any) {
     return this.queryBuilder.applyRelations(query);
   }
+
+  async updateSprintForSubtasksByParentId(
+    parentId: string,
+    sprintId: string | null,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(parentId)) return;
+
+    const sprintValue =
+      sprintId && Types.ObjectId.isValid(sprintId)
+        ? new Types.ObjectId(sprintId)
+        : null;
+
+    await this.taskModel.updateMany(
+      {
+        parentId: new Types.ObjectId(parentId),
+        isDeleted: { $ne: true },
+      },
+      sprintValue
+        ? { $set: { sprintId: sprintValue }, $inc: { version: 1 } }
+        : { $unset: { sprintId: 1 }, $inc: { version: 1 } },
+    );
+  }
 }

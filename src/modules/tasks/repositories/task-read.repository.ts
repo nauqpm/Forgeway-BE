@@ -320,4 +320,88 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
       .exec();
     return docs as TaskDocument[];
   }
+
+  async findSubtasksByParentId(
+    parentId: string,
+    workspaceId: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument[]> {
+    if (
+      !Types.ObjectId.isValid(parentId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
+      return [];
+    }
+
+    return this.queryBuilder
+      .applyRelations(
+        this.taskModel.find({
+          parentId: new Types.ObjectId(parentId),
+          workspaceId: new Types.ObjectId(workspaceId),
+          ...this.queryBuilder.buildVisibilityFilter(options),
+        }),
+      )
+      .sort({ createdAt: 1 })
+      .exec();
+  }
+
+  async countSubtasksByParentId(parentId: string): Promise<number> {
+    if (!Types.ObjectId.isValid(parentId)) return 0;
+    return this.taskModel
+      .countDocuments({
+        parentId: new Types.ObjectId(parentId),
+        isDeleted: { $ne: true },
+      })
+      .exec();
+  }
+
+  async countDoneSubtasksByParentId(parentId: string): Promise<number> {
+    if (!Types.ObjectId.isValid(parentId)) return 0;
+    return this.taskModel
+      .countDocuments({
+        parentId: new Types.ObjectId(parentId),
+        isDeleted: { $ne: true },
+        status: 'done',
+      })
+      .exec();
+  }
+
+  async getSubtaskProgressForTasks(
+    taskIds: string[],
+  ): Promise<Map<string, { done: number; total: number }>> {
+    const objectIds = taskIds
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    if (!objectIds.length) return new Map();
+
+    const aggregateResult = await this.taskModel
+      .aggregate([
+        {
+          $match: {
+            parentId: { $in: objectIds },
+            isDeleted: { $ne: true },
+          },
+        },
+        {
+          $group: {
+            _id: '$parentId',
+            total: { $sum: 1 },
+            done: {
+              $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    const resultMap = new Map<string, { done: number; total: number }>();
+    aggregateResult.forEach(item => {
+      resultMap.set(item._id.toString(), {
+        done: item.done,
+        total: item.total,
+      });
+    });
+    return resultMap;
+  }
 }

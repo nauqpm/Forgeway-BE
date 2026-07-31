@@ -228,6 +228,18 @@ export class TaskUpdateService {
       );
     }
 
+    // Cascade sprint update cho subtask con khi task cha đổi sprint (spec mục 6)
+    const sprintChanged =
+      updateTaskDto.sprintId !== undefined &&
+      this.taskAccessService.toId(existing.sprintId) !==
+        this.taskAccessService.toId(task.sprintId);
+    if (sprintChanged) {
+      await this.taskWriteRepository.updateSprintForSubtasksByParentId(
+        this.taskAccessService.toId(existing._id),
+        task.sprintId ? this.taskAccessService.toId(task.sprintId) : null,
+      );
+    }
+
     this.taskDomainEventPublisher.publishUpdated(existing, task, userId);
 
     const columnChanged = existing.columnId !== task.columnId;

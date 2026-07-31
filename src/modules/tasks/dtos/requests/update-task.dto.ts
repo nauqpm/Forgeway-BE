@@ -77,6 +77,16 @@ export class UpdateTaskDto {
   @IsMongoId()
   epicId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Parent task ID. Set null to unlink (convert subtask to task)',
+    type: String,
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf(o => o.parentId !== null)
+  @IsMongoId()
+  parentId?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsMongoId()
