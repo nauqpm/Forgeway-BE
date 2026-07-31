@@ -59,6 +59,8 @@ import { CsvFileParserService } from './services/csv-file-parser.service';
 import { CsvImportLookupService } from './services/csv-import-lookup.service';
 import { CsvRowValidatorService } from './services/csv-row-validator.service';
 import { TaskAuditService } from './shared/task-audit.service';
+import { SubtaskService } from './services/subtask.service';
+import { SubtaskController } from './controllers/subtask.controller';
 
 @Module({
   imports: [
@@ -98,6 +100,7 @@ import { TaskAuditService } from './shared/task-audit.service';
     TaskCommandController,
     TaskWorkflowController,
     TaskDependencyController,
+    SubtaskController,
   ],
   providers: [
     TasksRepository,
@@ -135,8 +138,9 @@ import { TaskAuditService } from './shared/task-audit.service';
     CsvImportLookupService,
     CsvRowValidatorService,
     TaskAuditService,
+    SubtaskService,
     WorkspaceRoleGuard,
   ],
-  exports: [TasksService],
+  exports: [TasksService, SubtaskService],
 })
 export class TasksModule {}

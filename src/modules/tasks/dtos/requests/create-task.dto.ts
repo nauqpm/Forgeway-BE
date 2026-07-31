@@ -90,6 +90,13 @@ export class CreateTaskDto {
   @IsMongoId()
   epicId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Parent task ID (required when type=subtask)',
+  })
+  @IsOptional()
+  @IsMongoId()
+  parentId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -60,6 +60,11 @@ export class FilterTaskDto {
   @IsString()
   columnId?: string;
 
+  @ApiPropertyOptional({ description: 'Filter subtasks by parent task ID' })
+  @IsOptional()
+  @IsMongoId()
+  parentId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => normalizeIdListFilter(value))
