@@ -1,6 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { SPACE_ROLES } from '../../../common/constants/space-role.constants';
+import {
+  StoryApprovalPolicy,
+  StoryApprovalPolicySchema,
+} from '../../story-contracts/schemas/approval-policy.schema';
 
 export type WorkspaceDocument = Workspace & Document;
 
@@ -43,6 +47,9 @@ export class Workspace {
 
   @Prop({ type: Object, default: {} })
   settings!: Record<string, any>;
+
+  @Prop({ type: StoryApprovalPolicySchema, default: () => ({}) })
+  storyApprovalPolicy!: StoryApprovalPolicy;
 
   @Prop({ type: String, enum: ['active', 'archived'], default: 'active' })
   status!: string;
