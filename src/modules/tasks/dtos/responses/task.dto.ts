@@ -63,6 +63,15 @@ export class TaskDto {
   @ApiProperty()
   version!: number;
 
+  @ApiPropertyOptional()
+  storyContractId?: string;
+
+  @ApiPropertyOptional()
+  storyVersionId?: string;
+
+  @ApiProperty({ enum: ['CURRENT', 'REVIEW_REQUIRED', 'REBASE_REQUIRED'] })
+  requirementsState!: 'CURRENT' | 'REVIEW_REQUIRED' | 'REBASE_REQUIRED';
+
   @ApiPropertyOptional({ type: TaskCoverDto })
   cover?: TaskCoverDto;
 

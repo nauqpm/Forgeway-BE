@@ -7,6 +7,8 @@ import { ScrumModule } from '../scrum/scrum.module';
 import { TaskActivitiesModule } from '../task-activities/task-activities.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { WorkflowsModule } from '../workflows/workflows.module';
+import { StoryContractsModule } from '../story-contracts/story-contracts.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LabelsModule } from '../labels/labels.module';
@@ -68,6 +70,8 @@ import { TaskAuditService } from './shared/task-audit.service';
       { name: TaskDependency.name, schema: TaskDependencySchema },
     ]),
     forwardRef(() => WorkspacesModule),
+    WorkflowsModule,
+    forwardRef(() => StoryContractsModule),
     forwardRef(() => ScrumModule),
     forwardRef(() => KanbanModule),
     forwardRef(() => UsersModule),

@@ -17,6 +17,9 @@ export class WorkflowStatus {
 
   @Prop({ type: String, enum: ['todo', 'inprogress', 'done'], default: 'todo' })
   category!: string;
+
+  @Prop({ type: String, enum: ['review'] })
+  requirementsGate?: 'review';
 }
 
 @Schema()

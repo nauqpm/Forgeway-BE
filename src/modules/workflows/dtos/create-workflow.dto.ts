@@ -29,6 +29,11 @@ export class WorkflowStatusDto {
   @IsOptional()
   @IsEnum(['todo', 'inprogress', 'done'])
   category?: string;
+
+  @ApiPropertyOptional({ enum: ['review'] })
+  @IsOptional()
+  @IsEnum(['review'])
+  requirementsGate?: 'review';
 }
 
 export class WorkflowTransitionDto {

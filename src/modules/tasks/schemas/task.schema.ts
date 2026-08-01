@@ -40,6 +40,19 @@ export class Task {
   @Prop({ type: Number, default: 1, min: 1 })
   version!: number;
 
+  @Prop({ type: Types.ObjectId, ref: 'StoryContract', index: true })
+  storyContractId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'StoryVersion', index: true })
+  storyVersionId?: Types.ObjectId;
+
+  @Prop({
+    type: String,
+    enum: ['CURRENT', 'REVIEW_REQUIRED', 'REBASE_REQUIRED'],
+    default: 'CURRENT',
+  })
+  requirementsState!: 'CURRENT' | 'REVIEW_REQUIRED' | 'REBASE_REQUIRED';
+
   @Prop({ type: TaskCoverSchema })
   cover?: TaskCover;
   @Prop({
@@ -148,4 +161,5 @@ TaskSchema.index({
 TaskSchema.index({ workspaceId: 1, startDate: 1, dueDate: 1 });
 TaskSchema.index({ workspaceId: 1, epicId: 1 });
 TaskSchema.index({ workspaceId: 1, version: 1 });
+TaskSchema.index({ workspaceId: 1, storyContractId: 1, storyVersionId: 1 });
 TaskSchema.index({ title: 'text', description: 'text' });
