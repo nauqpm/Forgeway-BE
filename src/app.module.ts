@@ -31,6 +31,8 @@ import { LabelsModule } from './modules/labels/labels.module';
 import { TaskCoversModule } from './modules/task-covers/task-covers.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { WorkLogsModule } from './modules/work-logs/work-logs.module';
+import { RequirementsModule } from './modules/requirements/requirements.module';
+import { StoryContractsModule } from './modules/story-contracts/story-contracts.module';
 
 // Real Estate / Blog Modules
 import { ImagesModule } from './modules/images/images.module';
@@ -122,6 +124,8 @@ function parseNonNegativeInteger(value: unknown, fallback: number): number {
     TaskCoversModule,
     DocumentsModule,
     WorkLogsModule,
+    RequirementsModule,
+    StoryContractsModule,
 
     // Confluence Modules
     PagesModule,
