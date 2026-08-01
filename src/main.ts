@@ -69,7 +69,12 @@ async function bootstrap() {
         }
       },
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Accept',
+        'Idempotency-Key',
+      ],
       credentials: true,
     });
 
