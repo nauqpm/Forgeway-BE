@@ -19,6 +19,7 @@ import { TaskCreationValidationService } from './task-creation-validation.servic
 import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskNormalizerService } from './task-normalizer.service';
+import { StoryImpactService } from '../../story-contracts/services/story-impact.service';
 
 @Injectable()
 export class TaskUpdateService {
@@ -35,6 +36,7 @@ export class TaskUpdateService {
     private readonly taskAssignmentNotificationService: TaskAssignmentNotificationService,
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
+    private readonly storyImpacts?: StoryImpactService,
   ) {}
 
   async update(id: string, updateTaskDto: UpdateTaskDto): Promise<TaskDto> {
@@ -52,6 +54,7 @@ export class TaskUpdateService {
     }
 
     const workspaceId = this.taskAccessService.toId(existing.workspaceId);
+    await this.assertStoryPinUpdate(existing, updateTaskDto, workspaceId);
     await this.ensureCompletedSprintIsNotReassigned(
       existing,
       updateTaskDto,
@@ -108,6 +111,7 @@ export class TaskUpdateService {
     if (existing.isArchived) {
       throw new BadRequestException('Archived task cannot be updated');
     }
+    await this.assertStoryPinUpdate(existing, updateTaskDto, workspaceId);
 
     await this.ensureCompletedSprintIsNotReassigned(
       existing,
@@ -177,6 +181,7 @@ export class TaskUpdateService {
     if (existing.isArchived) {
       throw new BadRequestException('Archived task cannot be updated');
     }
+    await this.assertStoryPinUpdate(existing, updateTaskDto, workspaceId);
 
     await this.ensureCompletedSprintIsNotReassigned(
       existing,
@@ -299,5 +304,29 @@ export class TaskUpdateService {
         `Use PATCH /workspaces/:key/board/:taskId/move for move fields: ${requestedMoveFields.join(', ')}`,
       );
     }
+  }
+
+  private async assertStoryPinUpdate(
+    existing: any,
+    update: UpdateTaskDto,
+    workspaceId: string,
+  ): Promise<void> {
+    if (
+      !Object.prototype.hasOwnProperty.call(update, 'storyContractId') &&
+      !Object.prototype.hasOwnProperty.call(update, 'storyVersionId')
+    ) {
+      return;
+    }
+    const storyContractId =
+      update.storyContractId ??
+      this.taskAccessService.toId(existing.storyContractId);
+    const storyVersionId =
+      update.storyVersionId ??
+      this.taskAccessService.toId(existing.storyVersionId);
+    await this.storyImpacts?.assertTaskVersion(
+      workspaceId,
+      storyContractId,
+      storyVersionId,
+    );
   }
 }

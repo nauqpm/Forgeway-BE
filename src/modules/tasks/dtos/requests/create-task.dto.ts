@@ -9,6 +9,7 @@ import {
   Min,
   Max,
   IsMongoId,
+  Validate,
 } from 'class-validator';
 import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -16,11 +17,13 @@ import {
   TASK_PRIORITIES,
   TASK_TYPES,
 } from '../../constants/task-status.constants';
+import { StoryPinsPairedConstraint } from './story-pins-paired.constraint';
 
 export class CreateTaskDto {
   @ApiProperty({ example: 'Implement login feature' })
   @IsString()
   @MaxLength(255)
+  @Validate(StoryPinsPairedConstraint)
   title!: string;
 
   @ApiPropertyOptional()
@@ -41,6 +44,16 @@ export class CreateTaskDto {
   @IsOptional()
   @IsMongoId()
   workspaceId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  storyContractId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  storyVersionId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -30,6 +30,7 @@ export class WorkflowsService implements OnModuleInit {
   async create(
     dto: CreateWorkflowDto & { workspaceId: string },
   ): Promise<WorkflowDocument> {
+    this.assertSingleRequirementsGate(dto.statuses);
     const existingWorkflow = await this.findByWorkspace(dto.workspaceId);
     if (existingWorkflow) {
       throw new ConflictException('Workflow already exists for this Workspace');
@@ -61,23 +62,36 @@ export class WorkflowsService implements OnModuleInit {
     });
   }
 
-  async findById(id: string): Promise<WorkflowDocument> {
+  async findById(id: string, workspaceId?: string): Promise<WorkflowDocument> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid workflow ID');
     }
-    const workflow = await this.workflowModel.findById(id);
+    if (workspaceId && !Types.ObjectId.isValid(workspaceId)) {
+      throw new NotFoundException(`Workflow ${id} not found`);
+    }
+    const workflow = workspaceId
+      ? await this.workflowModel.findOne({
+          _id: new Types.ObjectId(id),
+          workspaceId: new Types.ObjectId(workspaceId),
+        })
+      : await this.workflowModel.findById(id);
     if (!workflow) {
       throw new NotFoundException(`Workflow ${id} not found`);
     }
     return workflow;
   }
 
-  async update(id: string, dto: UpdateWorkflowDto): Promise<WorkflowDocument> {
-    const workflow = await this.findById(id);
+  async update(
+    id: string,
+    dto: UpdateWorkflowDto,
+    workspaceId?: string,
+  ): Promise<WorkflowDocument> {
+    const workflow = await this.findById(id, workspaceId);
     if (dto.name !== undefined) workflow.name = dto.name;
     if (dto.defaultStatus !== undefined)
       workflow.defaultStatus = dto.defaultStatus;
     if (dto.statuses !== undefined) {
+      this.assertSingleRequirementsGate(dto.statuses);
       workflow.statuses = dto.statuses.map(status => ({
         ...status,
         color: status.color || '#6b7280',
@@ -90,8 +104,13 @@ export class WorkflowsService implements OnModuleInit {
     return updated;
   }
 
-  async delete(id: string): Promise<void> {
-    const result = await this.workflowModel.findByIdAndDelete(id);
+  async delete(id: string, workspaceId?: string): Promise<void> {
+    const result = workspaceId
+      ? await this.workflowModel.findOneAndDelete({
+          _id: new Types.ObjectId(id),
+          workspaceId: new Types.ObjectId(workspaceId),
+        })
+      : await this.workflowModel.findByIdAndDelete(id);
     if (!result) {
       throw new NotFoundException(`Workflow ${id} not found`);
     }
@@ -114,8 +133,9 @@ export class WorkflowsService implements OnModuleInit {
   async getNextStatuses(
     workflowId: string,
     currentStatus: string,
+    workspaceId?: string,
   ): Promise<WorkflowTransitionDto[]> {
-    const workflow = await this.findById(workflowId);
+    const workflow = await this.findById(workflowId, workspaceId);
     return workflow.transitions.filter(
       (t: WorkflowTransitionDto) => t.fromStatus === currentStatus,
     );
@@ -140,6 +160,7 @@ export class WorkflowsService implements OnModuleInit {
         name: 'In Review',
         color: '#8b5cf6',
         category: 'inprogress',
+        requirementsGate: 'review',
       },
       { id: 'done', name: 'Done', color: '#10b981', category: 'done' },
     ];
@@ -191,6 +212,18 @@ export class WorkflowsService implements OnModuleInit {
       this.logger.warn(
         'Could not drop legacy workflows.projectId_1 index automatically',
         error,
+      );
+    }
+  }
+
+  private assertSingleRequirementsGate(
+    statuses: Array<{ requirementsGate?: string }>,
+  ): void {
+    if (
+      statuses.filter(status => status.requirementsGate === 'review').length > 1
+    ) {
+      throw new ConflictException(
+        'Only one workflow status may be the requirements review gate',
       );
     }
   }
