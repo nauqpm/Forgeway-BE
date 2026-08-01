@@ -229,6 +229,10 @@ describe('ErrorFactory', () => {
   });
 
   describe('Return shape contract', () => {
+    it('exposes the safe Story idempotency conflict payload', () => {
+      expect(typeof (ErrorFactory as any).idempotencyConflict).toBe('function');
+    });
+
     it('all methods return an object with message (string) and code (string)', () => {
       const methods = [
         ErrorFactory.publicLoginFailure(),
