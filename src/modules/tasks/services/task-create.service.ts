@@ -13,6 +13,7 @@ import { TaskDataTransformerService } from './task-data-transformer.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskKeyService } from './task-key.service';
 import { TaskNormalizerService } from './task-normalizer.service';
+import { StoryImpactService } from '../../story-contracts/services/story-impact.service';
 
 @Injectable()
 export class TaskCreateService {
@@ -30,6 +31,7 @@ export class TaskCreateService {
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
     private readonly taskAccessService: TaskAccessService,
+    private readonly storyImpacts?: StoryImpactService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string): Promise<TaskDto> {
@@ -39,6 +41,11 @@ export class TaskCreateService {
       createTaskDto,
       workspaceId,
       userId,
+    );
+    await this.storyImpacts?.assertTaskVersion(
+      workspaceId,
+      createTaskDto.storyContractId,
+      createTaskDto.storyVersionId,
     );
     const normalizedDto =
       await this.normalizerService.normalizeForWorkspaceType(

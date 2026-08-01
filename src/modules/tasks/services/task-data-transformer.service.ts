@@ -17,6 +17,13 @@ export class TaskDataTransformerService {
       title: dto.title,
       description: dto.description,
       workspaceId: new Types.ObjectId(workspaceId),
+      storyContractId: dto.storyContractId
+        ? new Types.ObjectId(dto.storyContractId)
+        : undefined,
+      storyVersionId: dto.storyVersionId
+        ? new Types.ObjectId(dto.storyVersionId)
+        : undefined,
+      requirementsState: 'CURRENT',
       sprintId: dto.sprintId ? new Types.ObjectId(dto.sprintId) : undefined,
       boardId: dto.boardId ? new Types.ObjectId(dto.boardId) : undefined,
       columnId: dto.columnId,
@@ -64,6 +71,12 @@ export class TaskDataTransformerService {
     }
     if (dto.boardId) {
       updateData.boardId = new Types.ObjectId(dto.boardId);
+    }
+    if (dto.storyContractId) {
+      updateData.storyContractId = new Types.ObjectId(dto.storyContractId);
+    }
+    if (dto.storyVersionId) {
+      updateData.storyVersionId = new Types.ObjectId(dto.storyVersionId);
     }
     if (dto.startDate !== undefined) {
       updateData.startDate = dto.startDate ? new Date(dto.startDate) : null;

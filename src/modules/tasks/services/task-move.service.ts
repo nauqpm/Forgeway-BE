@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ScrumService } from '../../scrum/services/scrum.service';
+import { WorkflowsService } from '../../workflows/services/workflows.service';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { MoveTaskDto } from '../dtos/requests/move-task.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
@@ -13,6 +14,7 @@ import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskRankRepository } from '../repositories/task-rank.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
+import { assertTaskRequirementsGate } from './task-requirements-gate';
 
 export interface TaskMoveAuditMetadata {
   taskId: string;
@@ -43,6 +45,7 @@ export class TaskMoveService {
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
+    private readonly workflowsService: WorkflowsService,
   ) {}
 
   async moveInWorkspaceId(
@@ -88,6 +91,12 @@ export class TaskMoveService {
       : null;
 
     this.taskMovePolicy.validateMove(task, targetSprint, currentSprint);
+    await assertTaskRequirementsGate(
+      this.workflowsService,
+      task,
+      workspaceId,
+      dto.status,
+    );
 
     const movedTask = await this.taskRankRepository.moveTaskInWorkspace(
       taskId,
