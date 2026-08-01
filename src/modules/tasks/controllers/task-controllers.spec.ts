@@ -52,6 +52,7 @@ describe('TaskControllers', () => {
     status: 'todo',
     rank: 'a0',
     version: 1,
+    requirementsState: 'CURRENT' as const,
     isArchived: false,
     isDeleted: false,
     reporterId: userId,

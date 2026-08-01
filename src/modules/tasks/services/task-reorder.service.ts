@@ -19,6 +19,8 @@ import { compareRanks, generateRankBetween } from '../utils/rank.util';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 import { TaskMoveAuditMetadata, TaskMoveResult } from './task-move.service';
+import { WorkflowsService } from '../../workflows/services/workflows.service';
+import { assertTaskRequirementsGate } from './task-requirements-gate';
 
 interface RankUpdate {
   taskId: string;
@@ -41,6 +43,7 @@ export class TaskReorderService {
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
+    private readonly workflowsService: WorkflowsService,
   ) {}
 
   async reorderInWorkspaceId(
@@ -92,6 +95,12 @@ export class TaskReorderService {
 
     const targetColumnId = dto.columnId ?? task.columnId;
     const targetStatus = dto.status ?? task.status;
+    await assertTaskRequirementsGate(
+      this.workflowsService,
+      task,
+      workspaceId,
+      dto.status,
+    );
     const scope = this.resolveRankScope(
       workspace.type,
       workspaceId,

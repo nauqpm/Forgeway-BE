@@ -9,6 +9,7 @@ import {
   Min,
   Max,
   IsMongoId,
+  Validate,
   ValidateIf,
 } from 'class-validator';
 import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
@@ -17,8 +18,21 @@ import {
   TASK_PRIORITIES,
   TASK_TYPES,
 } from '../../constants/task-status.constants';
+import { StoryPinsPairedConstraint } from './story-pins-paired.constraint';
 
 export class UpdateTaskDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  @Validate(StoryPinsPairedConstraint)
+  storyContractId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  @Validate(StoryPinsPairedConstraint)
+  storyVersionId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
