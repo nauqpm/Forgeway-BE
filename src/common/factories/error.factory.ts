@@ -2,6 +2,7 @@ import {
   AUTH_ERROR_CODES,
   KANBAN_ERROR_CODES,
   SPRINT_ERROR_CODES,
+  STORY_ERROR_CODES,
   TASK_ERROR_CODES,
   USER_ERROR_CODES,
   WORKSPACE_ERROR_CODES,
@@ -14,6 +15,13 @@ export interface ErrorPayload {
 }
 
 export class ErrorFactory {
+  static idempotencyConflict(): ErrorPayload {
+    return {
+      message: STORY_ERROR_CODES.IDEMPOTENCY_CONFLICT,
+      code: STORY_ERROR_CODES.IDEMPOTENCY_CONFLICT,
+    };
+  }
+
   // ─── Auth ───────────────────────────────────────────────────────────────
   static publicLoginFailure(retryAfterSeconds = 0): ErrorPayload {
     const payload: ErrorPayload = {

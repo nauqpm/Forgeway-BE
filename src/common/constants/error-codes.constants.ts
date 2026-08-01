@@ -61,6 +61,10 @@ export const USER_ERROR_CODES = {
   PASSWORD_HAS_WHITESPACE: 'PASSWORD_HAS_WHITESPACE',
 } as const;
 
+export const STORY_ERROR_CODES = {
+  IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+} as const;
+
 // ─── Generic / Common ──────────────────────────────────────────────────────
 export const COMMON_ERROR_CODES = {
   WORKSPACE_CONTEXT_NOT_FOUND: 'WORKSPACE_CONTEXT_NOT_FOUND',
