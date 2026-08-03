@@ -141,7 +141,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     return { ok: false, error: 'No channelId or channelIds provided' };
   }
-
   @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
   @SubscribeMessage('chat.leave')
   async handleLeave(
@@ -150,6 +149,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     if (!body.channelId) return;
     await client.leave(RoomBuilder.channel(body.channelId));
+  }
+
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
+  @SubscribeMessage('chat.joinWorkspace')
+  async handleJoinWorkspace(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: { workspaceId: string },
+  ) {
+    if (!body.workspaceId) return { ok: false };
+    await client.join(RoomBuilder.workspace(body.workspaceId));
+    return { ok: true };
+  }
+
+  @Throttle(CHAT_THROTTLE_CONFIG.ROOM_MANAGEMENT)
+  @SubscribeMessage('chat.leaveWorkspace')
+  async handleLeaveWorkspace(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() body: { workspaceId: string },
+  ) {
+    if (!body.workspaceId) return;
+    await client.leave(RoomBuilder.workspace(body.workspaceId));
   }
 
   @Throttle(CHAT_THROTTLE_CONFIG.MESSAGE_SEND)
