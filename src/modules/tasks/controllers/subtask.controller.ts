@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -90,6 +91,30 @@ export class SubtaskController {
   }> {
     return this.subtaskService.getSubtasksOfTask(
       taskId,
+      workspaceId,
+      user.userId,
+    );
+  }
+
+  @Delete('tasks/:taskId/subtasks/:subtaskId')
+  @UseGuards(WorkspaceRoleGuard)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a subtask of a task' })
+  @ApiResponse({ status: HttpStatus.OK, type: TaskDto })
+  @ApiBadRequestResponse({
+    description: 'Task is not a subtask or does not belong to the parent',
+  })
+  @ApiNotFoundResponse({ description: 'Subtask not found' })
+  async deleteSubtask(
+    @Param('workspaceId') workspaceId: string,
+    @Param('taskId') taskId: string,
+    @Param('subtaskId') subtaskId: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<TaskDto> {
+    return this.subtaskService.deleteSubtask(
+      taskId,
+      subtaskId,
       workspaceId,
       user.userId,
     );

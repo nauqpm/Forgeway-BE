@@ -345,6 +345,32 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
       .exec();
   }
 
+  async findSubtasksByParentIds(
+    parentIds: string[],
+    workspaceId: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument[]> {
+    const objectIds = parentIds
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    if (!objectIds.length || !Types.ObjectId.isValid(workspaceId)) {
+      return [];
+    }
+
+    return this.queryBuilder
+      .applyRelations(
+        this.taskModel.find({
+          parentId: { $in: objectIds },
+          workspaceId: new Types.ObjectId(workspaceId),
+          type: 'subtask',
+          ...this.queryBuilder.buildVisibilityFilter(options),
+        }),
+      )
+      .sort({ createdAt: 1 })
+      .exec();
+  }
+
   async countSubtasksByParentId(parentId: string): Promise<number> {
     if (!Types.ObjectId.isValid(parentId)) return 0;
     return this.taskModel

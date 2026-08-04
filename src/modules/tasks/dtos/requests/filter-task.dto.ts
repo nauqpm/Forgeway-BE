@@ -193,4 +193,10 @@ export class FilterTaskDto {
   @IsString()
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  includeSubtasks?: boolean;
 }

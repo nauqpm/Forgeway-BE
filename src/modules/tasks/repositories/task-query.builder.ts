@@ -114,7 +114,7 @@ export class TaskQueryBuilder {
     }
     if (filterDto.type?.length) {
       filter.type = { $in: filterDto.type };
-    } else {
+    } else if (!filterDto.includeSubtasks) {
       filter.type = { $ne: 'subtask' };
     }
     if (filterDto.priority?.length) {
