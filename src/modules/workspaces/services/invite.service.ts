@@ -225,6 +225,12 @@ export class InviteService {
       (invite as any)._id.toString(),
       INVITE_STATUS.DECLINED,
     );
+
+    await this.notificationsService.updateInviteNotificationStatus(
+      (invite as any)._id.toString(),
+      userId,
+      'declined',
+    );
   }
 
   async getInviteByToken(token: string): Promise<{
@@ -460,6 +466,12 @@ export class InviteService {
       userId,
       invite.role,
       userId,
+    );
+
+    await this.notificationsService.updateInviteNotificationStatus(
+      (invite as any)._id.toString(),
+      userId,
+      'accepted',
     );
   }
   private publishWorkspaceInviteCreatedEvent(

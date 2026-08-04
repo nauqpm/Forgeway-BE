@@ -228,6 +228,18 @@ export class NotificationsService {
     return result;
   }
 
+  async updateInviteNotificationStatus(
+    inviteId: string,
+    userId: string,
+    status: string,
+  ): Promise<void> {
+    await this.notificationsRepository.updateInviteStatus(
+      inviteId,
+      userId,
+      status,
+    );
+  }
+
   async findByIdForUser(
     userId: string,
     notificationId: string,

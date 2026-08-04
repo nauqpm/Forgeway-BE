@@ -108,6 +108,32 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
       .exec();
   }
 
+  async updateInviteStatus(
+    inviteId: string,
+    recipientId: string,
+    status: string,
+  ): Promise<{ modifiedCount: number }> {
+    if (
+      !Types.ObjectId.isValid(inviteId) ||
+      !Types.ObjectId.isValid(recipientId)
+    ) {
+      return { modifiedCount: 0 };
+    }
+
+    const result = await this.notificationModel
+      .updateMany(
+        {
+          entityId: new Types.ObjectId(inviteId),
+          recipientId: new Types.ObjectId(recipientId),
+          type: 'WORKSPACE_INVITED',
+        },
+        { $set: { 'metadata.status': status } },
+      )
+      .exec();
+
+    return { modifiedCount: result.modifiedCount };
+  }
+
   async markAllAsReadForRecipient(
     recipientId: string,
     readAt = new Date(),
