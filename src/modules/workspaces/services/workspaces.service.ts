@@ -176,7 +176,27 @@ export class WorkspacesService {
 
   async findByUserId(userId: string): Promise<any[]> {
     const workspaces = await this.workspacesRepository.findByUserId(userId);
-    return this.withWorkspaceCounts(workspaces);
+    const user = await this.usersService.getUserById(userId).catch(() => null);
+    const workspaceOrder = user?.workspaceOrder || [];
+
+    const sortedWorkspaces = [...workspaces];
+    if (workspaceOrder.length > 0) {
+      sortedWorkspaces.sort((a, b) => {
+        const idA = a._id.toString();
+        const idB = b._id.toString();
+        const indexA = workspaceOrder.indexOf(idA);
+        const indexB = workspaceOrder.indexOf(idB);
+
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return 0;
+      });
+    }
+
+    return this.withWorkspaceCounts(sortedWorkspaces);
   }
 
   private async withWorkspaceCounts(workspaces: any[]): Promise<any[]> {

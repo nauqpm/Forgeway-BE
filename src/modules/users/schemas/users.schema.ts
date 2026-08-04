@@ -52,6 +52,9 @@ export class User {
   @Prop()
   gender?: string; // Gender (optional)
 
+  @Prop({ type: [String], default: [] })
+  workspaceOrder?: string[];
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;

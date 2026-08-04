@@ -107,6 +107,10 @@ export class UpdateUsersDto {
   avatar?: string;
 
   @IsOptional()
+  @IsString({ each: true })
+  workspaceOrder?: string[];
+
+  @IsOptional()
   @IsString()
   currentPassword?: string;
 }
