@@ -88,6 +88,9 @@ describe('InviteService', () => {
           provide: NotificationsService,
           useValue: {
             notifyWorkspaceInvited: jest.fn().mockResolvedValue(undefined),
+            updateInviteNotificationStatus: jest
+              .fn()
+              .mockResolvedValue(undefined),
           },
         },
         {
