@@ -20,6 +20,7 @@ const MAX_EXPORT_ROWS = 10000;
 const EXPORT_COLUMNS = [
   'Key',
   'Title',
+  'Parent Key',
   'Description',
   'Type',
   'Status',
@@ -105,6 +106,7 @@ export class TaskCsvExportService {
   ): Promise<{ file: StreamableFile; contentType: string; filename: string }> {
     const importHeaders = [
       'Title',
+      'Parent Key',
       'Description',
       'Type',
       'Priority',
@@ -121,6 +123,7 @@ export class TaskCsvExportService {
 
     const sampleRow = [
       'Example task',
+      'TESKB-12',
       'Description for task',
       'Task',
       'Medium',
@@ -156,17 +159,17 @@ export class TaskCsvExportService {
     });
 
     for (let i = 2; i <= 1000; i++) {
-      worksheet.getCell(`C${i}`).dataValidation = {
+      worksheet.getCell(`D${i}`).dataValidation = {
         type: 'list',
         allowBlank: true,
-        formulae: ['"Task,Bug,Story,Epic"'],
+        formulae: ['"Task,Bug,Story,Epic,Subtask"'],
       };
-      worksheet.getCell(`D${i}`).dataValidation = {
+      worksheet.getCell(`E${i}`).dataValidation = {
         type: 'list',
         allowBlank: true,
         formulae: ['"Lowest,Low,Medium,High,Highest"'],
       };
-      worksheet.getCell(`E${i}`).dataValidation = {
+      worksheet.getCell(`F${i}`).dataValidation = {
         type: 'list',
         allowBlank: true,
         formulae: ['"To Do,In Progress,Done,In Process"'],
@@ -174,7 +177,7 @@ export class TaskCsvExportService {
     }
 
     worksheet.addConditionalFormatting({
-      ref: 'C2:C1000',
+      ref: 'D2:D1000',
       rules: [
         {
           type: 'cellIs',
@@ -200,11 +203,17 @@ export class TaskCsvExportService {
           formulae: ['"Epic"'],
           style: { font: { color: { argb: 'FF9333EA' }, bold: true } },
         },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Subtask"'],
+          style: { font: { color: { argb: 'FF4F46E5' }, bold: true } },
+        },
       ] as any,
     });
 
     worksheet.addConditionalFormatting({
-      ref: 'D2:D1000',
+      ref: 'E2:E1000',
       rules: [
         {
           type: 'cellIs',
@@ -240,7 +249,7 @@ export class TaskCsvExportService {
     });
 
     worksheet.addConditionalFormatting({
-      ref: 'E2:E1000',
+      ref: 'F2:F1000',
       rules: [
         {
           type: 'cellIs',
@@ -342,9 +351,13 @@ export class TaskCsvExportService {
       priority: dto.priority ? dto.priority.split(',') : undefined,
       search: dto.search,
       sprintId: dto.sprintId,
+      includeSubtasks:
+        dto.includeSubtasks === true || dto.includeSubtasks === 'true',
       limit: MAX_EXPORT_ROWS,
       page: 1,
-    });
+      sortBy: 'createdAt',
+      sortOrder: 'asc',
+    } as any);
 
     return result.tasks;
   }
@@ -353,7 +366,23 @@ export class TaskCsvExportService {
     rows: string[][],
     workspaceId: string,
   ): { file: StreamableFile; contentType: string; filename: string } {
-    const csvContent = stringify([EXPORT_COLUMNS, ...rows]);
+    const formattedRows = rows.map(row =>
+      row.map(cell => {
+        // Excel converts long numeric strings to scientific notation in CSVs.
+        // Prepending a tab character forces Excel to treat the cell as text.
+        if (
+          typeof cell === 'string' &&
+          /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(cell)
+        ) {
+          return `\t${cell}`;
+        }
+        return cell;
+      }),
+    );
+
+    const csvContent = stringify([EXPORT_COLUMNS, ...formattedRows], {
+      quoted: true,
+    });
     const bom = '\uFEFF';
     const buffer = Buffer.from(bom + csvContent, 'utf-8');
     const filename = `tasks-${workspaceId}-${this.taskExportRowMapperService.dateStamp()}.csv`;
@@ -398,17 +427,17 @@ export class TaskCsvExportService {
     });
 
     for (let i = 2; i <= Math.max(rows.length + 1, 100); i++) {
-      worksheet.getCell(`D${i}`).dataValidation = {
+      worksheet.getCell(`E${i}`).dataValidation = {
         type: 'list',
         allowBlank: true,
-        formulae: ['"Task,Bug,Story,Epic"'],
+        formulae: ['"Task,Bug,Story,Epic,Subtask"'],
       };
-      worksheet.getCell(`F${i}`).dataValidation = {
+      worksheet.getCell(`G${i}`).dataValidation = {
         type: 'list',
         allowBlank: true,
         formulae: ['"Lowest,Low,Medium,High,Highest"'],
       };
-      worksheet.getCell(`E${i}`).dataValidation = {
+      worksheet.getCell(`F${i}`).dataValidation = {
         type: 'list',
         allowBlank: true,
         formulae: ['"To Do,In Progress,Done,In Process"'],
@@ -416,7 +445,7 @@ export class TaskCsvExportService {
     }
 
     worksheet.addConditionalFormatting({
-      ref: 'D2:D1000',
+      ref: 'E2:E1000',
       rules: [
         {
           type: 'cellIs',
@@ -442,11 +471,17 @@ export class TaskCsvExportService {
           formulae: ['"Epic"'],
           style: { font: { color: { argb: 'FF9333EA' }, bold: true } },
         },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"Subtask"'],
+          style: { font: { color: { argb: 'FF4F46E5' }, bold: true } },
+        },
       ] as any,
     });
 
     worksheet.addConditionalFormatting({
-      ref: 'F2:F1000',
+      ref: 'G2:G1000',
       rules: [
         {
           type: 'cellIs',
@@ -482,7 +517,7 @@ export class TaskCsvExportService {
     });
 
     worksheet.addConditionalFormatting({
-      ref: 'E2:E1000',
+      ref: 'F2:F1000',
       rules: [
         {
           type: 'cellIs',

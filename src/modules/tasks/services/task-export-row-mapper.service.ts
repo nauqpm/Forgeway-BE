@@ -59,9 +59,12 @@ export class TaskExportRowMapperService {
     const typeName = this.capitalize(plain.type || '');
     const priorityName = this.capitalize(plain.priority || '');
 
+    const parentKey = plain.parentId?.key || '';
+
     return [
       this.escapeCsvInjection(plain.key || ''),
       this.escapeCsvInjection(plain.title || ''),
+      this.escapeCsvInjection(parentKey),
       this.escapeCsvInjection(description),
       typeName,
       statusName,

@@ -287,13 +287,23 @@ export class TaskLifecycleService {
       includeArchived: true,
     });
 
-    // Chặn xoá task đang có subtask con (spec mục 3)
-    const subtaskCount =
-      await this.taskReadRepository.countSubtasksByParentId(taskId);
-    if (subtaskCount > 0) {
-      throw new BadRequestException(
-        `Cannot delete task: it has ${subtaskCount} subtask(s). Delete or move subtasks first.`,
+    const subtasks = await this.taskReadRepository.findSubtasksByParentId(
+      taskId,
+      workspaceId,
+    );
+    for (const subtask of subtasks) {
+      const deletedSubtask = await this.tasksRepository.softDeleteInWorkspace(
+        this.taskAccessService.toId(subtask._id),
+        workspaceId,
+        userId,
       );
+      if (deletedSubtask) {
+        await this.taskActivitiesService.recordTaskPermanentlyDeleted(
+          deletedSubtask,
+          userId,
+        );
+        this.taskDomainEventPublisher.publishDeleted(deletedSubtask, userId);
+      }
     }
 
     const deleted = await this.tasksRepository.softDeleteInWorkspace(

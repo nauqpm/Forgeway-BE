@@ -34,6 +34,12 @@ export class TaskCreationValidationService {
       await this.validateAssignee(dto.assigneeId, workspaceId);
     }
 
+    if (dto.type === 'subtask' && !dto.parentId) {
+      throw new BadRequestException(
+        'Parent ID is required when creating a subtask',
+      );
+    }
+
     return workspace;
   }
 

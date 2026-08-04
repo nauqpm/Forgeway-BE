@@ -128,6 +128,52 @@ export class SubtaskService {
     return { done, total };
   }
 
+  // Delete Subtask
+  async deleteSubtask(
+    parentId: string,
+    subtaskId: string,
+    workspaceId: string,
+    userId: string,
+  ): Promise<TaskDto> {
+    this.validationService.validateObjectId(parentId, 'Parent task');
+    this.validationService.validateObjectId(subtaskId, 'Subtask');
+    await this.taskAccessService.getWorkspaceContextById(workspaceId, userId);
+
+    const subtask = await this.taskReadRepository.findByIdInWorkspace(
+      subtaskId,
+      workspaceId,
+    );
+    if (!subtask) {
+      throw new NotFoundException(`Subtask with ID ${subtaskId} not found`);
+    }
+    if (subtask.type !== 'subtask') {
+      throw new BadRequestException(`Task ${subtaskId} is not a subtask`);
+    }
+    if (!subtask.parentId || subtask.parentId.toString() !== parentId) {
+      throw new BadRequestException(
+        `Subtask ${subtaskId} does not belong to task ${parentId}`,
+      );
+    }
+
+    const deleted = await this.taskWriteRepository.softDeleteInWorkspace(
+      subtaskId,
+      workspaceId,
+      userId,
+    );
+    if (!deleted) {
+      throw new NotFoundException(`Subtask with ID ${subtaskId} not found`);
+    }
+
+    await this.taskActivitiesService.recordTaskPermanentlyDeleted(
+      deleted,
+      userId,
+    );
+    this.taskDomainEventPublisher.publishDeleted(deleted, userId);
+
+    this.logger.log(`Subtask ${subtaskId} deleted from parent ${parentId}`);
+    return this.taskMapper.mapToDto(deleted);
+  }
+
   // Convert Subtask to Task
   async convertSubtaskToTask(
     subtaskId: string,
@@ -213,6 +259,12 @@ export class SubtaskService {
     if (parent.type === 'subtask') {
       throw new BadRequestException(
         'Parent task cannot be a subtask (only one level of nesting allowed)',
+      );
+    }
+
+    if (parent.type === 'epic') {
+      throw new BadRequestException(
+        'Cannot convert a task to a subtask under an Epic. Use child issues instead.',
       );
     }
 

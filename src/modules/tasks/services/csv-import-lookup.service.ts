@@ -10,8 +10,11 @@ export interface ImportLookupMaps {
   userEmailMap: Map<string, string>;
   sprintMap: Map<string, string>;
   labelMap: Map<string, string>;
+  taskKeyMap: Map<string, { id: string; type: string }>;
   kanbanColumns?: BoardColumn[];
 }
+
+import { TaskReadRepository } from '../repositories/task-read.repository';
 
 @Injectable()
 export class CsvImportLookupService {
@@ -21,6 +24,7 @@ export class CsvImportLookupService {
     private readonly scrumService: ScrumService,
     private readonly labelService: LabelService,
     private readonly kanbanService: KanbanService,
+    private readonly taskReadRepository: TaskReadRepository,
   ) {}
 
   async buildLookupMaps(
@@ -32,10 +36,11 @@ export class CsvImportLookupService {
       throw new BadRequestException('Workspace không tồn tại');
     }
 
-    const [userEmailMap, sprintMap, labelMap] = await Promise.all([
+    const [userEmailMap, sprintMap, labelMap, taskKeyMap] = await Promise.all([
       this.buildUserEmailMap(workspace),
       this.buildSprintMap(workspaceId),
       this.buildLabelMap(workspaceId, userId),
+      this.buildTaskKeyMap(workspaceId),
     ]);
 
     let kanbanColumns: BoardColumn[] | undefined;
@@ -45,7 +50,7 @@ export class CsvImportLookupService {
       kanbanColumns = board?.columns;
     }
 
-    return { userEmailMap, sprintMap, labelMap, kanbanColumns };
+    return { userEmailMap, sprintMap, labelMap, taskKeyMap, kanbanColumns };
   }
 
   private async buildUserEmailMap(
@@ -91,6 +96,22 @@ export class CsvImportLookupService {
     const map = new Map<string, string>();
     for (const l of labels) {
       map.set(l.name.trim().toLowerCase(), l.id);
+    }
+    return map;
+  }
+
+  private async buildTaskKeyMap(
+    workspaceId: string,
+  ): Promise<Map<string, { id: string; type: string }>> {
+    const tasks = await this.taskReadRepository.findByWorkspace(workspaceId);
+    const map = new Map<string, { id: string; type: string }>();
+    for (const t of tasks) {
+      if (t.key) {
+        map.set(t.key.trim().toLowerCase(), {
+          id: t._id.toString(),
+          type: t.type,
+        });
+      }
     }
     return map;
   }
