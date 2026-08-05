@@ -11,7 +11,10 @@ import {
 import { NotificationMapper } from '../mappers/notification.mapper';
 import { NotificationsRepository } from '../repositories/notifications.repository';
 import { NotificationDomainEventPublisher } from './notification-domain-event.publisher';
-import { NotificationFactoryService } from './notification-factory.service';
+import {
+  NotificationFactoryService,
+  SprintLifecycleNotificationInput,
+} from './notification-factory.service';
 
 @Injectable()
 export class NotificationsService {
@@ -175,14 +178,50 @@ export class NotificationsService {
     );
   }
 
+  async notifySprintStarted(
+    input: Omit<SprintLifecycleNotificationInput, 'recipientId'> & {
+      recipientIds: string[];
+    },
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildSprintStarted({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
+  async notifySprintCompleted(
+    input: Omit<SprintLifecycleNotificationInput, 'recipientId'> & {
+      recipientIds: string[];
+    },
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildSprintCompleted({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
   async listForUser(
     userId: string,
-    page = 1,
+    cursor?: string,
+    unreadOnly?: boolean,
+    category?: string,
     limit = 20,
   ): Promise<NotificationListDto> {
-    const result = await this.notificationsRepository.findByRecipient(
+    const result = await this.notificationsRepository.findByRecipientCursor(
       userId,
-      page,
+      cursor,
+      unreadOnly,
+      category,
       limit,
     );
 

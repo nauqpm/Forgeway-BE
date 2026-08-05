@@ -32,4 +32,5 @@ export interface NotificationListDto {
   total: number;
   page: number;
   limit: number;
+  nextCursor?: string;
 }

@@ -36,10 +36,19 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Returns paginated notifications' })
   async listMyNotifications(
     @Req() req: AuthenticatedRequest,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('cursor') cursor?: string,
+    @Query('unreadOnly') unreadOnly?: string,
+    @Query('category') category?: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.notificationsService.listForUser(req.user!.userId, page, limit);
+    const isUnreadOnly = unreadOnly === 'true';
+    return this.notificationsService.listForUser(
+      req.user!.userId,
+      cursor,
+      isUnreadOnly,
+      category,
+      limit,
+    );
   }
 
   @Get('unread-count')

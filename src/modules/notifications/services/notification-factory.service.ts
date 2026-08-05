@@ -45,6 +45,15 @@ interface WorkspaceInviteFactoryInput {
   role: string;
 }
 
+export interface SprintLifecycleNotificationInput {
+  recipientId: string;
+  actorId?: string;
+  workspaceId: string;
+  sprintId: string;
+  sprintName: string;
+  endDate?: Date | null;
+}
+
 @Injectable()
 export class NotificationFactoryService {
   buildTaskAssigned(input: TaskAssignedFactoryInput): CreateNotificationInput {
@@ -198,6 +207,54 @@ export class NotificationFactoryService {
         channelId: input.channelId,
         messageId: input.messageId,
         content: input.content,
+      },
+    };
+  }
+
+  buildSprintStarted(
+    input: SprintLifecycleNotificationInput,
+  ): CreateNotificationInput {
+    const endDateStr = input.endDate
+      ? new Date(input.endDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      : 'no specific end date';
+
+    return {
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      workspaceId: input.workspaceId,
+      type: NOTIFICATION_TYPES.SPRINT_STARTED,
+      title: `Sprint '${input.sprintName}' has started`,
+      message: `Ends on ${endDateStr}`,
+      entityType: NOTIFICATION_ENTITY_TYPES.SPRINT,
+      entityId: input.sprintId,
+      metadata: {
+        workspaceId: input.workspaceId,
+        sprintId: input.sprintId,
+        sprintName: input.sprintName,
+      },
+    };
+  }
+
+  buildSprintCompleted(
+    input: SprintLifecycleNotificationInput,
+  ): CreateNotificationInput {
+    return {
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      workspaceId: input.workspaceId,
+      type: NOTIFICATION_TYPES.SPRINT_COMPLETED,
+      title: `Sprint '${input.sprintName}' has been completed`,
+      message: `The sprint has ended`,
+      entityType: NOTIFICATION_ENTITY_TYPES.SPRINT,
+      entityId: input.sprintId,
+      metadata: {
+        workspaceId: input.workspaceId,
+        sprintId: input.sprintId,
+        sprintName: input.sprintName,
       },
     };
   }

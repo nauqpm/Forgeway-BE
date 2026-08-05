@@ -13,6 +13,7 @@ import { Task, TaskDocument } from '../../tasks/schemas/task.schema';
 import { CompleteSprintDto, StartSprintDto } from '../dtos/sprint.dto';
 import { Sprint, SprintDocument } from '../schemas/sprint.schema';
 import { BoardStatusService } from './board-status.service';
+import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 import { ErrorFactory } from '../../../common/factories/error.factory';
 
 @Injectable()
@@ -24,12 +25,14 @@ export class SprintLifecycleService {
     @InjectModel(Sprint.name)
     private readonly sprintModel: Model<SprintDocument>,
     @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    private readonly sprintDomainEventPublisher: SprintDomainEventPublisher,
   ) {}
 
   async startSprint(
     workspaceId: string,
     sprintId: string,
     dto: StartSprintDto,
+    actorId?: string,
   ): Promise<SprintDocument> {
     this.logger.log(
       `Bắt đầu một sprint: ${sprintId} cho workspace: ${workspaceId}`,
@@ -90,13 +93,16 @@ export class SprintLifecycleService {
     sprint.committedStoryPoints = committedStoryPoints;
     sprint.committedTasksCount = tasks.length;
 
-    return sprint.save();
+    const savedSprint = await sprint.save();
+    this.sprintDomainEventPublisher.publishStarted(savedSprint, actorId);
+    return savedSprint;
   }
 
   async completeSprint(
     workspaceId: string,
     sprintId: string,
     dto: CompleteSprintDto,
+    actorId?: string,
   ): Promise<any> {
     this.logger.log(
       `Completing sprint: ${sprintId} for workspace: ${workspaceId}`,
@@ -165,6 +171,12 @@ export class SprintLifecycleService {
     sprint.status = 'completed';
     sprint.completedAt = new Date();
     const savedSprint = await sprint.save();
+
+    this.sprintDomainEventPublisher.publishCompleted(
+      savedSprint,
+      actorId,
+      moveToSprintObjectId ? moveToSprintObjectId.toString() : null,
+    );
 
     return {
       _id: savedSprint._id,

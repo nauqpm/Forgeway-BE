@@ -47,6 +47,6 @@ export class Notification {
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
-NotificationSchema.index({ recipientId: 1, readAt: 1, createdAt: -1 });
-NotificationSchema.index({ recipientId: 1, createdAt: -1 });
-NotificationSchema.index({ workspaceId: 1, createdAt: -1 });
+NotificationSchema.index({ recipientId: 1, readAt: 1, _id: -1 });
+NotificationSchema.index({ recipientId: 1, _id: -1 });
+NotificationSchema.index({ workspaceId: 1, _id: -1 });
