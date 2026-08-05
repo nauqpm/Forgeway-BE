@@ -82,6 +82,7 @@ const mockScrumService = () => ({
 
 const mockUsersService = () => ({
   findByEmail: jest.fn(),
+  getUserById: jest.fn(async () => ({ _id: 'userId', workspaceOrder: [] })),
 });
 
 const mockWorkspaceKeyService = () => ({

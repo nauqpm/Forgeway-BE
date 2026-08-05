@@ -62,7 +62,7 @@ const createService = () => {
     countModel as any,
     countModel as any,
     countModel as any,
-    {} as any,
+    { getUserById: jest.fn(async () => ({ _id: 'userId', workspaceOrder: [] })) } as any,
     { createWorkspaceChannel: jest.fn().mockResolvedValue({}) } as any,
   );
 
