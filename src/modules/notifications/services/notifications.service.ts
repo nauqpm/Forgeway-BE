@@ -15,6 +15,7 @@ import {
   NotificationFactoryService,
   SprintLifecycleNotificationInput,
 } from './notification-factory.service';
+import { InviteStatusValue } from '../../workspaces/schemas/invite.schema';
 
 @Injectable()
 export class NotificationsService {
@@ -267,16 +268,28 @@ export class NotificationsService {
     return result;
   }
 
+  /**
+   * Updates the `metadata.status` field of the WORKSPACE_INVITED notification
+   * associated with the given invite and recipient.
+   *
+   * This is a best-effort side-effect — callers should wrap in try/catch since
+   * failure here should not block the main invite accept/decline flow.
+   */
   async updateInviteNotificationStatus(
     inviteId: string,
     userId: string,
-    status: string,
+    status: InviteStatusValue,
   ): Promise<void> {
-    await this.notificationsRepository.updateInviteStatus(
+    const result = await this.notificationsRepository.updateInviteStatus(
       inviteId,
       userId,
       status,
     );
+    if (result.modifiedCount === 0) {
+      this.logger.warn(
+        `No notification found to update for inviteId=${inviteId}, userId=${userId}, status=${status}`,
+      );
+    }
   }
 
   async findByIdForUser(

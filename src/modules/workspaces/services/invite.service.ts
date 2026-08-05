@@ -226,11 +226,18 @@ export class InviteService {
       INVITE_STATUS.DECLINED,
     );
 
-    await this.notificationsService.updateInviteNotificationStatus(
-      (invite as any)._id.toString(),
-      userId,
-      'declined',
-    );
+    try {
+      await this.notificationsService.updateInviteNotificationStatus(
+        (invite as any)._id.toString(),
+        userId,
+        INVITE_STATUS.DECLINED,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to update invite notification status: ${message}`,
+      );
+    }
   }
 
   async getInviteByToken(token: string): Promise<{
@@ -461,19 +468,27 @@ export class InviteService {
       );
     }
 
+    try {
+      await this.notificationsService.updateInviteNotificationStatus(
+        (invite as any)._id.toString(),
+        userId,
+        INVITE_STATUS.ACCEPTED,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to update invite notification status: ${message}`,
+      );
+    }
+
     this.publishWorkspaceMemberJoinedEvent(
       workspace,
       userId,
       invite.role,
       userId,
     );
-
-    await this.notificationsService.updateInviteNotificationStatus(
-      (invite as any)._id.toString(),
-      userId,
-      'accepted',
-    );
   }
+
   private publishWorkspaceInviteCreatedEvent(
     workspace: any,
     invite: Invite,

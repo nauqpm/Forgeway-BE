@@ -6,8 +6,12 @@ import {
   Notification,
   NotificationDocument,
 } from '../schemas/notification.schema';
-import { DIRECT_NOTIFICATION_TYPES } from '../constants/notification.constants';
+import {
+  DIRECT_NOTIFICATION_TYPES,
+  NOTIFICATION_TYPES,
+} from '../constants/notification.constants';
 import { BaseRepository } from '../../../shared/repositories/base.repository';
+import { InviteStatusValue } from '../../workspaces/schemas/invite.schema';
 
 @Injectable()
 export class NotificationsRepository extends BaseRepository<NotificationDocument> {
@@ -163,7 +167,7 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
   async updateInviteStatus(
     inviteId: string,
     recipientId: string,
-    status: string,
+    status: InviteStatusValue,
   ): Promise<{ modifiedCount: number }> {
     if (
       !Types.ObjectId.isValid(inviteId) ||
@@ -177,7 +181,7 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
         {
           entityId: new Types.ObjectId(inviteId),
           recipientId: new Types.ObjectId(recipientId),
-          type: 'WORKSPACE_INVITED',
+          type: NOTIFICATION_TYPES.WORKSPACE_INVITED,
         },
         { $set: { 'metadata.status': status } },
       )
