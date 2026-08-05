@@ -21,7 +21,7 @@ export class TaskLifecycleService {
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
     private readonly taskAccessService: TaskAccessService,
-  ) { }
+  ) {}
 
   async archiveInWorkspaceKey(
     workspaceKey: string,

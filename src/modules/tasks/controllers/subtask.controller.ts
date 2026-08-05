@@ -1,7 +1,7 @@
 import {
   Body,
   Controller,
-  Delete, 
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
