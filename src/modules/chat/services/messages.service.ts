@@ -1093,12 +1093,32 @@ export class MessagesService {
         new Date(channel.lastMessage.sentAt).getTime();
 
     if (isNew || isCurrentLast || isNewer) {
+      const senderId =
+        message.senderId?._id || message.senderId?.id || message.senderId;
+      let senderName = '';
+      if (senderId) {
+        try {
+          const user = await this.usersService.getUserById(String(senderId));
+          if (user) {
+            senderName =
+              user.fullName?.trim() ||
+              (user.email ? user.email.split('@')[0] : '') ||
+              'User';
+          }
+        } catch (e) {
+          this.logger.warn(
+            `Failed to fetch sender details for lastMessage update: ${e.message}`,
+          );
+        }
+      }
+      if (!senderName) {
+        senderName = message.senderId?.fullName || 'User';
+      }
+
       await this.channelsService.updateLastMessage(channelId, {
         content: message.content,
-        senderId:
-          message.senderId?._id || message.senderId?.id || message.senderId,
-        senderName:
-          message.senderId?.fullName || channel.lastMessage?.senderName || '',
+        senderId: senderId,
+        senderName: senderName,
         sentAt: message.createdAt,
         type: message.type,
       });
