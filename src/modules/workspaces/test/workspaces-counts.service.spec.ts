@@ -62,7 +62,15 @@ describe('WorkspacesService workspace counts', () => {
             publishRestored: jest.fn(),
           },
         },
-        { provide: UsersService, useValue: { getUserById: jest.fn(async () => ({ _id: 'userId', workspaceOrder: [] })) } },
+        {
+          provide: UsersService,
+          useValue: {
+            getUserById: jest.fn(async () => ({
+              _id: 'userId',
+              workspaceOrder: [],
+            })),
+          },
+        },
         {
           provide: ChannelsService,
           useValue: { createWorkspaceChannel: jest.fn().mockResolvedValue({}) },
