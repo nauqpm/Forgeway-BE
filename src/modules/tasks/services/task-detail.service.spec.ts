@@ -19,10 +19,14 @@ describe('TaskDetailService', () => {
     repository = {
       findDetailByIdInWorkspace: jest.fn(),
       findDetailByKeyInWorkspace: jest.fn(),
+      findSubtasksByParentId: jest.fn(),
+      countSubtasksByParentId: jest.fn(),
+      countDoneSubtasksByParentId: jest.fn(),
     } as unknown as jest.Mocked<TaskReadRepository>;
 
     mapper = {
       mapToDetailDto: jest.fn(),
+      mapSubtaskSummaries: jest.fn(),
     } as unknown as jest.Mocked<TaskMapper>;
 
     validationService = {
@@ -47,14 +51,19 @@ describe('TaskDetailService', () => {
       isArchived: false,
     };
     const detail = { id: taskId, workspaceId, key: 'TESKB-1' };
+    const expectedDetail = { ...detail, subtasks: [], subtaskProgress: { done: 0, total: 0 } };
 
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByIdInWorkspace.mockResolvedValue(task as any);
+    repository.findSubtasksByParentId.mockResolvedValue([]);
+    repository.countSubtasksByParentId.mockResolvedValue(0);
+    repository.countDoneSubtasksByParentId.mockResolvedValue(0);
     mapper.mapToDetailDto.mockReturnValue(detail as any);
+    mapper.mapSubtaskSummaries.mockReturnValue([]);
 
     await expect(
       service.getDetailByIdInWorkspaceKey('TESKB', taskId, userId),
-    ).resolves.toEqual(detail);
+    ).resolves.toEqual(expectedDetail);
 
     expect(validationService.getWorkspaceById).toHaveBeenCalledWith('TESKB');
     expect(validationService.validateWorkspaceMember).toHaveBeenCalledWith(
@@ -75,14 +84,19 @@ describe('TaskDetailService', () => {
       key: 'TESKB-2',
     };
     const detail = { id: task._id.toString(), workspaceId, key: 'TESKB-2' };
+    const expectedDetail = { ...detail, subtasks: [], subtaskProgress: { done: 0, total: 0 } };
 
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByKeyInWorkspace.mockResolvedValue(task as any);
+    repository.findSubtasksByParentId.mockResolvedValue([]);
+    repository.countSubtasksByParentId.mockResolvedValue(0);
+    repository.countDoneSubtasksByParentId.mockResolvedValue(0);
     mapper.mapToDetailDto.mockReturnValue(detail as any);
+    mapper.mapSubtaskSummaries.mockReturnValue([]);
 
     await expect(
       service.getDetailByKeyInWorkspaceKey('TESKB', 'teskb-2', userId),
-    ).resolves.toEqual(detail);
+    ).resolves.toEqual(expectedDetail);
 
     expect(repository.findDetailByKeyInWorkspace).toHaveBeenCalledWith(
       'TESKB-2',
