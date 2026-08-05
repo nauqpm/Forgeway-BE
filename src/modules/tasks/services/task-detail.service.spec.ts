@@ -51,7 +51,11 @@ describe('TaskDetailService', () => {
       isArchived: false,
     };
     const detail = { id: taskId, workspaceId, key: 'TESKB-1' };
-    const expectedDetail = { ...detail, subtasks: [], subtaskProgress: { done: 0, total: 0 } };
+    const expectedDetail = {
+      ...detail,
+      subtasks: [],
+      subtaskProgress: { done: 0, total: 0 },
+    };
 
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByIdInWorkspace.mockResolvedValue(task as any);
@@ -84,7 +88,11 @@ describe('TaskDetailService', () => {
       key: 'TESKB-2',
     };
     const detail = { id: task._id.toString(), workspaceId, key: 'TESKB-2' };
-    const expectedDetail = { ...detail, subtasks: [], subtaskProgress: { done: 0, total: 0 } };
+    const expectedDetail = {
+      ...detail,
+      subtasks: [],
+      subtaskProgress: { done: 0, total: 0 },
+    };
 
     validationService.getWorkspaceById.mockResolvedValue(workspace as any);
     repository.findDetailByKeyInWorkspace.mockResolvedValue(task as any);
