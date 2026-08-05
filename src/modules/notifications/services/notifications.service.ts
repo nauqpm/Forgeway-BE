@@ -277,7 +277,7 @@ export class NotificationsService {
    */
   async updateInviteNotificationStatus(
     inviteId: string,
-    userId: string,
+    userId: string | undefined,
     status: InviteStatusValue,
   ): Promise<void> {
     const result = await this.notificationsRepository.updateInviteStatus(

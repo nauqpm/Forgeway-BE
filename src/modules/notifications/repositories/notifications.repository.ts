@@ -23,7 +23,10 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
   }
 
   async create(input: CreateNotificationInput): Promise<NotificationDocument> {
-    return new this.notificationModel(this.toPersistence(input)).save();
+    const doc = await new this.notificationModel(
+      this.toPersistence(input),
+    ).save();
+    return doc.populate('actorId', 'email fullName avatar');
   }
 
   async createMany(
@@ -37,7 +40,10 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
       inputs.map(input => this.toPersistence(input)),
     );
 
-    return notifications as unknown as NotificationDocument[];
+    return this.notificationModel.populate(notifications, {
+      path: 'actorId',
+      select: 'email fullName avatar',
+    });
   }
 
   async findByRecipient(
@@ -79,6 +85,16 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
     limit: number;
     nextCursor?: string;
   }> {
+    if (limit <= 0) {
+      return {
+        notifications: [],
+        total: 0,
+        page: 1,
+        limit,
+        nextCursor: undefined,
+      };
+    }
+
     const filter: any = { recipientId: new Types.ObjectId(recipientId) };
 
     if (unreadOnly) {
@@ -166,25 +182,26 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
 
   async updateInviteStatus(
     inviteId: string,
-    recipientId: string,
+    recipientId: string | undefined,
     status: InviteStatusValue,
   ): Promise<{ modifiedCount: number }> {
     if (
       !Types.ObjectId.isValid(inviteId) ||
-      !Types.ObjectId.isValid(recipientId)
+      (recipientId && !Types.ObjectId.isValid(recipientId))
     ) {
       return { modifiedCount: 0 };
     }
 
+    const filter: any = {
+      entityId: new Types.ObjectId(inviteId),
+      type: NOTIFICATION_TYPES.WORKSPACE_INVITED,
+    };
+    if (recipientId) {
+      filter.recipientId = new Types.ObjectId(recipientId);
+    }
+
     const result = await this.notificationModel
-      .updateMany(
-        {
-          entityId: new Types.ObjectId(inviteId),
-          recipientId: new Types.ObjectId(recipientId),
-          type: NOTIFICATION_TYPES.WORKSPACE_INVITED,
-        },
-        { $set: { 'metadata.status': status } },
-      )
+      .updateMany(filter, { $set: { 'metadata.status': status } })
       .exec();
 
     return { modifiedCount: result.modifiedCount };

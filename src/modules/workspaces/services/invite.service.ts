@@ -181,6 +181,19 @@ export class InviteService {
 
     await this.inviteRepository.updateStatus(inviteId, INVITE_STATUS.EXPIRED);
 
+    try {
+      await this.notificationsService.updateInviteNotificationStatus(
+        inviteId,
+        undefined,
+        INVITE_STATUS.EXPIRED,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to update invite notification status: ${message}`,
+      );
+    }
+
     const event = new WorkspaceInviteCancelledEvent({
       workspaceId,
       actorId,
