@@ -39,6 +39,8 @@ export class SubtaskService {
     workspaceId: string,
   ): Promise<TaskDto> {
     this.validationService.validateObjectId(parentId, 'Parent task');
+    // [H1] Verify caller is a member of the workspace before proceeding
+    await this.taskAccessService.getWorkspaceContextById(workspaceId, userId);
 
     const parent = await this.taskReadRepository.findByIdInWorkspace(
       parentId,
@@ -104,17 +106,16 @@ export class SubtaskService {
       throw new NotFoundException(`Task with ID ${parentId} not found`);
     }
 
-    const subtasks = await this.taskReadRepository.findSubtasksByParentId(
-      parentId,
-      workspaceId,
-    );
-
-    const mappedSubtasks = this.taskMapper.mapSubtaskSummaries(subtasks);
-    const progress = await this.getSubtaskProgress(parentId);
+    // [H3] Chạy song song thay vì serial để giảm DB round-trips
+    const [subtasks, total, done] = await Promise.all([
+      this.taskReadRepository.findSubtasksByParentId(parentId, workspaceId),
+      this.taskReadRepository.countSubtasksByParentId(parentId),
+      this.taskReadRepository.countDoneSubtasksByParentId(parentId),
+    ]);
 
     return {
-      subtasks: mappedSubtasks,
-      progress,
+      subtasks: this.taskMapper.mapSubtaskSummaries(subtasks),
+      progress: { done, total },
     };
   }
 
@@ -194,33 +195,25 @@ export class SubtaskService {
       throw new BadRequestException(`Task ${subtaskId} is not a subtask`);
     }
 
-    // Unset parentId, change type to task
-    await (this.taskWriteRepository as any).taskModel.findOneAndUpdate(
-      { _id: subtask._id },
-      {
-        $set: { type: 'task' },
-        $unset: { parentId: 1 },
-        $inc: { version: 1 },
-      },
-    );
-
-    this.logger.log(`Subtask ${subtaskId} converted to task`);
-    const result = await this.taskReadRepository.findByIdInWorkspace(
+    // [C1+C2] Dùng repository method thay vì `as any` bypass
+    const result = await this.taskWriteRepository.convertToTask(
       subtaskId,
       workspaceId,
-      { includeArchived: true },
     );
 
-    if (result) {
-      await this.taskActivitiesService.recordTaskUpdated(
-        subtask,
-        result,
-        userId,
+    // [C4] Null-safe — không dùng non-null assertion
+    if (!result) {
+      throw new NotFoundException(
+        `Subtask ${subtaskId} not found after conversion`,
       );
-      this.taskDomainEventPublisher.publishUpdated(subtask, result, userId);
     }
 
-    return this.taskMapper.mapToDto(result!);
+    this.logger.log(`Subtask ${subtaskId} converted to task`);
+
+    await this.taskActivitiesService.recordTaskUpdated(subtask, result, userId);
+    this.taskDomainEventPublisher.publishUpdated(subtask, result, userId);
+
+    return this.taskMapper.mapToDto(result);
   }
 
   // Convert Task to Subtask
@@ -279,35 +272,24 @@ export class SubtaskService {
     const parentPlain =
       typeof parent.toObject === 'function' ? parent.toObject() : parent;
 
-    await (this.taskWriteRepository as any).taskModel.findOneAndUpdate(
-      { _id: task._id },
-      {
-        $set: {
-          type: 'subtask',
-          parentId: parent._id,
-          ...(parentPlain.sprintId ? { sprintId: parentPlain.sprintId } : {}),
-        },
-        $unset: {
-          epicId: 1,
-          storyPoints: 1,
-          ...(!parentPlain.sprintId ? { sprintId: 1 } : {}),
-        },
-        $inc: { version: 1 },
-      },
-    );
-
-    this.logger.log(`Task ${taskId} converted to subtask under ${newParentId}`);
-    const result = await this.taskReadRepository.findByIdInWorkspace(
+    // [C1+C3] Dùng repository method thay vì `as any` bypass
+    const result = await this.taskWriteRepository.convertToSubtask(
       taskId,
       workspaceId,
-      { includeArchived: true },
+      parent._id,
+      parentPlain.sprintId ?? undefined,
     );
 
-    if (result) {
-      await this.taskActivitiesService.recordTaskUpdated(task, result, userId);
-      this.taskDomainEventPublisher.publishUpdated(task, result, userId);
+    // [C4] Null-safe — không dùng non-null assertion
+    if (!result) {
+      throw new NotFoundException(`Task ${taskId} not found after conversion`);
     }
 
-    return this.taskMapper.mapToDto(result!);
+    this.logger.log(`Task ${taskId} converted to subtask under ${newParentId}`);
+
+    await this.taskActivitiesService.recordTaskUpdated(task, result, userId);
+    this.taskDomainEventPublisher.publishUpdated(task, result, userId);
+
+    return this.taskMapper.mapToDto(result);
   }
 }

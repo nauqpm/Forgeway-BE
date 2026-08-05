@@ -376,6 +376,7 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
     return this.taskModel
       .countDocuments({
         parentId: new Types.ObjectId(parentId),
+        type: 'subtask',
         isDeleted: { $ne: true },
       })
       .exec();
@@ -386,6 +387,7 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
     return this.taskModel
       .countDocuments({
         parentId: new Types.ObjectId(parentId),
+        type: 'subtask',
         isDeleted: { $ne: true },
         status: 'done',
       })

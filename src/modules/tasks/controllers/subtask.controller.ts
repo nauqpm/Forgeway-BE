@@ -23,8 +23,10 @@ import { RequirePermissions } from '../../../common/decorators/require-permissio
 import { WorkspaceRoleGuard } from '../../../common/guards/workspace-role.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
-import { CreateSubtaskDto } from '../dtos/requests/create-subtask.dto';
-import { ConvertToSubtaskDto } from '../dtos/requests/create-subtask.dto';
+import {
+  CreateSubtaskDto,
+  ConvertToSubtaskDto,
+} from '../dtos/requests/create-subtask.dto';
 import { SubtaskSummaryDto } from '../dtos/responses/task-detail.dto';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { SubtaskService } from '../services/subtask.service';

@@ -7,7 +7,6 @@ import { ErrorFactory } from '../../../common/factories/error.factory';
 import { TaskActivitiesService } from '../../task-activities/services/task-activities.service';
 import { TaskDto } from '../dtos/responses/task.dto';
 import { TaskMapper } from '../mappers/task.mapper';
-import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskWriteRepository } from '../repositories/task-write.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskDomainEventPublisher } from './task-domain-event.publisher';
@@ -16,7 +15,6 @@ import { TaskDomainEventPublisher } from './task-domain-event.publisher';
 export class TaskLifecycleService {
   constructor(
     private readonly tasksRepository: TaskWriteRepository,
-    private readonly taskReadRepository: TaskReadRepository,
     private readonly taskMapper: TaskMapper,
     private readonly taskActivitiesService: TaskActivitiesService,
     private readonly taskDomainEventPublisher: TaskDomainEventPublisher,
@@ -287,23 +285,22 @@ export class TaskLifecycleService {
       includeArchived: true,
     });
 
-    const subtasks = await this.taskReadRepository.findSubtasksByParentId(
-      taskId,
-      workspaceId,
-    );
-    for (const subtask of subtasks) {
-      const deletedSubtask = await this.tasksRepository.softDeleteInWorkspace(
-        this.taskAccessService.toId(subtask._id),
+    // [H4] Dùng bulk soft-delete thay vì serial for-loop để tránh N DB round-trips
+    const deletedSubtasks =
+      await this.tasksRepository.softDeleteSubtasksByParentId(
+        taskId,
         workspaceId,
         userId,
       );
-      if (deletedSubtask) {
-        await this.taskActivitiesService.recordTaskPermanentlyDeleted(
-          deletedSubtask,
-          userId,
-        );
-        this.taskDomainEventPublisher.publishDeleted(deletedSubtask, userId);
-      }
+    if (deletedSubtasks.length > 0) {
+      await Promise.all(
+        deletedSubtasks.map(sub =>
+          this.taskActivitiesService.recordTaskPermanentlyDeleted(sub, userId),
+        ),
+      );
+      deletedSubtasks.forEach(sub =>
+        this.taskDomainEventPublisher.publishDeleted(sub, userId),
+      );
     }
 
     const deleted = await this.tasksRepository.softDeleteInWorkspace(

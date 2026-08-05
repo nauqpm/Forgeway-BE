@@ -1,4 +1,4 @@
-﻿import { Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
@@ -11,7 +11,10 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TASK_PRIORITIES } from '../../constants/task-status.constants';
+import {
+  TASK_PRIORITIES,
+  TaskPriority,
+} from '../../constants/task-status.constants';
 
 /**
  * DTO for creating a subtask.
@@ -33,7 +36,7 @@ export class CreateSubtaskDto {
   @ApiPropertyOptional({ enum: TASK_PRIORITIES, default: 'medium' })
   @IsOptional()
   @IsEnum(TASK_PRIORITIES)
-  priority?: string;
+  priority?: TaskPriority;
 
   @ApiPropertyOptional({
     description: 'Assignee user ID (can differ from parent)',
