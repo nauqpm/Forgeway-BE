@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SprintLifecycleService } from './sprint-lifecycle.service';
 import { BoardStatusService } from './board-status.service';
+import { SprintDomainEventPublisher } from './sprint-domain-event.publisher';
 import { Sprint } from '../schemas/sprint.schema';
 import { Task } from '../../tasks/schemas/task.schema';
 
@@ -47,6 +48,13 @@ describe('SprintLifecycleService', () => {
               }),
             }),
             updateMany: jest.fn(),
+          },
+        },
+        {
+          provide: SprintDomainEventPublisher,
+          useValue: {
+            publishStarted: jest.fn(),
+            publishCompleted: jest.fn(),
           },
         },
       ],
