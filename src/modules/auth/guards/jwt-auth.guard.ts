@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -17,6 +18,13 @@ import { AUTH_ERROR_CODES } from '@/common/constants/error-codes.constants';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private static readonly passwordChangeAllowedRoutes = new Set([
+    'GET /auth/me',
+    'GET /users/me',
+    'PUT /users/me',
+    'POST /auth/logout',
+  ]);
+
   private readonly logger = new Logger(JwtAuthGuard.name);
 
   constructor(
@@ -96,15 +104,51 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Token không hợp lệ');
     }
 
+    if (
+      decoded.mustChangePassword &&
+      !this.isPasswordChangeAllowed(
+        request.method,
+        request.originalUrl || request.url,
+      )
+    ) {
+      this.logger.warn(
+        `Blocked access for userId ${decoded.userId} until password is changed`,
+      );
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: AUTH_ERROR_CODES.PASSWORD_CHANGE_REQUIRED,
+        message: 'Password change required before accessing this resource',
+      });
+    }
+
     request.user = {
       userId: decoded.userId,
       rootUserId: decoded.rootUserId,
       email: decoded.email,
       role: decoded.role,
+      mustChangePassword: decoded.mustChangePassword,
     };
 
     this.logger.log(`Authenticated userId ${decoded.userId}`);
     return true;
+  }
+
+  private isPasswordChangeAllowed(
+    method: string,
+    requestPath: string,
+  ): boolean {
+    const normalizedPath = requestPath
+      .split('?')[0]
+      .replace(/\/+$/, '')
+      .toLowerCase();
+
+    if (method.toUpperCase() === 'POST' && normalizedPath === '/auth/refresh') {
+      return true;
+    }
+
+    return JwtAuthGuard.passwordChangeAllowedRoutes.has(
+      `${method.toUpperCase()} ${normalizedPath}`,
+    );
   }
 
   private logUnauthorized(
