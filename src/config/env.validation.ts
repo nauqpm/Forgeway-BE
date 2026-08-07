@@ -56,5 +56,25 @@ export function validateEnv(config: Env): Env {
     DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   );
 
-  return config;
+  const webPushEnabled = config.WEB_PUSH_ENABLED?.trim().toLowerCase();
+  if (
+    webPushEnabled &&
+    webPushEnabled !== 'true' &&
+    webPushEnabled !== 'false'
+  ) {
+    throw new Error('WEB_PUSH_ENABLED must be true or false');
+  }
+  if (webPushEnabled === 'true') {
+    for (const key of [
+      'VAPID_SUBJECT',
+      'VAPID_PUBLIC_KEY',
+      'VAPID_PRIVATE_KEY',
+    ]) {
+      if (!config[key]?.trim()) {
+        throw new Error(`Missing required environment variable: ${key}`);
+      }
+    }
+  }
+
+  return { ...config, WEB_PUSH_ENABLED: webPushEnabled ?? 'false' };
 }

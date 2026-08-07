@@ -1,10 +1,15 @@
 import {
+  Body,
   Controller,
+  Delete,
   DefaultValuePipe,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Put,
   Query,
   Req,
@@ -18,7 +23,12 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import {
+  RemoveWebPushSubscriptionDto,
+  UpsertWebPushSubscriptionDto,
+} from '../dtos/web-push-subscription.dto';
 import { NotificationsService } from '../services/notifications.service';
+import { WebPushSubscriptionsService } from '../services/web-push-subscriptions.service';
 
 type AuthenticatedRequest = Request & {
   user?: { userId: string; email?: string; role?: string };
@@ -29,7 +39,36 @@ type AuthenticatedRequest = Request & {
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly webPushSubscriptionsService: WebPushSubscriptionsService,
+  ) {}
+
+  @Post('push-subscriptions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Register current browser for push notifications' })
+  async upsertPushSubscription(
+    @Req() req: AuthenticatedRequest,
+    @Body() subscription: UpsertWebPushSubscriptionDto,
+  ): Promise<void> {
+    await this.webPushSubscriptionsService.upsertForUser(
+      req.user!.userId,
+      subscription,
+    );
+  }
+
+  @Delete('push-subscriptions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove current browser push subscription' })
+  async removePushSubscription(
+    @Req() req: AuthenticatedRequest,
+    @Body() subscription: RemoveWebPushSubscriptionDto,
+  ): Promise<void> {
+    await this.webPushSubscriptionsService.removeForUser(
+      req.user!.userId,
+      subscription.endpoint,
+    );
+  }
 
   @Get()
   @ApiOperation({ summary: 'List current user notifications' })

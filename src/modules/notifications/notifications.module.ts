@@ -12,14 +12,23 @@ import {
   Notification,
   NotificationSchema,
 } from './schemas/notification.schema';
+import {
+  WebPushSubscription,
+  WebPushSubscriptionSchema,
+} from './schemas/web-push-subscription.schema';
 import { NotificationDomainEventPublisher } from './services/notification-domain-event.publisher';
 import { NotificationFactoryService } from './services/notification-factory.service';
 import { NotificationsService } from './services/notifications.service';
+import { WebPushSubscriptionsRepository } from './repositories/web-push-subscriptions.repository';
+import { WebPushSubscriptionsService } from './services/web-push-subscriptions.service';
+import { WebPushService } from './services/web-push.service';
+import { WebPushNotificationListener } from './listeners/web-push-notification.listener';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
+      { name: WebPushSubscription.name, schema: WebPushSubscriptionSchema },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkspacesModule),
@@ -27,12 +36,16 @@ import { NotificationsService } from './services/notifications.service';
   controllers: [NotificationsController],
   providers: [
     NotificationsRepository,
+    WebPushSubscriptionsRepository,
     NotificationMapper,
     NotificationFactoryService,
     NotificationDomainEventPublisher,
     TaskNotificationListener,
     TaskNotificationService,
     NotificationsService,
+    WebPushSubscriptionsService,
+    WebPushService,
+    WebPushNotificationListener,
     JwtAuthGuard,
   ],
   exports: [NotificationsService],
