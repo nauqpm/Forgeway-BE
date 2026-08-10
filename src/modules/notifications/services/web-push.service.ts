@@ -92,9 +92,15 @@ export class WebPushService {
       return { kind: 'skipped', statusCode: null };
     }
     const retryStatus = statusCodes.find(status => this.isRetryable(status));
-    return retryStatus !== undefined
-      ? { kind: 'retry', statusCode: retryStatus }
-      : { kind: 'failed', statusCode: statusCodes[0] ?? null };
+    if (retryStatus !== undefined) {
+      return { kind: 'retry', statusCode: retryStatus };
+    }
+
+    const terminalStatus = statusCodes.find(
+      status =>
+        status !== 404 && status !== 410 && !this.isRetryable(status),
+    );
+    return { kind: 'failed', statusCode: terminalStatus ?? null };
   }
 
   async sendNotification(

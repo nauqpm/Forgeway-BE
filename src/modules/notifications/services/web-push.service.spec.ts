@@ -174,6 +174,19 @@ describe('WebPushService', () => {
     );
   });
 
+  it('returns the terminal non-stale status after a stale provider failure', async () => {
+    const { service } = setup();
+    jest
+      .mocked(webPush.sendNotification)
+      .mockRejectedValueOnce({ statusCode: 410 })
+      .mockRejectedValueOnce({ statusCode: 400 });
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'failed',
+      statusCode: 400,
+    });
+  });
+
   it('limits dispatch fanout to three subscriptions', async () => {
     const fourth = {
       ...subscriptions[0],
