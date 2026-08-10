@@ -31,11 +31,6 @@ export class UpdateTaskDto {
   @MaxLength(5000)
   description?: string;
 
-  @ApiPropertyOptional({ enum: TASK_TYPES })
-  @IsOptional()
-  @IsEnum(TASK_TYPES)
-  type?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -46,6 +41,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(TASK_PRIORITIES)
   priority?: string;
+
+  @ApiPropertyOptional({ enum: TASK_TYPES })
+  @IsOptional()
+  @IsEnum(TASK_TYPES)
+  type?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

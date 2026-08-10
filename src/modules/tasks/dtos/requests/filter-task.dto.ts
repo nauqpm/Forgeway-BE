@@ -60,6 +60,11 @@ export class FilterTaskDto {
   @IsString()
   columnId?: string;
 
+  @ApiPropertyOptional({ description: 'Filter subtasks by parent task ID' })
+  @IsOptional()
+  @IsMongoId()
+  parentId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => normalizeIdListFilter(value))
@@ -188,4 +193,10 @@ export class FilterTaskDto {
   @IsString()
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  includeSubtasks?: boolean;
 }

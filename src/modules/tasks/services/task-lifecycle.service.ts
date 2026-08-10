@@ -285,6 +285,24 @@ export class TaskLifecycleService {
       includeArchived: true,
     });
 
+    // [H4] Dùng bulk soft-delete thay vì serial for-loop để tránh N DB round-trips
+    const deletedSubtasks =
+      await this.tasksRepository.softDeleteSubtasksByParentId(
+        taskId,
+        workspaceId,
+        userId,
+      );
+    if (deletedSubtasks.length > 0) {
+      await Promise.all(
+        deletedSubtasks.map(sub =>
+          this.taskActivitiesService.recordTaskPermanentlyDeleted(sub, userId),
+        ),
+      );
+      deletedSubtasks.forEach(sub =>
+        this.taskDomainEventPublisher.publishDeleted(sub, userId),
+      );
+    }
+
     const deleted = await this.tasksRepository.softDeleteInWorkspace(
       taskId,
       workspaceId,

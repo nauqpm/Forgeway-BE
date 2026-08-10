@@ -52,6 +52,9 @@ export class User {
   @Prop()
   gender?: string; // Gender (optional)
 
+  @Prop({ default: false })
+  mustChangePassword?: boolean;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;

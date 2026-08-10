@@ -33,7 +33,8 @@ export class TaskQueryBuilder {
       .populate('archivedBy', 'fullName email avatar')
       .populate('sprintId', 'name startDate endDate')
       .populate('boardId', 'name')
-      .populate('labelIds', 'name');
+      .populate('labelIds', 'name')
+      .populate('parentId', 'key title type');
   }
 
   buildVersionedSetUpdate(
@@ -113,12 +114,17 @@ export class TaskQueryBuilder {
     }
     if (filterDto.type?.length) {
       filter.type = { $in: filterDto.type };
+    } else if (!filterDto.includeSubtasks) {
+      filter.type = { $ne: 'subtask' };
     }
     if (filterDto.priority?.length) {
       filter.priority = { $in: filterDto.priority };
     }
     if (filterDto.status?.length) {
       filter.status = { $in: filterDto.status };
+    }
+    if (filterDto.parentId) {
+      filter.parentId = new Types.ObjectId(filterDto.parentId);
     }
     if (filterDto.search) {
       Object.assign(

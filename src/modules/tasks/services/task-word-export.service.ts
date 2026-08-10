@@ -14,8 +14,11 @@ import {
 import { TaskDocument } from '../schemas/task.schema';
 import { ResolvedMaps } from './task-export-lookup.service';
 
+import { TaskReadRepository } from '../repositories/task-read.repository';
+
 @Injectable()
 export class TaskWordExportService {
+  constructor(private readonly taskReadRepository: TaskReadRepository) {}
   private dateStamp(): string {
     return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   }
@@ -56,6 +59,22 @@ export class TaskWordExportService {
     baseUrl: string,
     workspaceId: string,
   ): Promise<{ file: StreamableFile; contentType: string; filename: string }> {
+    const parentIds = tasks.map(t => t._id.toString());
+    const allSubtasks = await this.taskReadRepository.findSubtasksByParentIds(
+      parentIds,
+      workspaceId,
+    );
+
+    const subtasksByParent = new Map<string, TaskDocument[]>();
+    for (const sub of allSubtasks) {
+      if (!sub.parentId) continue;
+      const pid = sub.parentId.toString();
+      if (!subtasksByParent.has(pid)) {
+        subtasksByParent.set(pid, []);
+      }
+      subtasksByParent.get(pid)!.push(sub);
+    }
+
     const children: any[] = [];
 
     const cellPadding = { top: 100, bottom: 100, left: 100, right: 100 };
@@ -319,6 +338,155 @@ export class TaskWordExportService {
         ],
       });
 
+      // Table 4: Subtasks (if any)
+      const taskSubtasks = subtasksByParent.get(task._id.toString()) || [];
+      let table4: Table | null = null;
+      if (taskSubtasks.length > 0) {
+        const subtaskRows: TableRow[] = [];
+
+        subtaskRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                rowSpan: taskSubtasks.length + 1,
+                width: { size: 20, type: WidthType.PERCENTAGE },
+                margins: cellPadding,
+                shading: { fill: 'F4F5F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: 'Sub-tasks:', bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 15, type: WidthType.PERCENTAGE },
+                margins: cellPadding,
+                shading: { fill: 'F4F5F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: 'Key', bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 30, type: WidthType.PERCENTAGE },
+                margins: cellPadding,
+                shading: { fill: 'F4F5F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: 'Summary', bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 15, type: WidthType.PERCENTAGE },
+                margins: cellPadding,
+                shading: { fill: 'F4F5F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: 'Type', bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 10, type: WidthType.PERCENTAGE },
+                margins: cellPadding,
+                shading: { fill: 'F4F5F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: 'Status', bold: true })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 10, type: WidthType.PERCENTAGE },
+                margins: cellPadding,
+                shading: { fill: 'F4F5F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: 'Assignee', bold: true })],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        );
+
+        for (const sub of taskSubtasks) {
+          const subPlain =
+            typeof sub.toObject === 'function' ? sub.toObject() : sub;
+          const subAssigneeId = extractId(subPlain.assigneeId);
+          let subAssigneeName = subAssigneeId
+            ? resolved.users.get(subAssigneeId)
+            : '';
+          if (!subAssigneeName && subPlain.assigneeId?.fullName)
+            subAssigneeName = subPlain.assigneeId.fullName;
+          else if (!subAssigneeName && subPlain.assigneeId?.email)
+            subAssigneeName = subPlain.assigneeId.email;
+          subAssigneeName = subAssigneeName || '';
+
+          subtaskRows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: 15, type: WidthType.PERCENTAGE },
+                  margins: cellPadding,
+                  children: [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: subPlain.key || '',
+                          color: '0052CC',
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                new TableCell({
+                  width: { size: 30, type: WidthType.PERCENTAGE },
+                  margins: cellPadding,
+                  children: [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: subPlain.title || '',
+                          color: '0052CC',
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                new TableCell({
+                  width: { size: 15, type: WidthType.PERCENTAGE },
+                  margins: cellPadding,
+                  children: [
+                    new Paragraph(this.capitalize(subPlain.type || '')),
+                  ],
+                }),
+                new TableCell({
+                  width: { size: 10, type: WidthType.PERCENTAGE },
+                  margins: cellPadding,
+                  children: [
+                    new Paragraph(this.capitalize(subPlain.status || '')),
+                  ],
+                }),
+                new TableCell({
+                  width: { size: 10, type: WidthType.PERCENTAGE },
+                  margins: cellPadding,
+                  children: [new Paragraph(subAssigneeName)],
+                }),
+              ],
+            }),
+          );
+        }
+
+        table4 = new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: border,
+          rows: subtaskRows,
+        });
+      }
+
       children.push(table1);
       children.push(
         new Paragraph({ text: '', spacing: { before: 50, after: 50 } }),
@@ -328,6 +496,14 @@ export class TaskWordExportService {
         new Paragraph({ text: '', spacing: { before: 50, after: 50 } }),
       );
       children.push(table3);
+
+      if (table4) {
+        children.push(
+          new Paragraph({ text: '', spacing: { before: 50, after: 50 } }),
+        );
+        children.push(table4);
+      }
+
       children.push(
         new Paragraph({ text: '', spacing: { before: 400, after: 200 } }),
       );

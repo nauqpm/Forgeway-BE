@@ -104,6 +104,9 @@ export class Task {
   @Prop({ type: Types.ObjectId, ref: 'Task', index: true })
   epicId?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'Task', index: true })
+  parentId?: Types.ObjectId;
+
   @Prop({ type: Boolean, default: false, index: true })
   isArchived!: boolean;
 
@@ -147,5 +150,6 @@ TaskSchema.index({
 });
 TaskSchema.index({ workspaceId: 1, startDate: 1, dueDate: 1 });
 TaskSchema.index({ workspaceId: 1, epicId: 1 });
+TaskSchema.index({ workspaceId: 1, parentId: 1 });
 TaskSchema.index({ workspaceId: 1, version: 1 });
 TaskSchema.index({ title: 'text', description: 'text' });

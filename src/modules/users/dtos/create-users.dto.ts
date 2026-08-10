@@ -6,6 +6,7 @@ import {
   IsUrl,
   Matches,
   IsNotEmpty,
+  IsBoolean,
 } from 'class-validator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
@@ -74,4 +75,8 @@ export class CreateUsersDto {
   @IsOptional()
   @IsUrl()
   avatar?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  mustChangePassword?: boolean;
 }

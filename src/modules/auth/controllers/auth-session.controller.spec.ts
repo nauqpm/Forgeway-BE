@@ -56,6 +56,10 @@ describe('AuthSessionController', () => {
 
   const tokenLookupServiceMock = {
     findActiveAccessToken: jest.fn(),
+    createAndSaveTokens: jest.fn().mockResolvedValue({
+      accessToken: 'access-token-value',
+      refreshToken: 'refresh-token-value',
+    }),
   };
 
   const configServiceMock = {
