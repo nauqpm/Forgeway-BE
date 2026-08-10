@@ -58,7 +58,7 @@ export class WorkspacesService {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
-  ) { }
+  ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);

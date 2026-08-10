@@ -82,7 +82,10 @@ const mockScrumService = () => ({
 
 const mockUsersService = () => ({
   findByEmail: jest.fn(),
-  getUserById: jest.fn(async () => ({ _id: 'userId', workspaceOrder: [] as string[] })),
+  getUserById: jest.fn(async () => ({
+    _id: 'userId',
+    workspaceOrder: [] as string[],
+  })),
   updateUser: jest.fn(async () => ({})),
 });
 
@@ -401,10 +404,22 @@ describe('WorkspacesService', () => {
       const ID_3 = new Types.ObjectId().toString();
       const ID_4 = new Types.ObjectId().toString();
 
-      const ws1 = buildWorkspace({ _id: new Types.ObjectId(ID_1), createdAt: new Date('2026-01-01') });
-      const ws2 = buildWorkspace({ _id: new Types.ObjectId(ID_2), createdAt: new Date('2026-01-02') });
-      const ws3 = buildWorkspace({ _id: new Types.ObjectId(ID_3), createdAt: new Date('2026-01-03') });
-      const ws4 = buildWorkspace({ _id: new Types.ObjectId(ID_4), createdAt: new Date('2026-01-04') });
+      const ws1 = buildWorkspace({
+        _id: new Types.ObjectId(ID_1),
+        createdAt: new Date('2026-01-01'),
+      });
+      const ws2 = buildWorkspace({
+        _id: new Types.ObjectId(ID_2),
+        createdAt: new Date('2026-01-02'),
+      });
+      const ws3 = buildWorkspace({
+        _id: new Types.ObjectId(ID_3),
+        createdAt: new Date('2026-01-03'),
+      });
+      const ws4 = buildWorkspace({
+        _id: new Types.ObjectId(ID_4),
+        createdAt: new Date('2026-01-04'),
+      });
 
       repo.findByUserId.mockResolvedValue([ws1, ws2, ws3, ws4]);
       usersService.getUserById.mockResolvedValue({

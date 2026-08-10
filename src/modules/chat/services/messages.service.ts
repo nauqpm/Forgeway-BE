@@ -44,7 +44,7 @@ export class MessagesService {
     private readonly attachmentService: AttachmentService,
     @Inject(forwardRef(() => ImagesService))
     private readonly imagesService: ImagesService,
-  ) { }
+  ) {}
 
   private async parseMentionedIds(
     content: string,
@@ -1086,11 +1086,11 @@ export class MessagesService {
     const isCurrentLast =
       channel.lastMessage?.sentAt &&
       new Date(channel.lastMessage.sentAt).getTime() ===
-      new Date(message.createdAt).getTime();
+        new Date(message.createdAt).getTime();
     const isNewer =
       channel.lastMessage?.sentAt &&
       new Date(message.createdAt).getTime() >
-      new Date(channel.lastMessage.sentAt).getTime();
+        new Date(channel.lastMessage.sentAt).getTime();
 
     if (isNew || isCurrentLast || isNewer) {
       const senderId =
