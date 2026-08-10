@@ -11,9 +11,7 @@ describe('WebPushSubscriptionsService', () => {
 
   it('upserts a subscription for the authenticated user', async () => {
     const repository = {
-      upsertForUser: jest.fn(),
-      findAllForUser: jest.fn().mockResolvedValue([]),
-      deleteLeastRecentlyUpdatedForUser: jest.fn(),
+      upsertAndRetainLatestForUser: jest.fn(),
     };
     const endpointPolicy = { assertAllowed: jest.fn() };
     const service = new WebPushSubscriptionsService(
@@ -26,19 +24,15 @@ describe('WebPushSubscriptionsService', () => {
     expect(endpointPolicy.assertAllowed).toHaveBeenCalledWith(
       subscription.endpoint,
     );
-    expect(repository.upsertForUser).toHaveBeenCalledWith(userId, subscription);
+    expect(repository.upsertAndRetainLatestForUser).toHaveBeenCalledWith(
+      userId,
+      subscription,
+    );
   });
 
-  it('deletes the least recently refreshed endpoint for a fourth device', async () => {
+  it('uses the atomic cap operation for a fourth device', async () => {
     const repository = {
-      upsertForUser: jest.fn(),
-      findAllForUser: jest.fn().mockResolvedValue([
-        { endpoint: 'https://fcm.googleapis.com/current' },
-        { endpoint: 'https://fcm.googleapis.com/device-2' },
-        { endpoint: 'https://fcm.googleapis.com/device-3' },
-        { endpoint: 'https://fcm.googleapis.com/device-4' },
-      ]),
-      deleteLeastRecentlyUpdatedForUser: jest.fn(),
+      upsertAndRetainLatestForUser: jest.fn(),
     };
     const service = new WebPushSubscriptionsService(
       repository as never,
@@ -47,19 +41,15 @@ describe('WebPushSubscriptionsService', () => {
 
     await service.upsertForUser(userId, subscription);
 
-    expect(repository.deleteLeastRecentlyUpdatedForUser).toHaveBeenCalledWith(
+    expect(repository.upsertAndRetainLatestForUser).toHaveBeenCalledWith(
       userId,
-      1,
-    );
-    expect(repository.upsertForUser.mock.invocationCallOrder[0]).toBeLessThan(
-      repository.findAllForUser.mock.invocationCallOrder[0],
+      subscription,
     );
   });
 
   it('rejects an endpoint before it can be persisted', async () => {
     const repository = {
-      upsertForUser: jest.fn(),
-      findAllForUser: jest.fn(),
+      upsertAndRetainLatestForUser: jest.fn(),
     };
     const service = new WebPushSubscriptionsService(
       repository as never,
@@ -74,7 +64,7 @@ describe('WebPushSubscriptionsService', () => {
       BadRequestException,
     );
 
-    expect(repository.upsertForUser).not.toHaveBeenCalled();
+    expect(repository.upsertAndRetainLatestForUser).not.toHaveBeenCalled();
   });
 
   it("removes only the authenticated user's matching endpoint", async () => {

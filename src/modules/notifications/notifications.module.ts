@@ -17,6 +17,10 @@ import {
   WebPushSubscription,
   WebPushSubscriptionSchema,
 } from './schemas/web-push-subscription.schema';
+import {
+  WebPushSubscriptionCapLock,
+  WebPushSubscriptionCapLockSchema,
+} from './schemas/web-push-subscription-cap-lock.schema';
 import { NotificationDomainEventPublisher } from './services/notification-domain-event.publisher';
 import { NotificationFactoryService } from './services/notification-factory.service';
 import { NotificationsService } from './services/notifications.service';
@@ -37,6 +41,10 @@ const WEB_PUSH_RUNTIME_CONFIG = Symbol('WEB_PUSH_RUNTIME_CONFIG');
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
       { name: WebPushSubscription.name, schema: WebPushSubscriptionSchema },
+      {
+        name: WebPushSubscriptionCapLock.name,
+        schema: WebPushSubscriptionCapLockSchema,
+      },
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkspacesModule),
