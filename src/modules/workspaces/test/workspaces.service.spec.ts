@@ -82,7 +82,8 @@ const mockScrumService = () => ({
 
 const mockUsersService = () => ({
   findByEmail: jest.fn(),
-  getUserById: jest.fn(async () => ({ _id: 'userId', workspaceOrder: [] })),
+  getUserById: jest.fn(async () => ({ _id: 'userId', workspaceOrder: [] as string[] })),
+  updateUser: jest.fn(async () => ({})),
 });
 
 const mockWorkspaceKeyService = () => ({
@@ -100,6 +101,7 @@ describe('WorkspacesService', () => {
   let workflowsService: ReturnType<typeof mockWorkflowsService>;
   let kanbanService: ReturnType<typeof mockKanbanService>;
   let scrumService: ReturnType<typeof mockScrumService>;
+  let usersService: ReturnType<typeof mockUsersService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -145,6 +147,7 @@ describe('WorkspacesService', () => {
     workflowsService = module.get(WorkflowsService);
     kanbanService = module.get(KanbanService);
     scrumService = module.get(ScrumService);
+    usersService = module.get(UsersService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -391,6 +394,31 @@ describe('WorkspacesService', () => {
       );
       expect(repo.findByUserId).toHaveBeenCalledWith(OWNER_ID);
     });
+
+    it('sorts workspaces according to workspaceOrder and uses createdAt as tiebreaker', async () => {
+      const ID_1 = new Types.ObjectId().toString();
+      const ID_2 = new Types.ObjectId().toString();
+      const ID_3 = new Types.ObjectId().toString();
+      const ID_4 = new Types.ObjectId().toString();
+
+      const ws1 = buildWorkspace({ _id: new Types.ObjectId(ID_1), createdAt: new Date('2026-01-01') });
+      const ws2 = buildWorkspace({ _id: new Types.ObjectId(ID_2), createdAt: new Date('2026-01-02') });
+      const ws3 = buildWorkspace({ _id: new Types.ObjectId(ID_3), createdAt: new Date('2026-01-03') });
+      const ws4 = buildWorkspace({ _id: new Types.ObjectId(ID_4), createdAt: new Date('2026-01-04') });
+
+      repo.findByUserId.mockResolvedValue([ws1, ws2, ws3, ws4]);
+      usersService.getUserById.mockResolvedValue({
+        _id: OWNER_ID,
+        workspaceOrder: [ID_2, ID_1],
+      });
+
+      const result = await service.findByUserId(OWNER_ID);
+
+      expect(result[0]._id.toString()).toBe(ID_2);
+      expect(result[1]._id.toString()).toBe(ID_1);
+      expect(result[2]._id.toString()).toBe(ID_4);
+      expect(result[3]._id.toString()).toBe(ID_3);
+    });
   });
 
   // ── update ─────────────────────────────────────────────────────────────────
@@ -464,6 +492,9 @@ describe('WorkspacesService', () => {
         WORKSPACE_ID,
       );
       expect(repo.delete).toHaveBeenCalledWith(WORKSPACE_ID);
+      expect(usersService.updateUser).toHaveBeenCalledWith(OWNER_ID, {
+        $pull: { workspaceOrder: WORKSPACE_ID },
+      });
     });
 
     it('still attempts repo.delete even when cleanup throws', async () => {

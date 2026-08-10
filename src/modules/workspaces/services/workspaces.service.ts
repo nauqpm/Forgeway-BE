@@ -58,7 +58,7 @@ export class WorkspacesService {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
-  ) {}
+  ) { }
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
     this.logger.log(`Creating workspace "${dto.name}" for user ${userId}`);
@@ -175,8 +175,10 @@ export class WorkspacesService {
   }
 
   async findByUserId(userId: string): Promise<any[]> {
-    const workspaces = await this.workspacesRepository.findByUserId(userId);
-    const user = await this.usersService.getUserById(userId).catch(() => null);
+    const [workspaces, user] = await Promise.all([
+      this.workspacesRepository.findByUserId(userId),
+      this.usersService.getUserById(userId).catch(() => null),
+    ]);
     const workspaceOrder = user?.workspaceOrder || [];
 
     const sortedWorkspaces = [...workspaces];
@@ -192,6 +194,11 @@ export class WorkspacesService {
         }
         if (indexA !== -1) return -1;
         if (indexB !== -1) return 1;
+        if (indexA === -1 && indexB === -1) {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        }
         return 0;
       });
     }
@@ -294,6 +301,25 @@ export class WorkspacesService {
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
       throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
+    }
+
+    try {
+      const memberUserIds = [
+        workspace.ownerId?.toString(),
+        ...(workspace.members || []).map((m: any) => m.userId?.toString()),
+      ].filter(Boolean);
+
+      await Promise.allSettled(
+        [...new Set(memberUserIds)].map(memberId =>
+          this.usersService.updateUser(memberId, {
+            $pull: { workspaceOrder: id },
+          } as any),
+        ),
+      );
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to cleanup workspaceOrder for deleted workspace ${id}: ${err.message}`,
+      );
     }
 
     this.workspaceDomainEventPublisher.publishDeleted(id, workspace, actorId);

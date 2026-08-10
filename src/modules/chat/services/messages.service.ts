@@ -44,7 +44,7 @@ export class MessagesService {
     private readonly attachmentService: AttachmentService,
     @Inject(forwardRef(() => ImagesService))
     private readonly imagesService: ImagesService,
-  ) {}
+  ) { }
 
   private async parseMentionedIds(
     content: string,
@@ -1086,17 +1086,18 @@ export class MessagesService {
     const isCurrentLast =
       channel.lastMessage?.sentAt &&
       new Date(channel.lastMessage.sentAt).getTime() ===
-        new Date(message.createdAt).getTime();
+      new Date(message.createdAt).getTime();
     const isNewer =
       channel.lastMessage?.sentAt &&
       new Date(message.createdAt).getTime() >
-        new Date(channel.lastMessage.sentAt).getTime();
+      new Date(channel.lastMessage.sentAt).getTime();
 
     if (isNew || isCurrentLast || isNewer) {
       const senderId =
         message.senderId?._id || message.senderId?.id || message.senderId;
-      let senderName = '';
-      if (senderId) {
+      // Dùng populated field trước, không tốn thêm DB call
+      let senderName = message.senderId?.fullName?.trim() || '';
+      if (!senderName && senderId) {
         try {
           const user = await this.usersService.getUserById(String(senderId));
           if (user) {
@@ -1105,15 +1106,14 @@ export class MessagesService {
               (user.email ? user.email.split('@')[0] : '') ||
               'User';
           }
-        } catch (e) {
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
           this.logger.warn(
-            `Failed to fetch sender details for lastMessage update: ${e.message}`,
+            `Failed to fetch sender details for lastMessage update: ${msg}`,
           );
         }
       }
-      if (!senderName) {
-        senderName = message.senderId?.fullName || 'User';
-      }
+      senderName = senderName || 'User';
 
       await this.channelsService.updateLastMessage(channelId, {
         content: message.content,

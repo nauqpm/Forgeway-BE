@@ -103,6 +103,17 @@ export class WorkspaceMemberService {
     );
     this.publishMemberRemovedEvent(workspace, userId, member.role, actorId);
     this.logger.log(`Member ${userId} removed from workspace ${workspaceId}`);
+
+    try {
+      await this.usersService.updateUser(userId, {
+        $pull: { workspaceOrder: workspaceId },
+      } as any);
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to pull workspaceId ${workspaceId} from workspaceOrder for user ${userId}: ${err.message}`,
+      );
+    }
+
     return updated;
   }
 
