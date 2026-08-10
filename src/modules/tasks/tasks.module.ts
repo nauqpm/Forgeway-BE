@@ -10,6 +10,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LabelsModule } from '../labels/labels.module';
+import { WorkflowsModule } from '../workflows/workflows.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
@@ -59,6 +60,8 @@ import { CsvFileParserService } from './services/csv-file-parser.service';
 import { CsvImportLookupService } from './services/csv-import-lookup.service';
 import { CsvRowValidatorService } from './services/csv-row-validator.service';
 import { TaskAuditService } from './shared/task-audit.service';
+import { SubtaskService } from './services/subtask.service';
+import { SubtaskController } from './controllers/subtask.controller';
 
 @Module({
   imports: [
@@ -75,6 +78,7 @@ import { TaskAuditService } from './shared/task-audit.service';
     RealtimeModule,
     forwardRef(() => NotificationsModule),
     forwardRef(() => LabelsModule),
+    forwardRef(() => WorkflowsModule),
     TaskActivitiesModule,
     AuditModule,
     JwtModule.registerAsync({
@@ -98,6 +102,7 @@ import { TaskAuditService } from './shared/task-audit.service';
     TaskCommandController,
     TaskWorkflowController,
     TaskDependencyController,
+    SubtaskController,
   ],
   providers: [
     TasksRepository,
@@ -135,8 +140,9 @@ import { TaskAuditService } from './shared/task-audit.service';
     CsvImportLookupService,
     CsvRowValidatorService,
     TaskAuditService,
+    SubtaskService,
     WorkspaceRoleGuard,
   ],
-  exports: [TasksService],
+  exports: [TasksService, SubtaskService],
 })
 export class TasksModule {}

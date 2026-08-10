@@ -24,6 +24,43 @@ export class BoardSummaryDto {
   name?: string;
 }
 
+export class ParentTaskSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  key!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty()
+  type!: string;
+}
+
+export class SubtaskSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  key!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty()
+  status!: string;
+
+  @ApiPropertyOptional()
+  assigneeId?: string;
+
+  @ApiPropertyOptional({ type: () => TaskUserSummaryDto })
+  assignee?: TaskUserSummaryDto;
+
+  @ApiPropertyOptional()
+  priority?: string;
+}
+
 export class TaskDetailDto {
   @ApiProperty()
   id!: string;
@@ -98,10 +135,30 @@ export class TaskDetailDto {
   storyPoints?: number;
 
   @ApiPropertyOptional()
+  epicId?: string;
+
+  @ApiPropertyOptional()
   startDate?: Date;
 
   @ApiPropertyOptional()
   dueDate?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Parent task ID (set when type=subtask)',
+  })
+  parentId?: string;
+
+  @ApiPropertyOptional({ type: () => ParentTaskSummaryDto })
+  parent?: ParentTaskSummaryDto;
+
+  @ApiPropertyOptional({ type: () => [SubtaskSummaryDto] })
+  subtasks?: SubtaskSummaryDto[];
+
+  @ApiPropertyOptional({
+    description: 'Subtask completion progress',
+    example: { done: 2, total: 5 },
+  })
+  subtaskProgress?: { done: number; total: number };
 
   @ApiProperty()
   isArchived!: boolean;

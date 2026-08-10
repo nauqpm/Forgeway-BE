@@ -10,6 +10,7 @@ import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
+import { TaskReadRepository } from '../repositories/task-read.repository';
 
 @Injectable()
 export class TaskCreationValidationService {
@@ -19,6 +20,7 @@ export class TaskCreationValidationService {
     private readonly kanbanService: KanbanService,
     private readonly scrumService: ScrumService,
     private readonly usersService: UsersService,
+    private readonly taskReadRepository: TaskReadRepository,
   ) {}
 
   async validateCreateRequest(
@@ -32,6 +34,15 @@ export class TaskCreationValidationService {
     await this.validateWorkspaceMember(workspaceId, userId);
     if (dto.assigneeId) {
       await this.validateAssignee(dto.assigneeId, workspaceId);
+    }
+
+    if (dto.type === 'subtask') {
+      if (!dto.parentId) {
+        throw new BadRequestException(
+          'Parent ID is required when creating a subtask',
+        );
+      }
+      await this.validateSubtaskParent(dto.parentId, workspaceId);
     }
 
     return workspace;
@@ -99,6 +110,35 @@ export class TaskCreationValidationService {
   async validateSprint(sprintId: string, workspaceId: string): Promise<void> {
     this.validateObjectId(sprintId, 'Sprint');
     await this.scrumService.ensureSprintAssignable(workspaceId, sprintId);
+  }
+
+  private async validateSubtaskParent(
+    parentId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    this.validateObjectId(parentId, 'Parent task');
+
+    const parent = await this.taskReadRepository.findByIdInWorkspace(
+      parentId,
+      workspaceId,
+    );
+    if (!parent) {
+      throw new BadRequestException(
+        `Parent task with ID ${parentId} not found in this workspace`,
+      );
+    }
+
+    if (parent.type === 'subtask') {
+      throw new BadRequestException(
+        'Cannot create a subtask under another subtask (only one level of nesting allowed)',
+      );
+    }
+
+    if (parent.type === 'epic') {
+      throw new BadRequestException(
+        'Cannot create a subtask under an Epic. Use child issues instead.',
+      );
+    }
   }
 
   validateObjectId(id: string, resourceName: string): void {

@@ -32,7 +32,7 @@ export class TaskActivitiesRepository {
   ) {}
 
   async create(data: CreateTaskActivityData): Promise<TaskActivityDocument> {
-    return new this.taskActivityModel({
+    const activity = await new this.taskActivityModel({
       workspaceId: new Types.ObjectId(data.workspaceId),
       taskId: new Types.ObjectId(data.taskId),
       taskKey: data.taskKey,
@@ -40,6 +40,8 @@ export class TaskActivitiesRepository {
       type: data.type,
       metadata: data.metadata || {},
     }).save();
+
+    return activity.populate('actorId', 'fullName email avatar');
   }
 
   async findByTaskInWorkspace(

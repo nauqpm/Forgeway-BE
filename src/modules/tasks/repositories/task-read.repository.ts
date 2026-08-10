@@ -320,4 +320,136 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
       .exec();
     return docs as TaskDocument[];
   }
+
+  async findSubtasksByParentId(
+    parentId: string,
+    workspaceId: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument[]> {
+    if (
+      !Types.ObjectId.isValid(parentId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
+      return [];
+    }
+
+    return this.queryBuilder
+      .applyRelations(
+        this.taskModel.find({
+          parentId: new Types.ObjectId(parentId),
+          workspaceId: new Types.ObjectId(workspaceId),
+          type: 'subtask',
+          ...this.queryBuilder.buildVisibilityFilter(options),
+        }),
+      )
+      .sort({ createdAt: 1 })
+      .exec();
+  }
+
+  async findSubtasksByParentIds(
+    parentIds: string[],
+    workspaceId: string,
+    options: TaskLookupOptions = {},
+  ): Promise<TaskDocument[]> {
+    const objectIds = parentIds
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    if (!objectIds.length || !Types.ObjectId.isValid(workspaceId)) {
+      return [];
+    }
+
+    return this.queryBuilder
+      .applyRelations(
+        this.taskModel.find({
+          parentId: { $in: objectIds },
+          workspaceId: new Types.ObjectId(workspaceId),
+          type: 'subtask',
+          ...this.queryBuilder.buildVisibilityFilter(options),
+        }),
+      )
+      .sort({ createdAt: 1 })
+      .exec();
+  }
+
+  async countSubtasksByParentId(parentId: string): Promise<number> {
+    if (!Types.ObjectId.isValid(parentId)) return 0;
+    return this.taskModel
+      .countDocuments({
+        parentId: new Types.ObjectId(parentId),
+        type: 'subtask',
+        isDeleted: { $ne: true },
+      })
+      .exec();
+  }
+
+  async countDoneSubtasksByParentId(
+    parentId: string,
+    doneStatusIds: string[],
+  ): Promise<number> {
+    if (!Types.ObjectId.isValid(parentId)) return 0;
+    return this.taskModel
+      .countDocuments({
+        parentId: new Types.ObjectId(parentId),
+        type: 'subtask',
+        isDeleted: { $ne: true },
+        status: { $in: doneStatusIds },
+      })
+      .exec();
+  }
+
+  async getSubtaskProgressForTasks(
+    taskIds: string[],
+    doneStatusIds: string[],
+  ): Promise<Map<string, { done: number; total: number }>> {
+    const objectIds = taskIds
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    if (!objectIds.length) return new Map();
+
+    const aggregateResult = await this.taskModel
+      .aggregate([
+        {
+          $match: {
+            parentId: { $in: objectIds },
+            type: 'subtask',
+            isDeleted: { $ne: true },
+          },
+        },
+        {
+          $group: {
+            _id: '$parentId',
+            total: { $sum: 1 },
+            done: {
+              $sum: { $cond: [{ $in: ['$status', doneStatusIds] }, 1, 0] },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    const resultMap = new Map<string, { done: number; total: number }>();
+    aggregateResult.forEach(item => {
+      resultMap.set(item._id.toString(), {
+        done: item.done,
+        total: item.total,
+      });
+    });
+    return resultMap;
+  }
+
+  async findTaskKeysAndTypesByWorkspace(
+    workspaceId: string,
+  ): Promise<{ _id: Types.ObjectId; key: string; type: string }[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) return [];
+    return this.taskModel
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        isDeleted: { $ne: true },
+      })
+      .select('_id key type')
+      .lean()
+      .exec();
+  }
 }

@@ -38,6 +38,9 @@ export class TaskDataTransformerService {
       epicId: (dto as any).epicId
         ? new Types.ObjectId((dto as any).epicId)
         : undefined,
+      parentId: (dto as any).parentId
+        ? new Types.ObjectId((dto as any).parentId)
+        : undefined,
       labelIds: dto.labelIds
         ? dto.labelIds.map(id => new Types.ObjectId(id))
         : [],
@@ -97,6 +100,10 @@ export class TaskDataTransformerService {
     if (dto.timeEstimated !== undefined) {
       updateData.timeEstimated = Math.max(0, dto.timeEstimated);
     }
+
+    // [Business Rule] Prevent generic PATCH from modifying type and parentId
+    delete updateData.type;
+    delete updateData.parentId;
 
     return updateData;
   }
