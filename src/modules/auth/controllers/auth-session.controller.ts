@@ -140,6 +140,8 @@ export class AuthSessionController {
         result.user.role,
         result.user.fullName,
         result.user.avatar,
+        undefined,
+        result.user.mustChangePassword,
       );
 
       setAuthCookies(res, this.configService, finalTokens);

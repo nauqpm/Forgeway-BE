@@ -54,6 +54,8 @@ export class User {
 
   @Prop({ type: [String], default: [] })
   workspaceOrder?: string[];
+  @Prop({ default: false })
+  mustChangePassword?: boolean;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;

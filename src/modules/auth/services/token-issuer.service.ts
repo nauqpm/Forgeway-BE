@@ -21,6 +21,7 @@ export interface CreateAccessTokenParams {
   fullName?: string;
   avatar?: string;
   rootUserId?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface CreateRefreshTokenParams {
@@ -63,6 +64,7 @@ export class TokenIssuerService {
     fullName?: string,
     avatar?: string,
     rootUserId?: string,
+    mustChangePassword?: boolean,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const accessToken = this.createAccessToken({
@@ -72,6 +74,7 @@ export class TokenIssuerService {
         fullName,
         avatar,
         rootUserId,
+        mustChangePassword,
       });
       const refreshToken = this.createRefreshToken({ userId, rootUserId });
 
@@ -124,6 +127,7 @@ export class TokenIssuerService {
       avatar: params.avatar,
       type: TOKEN_TYPES.ACCESS,
       jti: randomBytes(8).toString('hex'),
+      mustChangePassword: params.mustChangePassword ?? false,
       ...(params.rootUserId ? { rootUserId: params.rootUserId } : {}),
     };
     return this.jwtService.sign(payload);

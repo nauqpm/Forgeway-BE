@@ -18,6 +18,8 @@ import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { PASSWORD_POLICY } from '../../../common/constants/password-policy.constants';
 import { ErrorFactory } from '../../../common/factories/error.factory';
+import { EMAIL_POLICY } from '../../../common/constants/email-policy.constants';
+import { parse } from 'csv-parse/sync';
 
 export interface UserSearchResult {
   id: string;
@@ -87,8 +89,11 @@ export class UsersService {
   ): Promise<User> {
     this.logger.log(`Updating user info for User ID: ${userId}`);
 
-    if (this.isPasswordUpdate(updateData) && !isPasswordHashed) {
-      await this.handlePasswordUpdate(userId, updateData);
+    if (this.isPasswordUpdate(updateData)) {
+      if (!isPasswordHashed) {
+        await this.handlePasswordUpdate(userId, updateData);
+      }
+      (updateData as any).mustChangePassword = false;
     }
 
     const updatedUser = await this.usersRepository.update(userId, updateData);
@@ -277,4 +282,152 @@ export class UsersService {
       message: 'Password updated successfully',
     };
   }
+
+  async importUsersFromCsv(buffer: Buffer): Promise<{
+    success: boolean;
+    insertedCount: number;
+    skippedCount: number;
+    errors: string[];
+  }> {
+    let rows: string[][];
+    try {
+      rows = parse(buffer.toString('utf8'), {
+        bom: true,
+        skip_empty_lines: true,
+        relax_column_count: true,
+      });
+    } catch {
+      throw new BadRequestException('File CSV không hợp lệ');
+    }
+
+    if (rows.length <= 1) {
+      throw new BadRequestException('File CSV không có dữ liệu');
+    }
+
+    const headers = rows[0].map(value => value.trim());
+
+    const emailIdx = headers.indexOf('email');
+    const fullNameIdx = headers.indexOf('fullName');
+    const passwordIdx = headers.indexOf('defaultPassword');
+    const mustChangePasswordIdx = headers.indexOf('mustChangePassword');
+
+    if (emailIdx === -1 || passwordIdx === -1) {
+      throw new BadRequestException(
+        'File CSV thiếu cột email hoặc defaultPassword',
+      );
+    }
+
+    let insertedCount = 0;
+    let skippedCount = 0;
+    const errors: string[] = [];
+    const seenEmails = new Set<string>();
+
+    for (let i = 1; i < rows.length; i++) {
+      try {
+        const columns = rows[i];
+        const requiredColumnCount =
+          Math.max(emailIdx, passwordIdx, fullNameIdx, mustChangePasswordIdx) +
+          1;
+        if (columns.length < requiredColumnCount) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Thiếu cột dữ liệu`);
+          continue;
+        }
+
+        const email = columns[emailIdx]?.trim().toLowerCase();
+        const fullName = fullNameIdx !== -1 ? columns[fullNameIdx]?.trim() : '';
+        const defaultPassword = columns[passwordIdx];
+        const mustChangePassword = parseCsvBoolean(
+          mustChangePasswordIdx !== -1
+            ? columns[mustChangePasswordIdx]
+            : undefined,
+          true,
+        );
+
+        if (!email) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Email trống`);
+          continue;
+        }
+
+        if (!EMAIL_POLICY.pattern.test(email)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Email không hợp lệ`);
+          continue;
+        }
+
+        if (seenEmails.has(email)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Email bị trùng trong file CSV`);
+          continue;
+        }
+
+        seenEmails.add(email);
+
+        if (!defaultPassword) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: Mật khẩu mặc định trống`);
+          continue;
+        }
+
+        if (!PASSWORD_POLICY.noWhitespacePattern.test(defaultPassword)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: ${PASSWORD_POLICY.noWhitespaceMessage}`);
+          continue;
+        }
+
+        if (!PASSWORD_POLICY.pattern.test(defaultPassword)) {
+          skippedCount++;
+          errors.push(`Dòng ${i + 1}: ${PASSWORD_POLICY.message}`);
+          continue;
+        }
+
+        const existingUser = await this.findByEmail(email);
+        if (existingUser) {
+          skippedCount++;
+          continue;
+        }
+
+        await this.createUser({
+          email,
+          fullName,
+          password: defaultPassword,
+          role: 'user',
+          status: 'active',
+          mustChangePassword,
+        });
+
+        insertedCount++;
+      } catch (err: any) {
+        skippedCount++;
+        errors.push(`Dòng ${i + 1}: ${err.message || 'Lỗi không xác định'}`);
+      }
+    }
+
+    return {
+      success: true,
+      insertedCount,
+      skippedCount,
+      errors,
+    };
+  }
+}
+
+function parseCsvBoolean(
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
+  if (value == null || value.trim() === '') {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'y'].includes(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'n'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
 }
