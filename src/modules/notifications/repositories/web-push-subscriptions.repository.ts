@@ -54,16 +54,18 @@ export class WebPushSubscriptionsRepository {
         .find({ userId: scopedUserId })
         .sort({ updatedAt: -1, _id: -1 })
         .exec();
-      const staleSubscriptionIds = subscriptions
+      const staleSubscriptions = subscriptions
         .filter(subscription => subscription.endpoint !== input.endpoint)
-        .slice(WEB_PUSH_DELIVERY_POLICY.maxSubscriptionsPerUser - 1)
-        .map(subscription => subscription._id);
-      if (!staleSubscriptionIds.length) return;
+        .slice(WEB_PUSH_DELIVERY_POLICY.maxSubscriptionsPerUser - 1);
+      if (!staleSubscriptions.length) return;
 
       await this.subscriptionModel
         .deleteMany({
           userId: scopedUserId,
-          _id: { $in: staleSubscriptionIds },
+          $or: staleSubscriptions.map(subscription => ({
+            _id: subscription._id,
+            updatedAt: subscription.updatedAt,
+          })),
         })
         .exec();
     } finally {

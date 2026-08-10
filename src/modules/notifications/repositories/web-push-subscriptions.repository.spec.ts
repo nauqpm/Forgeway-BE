@@ -19,6 +19,7 @@ class InMemorySubscriptionModel {
       updatedAt: new Date('2026-08-10T00:00:02.000Z'),
     },
   ];
+  beforeDelete: (() => void) | undefined;
   private nextId = 3;
 
   findOneAndUpdate(
@@ -67,14 +68,36 @@ class InMemorySubscriptionModel {
     };
   }
 
-  deleteMany(filter: { _id: { $in: string[] } }) {
+  deleteMany(
+    filter:
+      | { _id: { $in: string[] } }
+      | { $or: Array<{ _id: string; updatedAt: Date }> },
+  ) {
     return {
       exec: async () => {
+        this.beforeDelete?.();
         this.subscriptions = this.subscriptions.filter(
-          subscription => !filter._id.$in.includes(subscription._id),
+          subscription => !this.matchesDeletionFilter(subscription, filter),
         );
       },
     };
+  }
+
+  private matchesDeletionFilter(
+    subscription: StoredSubscription,
+    filter:
+      | { _id: { $in: string[] } }
+      | { $or: Array<{ _id: string; updatedAt: Date }> },
+  ): boolean {
+    if ('$or' in filter) {
+      return filter.$or.some(
+        candidate =>
+          candidate._id === subscription._id &&
+          candidate.updatedAt.getTime() === subscription.updatedAt.getTime(),
+      );
+    }
+
+    return filter._id.$in.includes(subscription._id);
   }
 }
 
@@ -156,6 +179,40 @@ describe('WebPushSubscriptionsRepository concurrent registration cap', () => {
         'https://fcm.googleapis.com/three',
         'https://fcm.googleapis.com/four',
       ],
+    );
+  });
+
+  it('does not delete a stale candidate that a new owner refreshed before deletion', async () => {
+    const model = new InMemorySubscriptionModel();
+    model.subscriptions.push({
+      _id: 'three',
+      endpoint: 'https://fcm.googleapis.com/three',
+      updatedAt: new Date('2026-08-10T00:00:03.000Z'),
+    });
+    model.beforeDelete = () => {
+      const refreshed = model.subscriptions.find(
+        subscription => subscription._id === 'one',
+      );
+      if (refreshed) {
+        refreshed.updatedAt = new Date('2026-08-10T00:00:10.000Z');
+      }
+    };
+    const repository = new WebPushSubscriptionsRepository(
+      model as never,
+      new InMemoryCapLockModel() as never,
+    );
+
+    await repository.upsertAndRetainLatestForUser(
+      '507f1f77bcf86cd799439011',
+      {
+        endpoint: 'https://fcm.googleapis.com/four',
+        expirationTime: null,
+        keys: { p256dh: 'public_key', auth: 'auth_key' },
+      },
+    );
+
+    expect(model.subscriptions.map(subscription => subscription.endpoint)).toContain(
+      'https://fcm.googleapis.com/one',
     );
   });
 });
