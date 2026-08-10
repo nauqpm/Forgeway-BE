@@ -260,6 +260,35 @@ export class TaskWriteRepository extends BaseRepository<TaskDocument> {
     );
   }
 
+  async claimParentForChildCreation(
+    parentId: string,
+    workspaceId: string,
+    parentVersion: number,
+  ): Promise<TaskDocument | null> {
+    if (
+      !Types.ObjectId.isValid(parentId) ||
+      !Types.ObjectId.isValid(workspaceId)
+    ) {
+      return null;
+    }
+
+    return this.taskModel
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(parentId),
+          workspaceId: new Types.ObjectId(workspaceId),
+          version: parentVersion,
+          // Subtask nesting and epic-child creation are forbidden;
+          // if parent has been concurrently converted, fail here.
+          type: { $nin: ['subtask', 'epic'] },
+          isDeleted: { $ne: true },
+        },
+        { $inc: { version: 1 } },
+        { new: false }, // return pre-update doc so caller can inspect old state
+      )
+      .exec();
+  }
+
   async convertToTask(
     subtaskId: string,
     workspaceId: string,
@@ -288,18 +317,12 @@ export class TaskWriteRepository extends BaseRepository<TaskDocument> {
     ).exec();
   }
 
-  /**
-   * Convert một regular task thành subtask:
-   * - Set type = 'subtask', parentId = parentObjectId
-   * - Nếu parent có sprint → kế thừa sprintId; ngược lại unset sprintId
-   * - Unset epicId và storyPoints
-   * Returns document mới (đã populate) sau khi update.
-   */
   async convertToSubtask(
     taskId: string,
     workspaceId: string,
     parentObjectId: Types.ObjectId,
     parentSprintId?: Types.ObjectId,
+    taskVersion?: number,
   ): Promise<TaskDocument | null> {
     if (
       !Types.ObjectId.isValid(taskId) ||
@@ -314,6 +337,8 @@ export class TaskWriteRepository extends BaseRepository<TaskDocument> {
           _id: new Types.ObjectId(taskId),
           workspaceId: new Types.ObjectId(workspaceId),
           isDeleted: { $ne: true },
+          // OCC: only match when no concurrent modification touched this task.
+          ...(taskVersion !== undefined ? { version: taskVersion } : {}),
         },
         {
           $set: {
@@ -333,11 +358,6 @@ export class TaskWriteRepository extends BaseRepository<TaskDocument> {
     ).exec();
   }
 
-  /**
-   * Soft-delete tất cả subtask thuộc một task cha cùng lúc (bulk).
-   * Dùng để tránh serial loop khi xóa task cha.
-   * Trả về mảng các document đã xóa để caller có thể ghi audit log.
-   */
   async softDeleteSubtasksByParentId(
     parentId: string,
     workspaceId: string,
@@ -377,6 +397,13 @@ export class TaskWriteRepository extends BaseRepository<TaskDocument> {
       },
     );
 
-    return subtasks as TaskDocument[];
+    // Return post-update documents so callers emit audit/events with the
+    // correct deleted state (consistent with softDeleteInWorkspace).
+    return this.withRelations(
+      this.taskModel.find({
+        _id: { $in: subtaskIds },
+        isDeleted: true,
+      }),
+    ).exec();
   }
 }

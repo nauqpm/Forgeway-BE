@@ -10,6 +10,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LabelsModule } from '../labels/labels.module';
+import { WorkflowsModule } from '../workflows/workflows.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
@@ -77,6 +78,7 @@ import { SubtaskController } from './controllers/subtask.controller';
     RealtimeModule,
     forwardRef(() => NotificationsModule),
     forwardRef(() => LabelsModule),
+    forwardRef(() => WorkflowsModule),
     TaskActivitiesModule,
     AuditModule,
     JwtModule.registerAsync({

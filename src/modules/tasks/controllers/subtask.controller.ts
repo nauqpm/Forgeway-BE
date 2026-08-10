@@ -64,7 +64,6 @@ export class SubtaskController {
 
   @Get('tasks/:taskId/subtasks')
   @UseGuards(WorkspaceRoleGuard)
-  @RequirePermissions(WORKSPACE_PERMISSIONS.TASK_EDIT)
   @ApiOperation({ summary: 'List all subtasks of a task' })
   @ApiResponse({
     status: HttpStatus.OK,

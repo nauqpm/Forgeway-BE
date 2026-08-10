@@ -103,7 +103,10 @@ export class CsvImportLookupService {
   private async buildTaskKeyMap(
     workspaceId: string,
   ): Promise<Map<string, { id: string; type: string }>> {
-    const tasks = await this.taskReadRepository.findByWorkspace(workspaceId);
+    const tasks =
+      await this.taskReadRepository.findTaskKeysAndTypesByWorkspace(
+        workspaceId,
+      );
     const map = new Map<string, { id: string; type: string }>();
     for (const t of tasks) {
       if (t.key) {

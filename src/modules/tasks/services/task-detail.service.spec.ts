@@ -4,12 +4,14 @@ import { TaskMapper } from '../mappers/task.mapper';
 import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { TaskDetailService } from './task-detail.service';
+import { WorkflowsService } from '../../workflows/services/workflows.service';
 
 describe('TaskDetailService', () => {
   let service: TaskDetailService;
   let repository: jest.Mocked<TaskReadRepository>;
   let mapper: jest.Mocked<TaskMapper>;
   let validationService: jest.Mocked<TaskCreationValidationService>;
+  let workflowsService: jest.Mocked<WorkflowsService>;
 
   const userId = new Types.ObjectId().toString();
   const workspaceId = new Types.ObjectId().toString();
@@ -39,7 +41,16 @@ describe('TaskDetailService', () => {
       }),
     } as unknown as jest.Mocked<TaskCreationValidationService>;
 
-    service = new TaskDetailService(repository, mapper, validationService);
+    workflowsService = {
+      getDoneStatusIds: jest.fn().mockResolvedValue(['done']),
+    } as unknown as jest.Mocked<WorkflowsService>;
+
+    service = new TaskDetailService(
+      repository,
+      mapper,
+      validationService,
+      workflowsService,
+    );
   });
 
   it('returns task detail by task id scoped to workspace key', async () => {

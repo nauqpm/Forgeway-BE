@@ -101,14 +101,9 @@ export class TaskDataTransformerService {
       updateData.timeEstimated = Math.max(0, dto.timeEstimated);
     }
 
-    // parentId: null = unlink (convert subtask → task), string = set parent
-    if ('parentId' in dto) {
-      if ((dto as any).parentId === null) {
-        updateData.parentId = null;
-      } else if ((dto as any).parentId) {
-        updateData.parentId = new Types.ObjectId((dto as any).parentId);
-      }
-    }
+    // [Business Rule] Prevent generic PATCH from modifying type and parentId
+    delete updateData.type;
+    delete updateData.parentId;
 
     return updateData;
   }

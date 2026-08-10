@@ -198,12 +198,13 @@ export class CsvRowValidatorService {
             `Parent task '${parentKeyRaw}' is already a subtask. Only one level of nesting is allowed.`,
           );
         }
-      }
 
-      if (data.type !== 'subtask') {
-        warnings.push(
-          `Task has a Parent Key but its type is '${data.type}'. It will be created as a ${data.type} under the parent if supported, or converted to a Subtask depending on business logic.`,
-        );
+        // A valid parent key implies the imported row must be a subtask.
+        if (data.type !== 'subtask') {
+          errors.push(
+            `Task has a Parent Key but its type is '${data.type}'. Type must be 'subtask' when a parent is provided.`,
+          );
+        }
       }
     } else if (data.type === 'subtask') {
       errors.push(`Task type is 'Subtask' but no Parent Key is provided.`);

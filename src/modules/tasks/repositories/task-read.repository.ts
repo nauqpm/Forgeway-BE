@@ -338,6 +338,7 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
         this.taskModel.find({
           parentId: new Types.ObjectId(parentId),
           workspaceId: new Types.ObjectId(workspaceId),
+          type: 'subtask',
           ...this.queryBuilder.buildVisibilityFilter(options),
         }),
       )
@@ -382,20 +383,24 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
       .exec();
   }
 
-  async countDoneSubtasksByParentId(parentId: string): Promise<number> {
+  async countDoneSubtasksByParentId(
+    parentId: string,
+    doneStatusIds: string[],
+  ): Promise<number> {
     if (!Types.ObjectId.isValid(parentId)) return 0;
     return this.taskModel
       .countDocuments({
         parentId: new Types.ObjectId(parentId),
         type: 'subtask',
         isDeleted: { $ne: true },
-        status: 'done',
+        status: { $in: doneStatusIds },
       })
       .exec();
   }
 
   async getSubtaskProgressForTasks(
     taskIds: string[],
+    doneStatusIds: string[],
   ): Promise<Map<string, { done: number; total: number }>> {
     const objectIds = taskIds
       .filter(id => Types.ObjectId.isValid(id))
@@ -408,6 +413,7 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
         {
           $match: {
             parentId: { $in: objectIds },
+            type: 'subtask',
             isDeleted: { $ne: true },
           },
         },
@@ -416,7 +422,7 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
             _id: '$parentId',
             total: { $sum: 1 },
             done: {
-              $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] },
+              $sum: { $cond: [{ $in: ['$status', doneStatusIds] }, 1, 0] },
             },
           },
         },
@@ -431,5 +437,19 @@ export class TaskReadRepository extends BaseRepository<TaskDocument> {
       });
     });
     return resultMap;
+  }
+
+  async findTaskKeysAndTypesByWorkspace(
+    workspaceId: string,
+  ): Promise<{ _id: Types.ObjectId; key: string; type: string }[]> {
+    if (!Types.ObjectId.isValid(workspaceId)) return [];
+    return this.taskModel
+      .find({
+        workspaceId: new Types.ObjectId(workspaceId),
+        isDeleted: { $ne: true },
+      })
+      .select('_id key type')
+      .lean()
+      .exec();
   }
 }

@@ -123,8 +123,8 @@ export class TaskQueryBuilder {
     if (filterDto.status?.length) {
       filter.status = { $in: filterDto.status };
     }
-    if ((filterDto as any).parentId) {
-      filter.parentId = new Types.ObjectId((filterDto as any).parentId);
+    if (filterDto.parentId) {
+      filter.parentId = new Types.ObjectId(filterDto.parentId);
     }
     if (filterDto.search) {
       Object.assign(

@@ -11,19 +11,14 @@ import {
   BorderStyle,
   ShadingType,
 } from 'docx';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Task, TaskDocument } from '../schemas/task.schema';
+import { TaskDocument } from '../schemas/task.schema';
 import { ResolvedMaps } from './task-export-lookup.service';
 
 import { TaskReadRepository } from '../repositories/task-read.repository';
 
 @Injectable()
 export class TaskWordExportService {
-  constructor(
-    private readonly taskReadRepository: TaskReadRepository,
-    @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
-  ) {}
+  constructor(private readonly taskReadRepository: TaskReadRepository) {}
   private dateStamp(): string {
     return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   }
@@ -65,17 +60,10 @@ export class TaskWordExportService {
     workspaceId: string,
   ): Promise<{ file: StreamableFile; contentType: string; filename: string }> {
     const parentIds = tasks.map(t => t._id.toString());
-    const parentObjectIds = parentIds
-      .filter(id => Types.ObjectId.isValid(id))
-      .map(id => new Types.ObjectId(id));
-    const allSubtasks = await this.taskModel
-      .find({
-        parentId: { $in: parentObjectIds },
-        type: 'subtask',
-        isDeleted: { $ne: true },
-      })
-      .sort({ createdAt: 1 })
-      .exec();
+    const allSubtasks = await this.taskReadRepository.findSubtasksByParentIds(
+      parentIds,
+      workspaceId,
+    );
 
     const subtasksByParent = new Map<string, TaskDocument[]>();
     for (const sub of allSubtasks) {

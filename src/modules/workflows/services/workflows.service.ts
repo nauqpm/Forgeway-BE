@@ -61,6 +61,15 @@ export class WorkflowsService implements OnModuleInit {
     });
   }
 
+  async getDoneStatusIds(workspaceId: string): Promise<string[]> {
+    const workflow = await this.findByWorkspace(workspaceId);
+    if (!workflow || !workflow.statuses || workflow.statuses.length === 0) {
+      return ['done'];
+    }
+    const doneStatuses = workflow.statuses.filter(s => s.category === 'done');
+    return doneStatuses.length > 0 ? doneStatuses.map(s => s.id) : ['done'];
+  }
+
   async findById(id: string): Promise<WorkflowDocument> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid workflow ID');

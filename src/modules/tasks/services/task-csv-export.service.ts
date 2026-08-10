@@ -366,21 +366,7 @@ export class TaskCsvExportService {
     rows: string[][],
     workspaceId: string,
   ): { file: StreamableFile; contentType: string; filename: string } {
-    const formattedRows = rows.map(row =>
-      row.map(cell => {
-        // Excel converts long numeric strings to scientific notation in CSVs.
-        // Prepending a tab character forces Excel to treat the cell as text.
-        if (
-          typeof cell === 'string' &&
-          /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(cell)
-        ) {
-          return `\t${cell}`;
-        }
-        return cell;
-      }),
-    );
-
-    const csvContent = stringify([EXPORT_COLUMNS, ...formattedRows], {
+    const csvContent = stringify([EXPORT_COLUMNS, ...rows], {
       quoted: true,
     });
     const bom = '\uFEFF';

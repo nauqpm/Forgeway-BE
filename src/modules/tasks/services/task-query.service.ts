@@ -14,6 +14,7 @@ import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { ErrorFactory } from '../../../common/factories/error.factory';
+import { WorkflowsService } from '../../workflows/services/workflows.service';
 
 @Injectable()
 export class TaskQueryService {
@@ -25,6 +26,7 @@ export class TaskQueryService {
     private readonly kanbanService: KanbanService,
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
+    private readonly workflowsService: WorkflowsService,
   ) {}
 
   async findAll(
@@ -205,7 +207,7 @@ export class TaskQueryService {
       activeSprint._id.toString(),
     );
     const dtos = this.taskMapper.mapToDtos(tasks);
-    return this.enrichWithSubtaskProgress(dtos);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findActiveSprintBoardByWorkspaceId(
@@ -228,7 +230,7 @@ export class TaskQueryService {
       activeSprint._id.toString(),
     );
     const dtos = this.taskMapper.mapToDtos(tasks);
-    return this.enrichWithSubtaskProgress(dtos);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findTasksBySprintInWorkspaceKey(
@@ -249,7 +251,7 @@ export class TaskQueryService {
       sprintId,
     );
     const dtos = this.taskMapper.mapToDtos(tasks);
-    return this.enrichWithSubtaskProgress(dtos);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findTasksBySprintInWorkspaceId(
@@ -269,7 +271,7 @@ export class TaskQueryService {
       sprintId,
     );
     const dtos = this.taskMapper.mapToDtos(tasks);
-    return this.enrichWithSubtaskProgress(dtos);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findById(id: string): Promise<TaskDto> {
@@ -457,14 +459,22 @@ export class TaskQueryService {
 
   private async enrichWithSubtaskProgress(
     tasks: TaskDto[],
+    workspaceId?: string,
   ): Promise<TaskDto[]> {
     if (!tasks || tasks.length === 0) return tasks;
 
     const parentIds = tasks.filter(t => t.type !== 'subtask').map(t => t.id);
     if (parentIds.length === 0) return tasks;
 
-    const progressMap =
-      await this.tasksRepository.getSubtaskProgressForTasks(parentIds);
+    const targetWorkspaceId = workspaceId || tasks[0].workspaceId;
+    if (!targetWorkspaceId) return tasks;
+
+    const doneStatusIds =
+      await this.workflowsService.getDoneStatusIds(targetWorkspaceId);
+    const progressMap = await this.tasksRepository.getSubtaskProgressForTasks(
+      parentIds,
+      doneStatusIds,
+    );
 
     for (const task of tasks) {
       if (task.type !== 'subtask') {
