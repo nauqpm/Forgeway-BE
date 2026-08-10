@@ -3,6 +3,7 @@ import {
   DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   parsePositiveTtlSeconds,
 } from '../modules/auth/config/auth-token-config.util';
+import { parseWebPushRuntimeConfig } from '../modules/notifications/config/web-push.config';
 
 type Env = Record<string, string | undefined>;
 
@@ -56,7 +57,8 @@ export function validateEnv(config: Env): Env {
     DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   );
 
-  const webPushEnabled = config.WEB_PUSH_ENABLED?.trim().toLowerCase();
+  const webPushEnabled =
+    config.WEB_PUSH_ENABLED?.trim().toLowerCase() || 'false';
   if (
     webPushEnabled &&
     webPushEnabled !== 'true' &&
@@ -76,5 +78,7 @@ export function validateEnv(config: Env): Env {
     }
   }
 
-  return { ...config, WEB_PUSH_ENABLED: webPushEnabled ?? 'false' };
+  parseWebPushRuntimeConfig(config);
+
+  return { ...config, WEB_PUSH_ENABLED: webPushEnabled };
 }
