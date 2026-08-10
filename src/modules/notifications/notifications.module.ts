@@ -27,12 +27,12 @@ import { NotificationsService } from './services/notifications.service';
 import { WebPushSubscriptionsRepository } from './repositories/web-push-subscriptions.repository';
 import { WebPushSubscriptionsService } from './services/web-push-subscriptions.service';
 import { WebPushService } from './services/web-push.service';
-import { WebPushNotificationListener } from './listeners/web-push-notification.listener';
 import {
   parseWebPushRuntimeConfig,
   WebPushRuntimeConfig,
 } from './config/web-push.config';
 import { WebPushEndpointPolicy } from './services/web-push-endpoint-policy.service';
+import { WebPushDeliveryWorker } from './services/web-push-delivery-worker.service';
 
 const WEB_PUSH_RUNTIME_CONFIG = Symbol('WEB_PUSH_RUNTIME_CONFIG');
 
@@ -78,7 +78,7 @@ const WEB_PUSH_RUNTIME_CONFIG = Symbol('WEB_PUSH_RUNTIME_CONFIG');
     NotificationsService,
     WebPushSubscriptionsService,
     WebPushService,
-    WebPushNotificationListener,
+    WebPushDeliveryWorker,
     JwtAuthGuard,
   ],
   exports: [NotificationsService],
