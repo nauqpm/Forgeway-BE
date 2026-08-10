@@ -39,6 +39,10 @@ describe('parseWebPushRuntimeConfig', () => {
     '*.googleapis.com',
     'localhost',
     '127.0.0.1',
+    'fcm..googleapis.com',
+    '-fcm.googleapis.com',
+    'fcm-.googleapis.com',
+    'fcm.googleapis.com.',
   ])('rejects non-exact provider host %s', host => {
     expect(() =>
       parseWebPushRuntimeConfig({
@@ -47,6 +51,25 @@ describe('parseWebPushRuntimeConfig', () => {
       }),
     ).toThrow('WEB_PUSH_ALLOWED_ENDPOINT_HOSTS must contain exact hostnames only');
   });
+
+  it.each([
+    '0x7f.0.0.1',
+    '0177.0.0.1',
+    '127.1',
+    '127.00.0x1',
+  ])(
+    'rejects IPv4 aliases normalized by a URL parser: %s',
+    host => {
+      expect(() =>
+        parseWebPushRuntimeConfig({
+          WEB_PUSH_ENABLED: 'true',
+          WEB_PUSH_ALLOWED_ENDPOINT_HOSTS: host,
+        }),
+      ).toThrow(
+        'WEB_PUSH_ALLOWED_ENDPOINT_HOSTS must contain exact hostnames only',
+      );
+    },
+  );
 });
 
 describe('WEB_PUSH_DELIVERY_POLICY', () => {

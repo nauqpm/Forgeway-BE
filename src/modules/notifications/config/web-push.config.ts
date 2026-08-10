@@ -28,6 +28,10 @@ function isExactHostname(host: string): boolean {
   );
 }
 
+function normalizesToIpLiteral(host: string): boolean {
+  return isIP(new URL(`https://${host}`).hostname) !== 0;
+}
+
 export function parseWebPushRuntimeConfig(
   config: Environment,
 ): WebPushRuntimeConfig {
@@ -49,7 +53,8 @@ export function parseWebPushRuntimeConfig(
         host.includes('/') ||
         host.includes(':') ||
         host.includes('*') ||
-        !isExactHostname(host),
+        !isExactHostname(host) ||
+        normalizesToIpLiteral(host),
     )
   ) {
     throw new Error(
