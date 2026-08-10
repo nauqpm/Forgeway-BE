@@ -4,7 +4,14 @@ type StoredSubscription = {
   _id: string;
   endpoint: string;
   updatedAt: Date;
+  refreshVersion: number;
 };
+
+type DeleteCandidate =
+  | { _id: string; updatedAt: Date }
+  | { _id: string; refreshVersion: number };
+
+type DeleteFilter = { _id: { $in: string[] } } | { $or: DeleteCandidate[] };
 
 class InMemorySubscriptionModel {
   subscriptions: StoredSubscription[] = [
@@ -12,11 +19,13 @@ class InMemorySubscriptionModel {
       _id: 'one',
       endpoint: 'https://fcm.googleapis.com/one',
       updatedAt: new Date('2026-08-10T00:00:01.000Z'),
+      refreshVersion: 1,
     },
     {
       _id: 'two',
       endpoint: 'https://fcm.googleapis.com/two',
       updatedAt: new Date('2026-08-10T00:00:02.000Z'),
+      refreshVersion: 1,
     },
   ];
   beforeDelete: (() => void) | undefined;
@@ -36,10 +45,12 @@ class InMemorySubscriptionModel {
           _id: String(this.nextId++),
           endpoint: filter.endpoint,
           updatedAt: new Date(0),
+          refreshVersion: 0,
         };
         current.updatedAt = new Date(
           `2026-08-10T00:00:0${this.nextId}.000Z`,
         );
+        current.refreshVersion += 1;
         if (!existing) this.subscriptions.push(current);
         return current;
       },
@@ -68,11 +79,7 @@ class InMemorySubscriptionModel {
     };
   }
 
-  deleteMany(
-    filter:
-      | { _id: { $in: string[] } }
-      | { $or: Array<{ _id: string; updatedAt: Date }> },
-  ) {
+  deleteMany(filter: DeleteFilter) {
     return {
       exec: async () => {
         this.beforeDelete?.();
@@ -85,15 +92,16 @@ class InMemorySubscriptionModel {
 
   private matchesDeletionFilter(
     subscription: StoredSubscription,
-    filter:
-      | { _id: { $in: string[] } }
-      | { $or: Array<{ _id: string; updatedAt: Date }> },
+    filter: DeleteFilter,
   ): boolean {
     if ('$or' in filter) {
       return filter.$or.some(
         candidate =>
           candidate._id === subscription._id &&
-          candidate.updatedAt.getTime() === subscription.updatedAt.getTime(),
+          ('refreshVersion' in candidate
+            ? candidate.refreshVersion === subscription.refreshVersion
+            : candidate.updatedAt.getTime() ===
+              subscription.updatedAt.getTime()),
       );
     }
 
@@ -182,19 +190,20 @@ describe('WebPushSubscriptionsRepository concurrent registration cap', () => {
     );
   });
 
-  it('does not delete a stale candidate that a new owner refreshed before deletion', async () => {
+  it('does not delete a same-millisecond refreshed candidate after lease expiry', async () => {
     const model = new InMemorySubscriptionModel();
     model.subscriptions.push({
       _id: 'three',
       endpoint: 'https://fcm.googleapis.com/three',
       updatedAt: new Date('2026-08-10T00:00:03.000Z'),
+      refreshVersion: 1,
     });
     model.beforeDelete = () => {
       const refreshed = model.subscriptions.find(
         subscription => subscription._id === 'one',
       );
       if (refreshed) {
-        refreshed.updatedAt = new Date('2026-08-10T00:00:10.000Z');
+        refreshed.refreshVersion += 1;
       }
     };
     const repository = new WebPushSubscriptionsRepository(
@@ -211,8 +220,11 @@ describe('WebPushSubscriptionsRepository concurrent registration cap', () => {
       },
     );
 
-    expect(model.subscriptions.map(subscription => subscription.endpoint)).toContain(
-      'https://fcm.googleapis.com/one',
+    expect(model.subscriptions).toContainEqual(
+      expect.objectContaining({
+        endpoint: 'https://fcm.googleapis.com/one',
+        refreshVersion: 2,
+      }),
     );
   });
 });

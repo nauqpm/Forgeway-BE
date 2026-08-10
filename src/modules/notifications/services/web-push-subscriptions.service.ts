@@ -31,16 +31,16 @@ export class WebPushSubscriptionsService {
   removeForUser(
     userId: string,
     endpoint: string,
-    expectedUpdatedAt?: Date,
+    expectedRefreshVersion?: number,
   ): Promise<void> {
-    if (!expectedUpdatedAt) {
+    if (expectedRefreshVersion === undefined) {
       return this.subscriptionsRepository.removeForUser(userId, endpoint);
     }
 
     return this.subscriptionsRepository.removeForUser(
       userId,
       endpoint,
-      expectedUpdatedAt,
+      expectedRefreshVersion,
     );
   }
 
@@ -51,31 +51,35 @@ export class WebPushSubscriptionsService {
   async recordFailureForUser(
     userId: string,
     endpoint: string,
-    expectedUpdatedAt?: Date,
+    expectedRefreshVersion?: number,
   ): Promise<void> {
     const subscription =
       await this.subscriptionsRepository.recordFailureForUser(
         userId,
         endpoint,
-        expectedUpdatedAt,
+        expectedRefreshVersion,
       );
     if (
       subscription &&
       subscription.failureCount >= TERMINAL_FAILURE_LIMIT
     ) {
-      await this.removeForUser(userId, endpoint, subscription.updatedAt);
+      await this.removeForUser(
+        userId,
+        endpoint,
+        subscription.refreshVersion,
+      );
     }
   }
 
   resetFailureForUser(
     userId: string,
     endpoint: string,
-    expectedUpdatedAt?: Date,
+    expectedRefreshVersion?: number,
   ): Promise<void> {
     return this.subscriptionsRepository.resetFailureForUser(
       userId,
       endpoint,
-      expectedUpdatedAt,
+      expectedRefreshVersion,
     );
   }
 }

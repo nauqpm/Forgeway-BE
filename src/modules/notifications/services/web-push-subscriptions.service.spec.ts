@@ -83,11 +83,11 @@ describe('WebPushSubscriptionsService', () => {
   });
 
   it('removes a subscription after its third terminal failure', async () => {
-    const updatedAt = new Date('2026-08-10T00:00:00.000Z');
+    const refreshVersion = 2;
     const repository = {
       recordFailureForUser: jest
         .fn()
-        .mockResolvedValue({ failureCount: 3, updatedAt }),
+        .mockResolvedValue({ failureCount: 3, refreshVersion }),
       removeForUser: jest.fn(),
     };
     const service = new WebPushSubscriptionsService(
@@ -95,12 +95,18 @@ describe('WebPushSubscriptionsService', () => {
       {} as never,
     );
 
-    await service.recordFailureForUser(userId, subscription.endpoint);
+    await service.recordFailureForUser(userId, subscription.endpoint, 2);
+
+    expect(repository.recordFailureForUser).toHaveBeenCalledWith(
+      userId,
+      subscription.endpoint,
+      2,
+    );
 
     expect(repository.removeForUser).toHaveBeenCalledWith(
       userId,
       subscription.endpoint,
-      updatedAt,
+      refreshVersion,
     );
   });
 
@@ -141,12 +147,12 @@ describe('WebPushSubscriptionsService', () => {
       {} as never,
     );
 
-    await service.resetFailureForUser(userId, subscription.endpoint);
+    await service.resetFailureForUser(userId, subscription.endpoint, 3);
 
     expect(repository.resetFailureForUser).toHaveBeenCalledWith(
       userId,
       subscription.endpoint,
-      undefined,
+      3,
     );
   });
 });

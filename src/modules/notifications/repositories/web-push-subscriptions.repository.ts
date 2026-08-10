@@ -45,8 +45,9 @@ export class WebPushSubscriptionsRepository {
               lastFailureAt: null,
               updatedAt: new Date(),
             },
+            $inc: { refreshVersion: 1 },
           },
-          { upsert: true, new: true },
+          { upsert: true, new: true, setDefaultsOnInsert: false },
         )
         .exec();
 
@@ -64,7 +65,7 @@ export class WebPushSubscriptionsRepository {
           userId: scopedUserId,
           $or: staleSubscriptions.map(subscription => ({
             _id: subscription._id,
-            updatedAt: subscription.updatedAt,
+            refreshVersion: subscription.refreshVersion,
           })),
         })
         .exec();
@@ -128,14 +129,14 @@ export class WebPushSubscriptionsRepository {
   async removeForUser(
     userId: string,
     endpoint: string,
-    expectedUpdatedAt?: Date,
+    expectedRefreshVersion?: number,
   ): Promise<void> {
     const filter: Record<string, unknown> = {
       userId: new Types.ObjectId(userId),
       endpoint,
     };
-    if (expectedUpdatedAt) {
-      filter.updatedAt = expectedUpdatedAt;
+    if (expectedRefreshVersion !== undefined) {
+      filter.refreshVersion = expectedRefreshVersion;
     }
 
     await this.subscriptionModel
@@ -154,14 +155,14 @@ export class WebPushSubscriptionsRepository {
   async recordFailureForUser(
     userId: string,
     endpoint: string,
-    expectedUpdatedAt?: Date,
+    expectedRefreshVersion?: number,
   ): Promise<WebPushSubscriptionDocument | null> {
     const filter: Record<string, unknown> = {
       userId: new Types.ObjectId(userId),
       endpoint,
     };
-    if (expectedUpdatedAt) {
-      filter.updatedAt = expectedUpdatedAt;
+    if (expectedRefreshVersion !== undefined) {
+      filter.refreshVersion = expectedRefreshVersion;
     }
 
     return this.subscriptionModel
@@ -179,14 +180,14 @@ export class WebPushSubscriptionsRepository {
   async resetFailureForUser(
     userId: string,
     endpoint: string,
-    expectedUpdatedAt?: Date,
+    expectedRefreshVersion?: number,
   ): Promise<void> {
     const filter: Record<string, unknown> = {
       userId: new Types.ObjectId(userId),
       endpoint,
     };
-    if (expectedUpdatedAt) {
-      filter.updatedAt = expectedUpdatedAt;
+    if (expectedRefreshVersion !== undefined) {
+      filter.refreshVersion = expectedRefreshVersion;
     }
 
     await this.subscriptionModel
