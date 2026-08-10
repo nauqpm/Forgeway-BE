@@ -111,6 +111,7 @@ describe('WebPushSubscriptionsService', () => {
   });
 
   it('keeps a subscription after two terminal failures', async () => {
+    const refreshVersion = 5;
     const repository = {
       recordFailureForUser: jest.fn().mockResolvedValue({ failureCount: 2 }),
       removeForUser: jest.fn(),
@@ -120,12 +121,22 @@ describe('WebPushSubscriptionsService', () => {
       {} as never,
     );
 
-    await service.recordFailureForUser(userId, subscription.endpoint);
+    await service.recordFailureForUser(
+      userId,
+      subscription.endpoint,
+      refreshVersion,
+    );
 
     expect(repository.removeForUser).not.toHaveBeenCalled();
+    expect(repository.recordFailureForUser).toHaveBeenCalledWith(
+      userId,
+      subscription.endpoint,
+      refreshVersion,
+    );
   });
 
   it('keeps a subscription when a failed delivery is stale', async () => {
+    const refreshVersion = 6;
     const repository = {
       recordFailureForUser: jest.fn().mockResolvedValue(null),
       removeForUser: jest.fn(),
@@ -135,9 +146,18 @@ describe('WebPushSubscriptionsService', () => {
       {} as never,
     );
 
-    await service.recordFailureForUser(userId, subscription.endpoint);
+    await service.recordFailureForUser(
+      userId,
+      subscription.endpoint,
+      refreshVersion,
+    );
 
     expect(repository.removeForUser).not.toHaveBeenCalled();
+    expect(repository.recordFailureForUser).toHaveBeenCalledWith(
+      userId,
+      subscription.endpoint,
+      refreshVersion,
+    );
   });
 
   it('resets a failure count after successful delivery', async () => {

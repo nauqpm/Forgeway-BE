@@ -1,6 +1,6 @@
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
-import { NOTIFICATION_TYPE_VALUES } from '../constants/notification.constants';
 import { WebPushService } from './web-push.service';
 
 jest.mock('web-push');
@@ -10,11 +10,15 @@ describe('WebPushService', () => {
   const subscriptions = [
     {
       endpoint: 'https://push.example.test/one',
+      expirationTime: null,
       keys: { p256dh: 'one', auth: 'one' },
+      refreshVersion: 4,
     },
     {
       endpoint: 'https://push.example.test/two',
+      expirationTime: null,
       keys: { p256dh: 'two', auth: 'two' },
+      refreshVersion: 8,
     },
   ];
   const notification = {
@@ -26,82 +30,185 @@ describe('WebPushService', () => {
     entityType: 'task',
     createdAt: new Date(),
     updatedAt: new Date(),
+    pushAttempts: 0,
   };
+
+  function setup(
+    currentSubscriptions = subscriptions,
+    enabled = true,
+  ) {
+    const subscriptionsService = {
+      findForUser: jest.fn().mockResolvedValue(currentSubscriptions),
+      removeForUser: jest.fn(),
+      recordFailureForUser: jest.fn(),
+      resetFailureForUser: jest.fn(),
+    };
+    const service = new WebPushService(
+      {
+        get: jest.fn((key: string) => {
+          if (key === 'WEB_PUSH_ENABLED') return String(enabled);
+          return 'value';
+        }),
+      } as unknown as ConfigService,
+      subscriptionsService as never,
+    );
+    return { service, subscriptionsService };
+  }
 
   beforeEach(() => jest.resetAllMocks());
 
-  it('sends every persisted notification type to each subscription', async () => {
-    const service = new WebPushService(
-      {
-        get: jest.fn((key: string) =>
-          key === 'WEB_PUSH_ENABLED' ? 'true' : 'value',
-        ),
-      } as unknown as ConfigService,
-      {
-        findForUser: jest.fn().mockResolvedValue(subscriptions),
-        removeForUser: jest.fn(),
-      } as never,
-    );
+  it('returns delivered and sends the approved payload with exact provider options', async () => {
+    const { service, subscriptionsService } = setup();
     jest.mocked(webPush.sendNotification).mockResolvedValue({} as never);
 
-    for (const type of NOTIFICATION_TYPE_VALUES) {
-      await service.sendNotification({ ...notification, type });
-    }
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'delivered',
+      statusCode: null,
+    });
 
-    expect(webPush.sendNotification).toHaveBeenCalledTimes(
-      NOTIFICATION_TYPE_VALUES.length * subscriptions.length,
+    expect(webPush.sendNotification).toHaveBeenCalledTimes(2);
+    expect(webPush.sendNotification).toHaveBeenNthCalledWith(
+      1,
+      {
+        endpoint: subscriptions[0].endpoint,
+        expirationTime: null,
+        keys: subscriptions[0].keys,
+      },
+      JSON.stringify({
+        notificationId: notification.id,
+        title: notification.title,
+        message: notification.message,
+        tag: `sdlc-platform:${notification.id}`,
+      }),
+      { TTL: 300, urgency: 'normal', timeout: 10_000 },
+    );
+    expect(subscriptionsService.resetFailureForUser).toHaveBeenCalledWith(
+      recipientId,
+      subscriptions[0].endpoint,
+      subscriptions[0].refreshVersion,
+    );
+    expect(subscriptionsService.resetFailureForUser).toHaveBeenCalledWith(
+      recipientId,
+      subscriptions[1].endpoint,
+      subscriptions[1].refreshVersion,
     );
   });
 
-  it.each([404, 410])(
-    'removes only stale endpoint on push status %s',
-    async status => {
-      const subscriptionsService = {
-        findForUser: jest.fn().mockResolvedValue(subscriptions),
-        removeForUser: jest.fn(),
-      };
-      const service = new WebPushService(
-        {
-          get: jest.fn((key: string) =>
-            key === 'WEB_PUSH_ENABLED' ? 'true' : 'value',
-          ),
-        } as unknown as ConfigService,
-        subscriptionsService as never,
-      );
-      jest
-        .mocked(webPush.sendNotification)
-        .mockRejectedValueOnce({ statusCode: status })
-        .mockResolvedValueOnce({} as never);
+  it('returns skipped without loading subscriptions when Web Push is disabled', async () => {
+    const { service, subscriptionsService } = setup(subscriptions, false);
 
-      await expect(
-        service.sendNotification(notification),
-      ).resolves.toBeUndefined();
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'skipped',
+      statusCode: null,
+    });
+
+    expect(subscriptionsService.findForUser).not.toHaveBeenCalled();
+    expect(webPush.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('returns skipped when the user has no current subscriptions', async () => {
+    const { service } = setup([]);
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'skipped',
+      statusCode: null,
+    });
+
+    expect(webPush.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it.each([404, 410])(
+    'removes a stale status %s endpoint with its observed refresh version',
+    async status => {
+      const { service, subscriptionsService } = setup([subscriptions[0]]);
+      jest.mocked(webPush.sendNotification).mockRejectedValue({
+        statusCode: status,
+      });
+
+      await expect(service.sendToUser(notification)).resolves.toEqual({
+        kind: 'skipped',
+        statusCode: null,
+      });
 
       expect(subscriptionsService.removeForUser).toHaveBeenCalledWith(
         recipientId,
         subscriptions[0].endpoint,
+        subscriptions[0].refreshVersion,
       );
+      expect(
+        subscriptionsService.recordFailureForUser,
+      ).not.toHaveBeenCalled();
     },
   );
 
-  it('keeps non-stale push failures nonfatal', async () => {
-    const service = new WebPushService(
-      {
-        get: jest.fn((key: string) =>
-          key === 'WEB_PUSH_ENABLED' ? 'true' : 'value',
-        ),
-      } as unknown as ConfigService,
-      {
-        findForUser: jest.fn().mockResolvedValue([subscriptions[0]]),
-        removeForUser: jest.fn(),
-      } as never,
-    );
-    jest
-      .mocked(webPush.sendNotification)
-      .mockRejectedValue({ statusCode: 503 });
+  it('returns retry for a transient provider failure without incrementing terminal failures', async () => {
+    const { service, subscriptionsService } = setup([subscriptions[0]]);
+    jest.mocked(webPush.sendNotification).mockRejectedValue({
+      statusCode: 503,
+    });
 
-    await expect(
-      service.sendNotification(notification),
-    ).resolves.toBeUndefined();
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'retry',
+      statusCode: 503,
+    });
+
+    expect(subscriptionsService.removeForUser).not.toHaveBeenCalled();
+    expect(subscriptionsService.recordFailureForUser).not.toHaveBeenCalled();
+  });
+
+  it('records a terminal non-stale failure with the observed refresh version', async () => {
+    const { service, subscriptionsService } = setup([subscriptions[0]]);
+    jest.mocked(webPush.sendNotification).mockRejectedValue({
+      statusCode: 400,
+    });
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'failed',
+      statusCode: 400,
+    });
+
+    expect(subscriptionsService.recordFailureForUser).toHaveBeenCalledWith(
+      recipientId,
+      subscriptions[0].endpoint,
+      subscriptions[0].refreshVersion,
+    );
+  });
+
+  it('limits dispatch fanout to three subscriptions', async () => {
+    const fourth = {
+      ...subscriptions[0],
+      endpoint: 'https://push.example.test/four',
+      refreshVersion: 9,
+    };
+    const third = {
+      ...subscriptions[0],
+      endpoint: 'https://push.example.test/three',
+      refreshVersion: 7,
+    };
+    const { service } = setup([...subscriptions, third, fourth]);
+    jest.mocked(webPush.sendNotification).mockResolvedValue({} as never);
+
+    await service.sendToUser(notification);
+
+    expect(webPush.sendNotification).toHaveBeenCalledTimes(3);
+  });
+
+  it('logs only the approved safe provider failure fields', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const { service } = setup([subscriptions[0]]);
+    jest.mocked(webPush.sendNotification).mockRejectedValue({
+      statusCode: 503,
+    });
+
+    await service.sendToUser(notification);
+
+    expect(warn).toHaveBeenCalledWith({
+      event: 'web_push_delivery_failed',
+      notificationId: notification.id,
+      attempt: 1,
+      status: 503,
+      providerHost: 'push.example.test',
+    });
+    warn.mockRestore();
   });
 });

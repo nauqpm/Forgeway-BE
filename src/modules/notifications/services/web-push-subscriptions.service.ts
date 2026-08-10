@@ -51,7 +51,7 @@ export class WebPushSubscriptionsService {
   async recordFailureForUser(
     userId: string,
     endpoint: string,
-    expectedRefreshVersion?: number,
+    expectedRefreshVersion: number,
   ): Promise<void> {
     const subscription =
       await this.subscriptionsRepository.recordFailureForUser(
@@ -74,7 +74,7 @@ export class WebPushSubscriptionsService {
   resetFailureForUser(
     userId: string,
     endpoint: string,
-    expectedRefreshVersion?: number,
+    expectedRefreshVersion: number,
   ): Promise<void> {
     return this.subscriptionsRepository.resetFailureForUser(
       userId,
