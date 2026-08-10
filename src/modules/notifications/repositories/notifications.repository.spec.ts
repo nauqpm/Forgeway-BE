@@ -1,11 +1,13 @@
 import { NotificationsRepository } from './notifications.repository';
 
 describe('NotificationsRepository', () => {
-  it('claims one due delivery with an exact lease in a single atomic update', async () => {
+  it('claims due and expired processing deliveries with an exact lease in one atomic update', async () => {
     const findOneAndUpdate = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue({ _id: 'notification' }),
     });
-    const repository = new NotificationsRepository({ findOneAndUpdate } as never);
+    const repository = new NotificationsRepository({
+      findOneAndUpdate,
+    } as never);
     const now = new Date('2026-08-10T00:00:00.000Z');
     const leaseUntil = new Date('2026-08-10T00:00:45.000Z');
 
@@ -17,16 +19,25 @@ describe('NotificationsRepository', () => {
 
     expect(notification).toEqual({ _id: 'notification' });
     expect(findOneAndUpdate).toHaveBeenCalledTimes(1);
+    const filter = {
+      $or: [
+        {
+          pushDeliveryStatus: { $in: ['pending', 'retry'] },
+          pushNextAttemptAt: { $lte: now },
+          $or: [
+            { pushLeaseUntil: null },
+            { pushLeaseUntil: { $exists: false } },
+            { pushLeaseUntil: { $lte: now } },
+          ],
+        },
+        {
+          pushDeliveryStatus: 'processing',
+          pushLeaseUntil: { $lte: now },
+        },
+      ],
+    };
     expect(findOneAndUpdate).toHaveBeenCalledWith(
-      {
-        pushDeliveryStatus: { $in: ['pending', 'retry'] },
-        pushNextAttemptAt: { $lte: now },
-        $or: [
-          { pushLeaseUntil: null },
-          { pushLeaseUntil: { $exists: false } },
-          { pushLeaseUntil: { $lte: now } },
-        ],
-      },
+      filter,
       {
         $set: {
           pushDeliveryStatus: 'processing',
@@ -38,6 +49,15 @@ describe('NotificationsRepository', () => {
         sort: { pushNextAttemptAt: 1, createdAt: 1 },
       },
     );
+    const processingLeaseUpperBound = (
+      filter.$or[1] as { pushLeaseUntil: { $lte: Date } }
+    ).pushLeaseUntil.$lte;
+    expect(new Date('2026-08-09T23:59:59.999Z').getTime()).toBeLessThanOrEqual(
+      processingLeaseUpperBound.getTime(),
+    );
+    expect(new Date('2026-08-10T00:00:00.001Z').getTime()).toBeGreaterThan(
+      processingLeaseUpperBound.getTime(),
+    );
     expect(findOneAndUpdate.mock.calls[0][1]).not.toHaveProperty('$inc');
   });
 
@@ -45,7 +65,9 @@ describe('NotificationsRepository', () => {
     const findOneAndUpdate = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue({ _id: 'notification' }),
     });
-    const repository = new NotificationsRepository({ findOneAndUpdate } as never);
+    const repository = new NotificationsRepository({
+      findOneAndUpdate,
+    } as never);
     const heldLeaseUntil = new Date('2026-08-10T00:00:45.000Z');
     const nextAttemptAt = new Date('2026-08-10T00:01:15.000Z');
 

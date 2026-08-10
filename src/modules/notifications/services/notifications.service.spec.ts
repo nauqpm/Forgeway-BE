@@ -90,7 +90,7 @@ describe('NotificationsService', () => {
     };
     const notification = {};
     const repository = {
-      create: jest.fn().mockResolvedValue(notification),
+      createWithPushDelivery: jest.fn().mockResolvedValue(notification),
     };
     const mapper = {
       mapToDto: jest.fn().mockReturnValue(dto),
@@ -108,15 +108,15 @@ describe('NotificationsService', () => {
 
     await service.create(input);
 
-    expect(repository.create).toHaveBeenCalledWith(input, {
+    expect(repository.createWithPushDelivery).toHaveBeenCalledWith(input, {
       status: 'not_requested',
       nextAttemptAt: null,
     });
     expect(mapper.mapToDto).toHaveBeenCalledWith(notification);
     expect(publisher.publishCreated).toHaveBeenCalledWith(dto);
-    expect(repository.create.mock.invocationCallOrder[0]).toBeLessThan(
-      publisher.publishCreated.mock.invocationCallOrder[0],
-    );
+    expect(
+      repository.createWithPushDelivery.mock.invocationCallOrder[0],
+    ).toBeLessThan(publisher.publishCreated.mock.invocationCallOrder[0]);
   });
 
   it('persists pending web push delivery state with the notification when delivery is enabled', async () => {
@@ -130,8 +130,12 @@ describe('NotificationsService', () => {
       entityId: '507f1f77bcf86cd799439014',
     };
     const notification = {};
-    const repository = { create: jest.fn().mockResolvedValue(notification) };
-    const mapper = { mapToDto: jest.fn().mockReturnValue({ id: 'notification' }) };
+    const repository = {
+      createWithPushDelivery: jest.fn().mockResolvedValue(notification),
+    };
+    const mapper = {
+      mapToDto: jest.fn().mockReturnValue({ id: 'notification' }),
+    };
     const publisher = { publishCreated: jest.fn() };
     const service = new NotificationsService(
       repository as never,
@@ -143,7 +147,7 @@ describe('NotificationsService', () => {
 
     await service.create(input);
 
-    expect(repository.create).toHaveBeenCalledWith(
+    expect(repository.createWithPushDelivery).toHaveBeenCalledWith(
       input,
       expect.objectContaining({
         status: 'pending',
@@ -163,7 +167,9 @@ describe('NotificationsService', () => {
       entityId: '507f1f77bcf86cd799439014',
     };
     const repository = { createMany: jest.fn().mockResolvedValue([{}]) };
-    const mapper = { mapToDto: jest.fn().mockReturnValue({ id: 'notification' }) };
+    const mapper = {
+      mapToDto: jest.fn().mockReturnValue({ id: 'notification' }),
+    };
     const publisher = { publishManyCreated: jest.fn() };
     const service = new NotificationsService(
       repository as never,

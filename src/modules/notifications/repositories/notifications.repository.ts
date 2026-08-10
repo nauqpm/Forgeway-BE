@@ -21,7 +21,7 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
     super(notificationModel);
   }
 
-  async create(
+  async createWithPushDelivery(
     input: CreateNotificationInput,
     pushDelivery: PushDeliveryInitialState,
   ): Promise<NotificationDocument> {
@@ -142,14 +142,22 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
     return this.notificationModel
       .findOneAndUpdate(
         {
-          pushDeliveryStatus: {
-            $in: [PushDeliveryStatus.PENDING, PushDeliveryStatus.RETRY],
-          },
-          pushNextAttemptAt: { $lte: now },
           $or: [
-            { pushLeaseUntil: null },
-            { pushLeaseUntil: { $exists: false } },
-            { pushLeaseUntil: { $lte: now } },
+            {
+              pushDeliveryStatus: {
+                $in: [PushDeliveryStatus.PENDING, PushDeliveryStatus.RETRY],
+              },
+              pushNextAttemptAt: { $lte: now },
+              $or: [
+                { pushLeaseUntil: null },
+                { pushLeaseUntil: { $exists: false } },
+                { pushLeaseUntil: { $lte: now } },
+              ],
+            },
+            {
+              pushDeliveryStatus: PushDeliveryStatus.PROCESSING,
+              pushLeaseUntil: { $lte: now },
+            },
           ],
         },
         {
@@ -171,17 +179,13 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
     heldLeaseUntil: Date,
     deliveredAt: Date,
   ): Promise<NotificationDocument | null> {
-    return this.transitionClaimedPushDelivery(
-      notificationId,
-      heldLeaseUntil,
-      {
-        pushDeliveryStatus: PushDeliveryStatus.DELIVERED,
-        pushNextAttemptAt: null,
-        pushLeaseUntil: null,
-        pushDeliveredAt: deliveredAt,
-        pushLastErrorCode: null,
-      },
-    );
+    return this.transitionClaimedPushDelivery(notificationId, heldLeaseUntil, {
+      pushDeliveryStatus: PushDeliveryStatus.DELIVERED,
+      pushNextAttemptAt: null,
+      pushLeaseUntil: null,
+      pushDeliveredAt: deliveredAt,
+      pushLastErrorCode: null,
+    });
   }
 
   async markPushSkipped(

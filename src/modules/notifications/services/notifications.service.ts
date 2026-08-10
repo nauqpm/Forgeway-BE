@@ -47,10 +47,11 @@ export class NotificationsService {
       return null;
     }
 
-    const notification = await this.notificationsRepository.create(
-      input,
-      createPushDeliveryInitialState(this.webPushEnabled),
-    );
+    const notification =
+      await this.notificationsRepository.createWithPushDelivery(
+        input,
+        createPushDeliveryInitialState(this.webPushEnabled),
+      );
     const notificationDto = this.notificationMapper.mapToDto(notification);
     this.notificationDomainEventPublisher.publishCreated(notificationDto);
 
@@ -67,11 +68,10 @@ export class NotificationsService {
       return [];
     }
 
-    const notifications =
-      await this.notificationsRepository.createMany(
-        validInputs,
-        createPushDeliveryInitialState(this.webPushEnabled),
-      );
+    const notifications = await this.notificationsRepository.createMany(
+      validInputs,
+      createPushDeliveryInitialState(this.webPushEnabled),
+    );
     const notificationDtos = notifications.map(notification =>
       this.notificationMapper.mapToDto(notification),
     );
