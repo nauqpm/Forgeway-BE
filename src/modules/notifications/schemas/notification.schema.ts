@@ -6,6 +6,10 @@ import {
   NotificationEntityType,
   NotificationType,
 } from '../constants/notification.constants';
+import {
+  PushDeliveryStatus,
+  PushDeliveryStatusValue,
+} from '../constants/web-push-delivery.constants';
 
 export type NotificationDocument = Notification & Document;
 
@@ -41,6 +45,28 @@ export class Notification {
   @Prop({ type: Object, default: null })
   metadata?: Record<string, unknown>;
 
+  @Prop({
+    type: String,
+    enum: Object.values(PushDeliveryStatus),
+    default: PushDeliveryStatus.NOT_REQUESTED,
+  })
+  pushDeliveryStatus!: PushDeliveryStatusValue;
+
+  @Prop({ type: Number, default: 0 })
+  pushAttempts!: number;
+
+  @Prop({ type: Date, default: null })
+  pushNextAttemptAt!: Date | null;
+
+  @Prop({ type: Date, default: null })
+  pushLeaseUntil!: Date | null;
+
+  @Prop({ type: Date, default: null })
+  pushDeliveredAt!: Date | null;
+
+  @Prop({ type: Number, default: null })
+  pushLastErrorCode!: number | null;
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -50,3 +76,8 @@ export const NotificationSchema = SchemaFactory.createForClass(Notification);
 NotificationSchema.index({ recipientId: 1, readAt: 1, createdAt: -1 });
 NotificationSchema.index({ recipientId: 1, createdAt: -1 });
 NotificationSchema.index({ workspaceId: 1, createdAt: -1 });
+NotificationSchema.index({
+  pushDeliveryStatus: 1,
+  pushNextAttemptAt: 1,
+  pushLeaseUntil: 1,
+});

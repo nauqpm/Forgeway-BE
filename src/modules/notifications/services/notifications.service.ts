@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Types } from 'mongoose';
 import { NotificationDto, NotificationListDto } from '../dtos/notification.dto';
 import {
@@ -12,6 +13,8 @@ import { NotificationMapper } from '../mappers/notification.mapper';
 import { NotificationsRepository } from '../repositories/notifications.repository';
 import { NotificationDomainEventPublisher } from './notification-domain-event.publisher';
 import { NotificationFactoryService } from './notification-factory.service';
+import { parseWebPushRuntimeConfig } from '../config/web-push.config';
+import { createPushDeliveryInitialState } from '../constants/web-push-delivery.constants';
 
 @Injectable()
 export class NotificationsService {
@@ -22,7 +25,17 @@ export class NotificationsService {
     private readonly notificationMapper: NotificationMapper,
     private readonly notificationFactory: NotificationFactoryService,
     private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
-  ) {}
+    configService: ConfigService,
+  ) {
+    this.webPushEnabled = parseWebPushRuntimeConfig({
+      WEB_PUSH_ENABLED: configService.get<string>('WEB_PUSH_ENABLED'),
+      WEB_PUSH_ALLOWED_ENDPOINT_HOSTS: configService.get<string>(
+        'WEB_PUSH_ALLOWED_ENDPOINT_HOSTS',
+      ),
+    }).enabled;
+  }
+
+  private readonly webPushEnabled: boolean;
 
   async create(
     input: CreateNotificationInput,
@@ -34,7 +47,10 @@ export class NotificationsService {
       return null;
     }
 
-    const notification = await this.notificationsRepository.create(input);
+    const notification = await this.notificationsRepository.create(
+      input,
+      createPushDeliveryInitialState(this.webPushEnabled),
+    );
     const notificationDto = this.notificationMapper.mapToDto(notification);
     this.notificationDomainEventPublisher.publishCreated(notificationDto);
 
@@ -52,7 +68,10 @@ export class NotificationsService {
     }
 
     const notifications =
-      await this.notificationsRepository.createMany(validInputs);
+      await this.notificationsRepository.createMany(
+        validInputs,
+        createPushDeliveryInitialState(this.webPushEnabled),
+      );
     const notificationDtos = notifications.map(notification =>
       this.notificationMapper.mapToDto(notification),
     );

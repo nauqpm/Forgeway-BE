@@ -7,6 +7,10 @@ import {
   NotificationDocument,
 } from '../schemas/notification.schema';
 import { BaseRepository } from '../../../shared/repositories/base.repository';
+import {
+  PushDeliveryInitialState,
+  PushDeliveryStatus,
+} from '../constants/web-push-delivery.constants';
 
 @Injectable()
 export class NotificationsRepository extends BaseRepository<NotificationDocument> {
@@ -17,19 +21,25 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
     super(notificationModel);
   }
 
-  async create(input: CreateNotificationInput): Promise<NotificationDocument> {
-    return new this.notificationModel(this.toPersistence(input)).save();
+  async create(
+    input: CreateNotificationInput,
+    pushDelivery: PushDeliveryInitialState,
+  ): Promise<NotificationDocument> {
+    return new this.notificationModel(
+      this.toPersistence(input, pushDelivery),
+    ).save();
   }
 
   async createMany(
     inputs: CreateNotificationInput[],
+    pushDelivery: PushDeliveryInitialState,
   ): Promise<NotificationDocument[]> {
     if (!inputs.length) {
       return [];
     }
 
     const notifications = await this.notificationModel.insertMany(
-      inputs.map(input => this.toPersistence(input)),
+      inputs.map(input => this.toPersistence(input, pushDelivery)),
     );
 
     return notifications as unknown as NotificationDocument[];
@@ -125,7 +135,144 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
     return { modifiedCount: result.modifiedCount };
   }
 
-  private toPersistence(input: CreateNotificationInput): Partial<Notification> {
+  async claimDuePushDelivery(
+    now: Date,
+    leaseUntil: Date,
+  ): Promise<NotificationDocument | null> {
+    return this.notificationModel
+      .findOneAndUpdate(
+        {
+          pushDeliveryStatus: {
+            $in: [PushDeliveryStatus.PENDING, PushDeliveryStatus.RETRY],
+          },
+          pushNextAttemptAt: { $lte: now },
+          $or: [
+            { pushLeaseUntil: null },
+            { pushLeaseUntil: { $exists: false } },
+            { pushLeaseUntil: { $lte: now } },
+          ],
+        },
+        {
+          $set: {
+            pushDeliveryStatus: PushDeliveryStatus.PROCESSING,
+            pushLeaseUntil: leaseUntil,
+          },
+        },
+        {
+          new: true,
+          sort: { pushNextAttemptAt: 1, createdAt: 1 },
+        },
+      )
+      .exec();
+  }
+
+  async markPushDelivered(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+    deliveredAt: Date,
+  ): Promise<NotificationDocument | null> {
+    return this.transitionClaimedPushDelivery(
+      notificationId,
+      heldLeaseUntil,
+      {
+        pushDeliveryStatus: PushDeliveryStatus.DELIVERED,
+        pushNextAttemptAt: null,
+        pushLeaseUntil: null,
+        pushDeliveredAt: deliveredAt,
+        pushLastErrorCode: null,
+      },
+    );
+  }
+
+  async markPushSkipped(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+  ): Promise<NotificationDocument | null> {
+    return this.transitionClaimedPushDelivery(notificationId, heldLeaseUntil, {
+      pushDeliveryStatus: PushDeliveryStatus.SKIPPED,
+      pushNextAttemptAt: null,
+      pushLeaseUntil: null,
+      pushLastErrorCode: null,
+    });
+  }
+
+  async markPushFailed(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+    lastErrorCode: number | null,
+  ): Promise<NotificationDocument | null> {
+    return this.transitionClaimedPushDelivery(notificationId, heldLeaseUntil, {
+      pushDeliveryStatus: PushDeliveryStatus.FAILED,
+      pushNextAttemptAt: null,
+      pushLeaseUntil: null,
+      pushLastErrorCode: lastErrorCode,
+    });
+  }
+
+  async markPushExpired(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+  ): Promise<NotificationDocument | null> {
+    return this.transitionClaimedPushDelivery(notificationId, heldLeaseUntil, {
+      pushDeliveryStatus: PushDeliveryStatus.EXPIRED,
+      pushNextAttemptAt: null,
+      pushLeaseUntil: null,
+      pushLastErrorCode: null,
+    });
+  }
+
+  async schedulePushRetry(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+    nextAttemptAt: Date,
+    lastErrorCode: number | null,
+  ): Promise<NotificationDocument | null> {
+    return this.notificationModel
+      .findOneAndUpdate(
+        this.claimedPushDeliveryFilter(notificationId, heldLeaseUntil),
+        {
+          $set: {
+            pushDeliveryStatus: PushDeliveryStatus.RETRY,
+            pushNextAttemptAt: nextAttemptAt,
+            pushLeaseUntil: null,
+            pushLastErrorCode: lastErrorCode,
+          },
+          $inc: { pushAttempts: 1 },
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  private async transitionClaimedPushDelivery(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+    update: Record<string, unknown>,
+  ): Promise<NotificationDocument | null> {
+    return this.notificationModel
+      .findOneAndUpdate(
+        this.claimedPushDeliveryFilter(notificationId, heldLeaseUntil),
+        { $set: update },
+        { new: true },
+      )
+      .exec();
+  }
+
+  private claimedPushDeliveryFilter(
+    notificationId: string | Types.ObjectId,
+    heldLeaseUntil: Date,
+  ) {
+    return {
+      _id: notificationId,
+      pushDeliveryStatus: PushDeliveryStatus.PROCESSING,
+      pushLeaseUntil: heldLeaseUntil,
+    };
+  }
+
+  private toPersistence(
+    input: CreateNotificationInput,
+    pushDelivery: PushDeliveryInitialState,
+  ): Partial<Notification> {
     return {
       recipientId: new Types.ObjectId(input.recipientId),
       actorId: input.actorId ? new Types.ObjectId(input.actorId) : undefined,
@@ -138,6 +285,8 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
       entityType: input.entityType,
       entityId: input.entityId ? new Types.ObjectId(input.entityId) : undefined,
       metadata: input.metadata,
+      pushDeliveryStatus: pushDelivery.status,
+      pushNextAttemptAt: pushDelivery.nextAttemptAt,
     };
   }
 }

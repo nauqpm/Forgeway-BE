@@ -10,6 +10,13 @@ import { NotificationDto } from '../dtos/notification.dto';
 describe('NotificationsService', () => {
   const actorId = '507f1f77bcf86cd799439011';
   const recipientId = '507f1f77bcf86cd799439012';
+  const webPushDisabledConfig = { get: jest.fn().mockReturnValue(undefined) };
+  const webPushEnabledConfig = {
+    get: jest.fn().mockImplementation(key => {
+      if (key === 'WEB_PUSH_ENABLED') return 'true';
+      return 'fcm.googleapis.com';
+    }),
+  };
 
   it('does not create an assignment notification for the actor', async () => {
     const factory = new NotificationFactoryService();
@@ -18,6 +25,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
+      webPushDisabledConfig as never,
     );
     const create = jest.spyOn(service, 'create').mockResolvedValue(null);
 
@@ -40,6 +48,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
+      webPushDisabledConfig as never,
     );
     const createMany = jest.spyOn(service, 'createMany').mockResolvedValue([]);
 
@@ -94,15 +103,84 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
+      webPushDisabledConfig as never,
     );
 
     await service.create(input);
 
-    expect(repository.create).toHaveBeenCalledWith(input);
+    expect(repository.create).toHaveBeenCalledWith(input, {
+      status: 'not_requested',
+      nextAttemptAt: null,
+    });
     expect(mapper.mapToDto).toHaveBeenCalledWith(notification);
     expect(publisher.publishCreated).toHaveBeenCalledWith(dto);
     expect(repository.create.mock.invocationCallOrder[0]).toBeLessThan(
       publisher.publishCreated.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('persists pending web push delivery state with the notification when delivery is enabled', async () => {
+    const input: CreateNotificationInput = {
+      recipientId,
+      actorId,
+      workspaceId: '507f1f77bcf86cd799439013',
+      type: NOTIFICATION_TYPES.TASK_ASSIGNED,
+      title: 'You were assigned to TASK-12',
+      entityType: NOTIFICATION_ENTITY_TYPES.TASK,
+      entityId: '507f1f77bcf86cd799439014',
+    };
+    const notification = {};
+    const repository = { create: jest.fn().mockResolvedValue(notification) };
+    const mapper = { mapToDto: jest.fn().mockReturnValue({ id: 'notification' }) };
+    const publisher = { publishCreated: jest.fn() };
+    const service = new NotificationsService(
+      repository as never,
+      mapper as never,
+      new NotificationFactoryService(),
+      publisher as never,
+      webPushEnabledConfig as never,
+    );
+
+    await service.create(input);
+
+    expect(repository.create).toHaveBeenCalledWith(
+      input,
+      expect.objectContaining({
+        status: 'pending',
+        nextAttemptAt: expect.any(Date),
+      }),
+    );
+  });
+
+  it('persists pending web push delivery state with every batch notification when delivery is enabled', async () => {
+    const input: CreateNotificationInput = {
+      recipientId,
+      actorId,
+      workspaceId: '507f1f77bcf86cd799439013',
+      type: NOTIFICATION_TYPES.TASK_STATUS_CHANGED,
+      title: 'TASK-12 status changed',
+      entityType: NOTIFICATION_ENTITY_TYPES.TASK,
+      entityId: '507f1f77bcf86cd799439014',
+    };
+    const repository = { createMany: jest.fn().mockResolvedValue([{}]) };
+    const mapper = { mapToDto: jest.fn().mockReturnValue({ id: 'notification' }) };
+    const publisher = { publishManyCreated: jest.fn() };
+    const service = new NotificationsService(
+      repository as never,
+      mapper as never,
+      new NotificationFactoryService(),
+      publisher as never,
+      webPushEnabledConfig as never,
+    );
+
+    await service.createMany([input]);
+
+    expect(repository.createMany).toHaveBeenCalledWith(
+      [input],
+      expect.objectContaining({
+        status: 'pending',
+        nextAttemptAt: expect.any(Date),
+      }),
     );
   });
 
@@ -137,11 +215,15 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
+      webPushDisabledConfig as never,
     );
 
     await service.createMany([input]);
 
-    expect(repository.createMany).toHaveBeenCalledWith([input]);
+    expect(repository.createMany).toHaveBeenCalledWith([input], {
+      status: 'not_requested',
+      nextAttemptAt: null,
+    });
     expect(publisher.publishManyCreated).toHaveBeenCalledWith([dto]);
     expect(repository.createMany.mock.invocationCallOrder[0]).toBeLessThan(
       publisher.publishManyCreated.mock.invocationCallOrder[0],
