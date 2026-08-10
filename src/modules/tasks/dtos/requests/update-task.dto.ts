@@ -13,7 +13,10 @@ import {
 } from 'class-validator';
 import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { TASK_PRIORITIES } from '../../constants/task-status.constants';
+import {
+  TASK_PRIORITIES,
+  TASK_TYPES,
+} from '../../constants/task-status.constants';
 
 export class UpdateTaskDto {
   @ApiPropertyOptional()
@@ -38,6 +41,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(TASK_PRIORITIES)
   priority?: string;
+
+  @ApiPropertyOptional({ enum: TASK_TYPES })
+  @IsOptional()
+  @IsEnum(TASK_TYPES)
+  type?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
