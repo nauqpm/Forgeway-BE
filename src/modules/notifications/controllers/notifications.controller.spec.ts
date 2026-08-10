@@ -25,4 +25,22 @@ describe('NotificationsController push subscriptions', () => {
       subscription,
     );
   });
+
+  it('uses the JWT user to remove a browser subscription', async () => {
+    const subscriptions = { removeForUser: jest.fn() };
+    const controller = new NotificationsController(
+      {} as never,
+      subscriptions as never,
+    );
+
+    await controller.removePushSubscription(
+      { user: { userId } } as never,
+      { endpoint: subscription.endpoint },
+    );
+
+    expect(subscriptions.removeForUser).toHaveBeenCalledWith(
+      userId,
+      subscription.endpoint,
+    );
+  });
 });

@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
@@ -23,6 +24,13 @@ import { WebPushSubscriptionsRepository } from './repositories/web-push-subscrip
 import { WebPushSubscriptionsService } from './services/web-push-subscriptions.service';
 import { WebPushService } from './services/web-push.service';
 import { WebPushNotificationListener } from './listeners/web-push-notification.listener';
+import {
+  parseWebPushRuntimeConfig,
+  WebPushRuntimeConfig,
+} from './config/web-push.config';
+import { WebPushEndpointPolicy } from './services/web-push-endpoint-policy.service';
+
+const WEB_PUSH_RUNTIME_CONFIG = Symbol('WEB_PUSH_RUNTIME_CONFIG');
 
 @Module({
   imports: [
@@ -37,6 +45,23 @@ import { WebPushNotificationListener } from './listeners/web-push-notification.l
   providers: [
     NotificationsRepository,
     WebPushSubscriptionsRepository,
+    {
+      provide: WEB_PUSH_RUNTIME_CONFIG,
+      useFactory: (configService: ConfigService): WebPushRuntimeConfig =>
+        parseWebPushRuntimeConfig({
+          WEB_PUSH_ENABLED: configService.get<string>('WEB_PUSH_ENABLED'),
+          WEB_PUSH_ALLOWED_ENDPOINT_HOSTS: configService.get<string>(
+            'WEB_PUSH_ALLOWED_ENDPOINT_HOSTS',
+          ),
+        }),
+      inject: [ConfigService],
+    },
+    {
+      provide: WebPushEndpointPolicy,
+      useFactory: (runtimeConfig: WebPushRuntimeConfig) =>
+        new WebPushEndpointPolicy(runtimeConfig),
+      inject: [WEB_PUSH_RUNTIME_CONFIG],
+    },
     NotificationMapper,
     NotificationFactoryService,
     NotificationDomainEventPublisher,

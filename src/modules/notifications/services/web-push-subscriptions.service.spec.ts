@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { WebPushSubscriptionsService } from './web-push-subscriptions.service';
 
 describe('WebPushSubscriptionsService', () => {
@@ -9,23 +10,153 @@ describe('WebPushSubscriptionsService', () => {
   };
 
   it('upserts a subscription for the authenticated user', async () => {
-    const repository = { upsertForUser: jest.fn() };
-    const service = new WebPushSubscriptionsService(repository as never);
+    const repository = {
+      upsertForUser: jest.fn(),
+      findAllForUser: jest.fn().mockResolvedValue([]),
+      deleteLeastRecentlyUpdatedForUser: jest.fn(),
+    };
+    const endpointPolicy = { assertAllowed: jest.fn() };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      endpointPolicy as never,
+    );
 
     await service.upsertForUser(userId, subscription);
 
+    expect(endpointPolicy.assertAllowed).toHaveBeenCalledWith(
+      subscription.endpoint,
+    );
     expect(repository.upsertForUser).toHaveBeenCalledWith(userId, subscription);
+  });
+
+  it('deletes the least recently refreshed endpoint for a fourth device', async () => {
+    const repository = {
+      upsertForUser: jest.fn(),
+      findAllForUser: jest.fn().mockResolvedValue([
+        { endpoint: 'https://fcm.googleapis.com/current' },
+        { endpoint: 'https://fcm.googleapis.com/device-2' },
+        { endpoint: 'https://fcm.googleapis.com/device-3' },
+        { endpoint: 'https://fcm.googleapis.com/device-4' },
+      ]),
+      deleteLeastRecentlyUpdatedForUser: jest.fn(),
+    };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      { assertAllowed: jest.fn() } as never,
+    );
+
+    await service.upsertForUser(userId, subscription);
+
+    expect(repository.deleteLeastRecentlyUpdatedForUser).toHaveBeenCalledWith(
+      userId,
+      1,
+    );
+    expect(repository.upsertForUser.mock.invocationCallOrder[0]).toBeLessThan(
+      repository.findAllForUser.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('rejects an endpoint before it can be persisted', async () => {
+    const repository = {
+      upsertForUser: jest.fn(),
+      findAllForUser: jest.fn(),
+    };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      {
+        assertAllowed: jest.fn(() => {
+          throw new BadRequestException();
+        }),
+      } as never,
+    );
+
+    await expect(service.upsertForUser(userId, subscription)).rejects.toThrow(
+      BadRequestException,
+    );
+
+    expect(repository.upsertForUser).not.toHaveBeenCalled();
   });
 
   it("removes only the authenticated user's matching endpoint", async () => {
     const repository = { removeForUser: jest.fn() };
-    const service = new WebPushSubscriptionsService(repository as never);
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      {} as never,
+    );
 
     await service.removeForUser(userId, subscription.endpoint);
 
     expect(repository.removeForUser).toHaveBeenCalledWith(
       userId,
       subscription.endpoint,
+    );
+  });
+
+  it('removes a subscription after its third terminal failure', async () => {
+    const updatedAt = new Date('2026-08-10T00:00:00.000Z');
+    const repository = {
+      recordFailureForUser: jest
+        .fn()
+        .mockResolvedValue({ failureCount: 3, updatedAt }),
+      removeForUser: jest.fn(),
+    };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      {} as never,
+    );
+
+    await service.recordFailureForUser(userId, subscription.endpoint);
+
+    expect(repository.removeForUser).toHaveBeenCalledWith(
+      userId,
+      subscription.endpoint,
+      updatedAt,
+    );
+  });
+
+  it('keeps a subscription after two terminal failures', async () => {
+    const repository = {
+      recordFailureForUser: jest.fn().mockResolvedValue({ failureCount: 2 }),
+      removeForUser: jest.fn(),
+    };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      {} as never,
+    );
+
+    await service.recordFailureForUser(userId, subscription.endpoint);
+
+    expect(repository.removeForUser).not.toHaveBeenCalled();
+  });
+
+  it('keeps a subscription when a failed delivery is stale', async () => {
+    const repository = {
+      recordFailureForUser: jest.fn().mockResolvedValue(null),
+      removeForUser: jest.fn(),
+    };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      {} as never,
+    );
+
+    await service.recordFailureForUser(userId, subscription.endpoint);
+
+    expect(repository.removeForUser).not.toHaveBeenCalled();
+  });
+
+  it('resets a failure count after successful delivery', async () => {
+    const repository = { resetFailureForUser: jest.fn() };
+    const service = new WebPushSubscriptionsService(
+      repository as never,
+      {} as never,
+    );
+
+    await service.resetFailureForUser(userId, subscription.endpoint);
+
+    expect(repository.resetFailureForUser).toHaveBeenCalledWith(
+      userId,
+      subscription.endpoint,
+      undefined,
     );
   });
 });

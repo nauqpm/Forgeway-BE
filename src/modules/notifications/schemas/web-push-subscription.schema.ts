@@ -23,6 +23,12 @@ export class WebPushSubscription {
 
   @Prop({ type: Number, default: null })
   expirationTime!: number | null;
+
+  @Prop({ default: 0, min: 0 })
+  failureCount!: number;
+
+  @Prop({ type: Date, default: null })
+  lastFailureAt!: Date | null;
 }
 
 export type WebPushSubscriptionDocument = HydratedDocument<WebPushSubscription>;
