@@ -11,7 +11,11 @@ import {
 import { NotificationMapper } from '../mappers/notification.mapper';
 import { NotificationsRepository } from '../repositories/notifications.repository';
 import { NotificationDomainEventPublisher } from './notification-domain-event.publisher';
-import { NotificationFactoryService } from './notification-factory.service';
+import {
+  NotificationFactoryService,
+  SprintLifecycleNotificationInput,
+} from './notification-factory.service';
+import { InviteStatusValue } from '../../workspaces/schemas/invite.schema';
 
 @Injectable()
 export class NotificationsService {
@@ -175,14 +179,50 @@ export class NotificationsService {
     );
   }
 
+  async notifySprintStarted(
+    input: Omit<SprintLifecycleNotificationInput, 'recipientId'> & {
+      recipientIds: string[];
+    },
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildSprintStarted({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
+  async notifySprintCompleted(
+    input: Omit<SprintLifecycleNotificationInput, 'recipientId'> & {
+      recipientIds: string[];
+    },
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildSprintCompleted({
+          ...input,
+          recipientId,
+        }),
+      ),
+    );
+  }
+
   async listForUser(
     userId: string,
-    page = 1,
+    cursor?: string,
+    unreadOnly?: boolean,
+    category?: string,
     limit = 20,
   ): Promise<NotificationListDto> {
-    const result = await this.notificationsRepository.findByRecipient(
+    const result = await this.notificationsRepository.findByRecipientCursor(
       userId,
-      page,
+      cursor,
+      unreadOnly,
+      category,
       limit,
     );
 
@@ -226,6 +266,30 @@ export class NotificationsService {
     );
 
     return result;
+  }
+
+  /**
+   * Updates the `metadata.status` field of the WORKSPACE_INVITED notification
+   * associated with the given invite and recipient.
+   *
+   * This is a best-effort side-effect — callers should wrap in try/catch since
+   * failure here should not block the main invite accept/decline flow.
+   */
+  async updateInviteNotificationStatus(
+    inviteId: string,
+    userId: string | undefined,
+    status: InviteStatusValue,
+  ): Promise<void> {
+    const result = await this.notificationsRepository.updateInviteStatus(
+      inviteId,
+      userId,
+      status,
+    );
+    if (result.modifiedCount === 0) {
+      this.logger.warn(
+        `No notification found to update for inviteId=${inviteId}, userId=${userId}, status=${status}`,
+      );
+    }
   }
 
   async findByIdForUser(

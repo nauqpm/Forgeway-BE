@@ -46,6 +46,7 @@ describe('InviteService', () => {
   let usersService: jest.Mocked<UsersService>;
   let mailerService: jest.Mocked<MailerService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let notificationsService: jest.Mocked<NotificationsService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -88,6 +89,9 @@ describe('InviteService', () => {
           provide: NotificationsService,
           useValue: {
             notifyWorkspaceInvited: jest.fn().mockResolvedValue(undefined),
+            updateInviteNotificationStatus: jest
+              .fn()
+              .mockResolvedValue(undefined),
           },
         },
         {
@@ -103,6 +107,7 @@ describe('InviteService', () => {
     usersService = module.get(UsersService);
     mailerService = module.get(MailerService);
     eventEmitter = module.get(EventEmitter2);
+    notificationsService = module.get(NotificationsService);
   });
 
   describe('createInvite', () => {
@@ -591,6 +596,9 @@ describe('InviteService', () => {
         inviteId,
         INVITE_STATUS.ACCEPTED,
       );
+      expect(
+        notificationsService.updateInviteNotificationStatus,
+      ).toHaveBeenCalledWith(inviteId, userId, INVITE_STATUS.ACCEPTED);
     });
 
     it('throws ForbiddenException when authenticated user email does not match invite', async () => {
@@ -630,6 +638,9 @@ describe('InviteService', () => {
         INVITE_STATUS.DECLINED,
       );
       expect(workspacesRepo.addMember).not.toHaveBeenCalled();
+      expect(
+        notificationsService.updateInviteNotificationStatus,
+      ).toHaveBeenCalledWith(inviteId, userId, INVITE_STATUS.DECLINED);
     });
   });
   describe('processPostRegisterInvites', () => {
