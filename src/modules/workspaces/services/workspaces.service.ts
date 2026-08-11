@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -29,7 +30,7 @@ import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceKeyService } from './workspace-key.service';
 import { WorkspaceDomainEventPublisher } from './workspace-domain-event.publisher';
 import { ChannelsService } from '../../chat/services/channels.service';
-import { UsersService } from '../../users/services/users.service';
+import { WorkspacePreferencesService } from '../../workspace-preferences/services/workspace-preferences.service';
 import {
   DEFAULT_WORKSPACE_AVATAR,
   WORKSPACE_SAMPLE_AVATARS,
@@ -54,10 +55,10 @@ export class WorkspacesService {
     private readonly pageModel: Model<PageDocument>,
     @InjectModel(DocumentEntity.name)
     private readonly documentModel: Model<DocumentDoc>,
-    @Inject(forwardRef(() => UsersService))
-    private readonly usersService: UsersService,
     @Inject(forwardRef(() => ChannelsService))
     private readonly channelsService: ChannelsService,
+    @Optional()
+    private readonly workspacePreferencesService?: WorkspacePreferencesService,
   ) {}
 
   async create(userId: string, dto: CreateWorkspaceDto): Promise<any> {
@@ -175,8 +176,51 @@ export class WorkspacesService {
   }
 
   async findByUserId(userId: string): Promise<any[]> {
-    const workspaces = await this.workspacesRepository.findByUserId(userId);
-    return this.withWorkspaceCounts(workspaces);
+    const [workspaces, preferences] = await Promise.all([
+      this.workspacesRepository.findByUserId(userId),
+      this.workspacePreferencesService?.findByUserId(userId) ??
+        Promise.resolve([]),
+    ]);
+    const preferenceMap = new Map(
+      preferences.map(preference => [
+        preference.workspaceId.toString(),
+        preference,
+      ]),
+    );
+    const hasCompletePreferenceOrder = workspaces.every(workspace =>
+      preferenceMap.has(workspace._id.toString()),
+    );
+
+    const sortedWorkspaces = [...workspaces];
+    if (hasCompletePreferenceOrder && preferences.length > 0) {
+      sortedWorkspaces.sort((a, b) => {
+        const positionA = preferenceMap.get(a._id.toString())?.position;
+        const positionB = preferenceMap.get(b._id.toString())?.position;
+        if (positionA !== undefined && positionB !== undefined)
+          return positionA - positionB;
+        if (positionA !== undefined) return -1;
+        if (positionB !== undefined) return 1;
+        return (
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime()
+        );
+      });
+    }
+
+    const counted = await this.withWorkspaceCounts(sortedWorkspaces);
+    return counted.map((workspace, index) => {
+      const preference = preferenceMap.get(workspace._id.toString());
+      return {
+        ...workspace,
+        isStarred: preference?.isStarred ?? false,
+        position: preference?.position ?? index,
+      };
+    });
+  }
+
+  async findStarredByUserId(userId: string): Promise<any[]> {
+    const workspaces = await this.findByUserId(userId);
+    return workspaces.filter(workspace => workspace.isStarred);
   }
 
   private async withWorkspaceCounts(workspaces: any[]): Promise<any[]> {
@@ -275,6 +319,8 @@ export class WorkspacesService {
     if (!deleted) {
       throw new NotFoundException(ErrorFactory.workspaceNotFound(id));
     }
+
+    await this.workspacePreferencesService?.deleteByWorkspace(id);
 
     this.workspaceDomainEventPublisher.publishDeleted(id, workspace, actorId);
   }
