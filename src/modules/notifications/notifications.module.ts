@@ -7,6 +7,8 @@ import { NotificationsController } from './controllers/notifications.controller'
 import { NotificationMapper } from './mappers/notification.mapper';
 import { TaskNotificationListener } from './listeners/task-notification.listener';
 import { TaskNotificationService } from './services/task-notification.service';
+import { SprintNotificationListener } from './listeners/sprint-notification.listener';
+import { SprintNotificationService } from './services/sprint-notification.service';
 import { NotificationsRepository } from './repositories/notifications.repository';
 import {
   Notification,
@@ -32,6 +34,8 @@ import { NotificationsService } from './services/notifications.service';
     NotificationDomainEventPublisher,
     TaskNotificationListener,
     TaskNotificationService,
+    SprintNotificationListener,
+    SprintNotificationService,
     NotificationsService,
     JwtAuthGuard,
   ],

@@ -6,7 +6,12 @@ import {
   Notification,
   NotificationDocument,
 } from '../schemas/notification.schema';
+import {
+  DIRECT_NOTIFICATION_TYPES,
+  NOTIFICATION_TYPES,
+} from '../constants/notification.constants';
 import { BaseRepository } from '../../../shared/repositories/base.repository';
+import { InviteStatusValue } from '../../workspaces/schemas/invite.schema';
 
 @Injectable()
 export class NotificationsRepository extends BaseRepository<NotificationDocument> {
@@ -18,7 +23,10 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
   }
 
   async create(input: CreateNotificationInput): Promise<NotificationDocument> {
-    return new this.notificationModel(this.toPersistence(input)).save();
+    const doc = await new this.notificationModel(
+      this.toPersistence(input),
+    ).save();
+    return doc.populate('actorId', 'email fullName avatar');
   }
 
   async createMany(
@@ -32,7 +40,10 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
       inputs.map(input => this.toPersistence(input)),
     );
 
-    return notifications as unknown as NotificationDocument[];
+    return this.notificationModel.populate(notifications, {
+      path: 'actorId',
+      select: 'email fullName avatar',
+    });
   }
 
   async findByRecipient(
@@ -58,6 +69,67 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
       total: result.total,
       page: result.page,
       limit: result.limit,
+    };
+  }
+
+  async findByRecipientCursor(
+    recipientId: string,
+    cursor?: string,
+    unreadOnly?: boolean,
+    category?: string,
+    limit = 20,
+  ): Promise<{
+    notifications: NotificationDocument[];
+    total: number;
+    page: number;
+    limit: number;
+    nextCursor?: string;
+  }> {
+    if (limit <= 0) {
+      return {
+        notifications: [],
+        total: 0,
+        page: 1,
+        limit,
+        nextCursor: undefined,
+      };
+    }
+
+    const filter: any = { recipientId: new Types.ObjectId(recipientId) };
+
+    if (unreadOnly) {
+      filter.readAt = null;
+    }
+
+    if (category === 'DIRECT') {
+      filter.type = { $in: DIRECT_NOTIFICATION_TYPES };
+    } else if (category === 'WATCHING') {
+      filter.type = { $nin: DIRECT_NOTIFICATION_TYPES };
+    }
+
+    if (cursor && Types.ObjectId.isValid(cursor)) {
+      filter._id = { $lt: new Types.ObjectId(cursor) };
+    }
+
+    const items = await this.notificationModel
+      .find(filter)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .populate('actorId', 'email fullName avatar')
+      .exec();
+
+    let nextCursor: string | undefined;
+    if (items.length > limit) {
+      items.pop();
+      nextCursor = items[items.length - 1]._id.toString();
+    }
+
+    return {
+      notifications: items,
+      total: 0,
+      page: 1,
+      limit,
+      nextCursor,
     };
   }
 
@@ -106,6 +178,33 @@ export class NotificationsRepository extends BaseRepository<NotificationDocument
       )
       .populate('actorId', 'email fullName avatar')
       .exec();
+  }
+
+  async updateInviteStatus(
+    inviteId: string,
+    recipientId: string | undefined,
+    status: InviteStatusValue,
+  ): Promise<{ modifiedCount: number }> {
+    if (
+      !Types.ObjectId.isValid(inviteId) ||
+      (recipientId && !Types.ObjectId.isValid(recipientId))
+    ) {
+      return { modifiedCount: 0 };
+    }
+
+    const filter: any = {
+      entityId: new Types.ObjectId(inviteId),
+      type: NOTIFICATION_TYPES.WORKSPACE_INVITED,
+    };
+    if (recipientId) {
+      filter.recipientId = new Types.ObjectId(recipientId);
+    }
+
+    const result = await this.notificationModel
+      .updateMany(filter, { $set: { 'metadata.status': status } })
+      .exec();
+
+    return { modifiedCount: result.modifiedCount };
   }
 
   async markAllAsReadForRecipient(

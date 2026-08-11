@@ -35,6 +35,7 @@ export class NotificationMapper {
     total: number;
     page: number;
     limit: number;
+    nextCursor?: string;
   }): NotificationListDto {
     return {
       notifications: result.notifications.map(notification =>
@@ -43,6 +44,7 @@ export class NotificationMapper {
       total: result.total,
       page: result.page,
       limit: result.limit,
+      nextCursor: result.nextCursor,
     };
   }
 

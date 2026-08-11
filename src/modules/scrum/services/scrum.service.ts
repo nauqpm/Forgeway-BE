@@ -56,21 +56,27 @@ export class ScrumService {
     workspaceId: string,
     sprintId: string,
     dto: StartSprintDto,
-    _actorId?: string,
+    actorId?: string,
   ): Promise<SprintDocument> {
-    return this.sprintLifecycleService.startSprint(workspaceId, sprintId, dto);
+    return this.sprintLifecycleService.startSprint(
+      workspaceId,
+      sprintId,
+      dto,
+      actorId,
+    );
   }
 
   completeSprint(
     workspaceId: string,
     sprintId: string,
     dto: CompleteSprintDto,
-    _actorId?: string,
+    actorId?: string,
   ): Promise<unknown> {
     return this.sprintLifecycleService.completeSprint(
       workspaceId,
       sprintId,
       dto,
+      actorId,
     );
   }
 
