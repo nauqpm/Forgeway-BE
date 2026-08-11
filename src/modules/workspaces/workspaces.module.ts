@@ -27,6 +27,7 @@ import {
   DocumentSchema,
 } from '../documents/schemas/document.schema';
 import { Page, PageSchema } from '../pages/schemas/page.schema';
+import { WorkspacePreferencesModule } from '../workspace-preferences/workspace-preferences.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { Page, PageSchema } from '../pages/schemas/page.schema';
     forwardRef(() => KanbanModule),
     forwardRef(() => ScrumModule),
     forwardRef(() => NotificationsModule),
+    WorkspacePreferencesModule,
   ],
   controllers: [WorkspacesController, ForYouController, InviteController],
   providers: [
