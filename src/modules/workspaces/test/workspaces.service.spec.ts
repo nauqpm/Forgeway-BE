@@ -11,7 +11,7 @@ import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { ChannelsService } from '@/modules/chat/services/channels.service';
 import { KanbanService } from '@/modules/kanban/services/kanban.service';
 import { ScrumService } from '@/modules/scrum/services/scrum.service';
-import { UsersService } from '@/modules/users/services/users.service';
+import { WorkspacePreferencesService } from '@/modules/workspace-preferences/services/workspace-preferences.service';
 import { WorkflowsService } from '@/modules/workflows/services/workflows.service';
 import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspaces.repository';
 import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
@@ -80,13 +80,9 @@ const mockScrumService = () => ({
   restoreByWorkspace: jest.fn(),
 });
 
-const mockUsersService = () => ({
-  findByEmail: jest.fn(),
-  getUserById: jest.fn(async () => ({
-    _id: 'userId',
-    workspaceOrder: [] as string[],
-  })),
-  updateUser: jest.fn(async () => ({})),
+const mockWorkspacePreferencesService = () => ({
+  findByUserId: jest.fn(async () => []),
+  deleteByWorkspace: jest.fn(async () => undefined),
 });
 
 const mockWorkspaceKeyService = () => ({
@@ -104,7 +100,9 @@ describe('WorkspacesService', () => {
   let workflowsService: ReturnType<typeof mockWorkflowsService>;
   let kanbanService: ReturnType<typeof mockKanbanService>;
   let scrumService: ReturnType<typeof mockScrumService>;
-  let usersService: ReturnType<typeof mockUsersService>;
+  let workspacePreferencesService: ReturnType<
+    typeof mockWorkspacePreferencesService
+  >;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -114,7 +112,10 @@ describe('WorkspacesService', () => {
         { provide: WorkflowsService, useFactory: mockWorkflowsService },
         { provide: KanbanService, useFactory: mockKanbanService },
         { provide: ScrumService, useFactory: mockScrumService },
-        { provide: UsersService, useFactory: mockUsersService },
+        {
+          provide: WorkspacePreferencesService,
+          useFactory: mockWorkspacePreferencesService,
+        },
         { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
         {
           provide: WorkspaceDomainEventPublisher,
@@ -150,7 +151,7 @@ describe('WorkspacesService', () => {
     workflowsService = module.get(WorkflowsService);
     kanbanService = module.get(KanbanService);
     scrumService = module.get(ScrumService);
-    usersService = module.get(UsersService);
+    workspacePreferencesService = module.get(WorkspacePreferencesService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -398,7 +399,7 @@ describe('WorkspacesService', () => {
       expect(repo.findByUserId).toHaveBeenCalledWith(OWNER_ID);
     });
 
-    it('sorts workspaces according to workspaceOrder and uses createdAt as tiebreaker', async () => {
+    it('sorts workspaces according to personal preference positions', async () => {
       const ID_1 = new Types.ObjectId().toString();
       const ID_2 = new Types.ObjectId().toString();
       const ID_3 = new Types.ObjectId().toString();
@@ -422,10 +423,12 @@ describe('WorkspacesService', () => {
       });
 
       repo.findByUserId.mockResolvedValue([ws1, ws2, ws3, ws4]);
-      usersService.getUserById.mockResolvedValue({
-        _id: OWNER_ID,
-        workspaceOrder: [ID_2, ID_1],
-      });
+      workspacePreferencesService.findByUserId.mockResolvedValue([
+        { workspaceId: new Types.ObjectId(ID_1), position: 1 },
+        { workspaceId: new Types.ObjectId(ID_2), position: 0 },
+        { workspaceId: new Types.ObjectId(ID_3), position: 3 },
+        { workspaceId: new Types.ObjectId(ID_4), position: 2 },
+      ] as any);
 
       const result = await service.findByUserId(OWNER_ID);
 
@@ -507,9 +510,9 @@ describe('WorkspacesService', () => {
         WORKSPACE_ID,
       );
       expect(repo.delete).toHaveBeenCalledWith(WORKSPACE_ID);
-      expect(usersService.updateUser).toHaveBeenCalledWith(OWNER_ID, {
-        $pull: { workspaceOrder: WORKSPACE_ID },
-      });
+      expect(
+        workspacePreferencesService.deleteByWorkspace,
+      ).toHaveBeenCalledWith(WORKSPACE_ID);
     });
 
     it('still attempts repo.delete even when cleanup throws', async () => {

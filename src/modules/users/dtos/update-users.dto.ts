@@ -10,7 +10,6 @@ import {
   Length,
   MaxLength,
   IsBoolean,
-  IsArray,
 } from 'class-validator';
 
 import { Types } from 'mongoose';
@@ -108,13 +107,6 @@ export class UpdateUsersDto {
   )
   avatar?: string;
 
-  // Custom workspace display order for the user (drag-and-drop reordering preference)
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @IsMongoId({ each: true })
-  workspaceOrder?: string[];
-
   @IsOptional()
   @IsString()
   currentPassword?: string;
@@ -124,7 +116,6 @@ export class UpdateUsersDto {
   mustChangePassword?: boolean;
 }
 
-// Note: workspaceOrder is intentionally included here so non-admin users can save their workspace order preferences via PUT /users/me
 export class UpdateUserProfileDto extends OmitType(UpdateUsersDto, [
   'googleId',
   'role',

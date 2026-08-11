@@ -77,6 +77,12 @@ export class WorkspacesController {
     return this.workspacesService.getAvatarSamples();
   }
 
+  @Get('starred')
+  @ApiOperation({ summary: 'Get current user starred workspaces' })
+  async findStarred(@Request() req: any) {
+    return this.workspacesService.findStarredByUserId(req.user.userId);
+  }
+
   @Get(':workspaceId')
   @UseGuards(ScopedRoleGuard('workspace', SPACE_ROLES.VIEWER))
   @ApiOperation({ summary: 'Lấy workspace theo ID' })

@@ -4,7 +4,6 @@ import { Types } from 'mongoose';
 
 import { ChannelsService } from '@/modules/chat/services/channels.service';
 import { KanbanService } from '@/modules/kanban/services/kanban.service';
-import { UsersService } from '@/modules/users/services/users.service';
 import { DocumentEntity } from '@/modules/documents/schemas/document.schema';
 import { Page } from '@/modules/pages/schemas/page.schema';
 import { ScrumService } from '@/modules/scrum/services/scrum.service';
@@ -60,15 +59,6 @@ describe('WorkspacesService workspace counts', () => {
             publishDeleted: jest.fn(),
             publishArchived: jest.fn(),
             publishRestored: jest.fn(),
-          },
-        },
-        {
-          provide: UsersService,
-          useValue: {
-            getUserById: jest.fn(async () => ({
-              _id: 'userId',
-              workspaceOrder: [],
-            })),
           },
         },
         {

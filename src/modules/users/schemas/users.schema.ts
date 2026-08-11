@@ -52,8 +52,6 @@ export class User {
   @Prop()
   gender?: string; // Gender (optional)
 
-  @Prop({ type: [String], default: [] })
-  workspaceOrder?: string[];
   @Prop({ default: false })
   mustChangePassword?: boolean;
 
