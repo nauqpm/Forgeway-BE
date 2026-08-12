@@ -88,11 +88,21 @@ function safeProviderHost(endpoint: string): string {
   }
 }
 
-async function main(): Promise<void> {
-  const mongoUri = process.env.MONGODB_URI ?? process.env.DATABASE_URL;
+export function resolveMongoUri(environment: Environment): string {
+  const mongoUri =
+    environment.MONGODB_URI ||
+    environment.DATABASE_URL ||
+    environment.DB_CONNECTION_STRING;
   if (!mongoUri) {
-    throw new Error('Missing MONGODB_URI or DATABASE_URL');
+    throw new Error(
+      'Missing MONGODB_URI, DATABASE_URL, or DB_CONNECTION_STRING',
+    );
   }
+  return mongoUri;
+}
+
+async function main(): Promise<void> {
+  const mongoUri = resolveMongoUri(process.env);
 
   await mongoose.connect(mongoUri);
   try {

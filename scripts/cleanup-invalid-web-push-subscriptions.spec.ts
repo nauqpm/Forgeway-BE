@@ -1,5 +1,8 @@
 import { Types } from 'mongoose';
-import { runInvalidWebPushSubscriptionsCleanup } from './cleanup-invalid-web-push-subscriptions';
+import {
+  resolveMongoUri,
+  runInvalidWebPushSubscriptionsCleanup,
+} from './cleanup-invalid-web-push-subscriptions';
 
 describe('runInvalidWebPushSubscriptionsCleanup', () => {
   const validEndpoint = 'https://fcm.googleapis.com/push/valid';
@@ -69,5 +72,32 @@ describe('runInvalidWebPushSubscriptionsCleanup', () => {
     expect(dependencies.deleteMany).toHaveBeenCalledWith({
       _id: { $in: [invalidId] },
     });
+  });
+});
+
+describe('resolveMongoUri', () => {
+  it('uses MONGODB_URI, then DATABASE_URL, then DB_CONNECTION_STRING', () => {
+    expect(
+      resolveMongoUri({
+        MONGODB_URI: 'mongodb://primary',
+        DATABASE_URL: 'mongodb://secondary',
+        DB_CONNECTION_STRING: 'mongodb://fallback',
+      }),
+    ).toBe('mongodb://primary');
+    expect(
+      resolveMongoUri({
+        DATABASE_URL: 'mongodb://secondary',
+        DB_CONNECTION_STRING: 'mongodb://fallback',
+      }),
+    ).toBe('mongodb://secondary');
+    expect(
+      resolveMongoUri({ DB_CONNECTION_STRING: 'mongodb://fallback' }),
+    ).toBe('mongodb://fallback');
+  });
+
+  it('names every accepted variable when no Mongo URI is configured', () => {
+    expect(() => resolveMongoUri({})).toThrow(
+      'Missing MONGODB_URI, DATABASE_URL, or DB_CONNECTION_STRING',
+    );
   });
 });

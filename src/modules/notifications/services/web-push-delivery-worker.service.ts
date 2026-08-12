@@ -1,10 +1,15 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnApplicationBootstrap,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { WEB_PUSH_DELIVERY_POLICY } from '../config/web-push.config';
+import {
+  WEB_PUSH_DELIVERY_POLICY,
+  WEB_PUSH_RUNTIME_CONFIG,
+  WebPushRuntimeConfig,
+} from '../config/web-push.config';
 import { NotificationsRepository } from '../repositories/notifications.repository';
 import { NotificationDocument } from '../schemas/notification.schema';
 import { WebPushService } from './web-push.service';
@@ -20,6 +25,8 @@ export class WebPushDeliveryWorker
   constructor(
     private readonly notificationsRepository: NotificationsRepository,
     private readonly webPushService: WebPushService,
+    @Inject(WEB_PUSH_RUNTIME_CONFIG)
+    private readonly runtimeConfig: WebPushRuntimeConfig,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -36,7 +43,7 @@ export class WebPushDeliveryWorker
   }
 
   async tick(now = new Date()): Promise<void> {
-    if (this.isTickRunning) return;
+    if (!this.runtimeConfig.enabled || this.isTickRunning) return;
     this.isTickRunning = true;
     const tickStartedAt = Date.now();
     let claimNow = now;

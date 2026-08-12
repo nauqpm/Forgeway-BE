@@ -3,9 +3,7 @@ import { WebPushDeliveryWorker } from './web-push-delivery-worker.service';
 
 describe('WebPushDeliveryWorker', () => {
   const now = new Date('2026-08-10T00:15:00.000Z');
-  const leaseUntil = new Date(
-    now.getTime() + WEB_PUSH_DELIVERY_POLICY.leaseMs,
-  );
+  const leaseUntil = new Date(now.getTime() + WEB_PUSH_DELIVERY_POLICY.leaseMs);
   const notificationId = '507f1f77bcf86cd799439012';
 
   function notification(
@@ -37,6 +35,7 @@ describe('WebPushDeliveryWorker', () => {
       kind: 'delivered' | 'skipped' | 'retry' | 'failed';
       statusCode: number | null;
     } = { kind: 'delivered', statusCode: null },
+    runtimeConfig = { enabled: true, allowedEndpointHosts: new Set<string>() },
   ) {
     const repository = {
       claimDuePushDelivery: jest
@@ -57,9 +56,28 @@ describe('WebPushDeliveryWorker', () => {
       worker: new WebPushDeliveryWorker(
         repository as never,
         webPushService as never,
+        runtimeConfig,
       ),
     };
   }
+
+  it('does not claim or transition durable deliveries while disabled', async () => {
+    const { repository, webPushService, worker } = setup(
+      [notification()],
+      { kind: 'delivered', statusCode: null },
+      { enabled: false, allowedEndpointHosts: new Set<string>() },
+    );
+
+    await worker.tick(now);
+
+    expect(repository.claimDuePushDelivery).not.toHaveBeenCalled();
+    expect(webPushService.sendToUser).not.toHaveBeenCalled();
+    expect(repository.markPushDelivered).not.toHaveBeenCalled();
+    expect(repository.markPushSkipped).not.toHaveBeenCalled();
+    expect(repository.markPushFailed).not.toHaveBeenCalled();
+    expect(repository.markPushExpired).not.toHaveBeenCalled();
+    expect(repository.schedulePushRetry).not.toHaveBeenCalled();
+  });
 
   it('reclaims an expired lease after a crash and delivers with the new lease', async () => {
     const previousLease = new Date('2026-08-10T00:14:59.000Z');
@@ -203,9 +221,7 @@ describe('WebPushDeliveryWorker', () => {
 
   it('expires a notification at the fifteen-minute boundary before dispatch', async () => {
     const claimed = notification({
-      createdAt: new Date(
-        now.getTime() - WEB_PUSH_DELIVERY_POLICY.expiryMs,
-      ),
+      createdAt: new Date(now.getTime() - WEB_PUSH_DELIVERY_POLICY.expiryMs),
     });
     const { repository, webPushService, worker } = setup([claimed]);
 
@@ -229,6 +245,7 @@ describe('WebPushDeliveryWorker', () => {
     const worker = new WebPushDeliveryWorker(
       repository as never,
       { sendToUser: jest.fn() } as never,
+      { enabled: true, allowedEndpointHosts: new Set<string>() },
     );
 
     const firstTick = worker.tick(now);
