@@ -5,24 +5,26 @@ import { WebPushRuntimeConfig } from '../config/web-push.config';
 export class WebPushEndpointPolicy {
   constructor(private readonly runtimeConfig: WebPushRuntimeConfig) {}
 
-  assertAllowed(endpoint: string): void {
+  isAllowed(endpoint: string): boolean {
     let url: URL;
     try {
       url = new URL(endpoint);
     } catch {
-      throw new BadRequestException(
-        'Push subscription endpoint is not permitted',
-      );
+      return false;
     }
 
     const hostname = url.hostname.toLowerCase();
     const ipHostname = hostname.replace(/^\[|\]$/g, '');
-    if (
+    return !(
       url.protocol !== 'https:' ||
       url.port !== '' ||
       isIP(ipHostname) !== 0 ||
       !this.runtimeConfig.allowedEndpointHosts.has(hostname)
-    ) {
+    );
+  }
+
+  assertAllowed(endpoint: string): void {
+    if (!this.isAllowed(endpoint)) {
       throw new BadRequestException(
         'Push subscription endpoint is not permitted',
       );

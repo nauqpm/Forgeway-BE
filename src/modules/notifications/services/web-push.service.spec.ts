@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
+import { WebPushEndpointPolicy } from './web-push-endpoint-policy.service';
 import { WebPushService } from './web-push.service';
 
 jest.mock('web-push');
@@ -33,10 +34,7 @@ describe('WebPushService', () => {
     pushAttempts: 0,
   };
 
-  function setup(
-    currentSubscriptions = subscriptions,
-    enabled = true,
-  ) {
+  function setup(currentSubscriptions = subscriptions, enabled = true) {
     const subscriptionsService = {
       findForUser: jest.fn().mockResolvedValue(currentSubscriptions),
       removeForUser: jest.fn(),
@@ -51,6 +49,10 @@ describe('WebPushService', () => {
         }),
       } as unknown as ConfigService,
       subscriptionsService as never,
+      new WebPushEndpointPolicy({
+        enabled,
+        allowedEndpointHosts: new Set(['push.example.test']),
+      }),
     );
     return { service, subscriptionsService };
   }
@@ -117,6 +119,34 @@ describe('WebPushService', () => {
     expect(webPush.sendNotification).not.toHaveBeenCalled();
   });
 
+  it('removes an invalid stored subscription without dispatching it', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const invalidSubscription = {
+      ...subscriptions[0],
+      endpoint: 'https://127.0.0.1/push',
+      refreshVersion: 12,
+    };
+    const { service, subscriptionsService } = setup([invalidSubscription]);
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'skipped',
+      statusCode: null,
+    });
+
+    expect(webPush.sendNotification).not.toHaveBeenCalled();
+    expect(subscriptionsService.removeForUser).toHaveBeenCalledWith(
+      recipientId,
+      invalidSubscription.endpoint,
+      invalidSubscription.refreshVersion,
+    );
+    expect(warn).toHaveBeenCalledWith({
+      event: 'web_push_invalid_subscription_removed',
+      notificationId: notification.id,
+      providerHost: '127.0.0.1',
+    });
+    warn.mockRestore();
+  });
+
   it.each([404, 410])(
     'removes a stale status %s endpoint with its observed refresh version',
     async status => {
@@ -135,9 +165,7 @@ describe('WebPushService', () => {
         subscriptions[0].endpoint,
         subscriptions[0].refreshVersion,
       );
-      expect(
-        subscriptionsService.recordFailureForUser,
-      ).not.toHaveBeenCalled();
+      expect(subscriptionsService.recordFailureForUser).not.toHaveBeenCalled();
     },
   );
 

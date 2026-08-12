@@ -5,6 +5,7 @@ import { NotificationSummaryPayload } from '../../../shared/events/domain-events
 import { WEB_PUSH_DELIVERY_POLICY } from '../config/web-push.config';
 import { NotificationDocument } from '../schemas/notification.schema';
 import { WebPushSubscriptionDocument } from '../schemas/web-push-subscription.schema';
+import { WebPushEndpointPolicy } from './web-push-endpoint-policy.service';
 import { WebPushSubscriptionsService } from './web-push-subscriptions.service';
 
 export type PushDispatchResult =
@@ -23,6 +24,7 @@ export class WebPushService {
   constructor(
     configService: ConfigService,
     private readonly subscriptionsService: WebPushSubscriptionsService,
+    private readonly endpointPolicy: WebPushEndpointPolicy,
   ) {
     this.enabled = configService.get<string>('WEB_PUSH_ENABLED') === 'true';
     if (this.enabled) {
@@ -46,6 +48,30 @@ export class WebPushService {
     ).slice(0, WEB_PUSH_DELIVERY_POLICY.maxSubscriptionsPerUser);
     if (!subscriptions.length) return { kind: 'skipped', statusCode: null };
 
+    const validSubscriptions = subscriptions.filter(subscription =>
+      this.endpointPolicy.isAllowed(subscription.endpoint),
+    );
+    const invalidSubscriptions = subscriptions.filter(
+      subscription => !this.endpointPolicy.isAllowed(subscription.endpoint),
+    );
+    await Promise.all(
+      invalidSubscriptions.map(async subscription => {
+        await this.subscriptionsService.removeForUser(
+          userId,
+          subscription.endpoint,
+          subscription.refreshVersion,
+        );
+        this.logger.warn({
+          event: 'web_push_invalid_subscription_removed',
+          notificationId,
+          providerHost: this.providerHost(subscription.endpoint),
+        });
+      }),
+    );
+    if (!validSubscriptions.length) {
+      return { kind: 'skipped', statusCode: null };
+    }
+
     const payload = JSON.stringify({
       notificationId,
       title: notification.title,
@@ -54,7 +80,7 @@ export class WebPushService {
       url: this.buildNotificationHref(notification),
     });
     const results = await Promise.allSettled(
-      subscriptions.map(subscription =>
+      validSubscriptions.map(subscription =>
         webPush.sendNotification(
           {
             endpoint: subscription.endpoint,
@@ -75,7 +101,7 @@ export class WebPushService {
       results.map((result, index) =>
         this.recordProviderOutcome(
           notification,
-          subscriptions[index],
+          validSubscriptions[index],
           result,
         ),
       ),
@@ -97,8 +123,7 @@ export class WebPushService {
     }
 
     const terminalStatus = statusCodes.find(
-      status =>
-        status !== 404 && status !== 410 && !this.isRetryable(status),
+      status => status !== 404 && status !== 410 && !this.isRetryable(status),
     );
     return { kind: 'failed', statusCode: terminalStatus ?? null };
   }
