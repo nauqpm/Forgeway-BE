@@ -7,6 +7,8 @@ export interface WebPushRuntimeConfig {
   allowedEndpointHosts: ReadonlySet<string>;
 }
 
+export const WEB_PUSH_RUNTIME_CONFIG = Symbol('WEB_PUSH_RUNTIME_CONFIG');
+
 export const WEB_PUSH_DELIVERY_POLICY = {
   maxSubscriptionsPerUser: 3,
   requestTimeoutMs: 10_000,

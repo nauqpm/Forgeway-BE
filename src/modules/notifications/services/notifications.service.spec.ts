@@ -6,16 +6,18 @@ import {
 } from '../constants/notification.constants';
 import { CreateNotificationInput } from '../interfaces/create-notification-input.interface';
 import { NotificationDto } from '../dtos/notification.dto';
+import { PushDeliveryStatus } from '../constants/web-push-delivery.constants';
 
 describe('NotificationsService', () => {
   const actorId = '507f1f77bcf86cd799439011';
   const recipientId = '507f1f77bcf86cd799439012';
-  const webPushDisabledConfig = { get: jest.fn().mockReturnValue(undefined) };
+  const webPushDisabledConfig = {
+    enabled: false,
+    allowedEndpointHosts: new Set<string>(),
+  };
   const webPushEnabledConfig = {
-    get: jest.fn().mockImplementation(key => {
-      if (key === 'WEB_PUSH_ENABLED') return 'true';
-      return 'fcm.googleapis.com';
-    }),
+    enabled: true,
+    allowedEndpointHosts: new Set(['fcm.googleapis.com']),
   };
 
   it('does not create an assignment notification for the actor', async () => {
@@ -25,7 +27,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
-      webPushDisabledConfig as never,
+      webPushDisabledConfig,
     );
     const create = jest.spyOn(service, 'create').mockResolvedValue(null);
 
@@ -48,7 +50,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
-      webPushDisabledConfig as never,
+      webPushDisabledConfig,
     );
     const createMany = jest.spyOn(service, 'createMany').mockResolvedValue([]);
 
@@ -103,7 +105,7 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
-      webPushDisabledConfig as never,
+      webPushDisabledConfig,
     );
 
     await service.create(input);
@@ -119,7 +121,7 @@ describe('NotificationsService', () => {
     ).toBeLessThan(publisher.publishCreated.mock.invocationCallOrder[0]);
   });
 
-  it('persists pending web push delivery state with the notification when delivery is enabled', async () => {
+  it('persists pending web push delivery state from injected enabled config', async () => {
     const input: CreateNotificationInput = {
       recipientId,
       actorId,
@@ -142,7 +144,7 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
-      webPushEnabledConfig as never,
+      webPushEnabledConfig,
     );
 
     await service.create(input);
@@ -150,7 +152,7 @@ describe('NotificationsService', () => {
     expect(repository.createWithPushDelivery).toHaveBeenCalledWith(
       input,
       expect.objectContaining({
-        status: 'pending',
+        status: PushDeliveryStatus.PENDING,
         nextAttemptAt: expect.any(Date),
       }),
     );
@@ -176,7 +178,7 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
-      webPushEnabledConfig as never,
+      webPushEnabledConfig,
     );
 
     await service.createMany([input]);
@@ -221,7 +223,7 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
-      webPushDisabledConfig as never,
+      webPushDisabledConfig,
     );
 
     await service.createMany([input]);

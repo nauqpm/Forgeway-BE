@@ -1,8 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
 import { NotificationSummaryPayload } from '../../../shared/events/domain-events/notification';
-import { WEB_PUSH_DELIVERY_POLICY } from '../config/web-push.config';
+import {
+  WEB_PUSH_DELIVERY_POLICY,
+  WEB_PUSH_RUNTIME_CONFIG,
+  WebPushRuntimeConfig,
+} from '../config/web-push.config';
 import { NotificationDocument } from '../schemas/notification.schema';
 import { WebPushSubscriptionDocument } from '../schemas/web-push-subscription.schema';
 import { WebPushEndpointPolicy } from './web-push-endpoint-policy.service';
@@ -25,8 +29,10 @@ export class WebPushService {
     configService: ConfigService,
     private readonly subscriptionsService: WebPushSubscriptionsService,
     private readonly endpointPolicy: WebPushEndpointPolicy,
+    @Inject(WEB_PUSH_RUNTIME_CONFIG)
+    runtimeConfig: WebPushRuntimeConfig,
   ) {
-    this.enabled = configService.get<string>('WEB_PUSH_ENABLED') === 'true';
+    this.enabled = runtimeConfig.enabled;
     if (this.enabled) {
       webPush.setVapidDetails(
         configService.get<string>('VAPID_SUBJECT')!,

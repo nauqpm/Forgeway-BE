@@ -1,5 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { NotificationDto, NotificationListDto } from '../dtos/notification.dto';
 import {
@@ -13,7 +12,10 @@ import { NotificationMapper } from '../mappers/notification.mapper';
 import { NotificationsRepository } from '../repositories/notifications.repository';
 import { NotificationDomainEventPublisher } from './notification-domain-event.publisher';
 import { NotificationFactoryService } from './notification-factory.service';
-import { parseWebPushRuntimeConfig } from '../config/web-push.config';
+import {
+  WEB_PUSH_RUNTIME_CONFIG,
+  WebPushRuntimeConfig,
+} from '../config/web-push.config';
 import { createPushDeliveryInitialState } from '../constants/web-push-delivery.constants';
 
 @Injectable()
@@ -25,14 +27,10 @@ export class NotificationsService {
     private readonly notificationMapper: NotificationMapper,
     private readonly notificationFactory: NotificationFactoryService,
     private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
-    configService: ConfigService,
+    @Inject(WEB_PUSH_RUNTIME_CONFIG)
+    runtimeConfig: WebPushRuntimeConfig,
   ) {
-    this.webPushEnabled = parseWebPushRuntimeConfig({
-      WEB_PUSH_ENABLED: configService.get<string>('WEB_PUSH_ENABLED'),
-      WEB_PUSH_ALLOWED_ENDPOINT_HOSTS: configService.get<string>(
-        'WEB_PUSH_ALLOWED_ENDPOINT_HOSTS',
-      ),
-    }).enabled;
+    this.webPushEnabled = runtimeConfig.enabled;
   }
 
   private readonly webPushEnabled: boolean;

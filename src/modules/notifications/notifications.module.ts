@@ -29,12 +29,11 @@ import { WebPushSubscriptionsService } from './services/web-push-subscriptions.s
 import { WebPushService } from './services/web-push.service';
 import {
   parseWebPushRuntimeConfig,
+  WEB_PUSH_RUNTIME_CONFIG,
   WebPushRuntimeConfig,
 } from './config/web-push.config';
 import { WebPushEndpointPolicy } from './services/web-push-endpoint-policy.service';
 import { WebPushDeliveryWorker } from './services/web-push-delivery-worker.service';
-
-const WEB_PUSH_RUNTIME_CONFIG = Symbol('WEB_PUSH_RUNTIME_CONFIG');
 
 @Module({
   imports: [

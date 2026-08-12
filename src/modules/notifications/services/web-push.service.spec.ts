@@ -34,7 +34,11 @@ describe('WebPushService', () => {
     pushAttempts: 0,
   };
 
-  function setup(currentSubscriptions = subscriptions, enabled = true) {
+  function setup(
+    currentSubscriptions = subscriptions,
+    enabled = true,
+    rawEnabled = enabled,
+  ) {
     const subscriptionsService = {
       findForUser: jest.fn().mockResolvedValue(currentSubscriptions),
       removeForUser: jest.fn(),
@@ -44,7 +48,7 @@ describe('WebPushService', () => {
     const service = new WebPushService(
       {
         get: jest.fn((key: string) => {
-          if (key === 'WEB_PUSH_ENABLED') return String(enabled);
+          if (key === 'WEB_PUSH_ENABLED') return String(rawEnabled);
           return 'value';
         }),
       } as unknown as ConfigService,
@@ -53,6 +57,10 @@ describe('WebPushService', () => {
         enabled,
         allowedEndpointHosts: new Set(['push.example.test']),
       }),
+      {
+        enabled,
+        allowedEndpointHosts: new Set(['push.example.test']),
+      },
     );
     return { service, subscriptionsService };
   }
@@ -106,6 +114,18 @@ describe('WebPushService', () => {
 
     expect(subscriptionsService.findForUser).not.toHaveBeenCalled();
     expect(webPush.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('dispatches when injected enabled config differs from the disabled raw setting', async () => {
+    const { service } = setup(subscriptions, true, false);
+    jest.mocked(webPush.sendNotification).mockResolvedValue({} as never);
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'delivered',
+      statusCode: null,
+    });
+
+    expect(webPush.sendNotification).toHaveBeenCalledTimes(2);
   });
 
   it('returns skipped when the user has no current subscriptions', async () => {
