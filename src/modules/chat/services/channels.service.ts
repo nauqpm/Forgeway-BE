@@ -239,6 +239,25 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
+    const envelope = {
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_UPDATED,
+      data: channel,
+      occurredAt: new Date().toISOString(),
+    };
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channel._id.toString()),
+      envelope,
+      'chat',
+    );
+    if (channel.workspaceId) {
+      this.realtimePublisher.emit(
+        RoomBuilder.workspace(channel.workspaceId.toString()),
+        envelope,
+        'chat',
+      );
+    }
+
     return channel;
   }
 
