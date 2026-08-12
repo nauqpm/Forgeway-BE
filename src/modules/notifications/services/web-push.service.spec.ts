@@ -147,6 +147,64 @@ describe('WebPushService', () => {
     warn.mockRestore();
   });
 
+  it('delivers a valid stored subscription while removing an invalid one', async () => {
+    const invalidSubscription = {
+      ...subscriptions[0],
+      endpoint: 'https://127.0.0.1/push',
+      refreshVersion: 12,
+    };
+    const { service, subscriptionsService } = setup([
+      invalidSubscription,
+      subscriptions[1],
+    ]);
+    jest.mocked(webPush.sendNotification).mockResolvedValue({} as never);
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'delivered',
+      statusCode: null,
+    });
+
+    expect(webPush.sendNotification).toHaveBeenCalledTimes(1);
+    expect(webPush.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: subscriptions[1].endpoint }),
+      expect.any(String),
+      expect.any(Object),
+    );
+    expect(subscriptionsService.removeForUser).toHaveBeenCalledWith(
+      recipientId,
+      invalidSubscription.endpoint,
+      invalidSubscription.refreshVersion,
+    );
+  });
+
+  it('delivers a valid stored subscription when invalid cleanup rejects', async () => {
+    const invalidSubscription = {
+      ...subscriptions[0],
+      endpoint: 'https://127.0.0.1/push',
+      refreshVersion: 12,
+    };
+    const { service, subscriptionsService } = setup([
+      invalidSubscription,
+      subscriptions[1],
+    ]);
+    subscriptionsService.removeForUser.mockRejectedValue(
+      new Error('cleanup unavailable'),
+    );
+    jest.mocked(webPush.sendNotification).mockResolvedValue({} as never);
+
+    await expect(service.sendToUser(notification)).resolves.toEqual({
+      kind: 'delivered',
+      statusCode: null,
+    });
+
+    expect(webPush.sendNotification).toHaveBeenCalledTimes(1);
+    expect(webPush.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: subscriptions[1].endpoint }),
+      expect.any(String),
+      expect.any(Object),
+    );
+  });
+
   it.each([404, 410])(
     'removes a stale status %s endpoint with its observed refresh version',
     async status => {

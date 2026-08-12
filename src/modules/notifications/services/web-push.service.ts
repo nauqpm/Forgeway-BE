@@ -56,16 +56,24 @@ export class WebPushService {
     );
     await Promise.all(
       invalidSubscriptions.map(async subscription => {
-        await this.subscriptionsService.removeForUser(
-          userId,
-          subscription.endpoint,
-          subscription.refreshVersion,
-        );
-        this.logger.warn({
-          event: 'web_push_invalid_subscription_removed',
-          notificationId,
-          providerHost: this.providerHost(subscription.endpoint),
-        });
+        try {
+          await this.subscriptionsService.removeForUser(
+            userId,
+            subscription.endpoint,
+            subscription.refreshVersion,
+          );
+          this.logger.warn({
+            event: 'web_push_invalid_subscription_removed',
+            notificationId,
+            providerHost: this.providerHost(subscription.endpoint),
+          });
+        } catch {
+          this.logger.warn({
+            event: 'web_push_invalid_subscription_cleanup_failed',
+            notificationId,
+            providerHost: this.providerHost(subscription.endpoint),
+          });
+        }
       }),
     );
     if (!validSubscriptions.length) {
