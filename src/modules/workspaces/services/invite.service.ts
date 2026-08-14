@@ -23,6 +23,7 @@ import { NotificationsService } from '@/modules/notifications/services/notificat
 import { UsersService } from '@/modules/users/services/users.service';
 import {
   WorkspaceInviteCreatedEvent,
+  WorkspaceInviteCancelledEvent,
   WorkspaceInviteSummaryPayload,
   WorkspaceMemberJoinedEvent,
   WorkspaceSummaryPayload,
@@ -166,7 +167,11 @@ export class InviteService {
     return this.inviteRepository.findPendingByWorkspace(workspaceId);
   }
 
-  async cancelInvite(workspaceId: string, inviteId: string): Promise<void> {
+  async cancelInvite(
+    workspaceId: string,
+    inviteId: string,
+    actorId?: string,
+  ): Promise<void> {
     const invite = await this.inviteRepository.findById(inviteId);
     if (!invite) throw new NotFoundException(ErrorFactory.inviteNotFound());
 
@@ -175,6 +180,27 @@ export class InviteService {
     }
 
     await this.inviteRepository.updateStatus(inviteId, INVITE_STATUS.EXPIRED);
+
+    try {
+      await this.notificationsService.updateInviteNotificationStatus(
+        inviteId,
+        undefined,
+        INVITE_STATUS.EXPIRED,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to update invite notification status: ${message}`,
+      );
+    }
+
+    const event = new WorkspaceInviteCancelledEvent({
+      workspaceId,
+      actorId,
+      inviteId,
+    });
+
+    this.eventEmitter.emit(event.type, event);
   }
 
   async acceptInvite(
@@ -212,6 +238,19 @@ export class InviteService {
       (invite as any)._id.toString(),
       INVITE_STATUS.DECLINED,
     );
+
+    try {
+      await this.notificationsService.updateInviteNotificationStatus(
+        (invite as any)._id.toString(),
+        userId,
+        INVITE_STATUS.DECLINED,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to update invite notification status: ${message}`,
+      );
+    }
   }
 
   async getInviteByToken(token: string): Promise<{
@@ -442,6 +481,19 @@ export class InviteService {
       );
     }
 
+    try {
+      await this.notificationsService.updateInviteNotificationStatus(
+        (invite as any)._id.toString(),
+        userId,
+        INVITE_STATUS.ACCEPTED,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to update invite notification status: ${message}`,
+      );
+    }
+
     this.publishWorkspaceMemberJoinedEvent(
       workspace,
       userId,
@@ -449,6 +501,7 @@ export class InviteService {
       userId,
     );
   }
+
   private publishWorkspaceInviteCreatedEvent(
     workspace: any,
     invite: Invite,

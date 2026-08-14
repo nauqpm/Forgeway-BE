@@ -16,6 +16,8 @@ import { ConfigService } from '@nestjs/config';
 import { INVITE_STATUS } from '../schemas/invite.schema';
 import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { WorkspaceInviteCancelledEvent } from '@/shared/events/domain-events/workspace';
+import { DOMAIN_EVENT_TYPES } from '@/shared/events/domain-events/domain-event-types';
 
 const mockWorkspace = {
   _id: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
@@ -43,6 +45,8 @@ describe('InviteService', () => {
   let workspacesRepo: jest.Mocked<WorkspacesRepository>;
   let usersService: jest.Mocked<UsersService>;
   let mailerService: jest.Mocked<MailerService>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
+  let notificationsService: jest.Mocked<NotificationsService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -85,11 +89,10 @@ describe('InviteService', () => {
           provide: NotificationsService,
           useValue: {
             notifyWorkspaceInvited: jest.fn().mockResolvedValue(undefined),
+            updateInviteNotificationStatus: jest
+              .fn()
+              .mockResolvedValue(undefined),
           },
-        },
-        {
-          provide: EventEmitter2,
-          useValue: { emit: jest.fn() },
         },
         {
           provide: EventEmitter2,
@@ -103,6 +106,8 @@ describe('InviteService', () => {
     workspacesRepo = module.get(WorkspacesRepository);
     usersService = module.get(UsersService);
     mailerService = module.get(MailerService);
+    eventEmitter = module.get(EventEmitter2);
+    notificationsService = module.get(NotificationsService);
   });
 
   describe('createInvite', () => {
@@ -288,7 +293,7 @@ describe('InviteService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('marks invite as expired', async () => {
+    it('marks invite as expired and emits WorkspaceInviteCancelledEvent', async () => {
       inviteRepo.findById.mockResolvedValue({
         _id: 'inviteId',
         workspaceId: new Types.ObjectId('aaaaaaaaaaaaaaaaaaaaaaaa'),
@@ -298,12 +303,29 @@ describe('InviteService', () => {
         status: INVITE_STATUS.EXPIRED,
       } as any);
 
-      await service.cancelInvite('aaaaaaaaaaaaaaaaaaaaaaaa', 'inviteId');
+      await service.cancelInvite(
+        'aaaaaaaaaaaaaaaaaaaaaaaa',
+        'inviteId',
+        'user123',
+      );
 
       expect(inviteRepo.updateStatus).toHaveBeenCalledWith(
         'inviteId',
         INVITE_STATUS.EXPIRED,
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+        expect.any(WorkspaceInviteCancelledEvent),
+      );
+      const emittedEvent = eventEmitter.emit.mock.calls.find(
+        call => call[0] === DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
+      )?.[1];
+      expect(emittedEvent.data).toEqual({
+        workspaceId: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+        actorId: 'user123',
+        inviteId: 'inviteId',
+      });
+      expect(emittedEvent.occurredAt).toBeInstanceOf(Date);
     });
   });
 
@@ -574,6 +596,9 @@ describe('InviteService', () => {
         inviteId,
         INVITE_STATUS.ACCEPTED,
       );
+      expect(
+        notificationsService.updateInviteNotificationStatus,
+      ).toHaveBeenCalledWith(inviteId, userId, INVITE_STATUS.ACCEPTED);
     });
 
     it('throws ForbiddenException when authenticated user email does not match invite', async () => {
@@ -613,6 +638,9 @@ describe('InviteService', () => {
         INVITE_STATUS.DECLINED,
       );
       expect(workspacesRepo.addMember).not.toHaveBeenCalled();
+      expect(
+        notificationsService.updateInviteNotificationStatus,
+      ).toHaveBeenCalledWith(inviteId, userId, INVITE_STATUS.DECLINED);
     });
   });
   describe('processPostRegisterInvites', () => {

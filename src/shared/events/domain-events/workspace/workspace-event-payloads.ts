@@ -42,6 +42,10 @@ export interface WorkspaceInviteCreatedEventData extends WorkspaceEventContext {
   invite?: WorkspaceInviteSummaryPayload;
 }
 
+export interface WorkspaceInviteCancelledEventData extends WorkspaceEventContext {
+  inviteId: string;
+}
+
 export interface WorkspaceCreatedEventData extends WorkspaceEventContext {
   workspace: WorkspaceSummaryPayload;
 }

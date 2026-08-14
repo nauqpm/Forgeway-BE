@@ -239,6 +239,25 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
+    const envelope = {
+      eventId: new Types.ObjectId().toString(),
+      type: REALTIME_EVENT_TYPES.CHAT_CHANNEL_UPDATED,
+      data: channel,
+      occurredAt: new Date().toISOString(),
+    };
+    this.realtimePublisher.emit(
+      RoomBuilder.channel(channel._id.toString()),
+      envelope,
+      'chat',
+    );
+    if (channel.workspaceId) {
+      this.realtimePublisher.emit(
+        RoomBuilder.workspace(channel.workspaceId.toString()),
+        envelope,
+        'chat',
+      );
+    }
+
     return channel;
   }
 
@@ -608,14 +627,17 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
+    const cleanQuery = (query || '').replace(/^@+/, '').trim();
+    const escapedQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     if (channel.type === 'general' || channel.type === 'announcement') {
-      return this.usersService.searchUsers(query, userId);
+      return this.usersService.searchUsers(cleanQuery, userId);
     }
 
     const memberIds = await this.getChannelMemberIds(channelId);
     if (memberIds.length === 0) return [];
 
-    const regex = new RegExp(query, 'i');
+    const regex = new RegExp(escapedQuery, 'i');
     const users = await this.usersService.getUsersByIds(memberIds);
     return users
       .filter(user => {
@@ -624,6 +646,25 @@ export class ChannelsService {
         const phoneMatch =
           (user as any).phone && regex.test((user as any).phone);
         return nameMatch || emailMatch || phoneMatch;
+      })
+      .sort((a, b) => {
+        const q = cleanQuery.toLowerCase();
+        const aEmail = (a.email || '').toLowerCase();
+        const bEmail = (b.email || '').toLowerCase();
+        const aName = (a.fullName || '').toLowerCase();
+        const bName = (b.fullName || '').toLowerCase();
+
+        const aExact = aEmail === q || aName === q;
+        const bExact = bEmail === q || bName === q;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        const aStarts = aEmail.startsWith(q) || aName.startsWith(q);
+        const bStarts = bEmail.startsWith(q) || bName.startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        return 0;
       })
       .slice(0, 10);
   }

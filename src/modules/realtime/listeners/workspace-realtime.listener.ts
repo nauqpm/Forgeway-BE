@@ -12,6 +12,7 @@ import {
   WorkspaceDeletedEventData,
   WorkspaceEventContext,
   WorkspaceInviteCreatedEventData,
+  WorkspaceInviteCancelledEventData,
   WorkspaceMemberJoinedEventData,
   WorkspaceMemberRemovedEventData,
   WorkspaceMemberRoleUpdatedEventData,
@@ -29,6 +30,7 @@ import { RealtimePublisher } from '../publishers/realtime.publisher';
 export type WorkspaceRealtimeEventData =
   | WorkspaceCreatedEventData
   | WorkspaceInviteCreatedEventData
+  | WorkspaceInviteCancelledEventData
   | WorkspaceUpdatedEventData
   | WorkspaceArchivedEventData
   | WorkspaceRestoredEventData
@@ -52,6 +54,14 @@ export class WorkspaceRealtimeListener {
   handleWorkspaceInviteCreated(event: WorkspaceRealtimeDomainEvent): void {
     this.publishWorkspaceInviteEvent(
       REALTIME_EVENT_TYPES.WORKSPACE_INVITE_CREATED,
+      event,
+    );
+  }
+
+  @OnEvent(DOMAIN_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED, { async: true })
+  handleWorkspaceInviteCancelled(event: WorkspaceRealtimeDomainEvent): void {
+    this.publishWorkspaceEvent(
+      REALTIME_EVENT_TYPES.WORKSPACE_INVITE_CANCELLED,
       event,
     );
   }

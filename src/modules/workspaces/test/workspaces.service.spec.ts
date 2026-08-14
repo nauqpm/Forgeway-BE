@@ -11,7 +11,7 @@ import { SPACE_ROLES } from '@/common/constants/space-role.constants';
 import { ChannelsService } from '@/modules/chat/services/channels.service';
 import { KanbanService } from '@/modules/kanban/services/kanban.service';
 import { ScrumService } from '@/modules/scrum/services/scrum.service';
-import { UsersService } from '@/modules/users/services/users.service';
+import { WorkspacePreferencesService } from '@/modules/workspace-preferences/services/workspace-preferences.service';
 import { WorkflowsService } from '@/modules/workflows/services/workflows.service';
 import { WorkspacesRepository } from '@/modules/workspaces/repositories/workspaces.repository';
 import { WorkspaceDomainEventPublisher } from '@/modules/workspaces/services/workspace-domain-event.publisher';
@@ -80,8 +80,9 @@ const mockScrumService = () => ({
   restoreByWorkspace: jest.fn(),
 });
 
-const mockUsersService = () => ({
-  findByEmail: jest.fn(),
+const mockWorkspacePreferencesService = () => ({
+  findByUserId: jest.fn(async () => []),
+  deleteByWorkspace: jest.fn(async () => undefined),
 });
 
 const mockWorkspaceKeyService = () => ({
@@ -99,6 +100,9 @@ describe('WorkspacesService', () => {
   let workflowsService: ReturnType<typeof mockWorkflowsService>;
   let kanbanService: ReturnType<typeof mockKanbanService>;
   let scrumService: ReturnType<typeof mockScrumService>;
+  let workspacePreferencesService: ReturnType<
+    typeof mockWorkspacePreferencesService
+  >;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -108,7 +112,10 @@ describe('WorkspacesService', () => {
         { provide: WorkflowsService, useFactory: mockWorkflowsService },
         { provide: KanbanService, useFactory: mockKanbanService },
         { provide: ScrumService, useFactory: mockScrumService },
-        { provide: UsersService, useFactory: mockUsersService },
+        {
+          provide: WorkspacePreferencesService,
+          useFactory: mockWorkspacePreferencesService,
+        },
         { provide: WorkspaceKeyService, useFactory: mockWorkspaceKeyService },
         {
           provide: WorkspaceDomainEventPublisher,
@@ -144,6 +151,7 @@ describe('WorkspacesService', () => {
     workflowsService = module.get(WorkflowsService);
     kanbanService = module.get(KanbanService);
     scrumService = module.get(ScrumService);
+    workspacePreferencesService = module.get(WorkspacePreferencesService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -390,6 +398,45 @@ describe('WorkspacesService', () => {
       );
       expect(repo.findByUserId).toHaveBeenCalledWith(OWNER_ID);
     });
+
+    it('sorts workspaces according to personal preference positions', async () => {
+      const ID_1 = new Types.ObjectId().toString();
+      const ID_2 = new Types.ObjectId().toString();
+      const ID_3 = new Types.ObjectId().toString();
+      const ID_4 = new Types.ObjectId().toString();
+
+      const ws1 = buildWorkspace({
+        _id: new Types.ObjectId(ID_1),
+        createdAt: new Date('2026-01-01'),
+      });
+      const ws2 = buildWorkspace({
+        _id: new Types.ObjectId(ID_2),
+        createdAt: new Date('2026-01-02'),
+      });
+      const ws3 = buildWorkspace({
+        _id: new Types.ObjectId(ID_3),
+        createdAt: new Date('2026-01-03'),
+      });
+      const ws4 = buildWorkspace({
+        _id: new Types.ObjectId(ID_4),
+        createdAt: new Date('2026-01-04'),
+      });
+
+      repo.findByUserId.mockResolvedValue([ws1, ws2, ws3, ws4]);
+      workspacePreferencesService.findByUserId.mockResolvedValue([
+        { workspaceId: new Types.ObjectId(ID_1), position: 1 },
+        { workspaceId: new Types.ObjectId(ID_2), position: 0 },
+        { workspaceId: new Types.ObjectId(ID_3), position: 3 },
+        { workspaceId: new Types.ObjectId(ID_4), position: 2 },
+      ] as any);
+
+      const result = await service.findByUserId(OWNER_ID);
+
+      expect(result[0]._id.toString()).toBe(ID_2);
+      expect(result[1]._id.toString()).toBe(ID_1);
+      expect(result[2]._id.toString()).toBe(ID_4);
+      expect(result[3]._id.toString()).toBe(ID_3);
+    });
   });
 
   // ── update ─────────────────────────────────────────────────────────────────
@@ -463,6 +510,9 @@ describe('WorkspacesService', () => {
         WORKSPACE_ID,
       );
       expect(repo.delete).toHaveBeenCalledWith(WORKSPACE_ID);
+      expect(
+        workspacePreferencesService.deleteByWorkspace,
+      ).toHaveBeenCalledWith(WORKSPACE_ID);
     });
 
     it('still attempts repo.delete even when cleanup throws', async () => {

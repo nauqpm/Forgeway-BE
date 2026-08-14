@@ -10,6 +10,7 @@ import {
   Max,
   IsMongoId,
 } from 'class-validator';
+import { MAX_COLUMN_NAME_LENGTH } from '@/common/constants/column.constants';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   TASK_PRIORITIES,
@@ -89,9 +90,17 @@ export class CreateTaskDto {
   @IsMongoId()
   epicId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Parent task ID (required when type=subtask)',
+  })
+  @IsOptional()
+  @IsMongoId()
+  parentId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_COLUMN_NAME_LENGTH)
   status?: string;
 
   @ApiPropertyOptional({ type: [String] })

@@ -177,6 +177,39 @@ export class CsvRowValidatorService {
       status,
     };
 
+    const parentKeyRaw = getField(record, 'Parent Key', 'parentKey');
+    if (parentKeyRaw) {
+      const parentKeyStr = parentKeyRaw.toString().trim().toLowerCase();
+      const parentLookup = maps.taskKeyMap.get(parentKeyStr);
+
+      if (!parentLookup) {
+        warnings.push(
+          `Parent task '${parentKeyRaw}' does not exist in this workspace. Subtask relationship will not be created.`,
+        );
+      } else {
+        data.parentId = parentLookup.id;
+
+        if (parentLookup.type === 'epic') {
+          errors.push(
+            `Cannot set an Epic ('${parentKeyRaw}') as a parent for a subtask.`,
+          );
+        } else if (parentLookup.type === 'subtask') {
+          errors.push(
+            `Parent task '${parentKeyRaw}' is already a subtask. Only one level of nesting is allowed.`,
+          );
+        }
+
+        // A valid parent key implies the imported row must be a subtask.
+        if (data.type !== 'subtask') {
+          errors.push(
+            `Task has a Parent Key but its type is '${data.type}'. Type must be 'subtask' when a parent is provided.`,
+          );
+        }
+      }
+    } else if (data.type === 'subtask') {
+      errors.push(`Task type is 'Subtask' but no Parent Key is provided.`);
+    }
+
     if (assigneeLookup.id) data.assigneeId = assigneeLookup.id;
     if (spResult.value !== undefined) data.storyPoints = spResult.value;
     if (startResult.value) data.startDate = startResult.value;

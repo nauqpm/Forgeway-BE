@@ -14,6 +14,7 @@ import { TaskReadRepository } from '../repositories/task-read.repository';
 import { TaskAccessService } from './task-access.service';
 import { TaskCreationValidationService } from './task-creation-validation.service';
 import { ErrorFactory } from '../../../common/factories/error.factory';
+import { WorkflowsService } from '../../workflows/services/workflows.service';
 
 @Injectable()
 export class TaskQueryService {
@@ -25,6 +26,7 @@ export class TaskQueryService {
     private readonly kanbanService: KanbanService,
     @Inject(forwardRef(() => ScrumService))
     private readonly scrumService: ScrumService,
+    private readonly workflowsService: WorkflowsService,
   ) {}
 
   async findAll(
@@ -39,8 +41,11 @@ export class TaskQueryService {
     }
 
     const result = await this.tasksRepository.findAll(filterDto);
+    const tasks = this.taskMapper.mapToDtos(result.tasks);
+    await this.enrichWithSubtaskProgress(tasks);
+
     return {
-      tasks: this.taskMapper.mapToDtos(result.tasks),
+      tasks,
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -60,7 +65,8 @@ export class TaskQueryService {
     }
 
     const tasks = await this.tasksRepository.findByWorkspace(workspaceId);
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos);
   }
 
   async findByWorkspaceKey(
@@ -96,8 +102,11 @@ export class TaskQueryService {
       workspaceId,
     });
 
+    const tasks = this.taskMapper.mapToDtos(result.tasks);
+    await this.enrichWithSubtaskProgress(tasks);
+
     return {
-      tasks: this.taskMapper.mapToDtos(result.tasks),
+      tasks,
       total: result.total,
       page: result.page,
       limit: result.limit,
@@ -134,6 +143,8 @@ export class TaskQueryService {
       filterDto,
     );
     const tasks = this.taskMapper.mapToDtos(result.tasks);
+    await this.enrichWithSubtaskProgress(tasks);
+
     return {
       tasks: await this.applyArchivedColumnNames(workspaceId, tasks),
       total: result.total,
@@ -155,7 +166,8 @@ export class TaskQueryService {
 
     const tasks =
       await this.tasksRepository.findBacklogByWorkspace(workspaceId);
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos);
   }
 
   async findBacklogByWorkspaceId(
@@ -170,7 +182,8 @@ export class TaskQueryService {
 
     const tasks =
       await this.tasksRepository.findBacklogByWorkspace(workspaceId);
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos);
   }
 
   async findActiveSprintBoardByWorkspaceKey(
@@ -193,7 +206,8 @@ export class TaskQueryService {
       workspaceId,
       activeSprint._id.toString(),
     );
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findActiveSprintBoardByWorkspaceId(
@@ -215,7 +229,8 @@ export class TaskQueryService {
       workspaceId,
       activeSprint._id.toString(),
     );
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findTasksBySprintInWorkspaceKey(
@@ -235,7 +250,8 @@ export class TaskQueryService {
       workspaceId,
       sprintId,
     );
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findTasksBySprintInWorkspaceId(
@@ -254,7 +270,8 @@ export class TaskQueryService {
       workspaceId,
       sprintId,
     );
-    return this.taskMapper.mapToDtos(tasks);
+    const dtos = this.taskMapper.mapToDtos(tasks);
+    return this.enrichWithSubtaskProgress(dtos, workspaceId);
   }
 
   async findById(id: string): Promise<TaskDto> {
@@ -438,5 +455,36 @@ export class TaskQueryService {
           }
         : task;
     });
+  }
+
+  private async enrichWithSubtaskProgress(
+    tasks: TaskDto[],
+    workspaceId?: string,
+  ): Promise<TaskDto[]> {
+    if (!tasks || tasks.length === 0) return tasks;
+
+    const parentIds = tasks.filter(t => t.type !== 'subtask').map(t => t.id);
+    if (parentIds.length === 0) return tasks;
+
+    const targetWorkspaceId = workspaceId || tasks[0].workspaceId;
+    if (!targetWorkspaceId) return tasks;
+
+    const doneStatusIds =
+      await this.workflowsService.getDoneStatusIds(targetWorkspaceId);
+    const progressMap = await this.tasksRepository.getSubtaskProgressForTasks(
+      parentIds,
+      doneStatusIds,
+    );
+
+    for (const task of tasks) {
+      if (task.type !== 'subtask') {
+        const progress = progressMap.get(task.id);
+        if (progress) {
+          task.subtaskProgress = progress;
+        }
+      }
+    }
+
+    return tasks;
   }
 }

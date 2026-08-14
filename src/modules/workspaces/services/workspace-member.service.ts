@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Types } from 'mongoose';
@@ -17,6 +18,7 @@ import {
 import { ErrorFactory } from '../../../common/factories/error.factory';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
+import { WorkspacePreferencesService } from '../../workspace-preferences/services/workspace-preferences.service';
 import {
   WorkspaceMemberJoinedEvent,
   WorkspaceMemberRemovedEvent,
@@ -33,6 +35,8 @@ export class WorkspaceMemberService {
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly eventEmitter: EventEmitter2,
+    @Optional()
+    private readonly workspacePreferencesService?: WorkspacePreferencesService,
   ) {}
 
   async addMember(
@@ -103,6 +107,18 @@ export class WorkspaceMemberService {
     );
     this.publishMemberRemovedEvent(workspace, userId, member.role, actorId);
     this.logger.log(`Member ${userId} removed from workspace ${workspaceId}`);
+
+    try {
+      await this.workspacePreferencesService?.deleteForUserWorkspace(
+        userId,
+        workspaceId,
+      );
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to delete workspace preference for user ${userId} in workspace ${workspaceId}: ${err.message}`,
+      );
+    }
+
     return updated;
   }
 

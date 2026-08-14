@@ -165,6 +165,16 @@ export class ChannelsController {
     return this.messagesService.send(id, userId, dto);
   }
 
+  @Get('channels/:channelId/messages/:messageId')
+  @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
+  @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
+  async getMessageById(
+    @Param('channelId') _channelId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagesService.findById(messageId);
+  }
+
   @Get('channels/:channelId/messages/:messageId/replies')
   @Roles(GLOBAL_ROLES.USER, GLOBAL_ROLES.SUPER_ADMIN)
   @Throttle(CHAT_THROTTLE_CONFIG.API_QUERY)
@@ -205,7 +215,7 @@ export class ChannelsController {
     @Param('id') id: string,
     @CurrentUser('userId') userId: string,
   ) {
-    return this.messagesService.softDelete(id, userId);
+    return this.messagesService.deleteMessage(id, userId);
   }
 
   @Delete('messages/:id/me')

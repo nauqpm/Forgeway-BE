@@ -36,4 +36,8 @@ export class ExportTasksDto {
   @ApiPropertyOptional()
   @IsOptional()
   sprintId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  includeSubtasks?: boolean | string;
 }

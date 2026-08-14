@@ -244,6 +244,7 @@ describe('CredentialLoginService', () => {
         avatar: 'avatar.png',
         googleId: 'google-123',
         ssoProvider: 'google',
+        mustChangePassword: undefined,
       });
     });
   });
