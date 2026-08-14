@@ -22,7 +22,6 @@ import { PasswordService } from './password.service';
 export class CredentialLoginService implements OnModuleInit {
   private readonly logger = new Logger(CredentialLoginService.name);
   private dummyPasswordHash = '';
-
   constructor(
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
