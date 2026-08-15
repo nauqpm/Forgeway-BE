@@ -1,5 +1,5 @@
 when:
-  - event: [push, pull_request]
+  - event: [push, pull_request, manual]
     branch: [dev, production]
 
 steps:
@@ -15,11 +15,12 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
+      mtu: 1400
       dry_run: true
       repo: ghcr.io/automationland-dev/sdlc-platform-backend
       tags: latest
     when:
-      - event: [push, pull_request]
+      - event: [push, pull_request, manual]
         branch: dev
       - event: pull_request
         branch: production
@@ -28,6 +29,7 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
+      mtu: 1400
       registry: ghcr.io
       repo: ghcr.io/automationland-dev/sdlc-platform-backend
       tags:
@@ -82,5 +84,5 @@ steps:
           docker compose logs --tail=30 backend
           exit 1
     when:
-      - event: push
+      - event: [push, manual]
         branch: production
