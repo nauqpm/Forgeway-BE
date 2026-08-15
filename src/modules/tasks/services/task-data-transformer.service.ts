@@ -101,10 +101,6 @@ export class TaskDataTransformerService {
       updateData.timeEstimated = Math.max(0, dto.timeEstimated);
     }
 
-    // [Business Rule] Prevent generic PATCH from modifying type and parentId
-    delete updateData.type;
-    delete updateData.parentId;
-
     return updateData;
   }
 }
