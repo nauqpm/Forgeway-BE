@@ -11,6 +11,14 @@ steps:
     when:
       - event: [pull_request]
 
+  prepare-scp:
+    image: alpine
+    commands:
+      - rm -rf .git
+    when:
+      - event: [push, manual]
+        branch: production
+
   copy-to-vps:
     image: appleboy/drone-scp
     settings:
