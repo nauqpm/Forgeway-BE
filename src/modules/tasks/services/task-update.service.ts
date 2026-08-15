@@ -65,6 +65,7 @@ export class TaskUpdateService {
     await this.validationService.validateUpdateRequest(
       normalizedUpdateDto,
       workspaceId,
+      existing,
     );
 
     const task = await this.taskWriteRepository.update(
@@ -122,6 +123,7 @@ export class TaskUpdateService {
     await this.validationService.validateUpdateRequest(
       normalizedUpdateDto,
       workspaceId,
+      existing,
     );
     await this.ensureCanMoveFromCurrentSprint(
       existing,
@@ -191,6 +193,7 @@ export class TaskUpdateService {
     await this.validationService.validateUpdateRequest(
       normalizedUpdateDto,
       workspaceId,
+      existing,
     );
     await this.ensureCanMoveFromCurrentSprint(
       existing,

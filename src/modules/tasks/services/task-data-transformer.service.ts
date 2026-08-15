@@ -101,8 +101,9 @@ export class TaskDataTransformerService {
       updateData.timeEstimated = Math.max(0, dto.timeEstimated);
     }
 
-    // [Business Rule] Prevent generic PATCH from modifying type and parentId
-    delete updateData.type;
+    // Parent relationships are managed by the dedicated subtask workflows.
+    // Task type is intentionally retained so the regular update endpoint can
+    // persist Task/Bug/Story changes made from the backlog.
     delete updateData.parentId;
 
     return updateData;
