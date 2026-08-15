@@ -17,6 +17,8 @@ import {
 import { NotificationDomainEventPublisher } from './services/notification-domain-event.publisher';
 import { NotificationFactoryService } from './services/notification-factory.service';
 import { NotificationsService } from './services/notifications.service';
+import { UsersModule } from '../users/users.module';
+import { PushNotificationService } from './services/push-notification.service';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import { NotificationsService } from './services/notifications.service';
     ]),
     forwardRef(() => AuthModule),
     forwardRef(() => WorkspacesModule),
+    forwardRef(() => UsersModule),
   ],
   controllers: [NotificationsController],
   providers: [
@@ -37,8 +40,9 @@ import { NotificationsService } from './services/notifications.service';
     SprintNotificationListener,
     SprintNotificationService,
     NotificationsService,
+    PushNotificationService,
     JwtAuthGuard,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, PushNotificationService],
 })
 export class NotificationsModule {}

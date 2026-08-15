@@ -68,6 +68,7 @@
     "docx": "^9.7.1",
     "dotenv": "^16.4.7",
     "exceljs": "^4.4.0",
+    "expo-server-sdk": "^6.1.0",
     "google-auth-library": "^10.7.0",
     "helmet": "^8.2.0",
     "html-to-docx": "^1.8.0",
