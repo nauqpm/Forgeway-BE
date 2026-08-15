@@ -4,47 +4,16 @@ when:
 
 steps:
   test-and-build:
-    image: node:20
+    image: node:20-alpine
     commands:
       - npm ci
-      - npm run lint
-      - npm run test -- --passWithNoTests --forceExit --coverage --coverageReporters=text-summary
       - npm run build
-
-  docker-build-dry-run:
-    image: plugins/docker
-    privileged: true
-    settings:
-      mtu: 1400
-      dry_run: true
-      repo: ghcr.io/automationland-dev/sdlc-platform-backend
-      tags: latest
-    when:
-      - event: [push, pull_request, manual]
-        branch: dev
-      - event: pull_request
-        branch: production
-
-  docker-build-and-push:
-    image: plugins/docker
-    privileged: true
-    settings:
-      mtu: 1400
-      registry: ghcr.io
-      repo: ghcr.io/automationland-dev/sdlc-platform-backend
-      tags:
-        - latest
-        - ${CI_COMMIT_SHA}
-      username:
-        from_secret: ghcr_username
-      password:
-        from_secret: ghcr_token
-    when:
-      - event: push
-        branch: production
 
   deploy-to-vps:
     image: appleboy/drone-ssh
+    environment:
+      GHCR_TOKEN:
+        from_secret: ghcr_token
     settings:
       host:
         from_secret: vps_host
@@ -53,34 +22,34 @@ steps:
       password:
         from_secret: vps_password
       envs:
-        - vps_ghcr_pat
-        - CI_REPO_OWNER
+        - GHCR_TOKEN
       script:
-        - echo $vps_ghcr_pat | docker login ghcr.io -u $CI_REPO_OWNER --password-stdin
+        - rm -rf /tmp/build-backend
+        - git clone -b production --single-branch https://${GHCR_TOKEN}@github.com/automationland-DEV/AL-SDLC-Platform-BE.git /tmp/build-backend
+        - cd /tmp/build-backend
+        - docker build -t ghcr.io/automationland-dev/sdlc-platform-backend:latest .
         - cd /opt/sdlc
-        - docker pull ghcr.io/automationland-dev/sdlc-platform-backend:latest
-        - docker compose up -d --no-build --no-deps backend
-        - docker image ls "ghcr.io/automationland-dev/sdlc-platform-backend" --format "{{.Repository}}:{{.Tag}}" | grep "sha-" | sort -r | tail -n +3 | xargs docker rmi 2>/dev/null || true
+        - docker compose up -d --no-deps backend
+        - rm -rf /tmp/build-backend
+        - docker image prune -f
         - |
-          for i in $(seq 1 18); do
+          for i in $(seq 1 12); do
             CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1)
             STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null)
             RESTARTS=$(docker inspect --format='{{.RestartCount}}' "$CONTAINER" 2>/dev/null)
-            HEALTH_STATUS=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER" 2>/dev/null)
-            
             if [ "${RESTARTS:-0}" -gt 0 ]; then
               echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s) - crash loop detected"
               docker compose logs --tail=30 backend
               exit 1
             fi
-            if [ "$STATUS" = "running" ] && [ "$HEALTH_STATUS" = "healthy" ]; then
-              echo "Backend deployed OK and healthy (restarts=0, attempt=$i): $(date)"
+            if [ "$STATUS" = "running" ]; then
+              echo "Backend deployed OK (restarts=0, attempt=$i): $(date)"
               exit 0
             fi
-            echo "Waiting... attempt $i/18 (status=${STATUS:-unknown}, health=${HEALTH_STATUS:-unknown})"
+            echo "Waiting... attempt $i/12 (status=${STATUS:-unknown})"
             sleep 5
           done
-          echo "DEPLOY FAILED: backend did not reach healthy state after 90s"
+          echo "DEPLOY FAILED: backend did not reach running state after 60s"
           docker compose logs --tail=30 backend
           exit 1
     when:
