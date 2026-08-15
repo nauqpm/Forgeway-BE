@@ -8,6 +8,25 @@ steps:
     commands:
       - npm ci
       - npm run build
+    when:
+      - event: [pull_request]
+
+  copy-to-vps:
+    image: appleboy/drone-scp
+    settings:
+      host:
+        from_secret: vps_host
+      username:
+        from_secret: vps_user
+      password:
+        from_secret: vps_password
+      target: /opt/sdlc/AL-SDLC-Platform-BE
+      source:
+        - .
+      rm: true
+    when:
+      - event: [push, manual]
+        branch: production
 
   deploy-to-vps:
     image: appleboy/drone-ssh
@@ -18,17 +37,12 @@ steps:
         from_secret: vps_user
       password:
         from_secret: vps_password
-      envs:
-        - vps_ghcr_pat
       script:
         - set -e
-        - rm -rf /tmp/build-backend
-        - git clone -b production --single-branch https://${vps_ghcr_pat}@github.com/automationland-DEV/AL-SDLC-Platform-BE.git /tmp/build-backend
-        - cd /tmp/build-backend
+        - cd /opt/sdlc/AL-SDLC-Platform-BE
         - docker build -t ghcr.io/automationland-dev/sdlc-platform-backend:latest .
         - cd /opt/sdlc
         - docker compose up -d --no-deps backend
-        - rm -rf /tmp/build-backend
         - docker image prune -f
         - |
           for i in $(seq 1 12); do
