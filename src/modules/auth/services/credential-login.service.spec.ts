@@ -1,4 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { AUTH_ERROR_CODES } from '../../../common/constants/error-codes.constants';
 import { USER_STATUSES } from '../../../common/constants/user-status.constants';
@@ -313,6 +314,10 @@ describe('CredentialLoginService', () => {
           {
             provide: LoginAttemptThrottleService,
             useValue: loginAttemptThrottleService,
+          },
+          {
+            provide: ConfigService,
+            useValue: { get: jest.fn().mockReturnValue(undefined) },
           },
         ],
       }).compile();

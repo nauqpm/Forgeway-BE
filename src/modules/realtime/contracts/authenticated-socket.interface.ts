@@ -14,5 +14,6 @@ export type AuthenticatedSocket = Socket & {
       windowStartedAt: number;
       count: number;
     };
+    presenceWatchCount?: number;
   };
 };

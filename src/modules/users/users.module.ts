@@ -29,6 +29,6 @@ import { VerifyModule } from '../verify/verify.module';
   ],
   controllers: [UsersController],
   providers: [UsersService, UsersRepository, AdminSeedService],
-  exports: [UsersService],
+  exports: [UsersService, UsersRepository],
 })
 export class UsersModule {}

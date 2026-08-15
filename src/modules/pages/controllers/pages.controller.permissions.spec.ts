@@ -15,9 +15,10 @@ const pageViewRoutes = [
   'findChildren',
   'getVersions',
   'getVersionById',
+  'exportDocx',
 ] as const;
 
-const pageEditRoutes = ['exportDocx', 'importDocx'] as const;
+const pageEditRoutes = ['importDocx'] as const;
 
 describe('PagesController workspace permissions', () => {
   it.each(pageViewRoutes)(

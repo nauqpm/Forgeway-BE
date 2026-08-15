@@ -10,6 +10,7 @@ import { PasswordController } from './controllers/password.controller';
 import { PermissionController } from './controllers/permission.controller';
 import { UserManagementController } from './controllers/user-management.controller';
 import { DeviceSwitchAccountsController } from './controllers/device-switch-accounts.controller';
+import { SsoController } from './controllers/sso.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { OtpService } from './services/otp.service';
@@ -21,6 +22,7 @@ import { CredentialLoginService } from './services/credential-login.service';
 import { PasswordService } from './services/password.service';
 import { DeviceSwitchAccountsService } from './services/device-switch-accounts.service';
 import { LoginSessionTrackingService } from './services/login-session-tracking.service';
+import { SsoLoginService } from './services/sso-login.service';
 import { TokenModule } from './token.module';
 import { Otp, OtpSchema } from './schemas/otp.schema';
 import { Token, TokenSchema } from './schemas/token.schema';
@@ -39,6 +41,7 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { AuditModule } from '../audit/audit.module';
 import { GuardsModule } from './guards/guards.module';
 import { RedisModule } from '@/infra/redis/redis.module';
+import { AuthTokenConfigModule } from './config/auth-token-config.module';
 
 @Module({
   imports: [
@@ -50,6 +53,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     forwardRef(() => GuardsModule),
     RedisModule,
     TokenModule,
+    AuthTokenConfigModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Otp.name, schema: OtpSchema },
@@ -67,6 +71,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     PermissionController,
     UserManagementController,
     DeviceSwitchAccountsController,
+    SsoController,
   ],
   providers: [
     AuthRegistrationService,
@@ -79,6 +84,7 @@ import { RedisModule } from '@/infra/redis/redis.module';
     DeviceSwitchAccountsService,
     LoginSessionTrackingService,
     LoginAttemptThrottleService,
+    SsoLoginService,
     JwtStrategy,
     GoogleStrategy,
   ],

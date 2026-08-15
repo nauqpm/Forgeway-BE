@@ -21,10 +21,11 @@ import { RealtimePublisher } from './publishers/realtime.publisher';
 import { RealtimeRoomRepository } from './repositories/realtime-room.repository';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeService } from './realtime.service';
-import { PresenceService } from './services/presence.service';
+import { WorkspacePresenceService } from './services/workspace-presence.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { PageCollabService } from './services/page-collab.service';
 import { SocketAuthService } from './services/socket-auth.service';
+import { PresenceModule } from '../presence/presence.module';
 
 @Module({
   imports: [
@@ -42,13 +43,14 @@ import { SocketAuthService } from './services/socket-auth.service';
     TokenModule,
     forwardRef(() => PagesModule),
     RedisModule,
+    PresenceModule,
   ],
   providers: [
     RealtimeGateway,
     RealtimeService,
     SocketAuthService,
     RoomManagerService,
-    PresenceService,
+    WorkspacePresenceService,
     RealtimeRoomRepository,
     RealtimePublisher,
     PageCollabService,
