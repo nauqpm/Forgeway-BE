@@ -101,9 +101,8 @@ export class TaskDataTransformerService {
       updateData.timeEstimated = Math.max(0, dto.timeEstimated);
     }
 
-    // Parent relationships are managed by the dedicated subtask workflows.
-    // Task type is intentionally retained so the regular update endpoint can
-    // persist Task/Bug/Story changes made from the backlog.
+    // [Business Rule] Prevent generic PATCH from modifying type and parentId
+    delete updateData.type;
     delete updateData.parentId;
 
     return updateData;
