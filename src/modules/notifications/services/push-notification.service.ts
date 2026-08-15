@@ -11,7 +11,6 @@ export class PushNotificationService {
     this.expo = new Expo({
       // You can provide an access token if you have one configured in Expo
       // accessToken: process.env.EXPO_ACCESS_TOKEN,
-      useFcmV1: true,
     });
   }
 
