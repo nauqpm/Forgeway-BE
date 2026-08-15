@@ -56,5 +56,24 @@ export function validateEnv(config: Env): Env {
     DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   );
 
+  const presenceKeys = [
+    'PRESENCE_HEARTBEAT_INTERVAL_MS',
+    'PRESENCE_CONN_TTL_MS',
+    'PRESENCE_OFFLINE_GRACE_MS',
+    'PRESENCE_SWEEP_INTERVAL_MS',
+    'PRESENCE_MAX_SUBSCRIPTIONS',
+    'PRESENCE_BATCH_MAX_IDS',
+  ] as const;
+
+  for (const key of presenceKeys) {
+    const raw = config[key];
+    if (raw != null && raw.trim() !== '') {
+      const parsed = parseInt(raw, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        throw new Error(`${key} must be a positive integer when provided`);
+      }
+    }
+  }
+
   return config;
 }

@@ -10,7 +10,7 @@ type PresenceRedisClient = NonNullable<
   Awaited<ReturnType<RedisService['createClient']>>
 >;
 
-export interface PresenceHeartbeatResult {
+export interface WorkspacePresenceHeartbeatResult {
   ok: boolean;
   expiresInMs: number;
   reason?: 'PRESENCE_UNAVAILABLE';
@@ -20,8 +20,8 @@ const PRESENCE_TTL_SECONDS = 30;
 const PRESENCE_TTL_MS = PRESENCE_TTL_SECONDS * 1000;
 
 @Injectable()
-export class PresenceService implements OnModuleInit {
-  private readonly logger = new Logger(PresenceService.name);
+export class WorkspacePresenceService implements OnModuleInit {
+  private readonly logger = new Logger(WorkspacePresenceService.name);
   private redisClient: PresenceRedisClient | null = null;
 
   constructor(
@@ -31,18 +31,19 @@ export class PresenceService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      this.redisClient = await this.redisService.createClient('presence');
+      this.redisClient =
+        await this.redisService.createClient('workspace-presence');
       if (this.redisClient) {
-        this.logger.log('Presence Redis client initialized.');
+        this.logger.log('Workspace Presence Redis client initialized.');
       } else {
         this.logger.warn(
-          'Presence Redis client unavailable, presence will run in degraded mode.',
+          'Workspace Presence Redis client unavailable, presence will run in degraded mode.',
         );
       }
     } catch (error) {
       this.redisClient = null;
       this.logger.warn(
-        `Presence Redis client unavailable, presence will run in degraded mode: ${(error as Error).message}`,
+        `Workspace Presence Redis client unavailable, presence will run in degraded mode: ${(error as Error).message}`,
       );
     }
   }
@@ -50,13 +51,13 @@ export class PresenceService implements OnModuleInit {
   async heartbeat(
     client: AuthenticatedSocket,
     dto: PresenceHeartbeatDto,
-  ): Promise<PresenceHeartbeatResult> {
+  ): Promise<WorkspacePresenceHeartbeatResult> {
     const user = this.getAuthenticatedUser(client);
     await this.authorizePresence(user.userId, dto.workspaceId, dto.taskId);
 
     if (!this.redisClient) {
       this.logger.warn(
-        'Presence heartbeat skipped because Redis is not configured.',
+        'Workspace presence heartbeat skipped because Redis is not configured.',
       );
       return {
         ok: false,
@@ -97,14 +98,14 @@ export class PresenceService implements OnModuleInit {
 
     if (!isMember) {
       this.logger.warn(
-        `Presence unauthorized: user ${userId} is not member of workspace ${workspaceId}`,
+        `Workspace presence unauthorized: user ${userId} is not member of workspace ${workspaceId}`,
       );
       throw new WsException('Unauthorized presence heartbeat');
     }
 
     if (!taskExists) {
       this.logger.warn(
-        `Presence unauthorized: task ${taskId} not found in workspace ${workspaceId}`,
+        `Workspace presence unauthorized: task ${taskId} not found in workspace ${workspaceId}`,
       );
       throw new WsException('Unauthorized presence heartbeat');
     }
