@@ -60,6 +60,9 @@ export class User {
   @Prop({ default: false })
   presenceInvisible?: boolean;
 
+  @Prop({ type: [String], default: [] })
+  deviceTokens?: string[];
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -80,6 +83,7 @@ UserSchema.set('toJSON', {
     delete ret._id;
     delete ret.__v;
     delete ret.password; // Exclude password from JSON responses
+    delete ret.deviceTokens; // Exclude deviceTokens from JSON responses
 
     if (ret.googleId) {
       ret.ssoProvider = 'google';

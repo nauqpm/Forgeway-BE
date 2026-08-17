@@ -15,6 +15,7 @@ import {
   NotificationFactoryService,
   SprintLifecycleNotificationInput,
 } from './notification-factory.service';
+import { PushNotificationService } from './push-notification.service';
 import { InviteStatusValue } from '../../workspaces/schemas/invite.schema';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class NotificationsService {
     private readonly notificationMapper: NotificationMapper,
     private readonly notificationFactory: NotificationFactoryService,
     private readonly notificationDomainEventPublisher: NotificationDomainEventPublisher,
+    private readonly pushNotificationService: PushNotificationService,
   ) {}
 
   async create(
@@ -41,6 +43,20 @@ export class NotificationsService {
     const notification = await this.notificationsRepository.create(input);
     const notificationDto = this.notificationMapper.mapToDto(notification);
     this.notificationDomainEventPublisher.publishCreated(notificationDto);
+
+    // Trigger push notification asynchronously
+    this.pushNotificationService
+      .sendPushNotification(
+        [notificationDto.recipientId],
+        notificationDto.title,
+        notificationDto.message || '',
+        {
+          entityId: notificationDto.entityId,
+          type: notificationDto.type,
+          workspaceId: notificationDto.workspaceId,
+        },
+      )
+      .catch(e => this.logger.error('Push notification failed', e));
 
     return notificationDto;
   }
@@ -61,6 +77,17 @@ export class NotificationsService {
       this.notificationMapper.mapToDto(notification),
     );
     this.notificationDomainEventPublisher.publishManyCreated(notificationDtos);
+
+    // Group or send push notifications individually asynchronously
+    for (const dto of notificationDtos) {
+      this.pushNotificationService
+        .sendPushNotification([dto.recipientId], dto.title, dto.message || '', {
+          entityId: dto.entityId,
+          type: dto.type,
+          workspaceId: dto.workspaceId,
+        })
+        .catch(e => this.logger.error('Push notification failed', e));
+    }
 
     return notificationDtos;
   }

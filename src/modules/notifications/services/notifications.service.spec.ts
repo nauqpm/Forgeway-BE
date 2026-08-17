@@ -18,6 +18,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
+      { sendPushNotification: jest.fn().mockResolvedValue(undefined) } as never,
     );
     const create = jest.spyOn(service, 'create').mockResolvedValue(null);
 
@@ -40,6 +41,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
+      { sendPushNotification: jest.fn().mockResolvedValue(undefined) } as never,
     );
     const createMany = jest.spyOn(service, 'createMany').mockResolvedValue([]);
 
@@ -94,6 +96,7 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
+      { sendPushNotification: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     await service.create(input);
@@ -137,6 +140,7 @@ describe('NotificationsService', () => {
       mapper as never,
       new NotificationFactoryService(),
       publisher as never,
+      { sendPushNotification: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     await service.createMany([input]);
