@@ -90,14 +90,7 @@ describe('AuthSessionController', () => {
     generateAuthorizationCode: jest.fn(),
   };
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-
-    (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(null);
-    loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
-      generatedDeviceId: undefined,
-    });
-
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AuthSessionController],
       providers: [
@@ -135,11 +128,19 @@ describe('AuthSessionController', () => {
     );
     await app.init();
   });
-
-  afterEach(async () => {
+  afterAll(async () => {
     if (app) {
       await app.close();
     }
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(null);
+    loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
+      generatedDeviceId: undefined,
+    });
   });
 
   describe('POST /auth/login', () => {
