@@ -45,7 +45,7 @@ describe('TaskControllers - Route Registration (smoke)', () => {
     ...overrides,
   });
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const taskDto = makeTaskDto();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -174,8 +174,10 @@ describe('TaskControllers - Route Registration (smoke)', () => {
     await app.init();
   });
 
-  afterEach(async () => {
-    await app.close();
+  afterAll(async () => {
+    if (app) {
+      await app.close();
+    }
   });
 
   const basePath = (path: string) => `/workspaces/${workspaceId}/board${path}`;
