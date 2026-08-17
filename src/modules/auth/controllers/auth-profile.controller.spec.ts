@@ -58,8 +58,7 @@ describe('AuthProfileController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    });
+  });
 
   afterAll(async () => {
     if (app) {

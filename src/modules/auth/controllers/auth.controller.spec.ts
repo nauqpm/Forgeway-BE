@@ -56,8 +56,7 @@ describe('AuthRegistrationController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    });
+  });
 
   afterAll(async () => {
     if (app) {

@@ -76,8 +76,7 @@ describe('AccountSwitcherController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    });
+  });
 
   afterAll(async () => {
     if (app) {
