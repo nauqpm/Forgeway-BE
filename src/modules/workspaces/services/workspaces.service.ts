@@ -282,6 +282,25 @@ export class WorkspacesService {
     if (dto.type) workspace.type = dto.type;
     if (dto.status) workspace.status = dto.status;
     if (dto.access) workspace.access = dto.access;
+    if (dto.ownerId) {
+      const { Types } = require('mongoose');
+      workspace.ownerId = new Types.ObjectId(dto.ownerId);
+      
+      // Update members array to include the new owner as admin if they aren't already
+      const newOwnerIdStr = dto.ownerId.toString();
+      const existingMemberIndex = workspace.members.findIndex(
+        m => m.userId.toString() === newOwnerIdStr
+      );
+      
+      if (existingMemberIndex >= 0) {
+        workspace.members[existingMemberIndex].role = SPACE_ROLES.WORKSPACE_ADMIN;
+      } else {
+        workspace.members.push({
+          userId: new Types.ObjectId(dto.ownerId),
+          role: SPACE_ROLES.WORKSPACE_ADMIN 
+        });
+      }
+    }
 
     const updated = await this.workspacesRepository.update(id, workspace);
     if (updated) {
