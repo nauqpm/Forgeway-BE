@@ -11,31 +11,6 @@ steps:
     when:
       - event: [pull_request]
 
-  prepare-scp:
-    image: alpine
-    commands:
-      - rm -rf .git
-    when:
-      - event: [push, manual]
-        branch: production
-
-  copy-to-vps:
-    image: appleboy/drone-scp
-    settings:
-      host:
-        from_secret: vps_host
-      username:
-        from_secret: vps_user
-      password:
-        from_secret: vps_password
-      target: /opt/sdlc/AL-SDLC-Platform-BE
-      source:
-        - .
-      rm: true
-    when:
-      - event: [push, manual]
-        branch: production
-
   deploy-to-vps:
     image: appleboy/drone-ssh
     settings:
@@ -47,31 +22,10 @@ steps:
         from_secret: vps_password
       script:
         - set -e
-        - cd /opt/sdlc/AL-SDLC-Platform-BE
-        - docker build -t ghcr.io/automationland-dev/sdlc-platform-backend:latest .
-        - cd /opt/sdlc
-        - docker compose up -d --no-deps backend
+        - cd /home/sdlc
+        - docker compose build --no-cache backend
+        - docker compose up -d backend
         - docker image prune -f
-        - |
-          for i in $(seq 1 12); do
-            CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1)
-            STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null)
-            RESTARTS=$(docker inspect --format='{{.RestartCount}}' "$CONTAINER" 2>/dev/null)
-            if [ "${RESTARTS:-0}" -gt 0 ]; then
-              echo "DEPLOY FAILED: backend restarted ${RESTARTS} time(s) - crash loop detected"
-              docker compose logs --tail=30 backend
-              exit 1
-            fi
-            if [ "$STATUS" = "running" ]; then
-              echo "Backend deployed OK (restarts=0, attempt=$i): $(date)"
-              exit 0
-            fi
-            echo "Waiting... attempt $i/12 (status=${STATUS:-unknown})"
-            sleep 5
-          done
-          echo "DEPLOY FAILED: backend did not reach running state after 60s"
-          docker compose logs --tail=30 backend
-          exit 1
     when:
       - event: [push, manual]
         branch: production
