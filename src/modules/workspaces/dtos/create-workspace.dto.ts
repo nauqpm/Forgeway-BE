@@ -100,4 +100,9 @@ export class UpdateWorkspaceDto {
   @IsOptional()
   @IsEnum(['private', 'public'])
   access?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ownerId?: string;
 }
