@@ -23,6 +23,8 @@ steps:
       script:
         - set -e
         - cd /home/sdlc
+        - eval $(ssh-agent -s)
+        - ssh-add ~/.ssh/id_rsa || true
         - docker compose build --no-cache backend
         - docker compose up -d backend
         - docker image prune -f
