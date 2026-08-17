@@ -7,9 +7,11 @@ steps:
     image: node:20-alpine
     commands:
       - npm ci
+      - npm run lint
+      - npm run test
       - npm run build
     when:
-      - event: [pull_request]
+      - event: [push, pull_request]
 
   deploy-to-vps:
     image: appleboy/drone-ssh
