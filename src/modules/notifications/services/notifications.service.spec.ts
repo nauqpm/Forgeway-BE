@@ -72,6 +72,7 @@ describe('NotificationsService', () => {
       {} as never,
       factory,
       {} as never,
+      { sendPushNotification: jest.fn().mockResolvedValue(undefined) } as never,
     );
     const createMany = jest.spyOn(service, 'createMany').mockResolvedValue([]);
 
