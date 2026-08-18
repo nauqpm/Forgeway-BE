@@ -411,6 +411,30 @@ export class UsersService {
       errors,
     };
   }
+
+  async addDeviceToken(userId: string, token: string): Promise<User> {
+    this.logger.log(`Adding device token for user ${userId}`);
+    const updatedUser = await this.usersRepository.update(userId, {
+      $addToSet: { deviceTokens: token },
+    } as any);
+
+    if (!updatedUser) {
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
+    }
+    return updatedUser;
+  }
+
+  async removeDeviceToken(userId: string, token: string): Promise<User> {
+    this.logger.log(`Removing device token for user ${userId}`);
+    const updatedUser = await this.usersRepository.update(userId, {
+      $pull: { deviceTokens: token },
+    } as any);
+
+    if (!updatedUser) {
+      throw new NotFoundException(ErrorFactory.userNotFound(userId));
+    }
+    return updatedUser;
+  }
 }
 
 function parseCsvBoolean(

@@ -575,7 +575,7 @@ export class PagesController {
   // -------------------------------------------------------------------------
   @Get(':id/export/docx')
   @UseGuards(WorkspaceRoleGuard)
-  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_EDIT)
+  @RequirePermissions(WORKSPACE_PERMISSIONS.PAGE_VIEW)
   @ApiOperation({
     summary: 'Export document as Word file (.docx)',
     description:

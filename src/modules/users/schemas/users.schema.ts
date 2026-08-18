@@ -1,4 +1,3 @@
-// src/modules/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
@@ -55,6 +54,15 @@ export class User {
   @Prop({ default: false })
   mustChangePassword?: boolean;
 
+  @Prop()
+  lastSeenAt?: Date;
+
+  @Prop({ default: false })
+  presenceInvisible?: boolean;
+
+  @Prop({ type: [String], default: [] })
+  deviceTokens?: string[];
+
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;
   readonly updatedAt!: Date;
@@ -75,6 +83,7 @@ UserSchema.set('toJSON', {
     delete ret._id;
     delete ret.__v;
     delete ret.password; // Exclude password from JSON responses
+    delete ret.deviceTokens; // Exclude deviceTokens from JSON responses
 
     if (ret.googleId) {
       ret.ssoProvider = 'google';
