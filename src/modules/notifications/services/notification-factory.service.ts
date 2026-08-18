@@ -45,6 +45,16 @@ interface WorkspaceInviteFactoryInput {
   role: string;
 }
 
+export interface ChannelInviteFactoryInput {
+  recipientId: string;
+  actorId: string;
+  actorName?: string;
+  workspaceId: string;
+  channelId: string;
+  channelName: string;
+  isPrivate: boolean;
+}
+
 export interface SprintLifecycleNotificationInput {
   recipientId: string;
   actorId?: string;
@@ -211,30 +221,50 @@ export class NotificationFactoryService {
     };
   }
 
+  buildChannelInvited(
+    input: ChannelInviteFactoryInput,
+  ): CreateNotificationInput {
+    return {
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      workspaceId: input.workspaceId,
+      type: NOTIFICATION_TYPES.CHANNEL_INVITED,
+      title: input.actorName
+        ? `${input.actorName} invited you to #${input.channelName}`
+        : `You were invited to #${input.channelName}`,
+      message: input.isPrivate
+        ? `You were invited to the private channel #${input.channelName}`
+        : `You were invited to #${input.channelName}`,
+      entityType: NOTIFICATION_ENTITY_TYPES.CHANNEL,
+      entityId: input.channelId,
+      metadata: {
+        workspaceId: input.workspaceId,
+        channelId: input.channelId,
+        channelName: input.channelName,
+        isPrivate: input.isPrivate,
+      },
+    };
+  }
+
   buildSprintStarted(
     input: SprintLifecycleNotificationInput,
   ): CreateNotificationInput {
-    const endDateStr = input.endDate
-      ? new Date(input.endDate).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        })
-      : 'no specific end date';
-
     return {
       recipientId: input.recipientId,
       actorId: input.actorId,
       workspaceId: input.workspaceId,
       type: NOTIFICATION_TYPES.SPRINT_STARTED,
       title: `Sprint '${input.sprintName}' has started`,
-      message: `Ends on ${endDateStr}`,
+      message: input.endDate
+        ? `Sprint ends on ${new Date(input.endDate).toLocaleDateString()}`
+        : 'Sprint has started',
       entityType: NOTIFICATION_ENTITY_TYPES.SPRINT,
       entityId: input.sprintId,
       metadata: {
         workspaceId: input.workspaceId,
         sprintId: input.sprintId,
         sprintName: input.sprintName,
+        endDate: input.endDate,
       },
     };
   }
@@ -248,7 +278,7 @@ export class NotificationFactoryService {
       workspaceId: input.workspaceId,
       type: NOTIFICATION_TYPES.SPRINT_COMPLETED,
       title: `Sprint '${input.sprintName}' has been completed`,
-      message: `The sprint has ended`,
+      message: 'Sprint has been completed',
       entityType: NOTIFICATION_ENTITY_TYPES.SPRINT,
       entityId: input.sprintId,
       metadata: {

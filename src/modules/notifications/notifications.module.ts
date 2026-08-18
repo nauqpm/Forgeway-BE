@@ -9,6 +9,7 @@ import { TaskNotificationListener } from './listeners/task-notification.listener
 import { TaskNotificationService } from './services/task-notification.service';
 import { SprintNotificationListener } from './listeners/sprint-notification.listener';
 import { SprintNotificationService } from './services/sprint-notification.service';
+import { ChannelNotificationListener } from './listeners/channel-notification.listener';
 import { NotificationsRepository } from './repositories/notifications.repository';
 import {
   Notification,
@@ -39,6 +40,7 @@ import { PushNotificationService } from './services/push-notification.service';
     TaskNotificationService,
     SprintNotificationListener,
     SprintNotificationService,
+    ChannelNotificationListener,
     NotificationsService,
     PushNotificationService,
     JwtAuthGuard,

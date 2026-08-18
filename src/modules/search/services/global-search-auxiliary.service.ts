@@ -139,7 +139,7 @@ export class GlobalSearchAuxiliaryService {
           type: 'user' as const,
           title: user.fullName || user.email,
           description: user.email,
-          url: '/profile',
+          url: `/profile/${user._id}`,
           metadata: { avatar: user.avatar, userId: String(user._id) },
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
