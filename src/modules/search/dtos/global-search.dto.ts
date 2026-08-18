@@ -15,6 +15,7 @@ import {
 export const GLOBAL_SEARCH_TYPES = [
   'task',
   'page',
+  'document',
   'comment',
   'workspace',
   'board',

@@ -6,8 +6,12 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Types } from 'mongoose';
-import { ChannelDocument } from '../schemas/channel.schema';
+import {
+  ChannelDocument,
+  ChannelMemberEmbedded,
+} from '../schemas/channel.schema';
 import { ChannelsRepository } from '../repositories/channels.repository';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { UsersService } from '../../users/services/users.service';
@@ -15,6 +19,7 @@ import { REALTIME_EVENT_TYPES } from '../../realtime/contracts/realtime-event-ty
 import { RealtimePublisher } from '../../realtime/publishers/realtime.publisher';
 import { RoomBuilder } from '../../realtime/contracts/realtime-rooms';
 import { ChannelsService } from './channels.service';
+import { ChannelMembersInvitedEvent } from '../../../shared/events/domain-events/channel';
 
 @Injectable()
 export class ChannelMembersService {
@@ -25,6 +30,7 @@ export class ChannelMembersService {
     private readonly workspaceMemberService: WorkspaceMemberService,
     private readonly usersService: UsersService,
     private readonly realtimePublisher: RealtimePublisher,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
   async resolveChannelRole(
     userId: string,
@@ -352,7 +358,9 @@ export class ChannelMembersService {
       throw new ForbiddenException('Only channel admins can invite members');
     }
 
-    const validUserIds = userIds.filter(id => Types.ObjectId.isValid(id));
+    const validUserIds = [
+      ...new Set(userIds.filter(id => Types.ObjectId.isValid(id))),
+    ];
     if (validUserIds.length === 0) {
       throw new BadRequestException('No valid user IDs provided');
     }
@@ -364,8 +372,12 @@ export class ChannelMembersService {
     const workspaceMembersSet =
       await this.workspaceMemberService.getMemberIdsSet(workspaceIdStr);
 
-    const membersToAdd: any[] = [];
-    const addedMembersDetail: any[] = [];
+    const membersToAdd: ChannelMemberEmbedded[] = [];
+    const candidateMembers: Array<{
+      userId: string;
+      role: 'channel_member';
+      joinedAt: Date;
+    }> = [];
 
     for (const uId of validUserIds) {
       if (!workspaceMembersSet.has(uId)) {
@@ -384,9 +396,9 @@ export class ChannelMembersService {
         role: 'channel_member',
         joinedAt,
         invitedBy: new Types.ObjectId(requesterId),
-        joined: false,
+        joined: true,
       });
-      addedMembersDetail.push({
+      candidateMembers.push({
         userId: uId,
         role: 'channel_member',
         joinedAt,
@@ -397,21 +409,30 @@ export class ChannelMembersService {
       return channel;
     }
 
-    const updated = await this.channelsRepository.model
-      .findByIdAndUpdate(
-        channelId,
-        {
-          $push: {
-            channelMembers: { $each: membersToAdd },
-          },
-        },
-        { new: true },
-      )
-      .exec();
+    const { channel: updated, addedUserIds } =
+      await this.channelsRepository.addMembersIfAbsent(channelId, membersToAdd);
 
     if (!updated) {
       throw new NotFoundException('Channel not found');
     }
+
+    const addedUserIdSet = new Set(addedUserIds);
+    const addedMembersDetail = candidateMembers.filter(item =>
+      addedUserIdSet.has(item.userId),
+    );
+    if (addedMembersDetail.length === 0) {
+      return updated;
+    }
+
+    const invitationEvent = new ChannelMembersInvitedEvent({
+      recipientIds: addedMembersDetail.map(item => item.userId),
+      actorId: requesterId,
+      workspaceId: workspaceIdStr,
+      channelId,
+      channelName: channel.name,
+      isPrivate: channel.isPrivate,
+    });
+    this.eventEmitter.emit(invitationEvent.type, invitationEvent);
 
     for (const item of addedMembersDetail) {
       const envelope = {

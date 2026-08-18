@@ -14,6 +14,10 @@ import { User, UserSchema } from '../users/schemas/users.schema';
 import { GlobalSearchAuxiliaryService } from './services/global-search-auxiliary.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import {
+  DocumentEntity,
+  DocumentSchema,
+} from '../documents/schemas/document.schema';
 
 @Module({
   imports: [
@@ -24,6 +28,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: Comment.name, schema: CommentSchema },
       { name: Sprint.name, schema: SprintSchema },
       { name: User.name, schema: UserSchema },
+      { name: DocumentEntity.name, schema: DocumentSchema },
     ]),
     forwardRef(() => AuthModule),
   ],
