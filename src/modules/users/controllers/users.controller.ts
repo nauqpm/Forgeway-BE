@@ -20,6 +20,7 @@ import { UsersService } from '../services/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateUsersDto } from '../dtos/create-users.dto';
 import { UpdateUserProfileDto, UpdateUsersDto } from '../dtos/update-users.dto';
+import { RegisterDeviceTokenDto } from '../dtos/device-token.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../../permissions/guards/permission.guard';
@@ -78,6 +79,27 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserProfileDto,
   ) {
     return await this.usersService.updateUser(req.user.userId, updateUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/device-token')
+  async registerDeviceToken(
+    @Request() req,
+    @Body() body: RegisterDeviceTokenDto,
+  ) {
+    return await this.usersService.addDeviceToken(req.user.userId, body.token);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/device-token')
+  async removeDeviceToken(
+    @Request() req,
+    @Body() body: RegisterDeviceTokenDto,
+  ) {
+    return await this.usersService.removeDeviceToken(
+      req.user.userId,
+      body.token,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)

@@ -70,7 +70,13 @@ export class SsoLoginService implements OnModuleInit, OnModuleDestroy {
   isValidRedirectUrl(url: string): boolean {
     if (!url) return false;
     try {
-      const parsedUrl = new URL(url);
+      const parsedUrl = new URL(decodeURIComponent(url));
+
+      // NGĂN CHẶN XSS: Bắt buộc giao thức phải là http hoặc https
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return false;
+      }
+
       return this.redirectRules.some(({ regex, isHostnameOnly }) => {
         return isHostnameOnly
           ? regex.test(parsedUrl.hostname)
