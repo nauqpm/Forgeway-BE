@@ -21,5 +21,5 @@ RUN npm ci --omit=dev && npm cache clean --force && apk add --no-cache curl
 
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 5512
+EXPOSE 1786
 CMD ["node", "dist/src/main.js"]

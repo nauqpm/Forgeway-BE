@@ -56,8 +56,11 @@ const getNonNegativeInteger = (
           const store = await redisStore({
             url: redisUrl,
             socket: {
-              reconnectStrategy: (retries: number) =>
-                Math.min(retries * 50, 1_000),
+              reconnectStrategy: (retries: number) => {
+                if (retries > 10)
+                  return new Error('Max Redis reconnect retries reached');
+                return Math.min(retries * 50, 1_000);
+              },
               connectTimeout,
             },
             database,

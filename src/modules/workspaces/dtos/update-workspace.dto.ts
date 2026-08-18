@@ -34,4 +34,9 @@ export class UpdateWorkspaceDto {
   @IsOptional()
   @IsObject()
   settings?: Record<string, any>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ownerId?: string;
 }

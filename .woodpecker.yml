@@ -1,0 +1,36 @@
+when:
+  - event: [push, pull_request, manual]
+    branch: [dev, production]
+
+steps:
+  test-and-build:
+    image: node:20-alpine
+    commands:
+      - npm ci
+      
+      # - npm run test
+      - npm run build
+    when:
+      - event: [push, pull_request]
+
+  deploy-to-vps:
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        from_secret: vps_host
+      username:
+        from_secret: vps_user
+      password:
+        from_secret: vps_password
+      script:
+        - set -e
+        - cd /home/sdlc
+        - eval $(ssh-agent -s)
+        - ssh-add ~/.ssh/id_rsa || true
+        - docker compose build --no-cache backend
+        - docker compose up -d backend
+        - docker image prune -f
+        - docker ps
+    when:
+      - event: [push, manual]
+        branch: production

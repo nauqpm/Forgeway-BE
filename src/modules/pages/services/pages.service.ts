@@ -849,6 +849,9 @@ export class PagesService {
         bottom: 1440,
         left: 1440,
         right: 1440,
+        header: 720,
+        footer: 720,
+        gutter: 0,
       },
     };
 

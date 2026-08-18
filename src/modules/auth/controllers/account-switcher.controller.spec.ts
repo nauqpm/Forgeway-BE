@@ -46,9 +46,7 @@ describe('AccountSwitcherController', () => {
     verify: jest.fn(),
   };
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AccountSwitcherController],
       providers: [
@@ -76,7 +74,11 @@ describe('AccountSwitcherController', () => {
     await app.init();
   });
 
-  afterEach(async () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterAll(async () => {
     if (app) {
       await app.close();
     }

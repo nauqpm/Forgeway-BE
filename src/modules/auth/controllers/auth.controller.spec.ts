@@ -26,9 +26,7 @@ describe('AuthRegistrationController', () => {
     log: jest.fn(),
   };
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AuthRegistrationController],
       providers: [
@@ -56,7 +54,11 @@ describe('AuthRegistrationController', () => {
     await app.init();
   });
 
-  afterEach(async () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterAll(async () => {
     if (app) {
       await app.close();
     }

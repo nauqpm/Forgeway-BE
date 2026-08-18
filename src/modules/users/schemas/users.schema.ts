@@ -1,4 +1,3 @@
-// src/modules/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
@@ -54,6 +53,12 @@ export class User {
 
   @Prop({ default: false })
   mustChangePassword?: boolean;
+
+  @Prop()
+  lastSeenAt?: Date;
+
+  @Prop({ default: false })
+  presenceInvisible?: boolean;
 
   readonly _id!: Types.ObjectId;
   readonly createdAt!: Date;

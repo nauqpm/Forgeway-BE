@@ -10,6 +10,7 @@ import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { WorkspaceMemberService } from '../../workspaces/services/workspace-member.service';
 import { CreateTaskDto, UpdateTaskDto } from '../dtos/requests/create-task.dto';
+import { UnmappableStatusException } from '../exceptions/unmappable-status.exception';
 import { TaskReadRepository } from '../repositories/task-read.repository';
 
 @Injectable()
@@ -51,6 +52,7 @@ export class TaskCreationValidationService {
   async validateUpdateRequest(
     dto: UpdateTaskDto,
     workspaceId: string,
+    existingTask?: any,
   ): Promise<void> {
     if (dto.assigneeId) {
       await this.validateAssignee(dto.assigneeId, workspaceId);
@@ -61,6 +63,74 @@ export class TaskCreationValidationService {
     if (dto.sprintId) {
       await this.validateSprint(dto.sprintId, workspaceId);
     }
+    await this.validateTypeTransition(dto, workspaceId, existingTask);
+  }
+
+  private async validateTypeTransition(
+    dto: UpdateTaskDto,
+    workspaceId: string,
+    existingTask?: any,
+  ): Promise<void> {
+    if (!dto.type || !existingTask || dto.type === existingTask.type) {
+      return;
+    }
+
+    if (dto.type === 'subtask' || dto.type === 'epic') {
+      throw new BadRequestException(
+        `Cannot change task type to ${dto.type} through the generic task update endpoint`,
+      );
+    }
+
+    if (existingTask.type === 'subtask' || existingTask.type === 'epic') {
+      throw new BadRequestException(
+        `Cannot change ${existingTask.type} type through the generic task update endpoint`,
+      );
+    }
+
+    const status = dto.status ?? existingTask.status;
+    const columnId = dto.columnId ?? existingTask.columnId;
+    if (!status && !columnId) {
+      throw new UnmappableStatusException(dto.type);
+    }
+
+    const workspace = existingTask.workspaceId?.type
+      ? existingTask.workspaceId
+      : await this.workspacesService.findById(workspaceId);
+    if (workspace?.type !== 'kanban') {
+      return;
+    }
+
+    const boardId = dto.boardId ?? this.toId(existingTask.boardId);
+    if (!boardId) {
+      throw new UnmappableStatusException(
+        dto.type,
+        `Cannot change task type to ${dto.type}: the current task has no board workflow`,
+      );
+    }
+
+    const board = await this.kanbanService.findById(boardId);
+    const normalize = (value?: string) =>
+      (value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_-]+/g, '');
+    const normalizedStatus = normalize(status);
+    const belongsToWorkflow = board.columns.some(
+      column =>
+        column.id === columnId ||
+        normalize(column.name) === normalizedStatus ||
+        column.mappedStatuses?.some(
+          mappedStatus => normalize(mappedStatus) === normalizedStatus,
+        ),
+    );
+
+    if (!belongsToWorkflow) {
+      throw new UnmappableStatusException(dto.type);
+    }
+  }
+
+  private toId(value: any): string {
+    return value?._id?.toString?.() ?? value?.toString?.() ?? '';
   }
 
   async getWorkspaceById(workspaceId: string): Promise<any> {

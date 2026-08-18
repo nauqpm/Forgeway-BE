@@ -22,6 +22,7 @@ import { TokenIssuerService } from '../services/token-issuer.service';
 import { TokenRefreshService } from '../services/token-refresh.service';
 import { TokenRevocationService } from '../services/token-revocation.service';
 import { TokenLookupService } from '../services/token-lookup.service';
+import { SsoLoginService } from '../services/sso-login.service';
 
 jest.mock('../utils/cookie.utils', () => ({
   setAuthCookies: jest.fn(),
@@ -85,14 +86,11 @@ describe('AuthSessionController', () => {
     sign: jest.fn(),
   };
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
+  const ssoLoginServiceMock = {
+    generateAuthorizationCode: jest.fn(),
+  };
 
-    (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(null);
-    loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
-      generatedDeviceId: undefined,
-    });
-
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AuthSessionController],
       providers: [
@@ -115,6 +113,7 @@ describe('AuthSessionController', () => {
           useValue: loginSessionTrackingServiceMock,
         },
         { provide: JwtService, useValue: jwtServiceMock },
+        { provide: SsoLoginService, useValue: ssoLoginServiceMock },
       ],
     }).compile();
 
@@ -129,11 +128,19 @@ describe('AuthSessionController', () => {
     );
     await app.init();
   });
-
-  afterEach(async () => {
+  afterAll(async () => {
     if (app) {
       await app.close();
     }
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(null);
+    loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
+      generatedDeviceId: undefined,
+    });
   });
 
   describe('POST /auth/login', () => {

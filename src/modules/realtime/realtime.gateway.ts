@@ -24,9 +24,17 @@ import { PageYjsUpdateDto } from './dto/page-yjs-update.dto';
 import { PageAwarenessUpdateDto } from './dto/page-awareness-update.dto';
 import { PageCollabService } from './services/page-collab.service';
 import { LeaveWorkspaceRoomDto } from './dto/leave-workspace-room.dto';
+import { PresenceSubscribeDto } from './dto/presence-subscribe.dto';
 import { RealtimeService } from './realtime.service';
 import { RoomManagerService } from './services/room-manager.service';
 import { SocketAuthService } from './services/socket-auth.service';
+import { PresenceService } from '../presence/services/presence.service';
+import {
+  PresenceQueryService,
+  PresenceEntry,
+} from '../presence/services/presence-query.service';
+import { PresenceConfig } from '../presence/presence.config';
+import { PresenceKeys } from '../presence/presence.constants';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { WsException } from '@nestjs/websockets';
@@ -70,12 +78,16 @@ export class RealtimeGateway
     private readonly roomManagerService: RoomManagerService,
     private readonly pageCollabService: PageCollabService,
     private readonly pagesService: PagesService,
+    private readonly presenceService: PresenceService,
+    private readonly presenceQueryService: PresenceQueryService,
+    private readonly presenceConfig: PresenceConfig,
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<WorkspaceDocument>,
   ) {}
 
   afterInit(server: Server): void {
     this.realtimeService.bindServer(server);
+    this.presenceService.bindServer(server);
     server.use(async (socket: AuthenticatedSocket, next) => {
       try {
         await this.socketAuthService.authenticate(socket);
@@ -93,7 +105,10 @@ export class RealtimeGateway
         client.disconnect(true);
         return;
       }
+
+      client.data.presenceWatchCount = 0;
       await client.join(RoomBuilder.user(user.userId));
+      await this.presenceService.registerConnection(user.userId, client.id);
       const userIdentifier = user.email
         ? `${user.email} (${user.userId})`
         : user.userId;
@@ -120,6 +135,91 @@ export class RealtimeGateway
     this.logger.log(
       `Realtime client disconnected: ${client.id}${userIdentifier}`,
     );
+    if (user?.userId) {
+      void this.presenceService.registerDisconnection(user.userId, client.id);
+    }
+  }
+
+  @SubscribeMessage('presence:heartbeat')
+  async handlePresenceHeartbeat(
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ): Promise<{ ok: boolean }> {
+    const user = client.data.user;
+    if (!user) return { ok: false };
+    await this.presenceService.heartbeat(user.userId, client.id);
+    return { ok: true };
+  }
+
+  @SubscribeMessage('presence:subscribe')
+  @UsePipes(socketValidationPipe)
+  async handlePresenceSubscribe(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: PresenceSubscribeDto,
+  ): Promise<
+    | { subscribed: string[]; currentStatuses: PresenceEntry[] }
+    | { error: string }
+  > {
+    if (!this.consumeClientEvent(client)) {
+      return { error: 'Rate limit exceeded' };
+    }
+
+    const maxSubscriptions = this.presenceConfig.maxSubscriptions;
+    const currentCount = client.data.presenceWatchCount ?? 0;
+
+    const newIds = Array.from(new Set(dto.userIds));
+    let addedCount = 0;
+    const subscribed: string[] = [];
+
+    for (const id of newIds) {
+      const room = PresenceKeys.watchRoom(id);
+      if (!client.rooms.has(room)) {
+        if (currentCount + addedCount >= maxSubscriptions) {
+          break;
+        }
+        client.join(room);
+        addedCount++;
+      }
+      subscribed.push(id);
+    }
+
+    client.data.presenceWatchCount = currentCount + addedCount;
+
+    const viewerId = client.data.user!.userId;
+    const currentStatuses = await this.presenceQueryService.getBatchPresence(
+      subscribed,
+      viewerId,
+    );
+
+    return { subscribed, currentStatuses };
+  }
+
+  @SubscribeMessage('presence:unsubscribe')
+  @UsePipes(socketValidationPipe)
+  async handlePresenceUnsubscribe(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() dto: PresenceSubscribeDto,
+  ): Promise<{ ok: boolean }> {
+    if (!this.consumeClientEvent(client)) {
+      return { ok: false };
+    }
+
+    let removedCount = 0;
+    for (const id of dto.userIds) {
+      const room = PresenceKeys.watchRoom(id);
+      if (client.rooms.has(room)) {
+        client.leave(room);
+        removedCount++;
+      }
+    }
+
+    if (client.data.presenceWatchCount !== undefined) {
+      client.data.presenceWatchCount = Math.max(
+        0,
+        client.data.presenceWatchCount - removedCount,
+      );
+    }
+
+    return { ok: true };
   }
 
   @SubscribeMessage('workspace:join')

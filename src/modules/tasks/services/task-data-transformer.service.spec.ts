@@ -35,4 +35,13 @@ describe('TaskDataTransformerService search tokens', () => {
       expect.arrayContaining(['a', 'al', 'r', 're', 'reset', 'p', 'pa']),
     );
   });
+
+  it('retains task type changes on update', () => {
+    const data = service.transformUpdateInput(
+      { type: 'story' },
+      { key: 'ALTA-1', title: 'Registration' },
+    );
+
+    expect(data.type).toBe('story');
+  });
 });
