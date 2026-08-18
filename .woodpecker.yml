@@ -7,8 +7,9 @@ steps:
     image: node:20-alpine
     commands:
       - npm ci
-      
-      # - npm run test
+      - npm run lint
+      - npx tsc --noEmit
+      - npm run test
       - npm run build
     when:
       - event: [push, pull_request]
