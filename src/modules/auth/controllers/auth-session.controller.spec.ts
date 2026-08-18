@@ -90,6 +90,15 @@ describe('AuthSessionController', () => {
     generateAuthorizationCode: jest.fn(),
   };
 
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    (cookieUtils.getDeviceIdFromRequest as jest.Mock).mockReturnValue(null);
+    loginSessionTrackingServiceMock.trackLoginSession.mockResolvedValue({
+      generatedDeviceId: undefined,
+    });
+  });
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AuthSessionController],
