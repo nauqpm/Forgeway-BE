@@ -5,6 +5,9 @@ export type ChannelDocument = Channel & Document;
 
 @Schema({ _id: false })
 export class LastMessageEmbedded {
+  @Prop({ type: Types.ObjectId, ref: 'Message', default: null })
+  messageId?: Types.ObjectId;
+
   @Prop({ type: String })
   content?: string;
 

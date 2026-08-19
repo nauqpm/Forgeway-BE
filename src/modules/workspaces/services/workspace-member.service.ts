@@ -197,6 +197,29 @@ export class WorkspaceMemberService {
     return member ? member.role : null;
   }
 
+  async getWorkspacePrivilegeInfo(
+    workspaceId: string,
+    userId: string,
+  ): Promise<{ isOwner: boolean; memberRole: string | null } | null> {
+    const workspace = await this.workspacesRepository.model
+      .findOne(
+        { _id: new Types.ObjectId(workspaceId) },
+        {
+          ownerId: 1,
+          members: { $elemMatch: { userId: new Types.ObjectId(userId) } },
+        },
+      )
+      .lean();
+
+    if (!workspace) return null;
+    const isOwner = workspace.ownerId.toString() === userId;
+    const member =
+      workspace.members && workspace.members.length > 0
+        ? workspace.members[0]
+        : null;
+    return { isOwner, memberRole: member ? member.role : null };
+  }
+
   /**
    * Fetch the workspace once and return a Set of member userId strings.
    * Use this to batch-check membership for multiple users in a single query.

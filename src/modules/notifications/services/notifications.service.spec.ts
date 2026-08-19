@@ -65,6 +65,35 @@ describe('NotificationsService', () => {
     ]);
   });
 
+  it('creates channel invitations for unique recipients except the actor', async () => {
+    const factory = new NotificationFactoryService();
+    const service = new NotificationsService(
+      {} as never,
+      {} as never,
+      factory,
+      {} as never,
+      { sendPushNotification: jest.fn().mockResolvedValue(undefined) } as never,
+    );
+    const createMany = jest.spyOn(service, 'createMany').mockResolvedValue([]);
+
+    await service.notifyChannelInvited({
+      recipientIds: [recipientId, recipientId, actorId],
+      actorId,
+      workspaceId: '507f1f77bcf86cd799439013',
+      channelId: '507f1f77bcf86cd799439014',
+      channelName: 'private-planning',
+      isPrivate: true,
+    });
+
+    expect(createMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        recipientId,
+        type: NOTIFICATION_TYPES.CHANNEL_INVITED,
+        entityType: NOTIFICATION_ENTITY_TYPES.CHANNEL,
+      }),
+    ]);
+  });
+
   it('publishes a created event only after the notification is persisted', async () => {
     const input: CreateNotificationInput = {
       recipientId,

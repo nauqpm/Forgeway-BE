@@ -32,6 +32,7 @@ export const DOMAIN_EVENT_TYPES = {
   WORKSPACE_MEMBER_JOINED: 'workspace.member.joined',
   WORKSPACE_MEMBER_REMOVED: 'workspace.member.removed',
   WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
+  CHANNEL_MEMBERS_INVITED: 'channel.members.invited',
 } as const;
 
 export type DomainEventType =

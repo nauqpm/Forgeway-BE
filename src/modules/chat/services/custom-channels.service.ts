@@ -165,7 +165,8 @@ export class CustomChannelsService {
       };
     }
 
-    return this.channelsRepository.model.find(query).exec();
+    const channels = await this.channelsRepository.model.find(query).exec();
+    return this.channelsService.applyPerUserLastMessage(channels, userId);
   }
 
   async updateCustomChannel(

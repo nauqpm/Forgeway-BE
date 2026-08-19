@@ -5,6 +5,10 @@ import { Comment } from '../../comments/schemas/comment.schema';
 import { Page } from '../../pages/schemas/page.schema';
 import { Task } from '../../tasks/schemas/task.schema';
 import { Workspace } from '../../workspaces/schemas/workspace.schema';
+import {
+  DocumentEntity,
+  DocumentDoc,
+} from '../../documents/schemas/document.schema';
 import { normalizeForSearch } from '../../../common/utils/normalizeForSearch';
 import {
   GlobalSearchDto,
@@ -15,7 +19,7 @@ import { GlobalSearchAuxiliaryService } from './global-search-auxiliary.service'
 import type { SearchCursor } from './global-search-auxiliary.service';
 
 export interface SearchOptions {
-  types?: ('task' | 'workspace' | 'page')[];
+  types?: ('task' | 'workspace' | 'page' | 'document')[];
   workspaceId?: string;
   limit?: number;
 }
@@ -26,6 +30,28 @@ export interface SearchResult {
   pages: any[];
 }
 
+type SearchWorkspaceRecord = {
+  _id: unknown;
+  name: string;
+  key: string;
+};
+
+type DocumentSearchRecord = Pick<
+  DocumentEntity,
+  | 'workspaceIds'
+  | 'name'
+  | 'originalName'
+  | 'filename'
+  | 'mimeType'
+  | 'extension'
+  | 'size'
+  | 'documentType'
+> & {
+  _id: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
@@ -35,6 +61,7 @@ export class SearchService {
     @InjectModel(Workspace.name) private workspaceModel: Model<Workspace>,
     @InjectModel(Page.name) private pageModel: Model<Page>,
     @InjectModel(Comment.name) private commentModel: Model<Comment>,
+    @InjectModel(DocumentEntity.name) private documentModel: Model<DocumentDoc>,
     private readonly auxiliarySearch: GlobalSearchAuxiliaryService,
   ) {}
 
@@ -70,13 +97,29 @@ export class SearchService {
       return { items: [], total: 0, hasMore: false };
     }
 
-    const workspaceById = new Map(
-      workspaces.map(workspace => [String(workspace._id), workspace]),
+    const workspaceById = new Map<string, SearchWorkspaceRecord>(
+      workspaces.map(workspace => [
+        String(workspace._id),
+        {
+          _id: workspace._id,
+          name: workspace.name,
+          key: workspace.key,
+        },
+      ]),
     );
     const cursor = dto.cursor ? this.decodeCursor(dto.cursor) : undefined;
     const types: GlobalSearchType[] = dto.types?.length
       ? dto.types
-      : ['task', 'page', 'comment', 'workspace', 'board', 'sprint', 'user'];
+      : [
+          'task',
+          'page',
+          'document',
+          'comment',
+          'workspace',
+          'board',
+          'sprint',
+          'user',
+        ];
     const pageLimit = Math.min(dto.limit ?? 20, 50);
     const perTypeLimit = pageLimit + 1;
     const normalizedQuery = normalizeForSearch(dto.q);
@@ -180,6 +223,49 @@ export class SearchService {
       items.push(...pages.map(page => this.toPageItem(page, workspaceById)));
     }
 
+    if (types.includes('document')) {
+      const documents = await this.documentModel
+        .find({
+          deletedAt: null,
+          ...updatedAtFilter,
+          $and: [
+            {
+              $or: [
+                { uploadedBy: new Types.ObjectId(userId) },
+                { workspaceIds: { $in: workspaceIds } },
+              ],
+            },
+            ...(dto.authorIds?.length
+              ? [
+                  {
+                    uploadedBy: {
+                      $in: dto.authorIds.map(id => new Types.ObjectId(id)),
+                    },
+                  },
+                ]
+              : []),
+            {
+              $or: [
+                { name: rawRegex },
+                { originalName: rawRegex },
+                { filename: rawRegex },
+              ],
+            },
+            ...(cursor ? [this.cursorQuery(cursor)] : []),
+          ],
+        })
+        .select(
+          '_id workspaceIds name originalName filename mimeType extension size documentType createdAt updatedAt',
+        )
+        .sort({ updatedAt: -1, _id: -1 })
+        .limit(perTypeLimit)
+        .lean<DocumentSearchRecord[]>()
+        .exec();
+      items.push(
+        ...documents.map(doc => this.toDocumentItem(doc, workspaceById)),
+      );
+    }
+
     if (types.includes('comment')) {
       items.push(
         ...(await this.searchComments(
@@ -224,7 +310,7 @@ export class SearchService {
     normalizedRegex: RegExp,
     rawRegex: RegExp,
     workspaceIds: Types.ObjectId[],
-    workspaceById: Map<string, any>,
+    workspaceById: Map<string, SearchWorkspaceRecord>,
     limit: number,
     cursor?: SearchCursor,
     documentAuthorFilter: Record<string, unknown> = {},
@@ -306,9 +392,9 @@ export class SearchService {
 
   private toTaskItem(
     task: any,
-    workspaceById: Map<string, any>,
+    workspaceById: Map<string, SearchWorkspaceRecord>,
   ): GlobalSearchItem {
-    const workspace = workspaceById.get(String(task.workspaceId));
+    const workspace = workspaceById.get(String(task.workspaceId))!;
     return {
       id: String(task._id),
       type: 'task',
@@ -330,9 +416,9 @@ export class SearchService {
 
   private toPageItem(
     page: any,
-    workspaceById: Map<string, any>,
+    workspaceById: Map<string, SearchWorkspaceRecord>,
   ): GlobalSearchItem {
-    const workspace = workspaceById.get(String(page.workspaceId));
+    const workspace = workspaceById.get(String(page.workspaceId))!;
     return {
       id: String(page._id),
       type: 'page',
@@ -344,6 +430,30 @@ export class SearchService {
       workspaceName: workspace.name,
       createdAt: page.createdAt,
       updatedAt: page.updatedAt,
+    };
+  }
+
+  private toDocumentItem(
+    doc: DocumentSearchRecord,
+    workspaceById: Map<string, SearchWorkspaceRecord>,
+  ): GlobalSearchItem {
+    const docWorkspaceId = doc.workspaceIds?.[0]
+      ? String(doc.workspaceIds[0])
+      : undefined;
+    const workspace = docWorkspaceId
+      ? workspaceById.get(docWorkspaceId)
+      : undefined;
+    return {
+      id: String(doc._id),
+      type: 'document',
+      title: doc.name || doc.originalName || 'Untitled document',
+      description: `Document Library File (${doc.originalName})`,
+      key: doc.filename,
+      url: `/documents/${doc._id}`,
+      workspaceId: docWorkspaceId,
+      workspaceName: workspace?.name,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
     };
   }
 

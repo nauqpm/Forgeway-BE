@@ -4,3 +4,4 @@ export * from './notification';
 export * from './sprint';
 export * from './task';
 export * from './workspace';
+export * from './channel';

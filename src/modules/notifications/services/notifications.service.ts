@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { NotificationDto, NotificationListDto } from '../dtos/notification.dto';
 import {
+  ChannelInviteNotificationInput,
   CommentNotificationInput,
   CreateNotificationInput,
   TaskNotificationInput,
@@ -159,6 +160,20 @@ export class NotificationsService {
         ...input,
         recipientId: recipientIds[0],
       }),
+    );
+  }
+
+  async notifyChannelInvited(
+    input: ChannelInviteNotificationInput,
+  ): Promise<void> {
+    const recipientIds = this.getRecipients(input.recipientIds, input.actorId);
+    await this.createMany(
+      recipientIds.map(recipientId =>
+        this.notificationFactory.buildChannelInvited({
+          ...input,
+          recipientId,
+        }),
+      ),
     );
   }
 

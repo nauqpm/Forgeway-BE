@@ -26,6 +26,8 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { PermissionGuard } from '../../permissions/guards/permission.guard';
 import { RequirePermission } from '../../../common/decorators/permission.decorator';
 import { GLOBAL_ROLES } from '../../../common/constants/global-role.constants';
+import { ParseObjectIdPipe } from '../../../common/pipes/parse-object-id.pipe';
+import { PublicUserProfileDto } from '../dtos/public-user-profile.dto';
 
 const MAX_CSV_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -116,6 +118,20 @@ export class UsersController {
   @Get(':id')
   async getUserById(@Param('id') id: string) {
     return await this.usersService.getUserById(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/public')
+  async getPublicProfile(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<PublicUserProfileDto> {
+    const user = await this.usersService.getUserById(id);
+    return new PublicUserProfileDto({
+      _id: user._id.toString(),
+      fullName: user.fullName,
+      email: user.email,
+      avatar: user.avatar,
+    });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)

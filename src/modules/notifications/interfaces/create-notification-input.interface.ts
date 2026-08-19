@@ -54,3 +54,12 @@ export interface WorkspaceInviteNotificationInput {
   inviteId: string;
   role: string;
 }
+
+export interface ChannelInviteNotificationInput {
+  recipientIds: string[];
+  actorId: string;
+  workspaceId: string;
+  channelId: string;
+  channelName: string;
+  isPrivate: boolean;
+}
