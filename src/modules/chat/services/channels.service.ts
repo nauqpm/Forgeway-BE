@@ -261,6 +261,89 @@ export class ChannelsService {
     return channel;
   }
 
+  async applyPerUserLastMessage(
+    channels: any[],
+    userId: string,
+  ): Promise<any[]> {
+    if (!channels || channels.length === 0) return channels;
+
+    const candidateIds = channels
+      .map(c => {
+        const obj = typeof c.toObject === 'function' ? c.toObject() : c;
+        return obj.lastMessage?.messageId;
+      })
+      .filter(Boolean) as Types.ObjectId[];
+
+    const staleIds = new Set<string>();
+    if (candidateIds.length > 0) {
+      const stale = await this.messagesService.getStaleDeletedMessageIds(
+        candidateIds,
+        userId,
+      );
+      stale.forEach(id => staleIds.add(id));
+    }
+
+    const channelsToRefresh = channels
+      .filter(c => {
+        const obj = typeof c.toObject === 'function' ? c.toObject() : c;
+        const sharedId = obj.lastMessage?.messageId?.toString();
+        if (sharedId && staleIds.has(sharedId)) return true;
+        if (!sharedId && obj.lastMessage && obj.lastMessage.content)
+          return true;
+        return false;
+      })
+      .map(c => {
+        const obj = typeof c.toObject === 'function' ? c.toObject() : c;
+        return obj._id.toString();
+      });
+
+    let batchMessages: Record<string, any> = {};
+    if (channelsToRefresh.length > 0) {
+      batchMessages = await this.messagesService.getLatestMessagesForUserBatch(
+        channelsToRefresh,
+        userId,
+      );
+    }
+
+    const selfHealUpdates: Array<() => Promise<void>> = [];
+
+    const mapped = channels.map(c => {
+      const obj = typeof c.toObject === 'function' ? c.toObject() : c;
+      const sharedId = obj.lastMessage?.messageId?.toString();
+      const channelIdStr = obj._id.toString();
+
+      if (sharedId && staleIds.has(sharedId)) {
+        obj.lastMessage = batchMessages[channelIdStr] || null;
+      } else if (!sharedId && obj.lastMessage && obj.lastMessage.content) {
+        const recomputed = batchMessages[channelIdStr] || null;
+        obj.lastMessage = recomputed;
+
+        if (recomputed && recomputed.messageId) {
+          const channelObjId = new Types.ObjectId(obj._id);
+          const msgObjId = recomputed.messageId as Types.ObjectId;
+          selfHealUpdates.push(() =>
+            this.channelsRepository.patchLastMessageId(channelObjId, msgObjId),
+          );
+        }
+      }
+      return obj;
+    });
+
+    if (selfHealUpdates.length > 0) {
+      Promise.allSettled(selfHealUpdates.map(fn => fn())).then(results => {
+        results.forEach(r => {
+          if (r.status === 'rejected') {
+            this.logger.warn(
+              `Self-heal lastMessage.messageId failed: ${r.reason}`,
+            );
+          }
+        });
+      });
+    }
+
+    return mapped;
+  }
+
   async findByUser(userId: string): Promise<any[]> {
     if (!Types.ObjectId.isValid(userId)) {
       return [];
@@ -291,7 +374,7 @@ export class ChannelsService {
 
     this.logger.log(`Found ${channels.length} channels for user: ${userId}`);
 
-    return Promise.all(
+    const results = await Promise.all(
       channels.map(async channel => {
         const unreadCount = await this.messagesService.countUnread(
           channel._id.toString(),
@@ -317,6 +400,8 @@ export class ChannelsService {
         };
       }),
     );
+
+    return this.applyPerUserLastMessage(results, userId);
   }
 
   async markAsRead(channelId: string, userId: string): Promise<void> {
@@ -407,7 +492,7 @@ export class ChannelsService {
       .exec();
 
     // Add unread count AND Manual Populate members
-    return Promise.all(
+    const results = await Promise.all(
       channels.map(async channel => {
         const unreadCount = await this.messagesService.countUnread(
           channel._id.toString(),
@@ -424,11 +509,14 @@ export class ChannelsService {
         };
       }),
     );
+
+    return this.applyPerUserLastMessage(results, userId);
   }
 
   async updateLastMessage(
     channelId: string,
     message: {
+      messageId?: Types.ObjectId | null;
       content?: string;
       senderId: any;
       senderName: string;
@@ -452,6 +540,7 @@ export class ChannelsService {
         {
           $set: {
             lastMessage: {
+              messageId: message.messageId,
               content: message.content || '',
               senderId: senderObjectId,
               senderName: message.senderName,

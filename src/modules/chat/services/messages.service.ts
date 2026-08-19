@@ -6,7 +6,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
+import { Types, PipelineStage } from 'mongoose';
 import { MessageDocument } from '../schemas/message.schema';
 import { MessagesRepository } from '../repositories/messages.repository';
 import { ChannelReadMarkersRepository } from '../repositories/channel-read-markers.repository';
@@ -868,33 +868,54 @@ export class MessagesService {
       message.channelId.toString(),
     );
 
-    let canDelete = false;
+    const isSender = message.senderId.toString() === userId;
+    const isSuperAdmin = user?.role === GLOBAL_ROLES.SUPER_ADMIN;
 
-    // 1. Super Admin can delete anything
-    if (user?.role === GLOBAL_ROLES.SUPER_ADMIN) {
-      canDelete = true;
-    }
-    // 2. Sender can delete their own
-    else if (message.senderId.toString() === userId) {
-      canDelete = true;
-    }
-    // 3. Workspace Admin can delete messages in their workspace channel
-    else if (channel.type === 'workspace' && channel.workspaceId) {
-      const wsRole = await this.workspaceMemberService.getMemberRole(
-        channel.workspaceId.toString(),
-        userId,
+    if (channel.type === 'dm') {
+      if (!isSender) {
+        throw new ForbiddenException(
+          'Only the sender can delete a direct message',
+        );
+      }
+    } else if (channel.type === 'announcement') {
+      if (!isSuperAdmin) {
+        throw new ForbiddenException(
+          'Only Super Admin can delete announcement messages',
+        );
+      }
+      this.logger.log(
+        `[AUDIT] Message ${messageId} deleted by ${userId} (role: super_admin) at ${new Date().toISOString()}`,
       );
-      if (wsRole === SPACE_ROLES.WORKSPACE_ADMIN) {
-        canDelete = true;
+    } else {
+      let isWorkspacePrivileged = false;
+      if (!isSender && !isSuperAdmin && channel.workspaceId) {
+        const privilege =
+          await this.workspaceMemberService.getWorkspacePrivilegeInfo(
+            channel.workspaceId.toString(),
+            userId,
+          );
+        if (privilege) {
+          isWorkspacePrivileged =
+            privilege.isOwner ||
+            privilege.memberRole === SPACE_ROLES.WORKSPACE_ADMIN;
+        }
+      }
+
+      const canDelete = isSender || isSuperAdmin || isWorkspacePrivileged;
+
+      if (!canDelete) {
+        throw new ForbiddenException(
+          'You do not have permission to delete this message',
+        );
+      }
+
+      if (!isSender) {
+        const deletedByRole = isSuperAdmin ? 'super_admin' : 'workspace_admin';
+        this.logger.log(
+          `[AUDIT] Message ${messageId} deleted by ${userId} (role: ${deletedByRole}) at ${new Date().toISOString()}`,
+        );
       }
     }
-
-    if (!canDelete) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this message',
-      );
-    }
-
     // Cloudinary and DB attachment cleanup
     if (message.attachments && message.attachments.length > 0) {
       for (const attachment of message.attachments) {
@@ -1018,6 +1039,7 @@ export class MessagesService {
       const senderName = (previousMessage.senderId as any)?.fullName || 'User';
       const sentAt = (previousMessage as any).createdAt || new Date();
       await this.channelsService.updateLastMessage(channelId, {
+        messageId: previousMessage._id,
         content: previousMessage.content,
         senderId: previousMessage.senderId,
         senderName,
@@ -1025,11 +1047,13 @@ export class MessagesService {
         type: previousMessage.type,
       });
       updatedLastMessage = {
+        messageId: previousMessage._id,
         content: previousMessage.content,
         senderId: previousMessage.senderId,
         senderName,
         sentAt,
         type: previousMessage.type,
+        deletedForUsers: previousMessage.deletedForUsers || [],
       };
     } else {
       // No messages left, clear lastMessage
@@ -1116,6 +1140,7 @@ export class MessagesService {
       senderName = senderName || 'User';
 
       await this.channelsService.updateLastMessage(channelId, {
+        messageId: message._id as Types.ObjectId,
         content: message.content,
         senderId: senderId,
         senderName: senderName,
@@ -1153,16 +1178,22 @@ export class MessagesService {
       { $addToSet: { deletedForUsers: new Types.ObjectId(userId) } },
     );
 
+    const data: Record<string, any> = {
+      messageId,
+      channelId,
+      threadParentId: message.threadParentId?.toString(),
+    };
+
+    if (!message.threadParentId) {
+      data.lastMessage = await this.getLatestMessageForUser(channelId, userId);
+    }
+
     this.realtimePublisher.emit(
       RoomBuilder.user(userId),
       {
         eventId: new Types.ObjectId().toString(),
         type: REALTIME_EVENT_TYPES.CHAT_MESSAGE_DELETED_FOR_ME,
-        data: {
-          messageId,
-          channelId,
-          threadParentId: message.threadParentId?.toString(),
-        },
+        data,
         occurredAt: new Date().toISOString(),
       },
       'chat',
@@ -1188,7 +1219,7 @@ export class MessagesService {
     if (!msg) return null;
     const senderName = (msg.senderId as any)?.fullName || 'User';
     return {
-      _id: msg._id,
+      messageId: msg._id,
       content: msg.content,
       senderId: msg.senderId,
       senderName,
@@ -1196,5 +1227,77 @@ export class MessagesService {
       type: msg.type,
       attachments: msg.attachments,
     };
+  }
+
+  async getStaleDeletedMessageIds(
+    messageIds: Types.ObjectId[],
+    userId: string,
+  ): Promise<string[]> {
+    const stale = await this.messagesRepository.model
+      .find(
+        {
+          _id: { $in: messageIds },
+          deletedForUsers: new Types.ObjectId(userId),
+        },
+        { _id: 1 },
+      )
+      .lean();
+    return stale.map(m => m._id.toString());
+  }
+
+  async getLatestMessagesForUserBatch(
+    channelIds: string[],
+    userId: string,
+  ): Promise<Record<string, any>> {
+    if (!channelIds || channelIds.length === 0) return {};
+
+    const channelObjectIds = channelIds.map(id => new Types.ObjectId(id));
+    const userObjectId = new Types.ObjectId(userId);
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          channelId: { $in: channelObjectIds },
+          threadParentId: null,
+          deletedForUsers: { $ne: userObjectId },
+        },
+      },
+      { $sort: { createdAt: -1 as const } },
+      {
+        $group: {
+          _id: '$channelId',
+          messageId: { $first: '$_id' },
+        },
+      },
+    ];
+
+    const grouped = await this.messagesRepository.model
+      .aggregate(pipeline)
+      .exec();
+    const latestMessageIds = grouped.map(g => g.messageId);
+
+    if (latestMessageIds.length === 0) return {};
+
+    const messages = await this.messagesRepository.model
+      .find({ _id: { $in: latestMessageIds } })
+      .populate('senderId', 'fullName avatar email')
+      .exec();
+
+    const latestMessagesMap: Record<string, any> = {};
+    for (const msg of messages) {
+      const senderName = (msg.senderId as any)?.fullName || 'User';
+      const channelId = msg.channelId.toString();
+      latestMessagesMap[channelId] = {
+        messageId: msg._id,
+        content: msg.content,
+        senderId: msg.senderId,
+        senderName,
+        sentAt: (msg as any).createdAt || (msg as any).updatedAt || new Date(),
+        type: msg.type,
+        attachments: msg.attachments,
+      };
+    }
+
+    return latestMessagesMap;
   }
 }

@@ -27,6 +27,18 @@ export class ChannelsRepository extends BaseRepository<ChannelDocument> {
     super(channelModel);
   }
 
+  async patchLastMessageId(
+    channelId: Types.ObjectId,
+    messageId: Types.ObjectId,
+  ): Promise<void> {
+    await this.model
+      .updateOne(
+        { _id: channelId },
+        { $set: { 'lastMessage.messageId': messageId } },
+      )
+      .exec();
+  }
+
   async addMembersIfAbsent(
     channelId: string,
     members: ChannelMemberToAdd[],
@@ -34,14 +46,12 @@ export class ChannelsRepository extends BaseRepository<ChannelDocument> {
     if (!Types.ObjectId.isValid(channelId)) {
       return { channel: null, addedUserIds: [] };
     }
-
     const uniqueMembers = Array.from(
       new Map(
         members.map(member => [member.userId.toString(), member]),
       ).values(),
     );
     const addedUserIds: string[] = [];
-
     for (const member of uniqueMembers) {
       const updated = await this.channelModel
         .findOneAndUpdate(
@@ -53,12 +63,10 @@ export class ChannelsRepository extends BaseRepository<ChannelDocument> {
           { new: true },
         )
         .exec();
-
       if (updated) {
         addedUserIds.push(member.userId.toString());
       }
     }
-
     const channel = await this.channelModel.findById(channelId).exec();
     return { channel, addedUserIds };
   }

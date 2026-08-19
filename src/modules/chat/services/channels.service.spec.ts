@@ -110,4 +110,71 @@ describe('ChannelsService', () => {
       ).not.toHaveBeenCalled();
     });
   });
+
+  describe('findByUser', () => {
+    it('should apply per-user lastMessage override if user deleted the shared lastMessage', async () => {
+      const userId = new Types.ObjectId().toString();
+      const channelId = new Types.ObjectId().toString();
+      const sharedMessageId = new Types.ObjectId();
+      const fallbackMessageId = new Types.ObjectId();
+
+      const mockChannels = [
+        {
+          _id: channelId,
+          type: 'general',
+          toObject: function () {
+            return {
+              _id: channelId,
+              type: 'general',
+              lastMessage: {
+                messageId: sharedMessageId,
+                content: 'deleted message',
+              },
+            };
+          },
+        },
+      ];
+
+      // Mock dependencies for findByUser
+      jest
+        .spyOn(service as any, 'ensureGlobalChannels')
+        .mockResolvedValue(undefined);
+      jest.spyOn(service as any, 'buildChannelsQuery').mockReturnValue({});
+      (service as any).workspacesService = {
+        findByUserId: jest.fn().mockResolvedValue([]),
+      };
+      (service as any).usersService = {
+        getUserById: jest.fn().mockResolvedValue({ role: 'user' }),
+      };
+
+      mockChannelsRepository.model.exec = jest
+        .fn()
+        .mockResolvedValue(mockChannels);
+      mockChannelsRepository.model.find = jest.fn().mockReturnThis();
+
+      // Mock getStaleDeletedMessageIds to say the sharedMessageId was deleted by this user
+      (service as any).messagesService = {
+        countUnread: jest.fn().mockResolvedValue(0),
+        getStaleDeletedMessageIds: jest
+          .fn()
+          .mockResolvedValue([sharedMessageId.toString()]),
+        getLatestMessagesForUserBatch: jest.fn().mockResolvedValue({
+          [channelId]: {
+            messageId: fallbackMessageId,
+            content: 'fallback message',
+          },
+        }),
+      };
+
+      const result = await service.findByUser(userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].lastMessage).toBeDefined();
+      expect(result[0].lastMessage.messageId).toEqual(fallbackMessageId);
+      expect(result[0].lastMessage.content).toEqual('fallback message');
+      expect(
+        (service as any).messagesService.getLatestMessagesForUserBatch,
+      ).toHaveBeenCalledWith([channelId], userId);
+    });
+  });
 });
